@@ -1,0 +1,35 @@
+# Virtual env
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+db.sqlite3
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Static & media
+staticfiles/
+media/
+backend/media/
+backend/staticfiles/
+backend/petty_cash/
+backend/reimbursement/
+frontend/dist/
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# VS Code
+.vscode/

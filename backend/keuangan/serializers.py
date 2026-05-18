@@ -1,0 +1,1068 @@
+import re
+
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import (
+    Akun, Transaksi, Jurnal, JurnalItem,
+    Pelanggan, Pemasok,
+    Faktur, FakturItem, PembayaranFaktur,
+    Tagihan, TagihanItem, PembayaranTagihan,
+    RekeningBank, RiwayatSaldoRekening,
+    AuditLog,
+    PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    Kendaraan, LogPerjalanan, LaporanPerjalanan, FotoLaporanPerjalanan, LogBBM, LogMaintenance,
+    ITBackupRecord, ITRepairRequest, ITCredentialNote, ITRemoteAccess, ITSubscription,
+    Announcement, AnnouncementRead
+)
+from .audit import infer_target, make_description, target_display_from_user
+from .audit import get_keuangan_target_display
+
+
+def user_name(user):
+    if not user:
+        return ''
+    return user.get_full_name() or user.username
+
+
+def user_unit_label(user):
+    if not user:
+        return ''
+    if user.unit:
+        return user.unit.nama
+    if getattr(user, 'is_driver', False):
+        return 'Driver'
+    if getattr(user, 'is_it', False):
+        return 'IT'
+    role_labels = {
+        'direktur': 'Direktur',
+        'wakil_direktur': 'Wakil Direktur',
+        'manajer': 'Manajer',
+        'kepala_seksi': 'Kepala Seksi',
+        'karyawan': 'Karyawan Tanpa Unit',
+    }
+    return role_labels.get(user.role, 'Tanpa Unit')
+
+
+def infer_riwayat_saldo_user(obj):
+    ket = obj.keterangan or ''
+
+    match = re.search(r'petty cash\s+([A-Z]+-\d+-\d+)', ket, re.I)
+    if match:
+        pc = PettyCash.objects.select_related('created_by', 'created_by__unit').filter(no_pengajuan=match.group(1)).first()
+        if pc:
+            return pc.created_by
+
+    match = re.search(r'Reimbursement\s+([A-Z]+-\d+-\d+)', ket, re.I)
+    if match:
+        rb = Reimbursement.objects.select_related('created_by', 'created_by__unit').filter(no_reimbursement=match.group(1)).first()
+        if rb:
+            return rb.created_by
+
+    match = re.search(r'pengajuan\s+([A-Z]+-\d+-\d+)', ket, re.I)
+    if match:
+        top_up = PengajuanPenambahanSaldo.objects.select_related('created_by', 'created_by__unit').filter(no_pengajuan=match.group(1)).first()
+        if top_up:
+            return top_up.created_by
+
+    return None
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    user_display = serializers.SerializerMethodField()
+    action_label = serializers.CharField(source='get_action_display', read_only=True)
+    username = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+    entity = serializers.CharField(source='entity_type', read_only=True)
+    description = serializers.SerializerMethodField()
+    path = serializers.SerializerMethodField()
+    method = serializers.SerializerMethodField()
+    status_code = serializers.SerializerMethodField()
+    metadata = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            'id', 'user', 'user_display', 'username', 'role', 'action', 'action_label',
+            'entity', 'entity_type', 'entity_id', 'entity_display', 'description',
+            'path', 'method', 'status_code', 'ip_address', 'user_agent', 'status',
+            'error_message', 'metadata', 'old_values', 'new_values', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_user_display(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return 'System'
+
+    def get_username(self, obj):
+        return obj.user.username if obj.user else ''
+
+    def get_role(self, obj):
+        return obj.user.role if obj.user else ''
+
+    def get_description(self, obj):
+        values = obj.new_values if isinstance(obj.new_values, dict) else {}
+        path = values.get('path', '')
+        method = values.get('method', '')
+        status_code = values.get('status_code')
+        if obj.action == 'login':
+            return obj.description
+        if not path:
+            return obj.description
+
+        app_label, entity, entity_id, extra_action, inferred_action = infer_target(path, method)
+        metadata = dict(values)
+        target = metadata.get('target') if isinstance(metadata.get('target'), dict) else {}
+        if not target:
+            target = {
+                'app_label': app_label,
+                'entity': entity,
+                'entity_id': entity_id,
+                'extra_action': extra_action,
+                'target_display': '',
+            }
+            if entity == 'users' and entity_id:
+                user = get_user_model().objects.filter(pk=entity_id).first()
+                target['target_display'] = target_display_from_user(user)
+                target['target_is_active'] = user.is_active if user else None
+            elif app_label == 'keuangan' and entity_id:
+                target['target_display'] = get_keuangan_target_display(entity, entity_id)
+            metadata['target'] = target
+
+        return make_description(
+            obj.user,
+            obj.action or inferred_action,
+            entity or obj.entity_type,
+            entity_id or obj.entity_id,
+            extra_action,
+            metadata,
+            status_code,
+        )
+
+    def get_path(self, obj):
+        return obj.new_values.get('path', '') if isinstance(obj.new_values, dict) else ''
+
+    def get_method(self, obj):
+        return obj.new_values.get('method', '') if isinstance(obj.new_values, dict) else ''
+
+    def get_status_code(self, obj):
+        return obj.new_values.get('status_code') if isinstance(obj.new_values, dict) else None
+
+    def get_metadata(self, obj):
+        return obj.new_values if isinstance(obj.new_values, dict) else {}
+
+
+# ══════════════════════════════════════════════════════════════
+# AKUN
+# ══════════════════════════════════════════════════════════════
+
+class AkunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Akun
+        fields = '__all__'
+
+
+# ══════════════════════════════════════════════════════════════
+# PELANGGAN & PEMASOK
+# ══════════════════════════════════════════════════════════════
+
+class PelangganSerializer(serializers.ModelSerializer):
+    tipe_label = serializers.CharField(source='get_tipe_display', read_only=True)
+
+    class Meta:
+        model  = Pelanggan
+        fields = '__all__'
+
+
+class PemasokSerializer(serializers.ModelSerializer):
+    tipe_label = serializers.CharField(source='get_tipe_display', read_only=True)
+
+    class Meta:
+        model  = Pemasok
+        fields = '__all__'
+
+
+# ══════════════════════════════════════════════════════════════
+# TRANSAKSI
+# ══════════════════════════════════════════════════════════════
+
+class TransaksiSerializer(serializers.ModelSerializer):
+    akun_detail     = AkunSerializer(source='akun', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model  = Transaksi
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
+
+
+class TransaksiInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Transaksi
+        fields = ['tanggal', 'nomor_referensi', 'keterangan', 'jenis', 'kategori_arus', 'sub_kategori', 'akun', 'jumlah']
+
+
+# ══════════════════════════════════════════════════════════════
+# JURNAL
+# ══════════════════════════════════════════════════════════════
+
+class JurnalItemSerializer(serializers.ModelSerializer):
+    akun_detail = AkunSerializer(source='akun', read_only=True)
+
+    class Meta:
+        model  = JurnalItem
+        fields = '__all__'
+
+
+class JurnalItemInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = JurnalItem
+        fields = ['akun', 'keterangan', 'debit', 'kredit']
+
+
+class JurnalSerializer(serializers.ModelSerializer):
+    items           = JurnalItemSerializer(many=True, read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    total_debit     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    total_kredit    = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    is_balanced     = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model  = Jurnal
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at', 'updated_at']
+
+
+class JurnalInputSerializer(serializers.ModelSerializer):
+    items = JurnalItemInputSerializer(many=True)
+
+    class Meta:
+        model  = Jurnal
+        fields = ['nomor_jurnal', 'tanggal', 'keterangan', 'status', 'items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        jurnal = Jurnal.objects.create(**validated_data)
+        for item in items_data:
+            JurnalItem.objects.create(jurnal=jurnal, **item)
+        return jurnal
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', [])
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if items_data:
+            instance.items.all().delete()
+            for item in items_data:
+                JurnalItem.objects.create(jurnal=instance, **item)
+        return instance
+
+
+# ══════════════════════════════════════════════════════════════
+# FAKTUR
+# ══════════════════════════════════════════════════════════════
+
+class FakturItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = FakturItem
+        fields = '__all__'
+
+
+class FakturItemInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = FakturItem
+        fields = ['deskripsi', 'kuantitas', 'harga_satuan', 'subtotal']
+
+
+class PembayaranFakturSerializer(serializers.ModelSerializer):
+    akun_detail     = AkunSerializer(source='akun', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model  = PembayaranFaktur
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at']
+
+
+class PembayaranFakturInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PembayaranFaktur
+        fields = ['faktur', 'tanggal', 'jumlah', 'metode', 'keterangan', 'akun']
+
+
+class FakturSerializer(serializers.ModelSerializer):
+    items            = FakturItemSerializer(many=True, read_only=True)
+    pembayaran       = PembayaranFakturSerializer(many=True, read_only=True)
+    pelanggan_detail = PelangganSerializer(source='pelanggan', read_only=True)
+    created_by_name  = serializers.CharField(source='created_by.username', read_only=True)
+    sisa_tagihan     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+
+    class Meta:
+        model  = Faktur
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar']
+
+
+class FakturInputSerializer(serializers.ModelSerializer):
+    items = FakturItemInputSerializer(many=True)
+
+    class Meta:
+        model  = Faktur
+        fields = ['nomor_faktur', 'tanggal', 'jatuh_tempo', 'pelanggan', 'keterangan', 'status', 'items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        faktur = Faktur.objects.create(**validated_data)
+        total = 0
+        for item in items_data:
+            subtotal = item['kuantitas'] * item['harga_satuan']
+            item.pop('subtotal', None)
+            FakturItem.objects.create(faktur=faktur, subtotal=subtotal, **item)
+            total += subtotal
+        faktur.total_tagihan = total
+        faktur.save()
+        return faktur
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', [])
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if items_data:
+            instance.items.all().delete()
+            total = 0
+            for item in items_data:
+                subtotal = item['kuantitas'] * item['harga_satuan']
+                item.pop('subtotal', None)
+                FakturItem.objects.create(faktur=instance, subtotal=subtotal, **item)
+                total += subtotal
+            instance.total_tagihan = total
+        instance.save()
+        return instance
+
+
+# ══════════════════════════════════════════════════════════════
+# TAGIHAN
+# ══════════════════════════════════════════════════════════════
+
+class TagihanItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = TagihanItem
+        fields = '__all__'
+
+
+class TagihanItemInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = TagihanItem
+        fields = ['deskripsi', 'kuantitas', 'harga_satuan', 'subtotal']
+
+
+class PembayaranTagihanSerializer(serializers.ModelSerializer):
+    akun_detail     = AkunSerializer(source='akun', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model  = PembayaranTagihan
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at']
+
+
+class PembayaranTagihanInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PembayaranTagihan
+        fields = ['tagihan', 'tanggal', 'jumlah', 'metode', 'keterangan', 'akun']
+
+
+class TagihanSerializer(serializers.ModelSerializer):
+    items           = TagihanItemSerializer(many=True, read_only=True)
+    pembayaran      = PembayaranTagihanSerializer(many=True, read_only=True)
+    pemasok_detail  = PemasokSerializer(source='pemasok', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    sisa_tagihan    = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+
+    class Meta:
+        model  = Tagihan
+        fields = '__all__'
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar']
+
+
+class TagihanInputSerializer(serializers.ModelSerializer):
+    items = TagihanItemInputSerializer(many=True)
+
+    class Meta:
+        model  = Tagihan
+        fields = ['nomor_tagihan', 'nomor_ref_pemasok', 'tanggal', 'jatuh_tempo', 'pemasok', 'keterangan', 'status', 'items']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        tagihan = Tagihan.objects.create(**validated_data)
+        total = 0
+        for item in items_data:
+            subtotal = item['kuantitas'] * item['harga_satuan']
+            item.pop('subtotal', None)
+            TagihanItem.objects.create(tagihan=tagihan, subtotal=subtotal, **item)
+            total += subtotal
+        tagihan.total_tagihan = total
+        tagihan.save()
+        return tagihan
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', [])
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if items_data:
+            instance.items.all().delete()
+            total = 0
+            for item in items_data:
+                subtotal = item['kuantitas'] * item['harga_satuan']
+                item.pop('subtotal', None)
+                TagihanItem.objects.create(tagihan=instance, subtotal=subtotal, **item)
+                total += subtotal
+            instance.total_tagihan = total
+        instance.save()
+        return instance
+
+
+# ══════════════════════════════════════════════════════════════
+# REKENING BANK
+# ══════════════════════════════════════════════════════════════
+
+class RiwayatSaldoRekeningSerializer(serializers.ModelSerializer):
+    updated_by_name = serializers.CharField(source='updated_by.username', read_only=True)
+
+    class Meta:
+        model  = RiwayatSaldoRekening
+        fields = '__all__'
+        read_only_fields = ['updated_by', 'created_at', 'selisih']
+
+
+class RekeningBankSerializer(serializers.ModelSerializer):
+    bank_label        = serializers.CharField(source='get_bank_display', read_only=True)
+    updated_by_name   = serializers.CharField(source='updated_by.username', read_only=True)
+    nama_bank_display = serializers.CharField(read_only=True)
+    riwayat           = RiwayatSaldoRekeningSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = RekeningBank
+        fields = '__all__'
+        read_only_fields = ['updated_by', 'created_at', 'updated_at']
+
+
+class RekeningBankInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = RekeningBank
+        fields = ['nama_rekening', 'bank', 'nama_bank', 'nomor_rekening', 'saldo', 'keterangan', 'is_active']
+
+
+class UpdateSaldoSerializer(serializers.Serializer):
+    saldo_baru = serializers.DecimalField(max_digits=18, decimal_places=2)
+    keterangan = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_saldo_baru(self, value):
+        if value < 0:
+            raise serializers.ValidationError('Saldo tidak boleh negatif.')
+        return value
+
+
+# ══════════════════════════════════════════════════════════════
+# PETTY CASH
+# ══════════════════════════════════════════════════════════════
+
+class LaporanPenggunaanSerializer(serializers.ModelSerializer):
+    dikonfirmasi_oleh_name = serializers.CharField(source='dikonfirmasi_oleh.username', read_only=True)
+    nota_url               = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = LaporanPenggunaan
+        fields = '__all__'
+        read_only_fields = ['petty_cash', 'selisih', 'dikonfirmasi_oleh', 'created_at', 'updated_at']
+
+    def get_nota_url(self, obj):
+        request = self.context.get('request')
+        if obj.nota and request:
+            return request.build_absolute_uri(obj.nota.url)
+        return None
+
+
+class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = LaporanPenggunaan
+        fields = ['tanggal_laporan', 'nominal_digunakan', 'rincian', 'nota']
+
+    def validate_nominal_digunakan(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal digunakan harus lebih dari 0.')
+        return value
+    
+    def validate_nominal(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal harus lebih dari 0.')
+        if value > 999999:
+            raise serializers.ValidationError('Nominal maksimal Rp 999.999. Pengajuan di atas itu langsung ke bagian keuangan.')
+        return value
+
+
+class PettyCashSerializer(serializers.ModelSerializer):
+    created_by_name     = serializers.SerializerMethodField()
+    disetujui_oleh_name = serializers.SerializerMethodField()
+    dicairkan_oleh_name = serializers.SerializerMethodField()
+    status_label        = serializers.CharField(source='get_status_display', read_only=True)
+    berkas_url          = serializers.SerializerMethodField()
+    laporan             = LaporanPenggunaanSerializer(read_only=True)
+
+    class Meta:
+        model  = PettyCash
+        fields = '__all__'
+        read_only_fields = ['no_pengajuan', 'status', 'catatan_tolak', 'created_by', 'disetujui_oleh', 'dicairkan_oleh', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() or obj.created_by.username if obj.created_by else '-'
+
+    def get_disetujui_oleh_name(self, obj):
+        return obj.disetujui_oleh.get_full_name() or obj.disetujui_oleh.username if obj.disetujui_oleh else '-'
+
+    def get_dicairkan_oleh_name(self, obj):
+        return obj.dicairkan_oleh.get_full_name() or obj.dicairkan_oleh.username if obj.dicairkan_oleh else '-'
+
+    def get_berkas_url(self, obj):
+        request = self.context.get('request')
+        if obj.berkas and request:
+            return request.build_absolute_uri(obj.berkas.url)
+        return None
+
+
+class PettyCashInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PettyCash
+        fields = ['tanggal', 'keperluan', 'nominal', 'keterangan', 'berkas']
+
+    def validate_nominal(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal harus lebih dari 0.')
+        return value
+
+
+# ══════════════════════════════════════════════════════════════
+# REIMBURSEMENT
+# ══════════════════════════════════════════════════════════════
+
+class ReimbursementSerializer(serializers.ModelSerializer):
+    created_by_name     = serializers.SerializerMethodField()
+    disetujui_oleh_name = serializers.SerializerMethodField()
+    dicairkan_oleh_name = serializers.SerializerMethodField()
+    status_label        = serializers.CharField(source='get_status_display', read_only=True)
+    berkas_url          = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Reimbursement
+        fields = '__all__'
+        read_only_fields = ['no_reimbursement', 'status', 'catatan_tolak', 'created_by', 'disetujui_oleh', 'dicairkan_oleh', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() or obj.created_by.username if obj.created_by else '-'
+
+    def get_disetujui_oleh_name(self, obj):
+        return obj.disetujui_oleh.get_full_name() or obj.disetujui_oleh.username if obj.disetujui_oleh else '-'
+
+    def get_dicairkan_oleh_name(self, obj):
+        return obj.dicairkan_oleh.get_full_name() or obj.dicairkan_oleh.username if obj.dicairkan_oleh else '-'
+
+    def get_berkas_url(self, obj):
+        request = self.context.get('request')
+        if obj.berkas and request:
+            return request.build_absolute_uri(obj.berkas.url)
+        return None
+
+
+class ReimbursementInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Reimbursement
+        fields = ['tanggal', 'keperluan', 'nominal', 'keterangan', 'berkas']
+
+    def validate_nominal(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal harus lebih dari 0.')
+        if value > 999999:
+            raise serializers.ValidationError('Nominal maksimal Rp 999.999. Pengajuan di atas itu langsung ke bagian keuangan.')
+        return value
+
+    def validate_berkas(self, value):
+        if not value:
+            raise serializers.ValidationError('Berkas bukti wajib dilampirkan.')
+        return value
+
+class SaldoPettyCashSerializer(serializers.ModelSerializer):
+    updated_by_name = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = SaldoPettyCash
+        fields = '__all__'
+ 
+    def get_updated_by_name(self, obj):
+        return obj.updated_by.get_full_name() or obj.updated_by.username if obj.updated_by else '-'
+ 
+ 
+class RiwayatSaldoPettyCashSerializer(serializers.ModelSerializer):
+    nama_pengaju = serializers.SerializerMethodField()
+    unit_pengaju = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    created_by_unit = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = RiwayatSaldoPettyCash
+        fields = '__all__'
+ 
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by) or '-'
+
+    def get_created_by_unit(self, obj):
+        return user_unit_label(obj.created_by)
+
+    def get_nama_pengaju(self, obj):
+        if obj.nama_pengaju:
+            return obj.nama_pengaju
+        return user_name(infer_riwayat_saldo_user(obj))
+
+    def get_unit_pengaju(self, obj):
+        if obj.unit_pengaju:
+            return obj.unit_pengaju
+        return user_unit_label(infer_riwayat_saldo_user(obj))
+ 
+ 
+class PengajuanPenambahanSaldoSerializer(serializers.ModelSerializer):
+    created_by_name   = serializers.SerializerMethodField()
+    created_by_unit   = serializers.SerializerMethodField()
+    diproses_oleh_name = serializers.SerializerMethodField()
+    riwayat_snapshot  = serializers.SerializerMethodField()
+    riwayat_snapshot_start = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = PengajuanPenambahanSaldo
+        fields = '__all__'
+        read_only_fields = [
+            'no_pengajuan', 'status', 'nominal_diajukan',
+            'catatan_tolak', 'created_by', 'diproses_oleh',
+            'created_at', 'updated_at',
+        ]
+ 
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by) or '-'
+
+    def get_created_by_unit(self, obj):
+        return user_unit_label(obj.created_by)
+ 
+    def get_diproses_oleh_name(self, obj):
+        return obj.diproses_oleh.get_full_name() or obj.diproses_oleh.username if obj.diproses_oleh else '-'
+ 
+    def get_riwayat_snapshot(self, obj):
+        # Ambil riwayat pengurangan saldo sejak penambahan saldo terakhir
+        # sebelum pengajuan ini dibuat. Ini yang dibutuhkan direktur saat approval.
+        qs = RiwayatSaldoPettyCash.objects.filter(
+            jenis='pengurangan',
+            created_at__lte=obj.created_at,
+        )
+        penambahan_terakhir = RiwayatSaldoPettyCash.objects.filter(
+            jenis='penambahan',
+            created_at__lt=obj.created_at,
+        ).order_by('-created_at').first()
+        if penambahan_terakhir:
+            qs = qs.filter(created_at__gt=penambahan_terakhir.created_at)
+        riwayat = qs.order_by('-created_at')[:50]
+        return RiwayatSaldoPettyCashSerializer(riwayat, many=True).data
+
+    def get_riwayat_snapshot_start(self, obj):
+        penambahan_terakhir = RiwayatSaldoPettyCash.objects.filter(
+            jenis='penambahan',
+            created_at__lt=obj.created_at,
+        ).order_by('-created_at').first()
+        return penambahan_terakhir.created_at.isoformat() if penambahan_terakhir else None
+ 
+ 
+class PengajuanPenambahanSaldoInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PengajuanPenambahanSaldo
+        fields = ['tanggal', 'alasan']
+ 
+# DRIVER
+
+class KendaraanSerializer(serializers.ModelSerializer):
+    jenis_label = serializers.CharField(source='get_jenis_display', read_only=True)
+ 
+    class Meta:
+        model  = Kendaraan
+        fields = '__all__'
+ 
+ 
+class LogPerjalananSerializer(serializers.ModelSerializer):
+    driver_name   = serializers.CharField(source='driver.get_full_name', read_only=True)
+    driver_username = serializers.CharField(source='driver.username', read_only=True)
+    disetujui_oleh_name = serializers.CharField(source='disetujui_oleh.get_full_name', read_only=True, allow_null=True)
+    kendaraan_info  = serializers.SerializerMethodField()
+    laporan = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = LogPerjalanan
+        fields = '__all__'
+        read_only_fields = ['driver', 'jarak_km', 'status', 'disetujui_oleh', 'catatan_tolak', 'created_at', 'updated_at']
+ 
+    def get_kendaraan_info(self, obj):
+        return f"{obj.kendaraan.plat_nomor} - {obj.kendaraan.nama}"
+    
+    def get_laporan(self, obj):
+        if hasattr(obj, 'laporan'):
+            return LaporanPerjalananSerializer(obj.laporan, context=self.context).data
+        return None
+ 
+ 
+class LogPerjalananInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = LogPerjalanan
+        fields = ['kendaraan', 'tanggal', 'jam_berangkat', 'jam_kembali',
+                  'tujuan', 'km_awal', 'km_akhir', 'penumpang', 'keterangan']
+
+    def validate(self, attrs):
+        km_awal = attrs.get('km_awal', getattr(self.instance, 'km_awal', None))
+        km_akhir = attrs.get('km_akhir', getattr(self.instance, 'km_akhir', None))
+        if km_awal is not None and km_akhir is not None and km_akhir < km_awal:
+            raise serializers.ValidationError({'km_akhir': 'KM akhir tidak boleh lebih kecil dari KM awal.'})
+        return attrs
+
+
+class FotoLaporanPerjalananSerializer(serializers.ModelSerializer):
+    foto_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FotoLaporanPerjalanan
+        fields = ['id', 'foto', 'foto_url', 'urutan', 'keterangan', 'created_at']
+        read_only_fields = ['id', 'created_at']
+    
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.foto.url) if request else obj.foto.url
+        return None
+
+
+class LaporanPerjalananSerializer(serializers.ModelSerializer):
+    foto = FotoLaporanPerjalananSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = LaporanPerjalanan
+        fields = ['id', 'log_perjalanan', 'tanggal_laporan', 'deskripsi', 'tujuan_tercapai', 'keterangan', 'foto', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'log_perjalanan', 'created_at', 'updated_at']
+
+
+class LaporanPerjalananInputSerializer(serializers.ModelSerializer):
+    foto_files = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True,
+        required=False
+    )
+    # Handle tujuan_tercapai yang di-FormData bisa jadi string "true"/"false"
+    tujuan_tercapai = serializers.BooleanField(required=True)
+    
+    class Meta:
+        model = LaporanPerjalanan
+        fields = ['tanggal_laporan', 'deskripsi', 'tujuan_tercapai', 'keterangan', 'foto_files']
+    
+    def validate_tujuan_tercapai(self, value):
+        # Handle string values from FormData
+        if isinstance(value, str):
+            if value.lower() in ('true', '1', 'yes', 'on'):
+                return True
+            elif value.lower() in ('false', '0', 'no', 'off'):
+                return False
+            else:
+                raise serializers.ValidationError('Nilai harus true atau false.')
+        return value
+    
+    def validate_foto_files(self, value):
+        if not value:
+            raise serializers.ValidationError('Minimal harus ada 1 foto laporan.')
+        if len(value) > 10:
+            raise serializers.ValidationError('Maksimal 10 foto saja.')
+        return value
+    
+    
+    def create(self, validated_data):
+        foto_files = validated_data.pop('foto_files', [])
+        
+        if not foto_files:
+            raise serializers.ValidationError({'foto_files': 'Minimal harus ada 1 foto laporan.'})
+        
+        laporan = LaporanPerjalanan.objects.create(**validated_data)
+        
+        for idx, foto_file in enumerate(foto_files, 1):
+            FotoLaporanPerjalanan.objects.create(
+                laporan=laporan,
+                foto=foto_file,
+                urutan=idx
+            )
+        
+        return laporan
+ 
+ 
+class LogBBMSerializer(serializers.ModelSerializer):
+    driver_name    = serializers.CharField(source='driver.get_full_name', read_only=True)
+    driver_username = serializers.CharField(source='driver.username', read_only=True)
+    kendaraan_info  = serializers.SerializerMethodField()
+    foto_url        = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = LogBBM
+        fields = '__all__'
+        read_only_fields = ['driver', 'created_at']
+ 
+    def get_kendaraan_info(self, obj):
+        return f"{obj.kendaraan.plat_nomor} - {obj.kendaraan.nama}"
+ 
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.foto.url) if request else obj.foto.url
+        return None
+ 
+ 
+class LogBBMInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = LogBBM
+        fields = ['kendaraan', 'tanggal', 'total_biaya', 'km_saat_isi', 'keterangan', 'foto']
+    
+    def update(self, instance, validated_data):
+        """Delete old foto file before updating with new one"""
+        from django.core.files.storage import default_storage
+        
+        # Check if foto was explicitly updated (including deletion)
+        # If 'foto' is in validated_data, it means user is trying to update it
+        if 'foto' in validated_data:
+            # If old foto exists, delete it regardless of new value
+            if instance.foto:
+                try:
+                    if default_storage.exists(instance.foto.name):
+                        default_storage.delete(instance.foto.name)
+                except Exception as e:
+                    print(f"Error deleting old LogBBM foto: {str(e)}")
+        
+        return super().update(instance, validated_data)
+ 
+ 
+class LogMaintenanceSerializer(serializers.ModelSerializer):
+    dilaporkan_oleh_name = serializers.CharField(source='dilaporkan_oleh.get_full_name', read_only=True)
+    kendaraan_info       = serializers.SerializerMethodField()
+    jenis_label          = serializers.CharField(source='get_jenis_display', read_only=True)
+    foto_url             = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = LogMaintenance
+        fields = '__all__'
+        read_only_fields = ['dilaporkan_oleh', 'created_at']
+
+    def get_kendaraan_info(self, obj):
+        return f"{obj.kendaraan.plat_nomor} - {obj.kendaraan.nama}"
+
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.foto.url) if request else obj.foto.url
+        return None
+ 
+ 
+class LogMaintenanceInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = LogMaintenance
+        fields = ['kendaraan', 'jenis', 'tanggal', 'biaya', 'deskripsi', 'foto']
+    
+    def update(self, instance, validated_data):
+        """Delete old foto file before updating with new one"""
+        from django.core.files.storage import default_storage
+        
+        # Check if foto was explicitly updated (including deletion)
+        # If 'foto' is in validated_data, it means user is trying to update it
+        if 'foto' in validated_data:
+            # If old foto exists, delete it regardless of new value
+            if instance.foto:
+                try:
+                    if default_storage.exists(instance.foto.name):
+                        default_storage.delete(instance.foto.name)
+                except Exception as e:
+                    print(f"Error deleting old LogMaintenance foto: {str(e)}")
+        
+        return super().update(instance, validated_data)
+
+
+class ITBackupRecordSerializer(serializers.ModelSerializer):
+    backup_type_label = serializers.CharField(source='get_backup_type_display', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ITBackupRecord
+        fields = [
+            'id', 'backup_type', 'backup_type_label', 'status', 'status_label',
+            'file_name', 'storage_path', 'file_size_mb', 'started_at', 'finished_at',
+            'notes', 'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+
+class ITRepairRequestSerializer(serializers.ModelSerializer):
+    category_label = serializers.CharField(source='get_category_display', read_only=True)
+    priority_label = serializers.CharField(source='get_priority_display', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    requester_user_name = serializers.SerializerMethodField()
+    requester_user_unit = serializers.SerializerMethodField()
+    foto_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ITRepairRequest
+        fields = [
+            'id', 'title', 'requester_user', 'requester_user_name', 'requester_user_unit',
+            'requester_name', 'unit', 'category',
+            'category_label', 'priority', 'priority_label', 'status', 'status_label',
+            'description', 'resolution', 'sparepart', 'cost', 'foto', 'foto_url',
+            'requested_at', 'completed_at',
+            'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'created_by', 'created_by_name', 'requester_user_name',
+            'requester_user_unit', 'foto_url', 'created_at', 'updated_at',
+        ]
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+    def get_requester_user_name(self, obj):
+        return user_name(obj.requester_user)
+
+    def get_requester_user_unit(self, obj):
+        return user_unit_label(obj.requester_user)
+
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.foto.url) if request else obj.foto.url
+        return None
+
+    def validate(self, attrs):
+        requester = attrs.get('requester_user') or getattr(self.instance, 'requester_user', None)
+        if requester:
+            attrs['requester_name'] = user_name(requester)
+            attrs['unit'] = user_unit_label(requester)
+        return attrs
+
+
+class ITCredentialNoteSerializer(serializers.ModelSerializer):
+    category_label = serializers.CharField(source='get_category_display', read_only=True)
+    has_password = serializers.SerializerMethodField()
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ITCredentialNote
+        fields = [
+            'id', 'name', 'category', 'category_label', 'url', 'username',
+            'password', 'has_password', 'owner', 'notes', 'is_active',
+            'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'has_password', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+
+    def get_has_password(self, obj):
+        return bool(obj.password)
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+
+class ITCredentialNoteDetailSerializer(ITCredentialNoteSerializer):
+    password_value = serializers.CharField(source='password', read_only=True)
+
+    class Meta(ITCredentialNoteSerializer.Meta):
+        fields = ITCredentialNoteSerializer.Meta.fields + ['password_value']
+
+
+class ITRemoteAccessSerializer(serializers.ModelSerializer):
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    has_access_password = serializers.SerializerMethodField()
+    access_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ITRemoteAccess
+        fields = [
+            'id', 'device_name', 'user_owner', 'unit', 'location',
+            'anydesk_id', 'rustdesk_id', 'access_password', 'has_access_password',
+            'status', 'status_label', 'notes', 'created_by', 'created_by_name',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'has_access_password', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+
+    def get_has_access_password(self, obj):
+        return bool(obj.access_password)
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+
+class ITRemoteAccessDetailSerializer(ITRemoteAccessSerializer):
+    access_password_value = serializers.CharField(source='access_password', read_only=True)
+
+    class Meta(ITRemoteAccessSerializer.Meta):
+        fields = ITRemoteAccessSerializer.Meta.fields + ['access_password_value']
+
+
+class ITSubscriptionSerializer(serializers.ModelSerializer):
+    service_type_label = serializers.CharField(source='get_service_type_display', read_only=True)
+    billing_cycle_label = serializers.CharField(source='get_billing_cycle_display', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    days_left = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ITSubscription
+        fields = [
+            'id', 'name', 'service_type', 'service_type_label', 'vendor',
+            'account_ref', 'url', 'pic', 'start_date', 'end_date',
+            'billing_cycle', 'billing_cycle_label', 'cost',
+            'status', 'status_label', 'reminder_days', 'days_left',
+            'notes', 'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'days_left', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+    def get_days_left(self, obj):
+        if not obj.end_date:
+            return None
+        from django.utils import timezone
+        return (obj.end_date - timezone.localdate()).days
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    priority_label = serializers.CharField(source='get_priority_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    is_read = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'message', 'audience', 'priority', 'priority_label',
+            'is_active', 'publish_at', 'expires_at',
+            'created_by', 'created_by_name', 'created_at', 'updated_at',
+            'is_read',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at', 'updated_at', 'is_read']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+    def get_is_read(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+        return AnnouncementRead.objects.filter(announcement=obj, user=user).exists()

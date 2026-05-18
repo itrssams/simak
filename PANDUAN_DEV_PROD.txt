@@ -1,0 +1,341 @@
+PANDUAN DEVELOPMENT DAN PRODUCTION
+APLIKASI SIMAK
+
+============================================================
+1. KONSEP PEMISAHAN DEVELOPMENT DAN PRODUCTION
+============================================================
+
+Aplikasi ini sekarang dibagi menjadi 2 mode:
+
+1. DEVELOPMENT
+   Dipakai untuk ngoding, testing, dan coba fitur baru.
+   Mode ini aman untuk eksperimen karena memakai konfigurasi development.
+
+2. PRODUCTION
+   Dipakai untuk aplikasi yang benar-benar berjalan dan diakses user.
+   Mode ini hanya sebaiknya diubah kalau kode sudah siap dipakai.
+
+File konfigurasi utama:
+
+- backend/.env.development
+  Konfigurasi backend untuk development.
+
+- backend/.env.production
+  Konfigurasi backend untuk production.
+
+- frontend/.env.development
+  Konfigurasi frontend untuk development.
+
+- frontend/.env.production
+  Konfigurasi frontend untuk production.
+
+Catatan:
+File .env berisi data sensitif dan tidak untuk dibagikan sembarangan.
+Template kosongnya ada di file .env.example.
+
+File untuk menyalakan aplikasi:
+
+- RUN_APP.bat
+  Bisa dibuka langsung, lalu pilih mau menjalankan Development atau Production.
+
+- run-app.ps1
+  Runner PowerShell utama. Bisa dipakai langsung dengan parameter kalau ingin
+  menjalankan mode tertentu tanpa menu pilihan.
+
+
+============================================================
+2. DATABASE DEVELOPMENT DAN PRODUCTION
+============================================================
+
+Default saat ini:
+
+- Development memakai database:
+  simak_dev
+
+- Production memakai database:
+  simak
+
+Tujuannya supaya saat development tidak mengganggu data production.
+
+Kalau database simak_dev belum ada, buat dulu di MySQL/MariaDB.
+Kalau ingin data development mirip production, export database production lalu import ke simak_dev.
+
+Jangan memakai database production untuk coba-coba fitur baru.
+
+
+============================================================
+3. CARA MENYALAKAN APLIKASI MODE DEVELOPMENT
+============================================================
+
+Buka PowerShell di folder project:
+
+f:\Fasa\Ngoding\simak
+
+Cara paling mudah:
+
+Double-click file:
+
+RUN_APP.bat
+
+Lalu pilih:
+
+1. Development
+
+Atau jalankan langsung lewat command:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development
+
+Kalau pertama kali menjalankan atau setelah update dependency:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development -InstallDeps
+
+Saat development berjalan, aplikasi bisa dibuka lewat:
+
+- Frontend lokal:
+  http://localhost:5173
+
+- Frontend dari jaringan lokal:
+  http://192.168.44.15:5173
+
+- Backend API:
+  http://localhost:8000/api
+
+Kalau muncul error seperti:
+
+GET https://localhost:8000/api/... ERR_SSL_PROTOCOL_ERROR
+
+Artinya browser atau proses lama masih memakai setting HTTPS production.
+Solusinya:
+
+1. Tutup window PowerShell backend dan frontend yang sedang berjalan.
+2. Jalankan ulang development dengan command:
+
+   powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development
+
+3. Buka browser lewat http, bukan https:
+
+   http://localhost:5173
+
+4. Kalau masih sama, lakukan hard refresh browser:
+
+   Ctrl + Shift + R
+
+5. Kalau browser pernah menyimpan redirect HTTPS localhost, bersihkan cache site
+   untuk localhost dan 192.168.44.15.
+
+Catatan:
+IP 192.168.44.15 bisa berubah kalau IP komputer berubah.
+Kalau IP berubah, sesuaikan PUBLIC_DOMAIN, PUBLIC_BASE_URL, ALLOWED_HOSTS,
+CORS_ALLOWED_ORIGINS, dan CSRF_TRUSTED_ORIGINS di backend/.env.development.
+
+
+============================================================
+4. CARA MENYALAKAN APLIKASI MODE PRODUCTION
+============================================================
+
+Production digunakan untuk domain:
+
+https://simak.rssiaga.id
+
+Pastikan file ini sudah benar:
+
+backend/.env.production
+
+Minimal pastikan isinya sesuai:
+
+- DEBUG=False
+- PUBLIC_DOMAIN=simak.rssiaga.id
+- PUBLIC_SCHEME=https
+- PUBLIC_BASE_URL=https://simak.rssiaga.id
+- ALLOWED_HOSTS berisi simak.rssiaga.id
+- CORS_ALLOWED_ORIGINS berisi https://simak.rssiaga.id
+- CSRF_TRUSTED_ORIGINS berisi https://simak.rssiaga.id
+- SECURE_SSL_REDIRECT=False jika SSL/HTTPS sudah di-handle Nginx Proxy Manager
+- DB_NAME mengarah ke database production
+
+Untuk menyalakan production:
+
+Cara paling mudah:
+
+Double-click file:
+
+RUN_APP.bat
+
+Lalu pilih:
+
+2. Production
+
+Atau jalankan langsung lewat command:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600
+
+Kalau pertama kali di server production atau setelah update dependency:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600 -InstallDeps
+
+Yang dilakukan script production:
+
+1. Build frontend React.
+2. Cek konfigurasi deploy Django.
+3. Jalankan migrasi database.
+4. Kumpulkan static files.
+5. Menyalakan backend production menggunakan Waitress di port 8600.
+
+Setelah script production menyala, reverse proxy seperti Nginx/IIS/Apache
+harus diarahkan ke:
+
+http://127.0.0.1:8600
+
+Domain publik tetap:
+
+https://simak.rssiaga.id
+
+Reverse proxy wajib mengirim header:
+
+X-Forwarded-Proto: https
+
+Ini penting supaya Django tahu request user sebenarnya lewat HTTPS.
+
+Kalau memakai Nginx Proxy Manager dan muncul error:
+
+simak.rssiaga.id redirected you too many times
+ERR_TOO_MANY_REDIRECTS
+
+Pastikan:
+
+1. Di Nginx Proxy Manager, SSL -> Force SSL aktif.
+2. Di backend/.env.production:
+
+   SECURE_SSL_REDIRECT=False
+
+3. Restart aplikasi production setelah mengubah file env.
+
+Redirect HTTPS cukup dilakukan oleh Nginx Proxy Manager.
+Django tetap memakai cookie secure, tapi tidak ikut melakukan redirect HTTPS
+agar tidak terjadi loop di belakang reverse proxy.
+
+
+============================================================
+5. FOTO UPLOAD DAN MEDIA FILE DI PRODUCTION
+============================================================
+
+File upload user disimpan di:
+
+backend/media
+
+Di production, URL media harus tetap bisa diakses lewat domain:
+
+https://simak.rssiaga.id/media/...
+
+Kalau memakai reverse proxy, pastikan path /media diarahkan ke folder:
+
+f:\Fasa\Ngoding\simak\backend\media
+
+Kalau /media tidak diatur dengan benar, user dari luar jaringan bisa login
+tetapi foto upload mungkin tidak tampil.
+
+Untuk static files hasil build/admin Django, foldernya:
+
+f:\Fasa\Ngoding\simak\backend\staticfiles
+
+Path /static juga sebaiknya diarahkan ke folder staticfiles oleh reverse proxy.
+
+
+============================================================
+6. ALUR KERJA YANG DISARANKAN
+============================================================
+
+Alur aman:
+
+1. Ngoding dan testing di mode development.
+2. Pastikan fitur aman dan tidak error.
+3. Jalankan lint/build kalau ada perubahan frontend.
+4. Backup database production sebelum deploy besar.
+5. Update kode di server production hanya saat sudah siap.
+6. Jalankan mode production.
+7. Tes login, dashboard, petty cash, reimbursement, laporan, upload foto,
+   dan akses file media dari domain simak.rssiaga.id.
+
+Jangan menjalankan mode development untuk aplikasi yang dipakai user umum.
+
+
+============================================================
+7. COMMAND PENTING
+============================================================
+
+Menyalakan development:
+
+RUN_APP.bat
+
+atau
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development
+
+Menyalakan development sekaligus install dependency:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development -InstallDeps
+
+Menyalakan production:
+
+RUN_APP.bat
+
+atau
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600
+
+Menyalakan production sekaligus install dependency:
+
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600 -InstallDeps
+
+Cek backend development:
+
+$env:DJANGO_ENV='development'
+$env:ENV_FILE='backend/.env.development'
+.\.venv\Scripts\python.exe backend\manage.py check
+
+Cek backend production:
+
+$env:DJANGO_ENV='production'
+$env:ENV_FILE='backend/.env.production'
+.\.venv\Scripts\python.exe backend\manage.py check --deploy
+
+Build frontend:
+
+cd frontend
+npm run build
+
+
+============================================================
+8. CATATAN KEAMANAN
+============================================================
+
+Untuk production:
+
+- Jangan pakai DEBUG=True.
+- SECRET_KEY production jangan dibagikan.
+- Database production jangan dipakai untuk testing development.
+- Pastikan domain memakai HTTPS.
+- Pastikan backup database rutin.
+- Pastikan folder media bisa dibaca lewat domain, tapi jangan izinkan upload
+  file berbahaya di luar validasi aplikasi.
+- Jangan commit file .env production ke repository publik.
+
+
+============================================================
+9. RINGKASAN
+============================================================
+
+Development:
+
+- Untuk ngoding.
+- Pakai backend/.env.development.
+- Pakai database simak_dev.
+- Biasa dibuka lewat localhost:5173 atau IP LAN.
+
+Production:
+
+- Untuk user asli.
+- Pakai backend/.env.production.
+- Pakai database simak.
+- Diakses lewat https://simak.rssiaga.id.
+- Dinyalakan dengan run-app.ps1 mode production.
