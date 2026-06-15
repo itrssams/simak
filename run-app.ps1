@@ -1,119 +1,314 @@
-param(
-    [ValidateSet('', 'development', 'production')]
-    [string]$Mode = '',
+$ErrorActionPreference = "Stop"
 
-    [int]$BackendPort = 8000,
-    [int]$FrontendPort = 5173,
-    [int]$ProductionPort = 8900,
-
-    [switch]$InstallDeps
-)
-
-$ErrorActionPreference = 'Stop'
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BackendDir = Join-Path $Root 'backend'
-$FrontendDir = Join-Path $Root 'frontend'
-$Python = Join-Path $Root '.venv\Scripts\python.exe'
-$Pip = Join-Path $Root '.venv\Scripts\pip.exe'
-$BackendEnv = Join-Path $BackendDir ".env.$Mode"
-
-if ([string]::IsNullOrWhiteSpace($Mode)) {
+function Show-Header {
+    Clear-Host
     Write-Host ""
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "  SIMAK" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "Pilih mode yang mau dijalankan:"
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "              SIMAK SERVER" -ForegroundColor Cyan
+    Write-Host "==========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "1. Development" -ForegroundColor Green
-    Write-Host "2. Production" -ForegroundColor Yellow
+}
+
+function Test-Port {
+    param([int]$Port)
+    try {
+        return $null -ne (Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue)
+    } catch {
+        return $false
+    }
+}
+
+function Get-PortPID {
+    param([int]$Port)
+    try {
+        $conn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        if ($conn) {
+            return ($conn | Select-Object -First 1).OwningProcess
+        }
+        return $null
+    } catch {
+        return $null
+    }
+}
+
+function Stop-PortProcess {
+    param([int]$Port)
+    $processId = Get-PortPID $Port
+    if ($processId) {
+        try {
+            Stop-Process -Id $processId -Force
+            Start-Sleep -Seconds 2
+        } catch {
+            Write-Host "Gagal menghentikan PID $processId" -ForegroundColor Red
+        }
+    }
+}
+
+function Get-VenvPython {
+    $python = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+    if (!(Test-Path $python)) {
+        Write-Host ""
+        Write-Host "Virtual Environment tidak ditemukan!" -ForegroundColor Red
+        Write-Host $python
+        Pause
+        return $null
+    }
+    return $python
+}
+
+function Activate-Venv {
+    $venv = Join-Path $PSScriptRoot ".venv\Scripts\Activate.ps1"
+    if (!(Test-Path $venv)) {
+        Write-Host ""
+        Write-Host "Virtual Environment tidak ditemukan!" -ForegroundColor Red
+        Write-Host $venv
+        Pause
+        exit
+    }
+    & $venv
+}
+
+function Select-Database {
+    Write-Host ""
+    Write-Host "Pilih Target Database:" -ForegroundColor Cyan
+    Write-Host "[1] simak_dev (Development)"
+    Write-Host "[2] simak     (Production)"
+    Write-Host "[0] Batal"
+    Write-Host ""
+    $pilihan = Read-Host "Pilih"
+
+    switch ($pilihan) {
+        "1" { return @{ db = "simak_dev"; env = "development" } }
+        "2" { return @{ db = "simak";     env = "production"  } }
+        "0" { return $null }
+        default {
+            Write-Host "Pilihan tidak valid." -ForegroundColor Red
+            Start-Sleep -Seconds 2
+            return $null
+        }
+    }
+}
+
+function Start-Development {
+    Show-Header
+
+    if (Test-Port 8000 -or Test-Port 5173) {
+        Write-Host "Development sudah berjalan." -ForegroundColor Yellow
+        Write-Host ""
+        $jawab = Read-Host "Restart Development? (Y/N)"
+        if ($jawab -ieq "Y") {
+            Stop-PortProcess 8000
+            Stop-PortProcess 5173
+        } else {
+            return
+        }
+    }
+
+    Write-Host ""
+    Write-Host "Menjalankan Backend..." -ForegroundColor Green
+    Start-Process powershell `
+        -ArgumentList "-NoExit","-Command","cd '$PSScriptRoot\backend'; & '$PSScriptRoot\.venv\Scripts\python.exe' manage.py runserver 0.0.0.0:8000"
+
+    Start-Sleep -Seconds 3
+
+    Write-Host "Menjalankan Frontend..." -ForegroundColor Green
+    Start-Process powershell `
+        -ArgumentList "-NoExit","-Command","cd '$PSScriptRoot\frontend'; npm run dev -- --host 0.0.0.0 --port 5173"
+
+    Write-Host ""
+    Write-Host "Backend  : http://localhost:8000" -ForegroundColor Green
+    Write-Host "Frontend : http://localhost:5173" -ForegroundColor Green
+
+    Pause
+}
+
+function Start-Production {
+    Show-Header
+
+    if (Test-Port 8900) {
+        Write-Host "Production sudah berjalan." -ForegroundColor Yellow
+        $jawab = Read-Host "Restart Production? (Y/N)"
+        if ($jawab -ieq "Y") {
+            Stop-PortProcess 8900
+        } else {
+            Pause
+            return
+        }
+    }
+
+    Activate-Venv
+
+    Set-Location "$PSScriptRoot\backend"
+
+    Write-Host ""
+    Write-Host "Menjalankan Waitress..." -ForegroundColor Green
     Write-Host ""
 
-    do {
-        $choice = Read-Host "Ketik 1 atau 2"
-    } until ($choice -in @('1', '2'))
+    python -m waitress --listen=0.0.0.0:8900 config.wsgi:application
+}
 
-    if ($choice -eq '1') {
-        $Mode = 'development'
+function Stop-Development {
+    Show-Header
+    Stop-PortProcess 8000
+    Stop-PortProcess 5173
+    Write-Host ""
+    Write-Host "Development berhasil dihentikan." -ForegroundColor Green
+    Pause
+}
+
+function Stop-Production {
+    Show-Header
+    Stop-PortProcess 8900
+    Write-Host ""
+    Write-Host "Production berhasil dihentikan." -ForegroundColor Green
+    Pause
+}
+
+function Restart-Development {
+    Stop-PortProcess 8000
+    Stop-PortProcess 5173
+    Start-Sleep -Seconds 2
+    Start-Development
+}
+
+function Restart-Production {
+    Stop-PortProcess 8900
+    Start-Sleep -Seconds 2
+    Start-Production
+}
+
+function Run-Migrate {
+    Show-Header
+    Write-Host "  MIGRASI DATABASE DJANGO" -ForegroundColor Cyan
+    Write-Host ""
+
+    $selected = Select-Database
+    if (!$selected) { return }
+
+    $python = Get-VenvPython
+    if (!$python) { return }
+
+    if ($selected.db -eq "simak") {
+        Write-Host ""
+        Write-Host "  PERINGATAN: Migrasi ke database PRODUCTION!" -ForegroundColor Red
+        Write-Host ""
+        $konfirmasi = Read-Host "Ketik Y untuk lanjut"
+        if ($konfirmasi -ine "Y") { return }
+    }
+
+    Write-Host ""
+    Write-Host "Menjalankan migrate ke $($selected.db)..." -ForegroundColor Yellow
+    Write-Host ""
+
+    $env:DJANGO_ENV = $selected.env
+    & $python "$PSScriptRoot\backend\manage.py" migrate
+
+    Write-Host ""
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Migrate ke $($selected.db) berhasil." -ForegroundColor Green
     } else {
-        $Mode = 'production'
+        Write-Host "Migrate gagal. Cek output di atas." -ForegroundColor Red
     }
 
-    $BackendEnv = Join-Path $BackendDir ".env.$Mode"
+    Pause
 }
 
-function Assert-File($Path, $Message) {
-    if (-not (Test-Path $Path)) {
-        throw $Message
+function Run-Build {
+    Show-Header
+    Write-Host "  BUILD FRONTEND" -ForegroundColor Cyan
+    Write-Host ""
+
+    $frontendPath = "$PSScriptRoot\frontend"
+    if (!(Test-Path $frontendPath)) {
+        Write-Host "Folder frontend tidak ditemukan!" -ForegroundColor Red
+        Pause
+        return
     }
-}
 
-Assert-File $Python "Virtualenv tidak ditemukan. Buat dulu dengan: python -m venv .venv"
-Assert-File $BackendEnv "File env backend tidak ditemukan: $BackendEnv"
+    Set-Location $frontendPath
 
-if ($InstallDeps) {
-    Write-Host "[deps] Install Python dependencies..." -ForegroundColor Cyan
-    & $Pip install -r (Join-Path $Root 'requirements.txt')
-
-    Write-Host "[deps] Install frontend dependencies..." -ForegroundColor Cyan
-    Push-Location $FrontendDir
+    Write-Host "Install dependencies..." -ForegroundColor Yellow
     npm install
-    Pop-Location
+
+    Write-Host ""
+    Write-Host "Build frontend..." -ForegroundColor Yellow
+    npm run build
+
+    Set-Location $PSScriptRoot
+
+    Write-Host ""
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Build frontend berhasil." -ForegroundColor Green
+    } else {
+        Write-Host "Build gagal. Cek output di atas." -ForegroundColor Red
+    }
+
+    Pause
 }
 
-if ($Mode -eq 'development') {
-    Write-Host ""
-    Write-Host "Menjalankan mode DEVELOPMENT" -ForegroundColor Green
-    Write-Host "Backend env : $BackendEnv"
-    Write-Host "Frontend    : http://localhost:$FrontendPort atau http://192.168.44.15:$FrontendPort"
-    Write-Host "Backend API : http://localhost:$BackendPort/api"
+function Run-CollectStatic {
+    Show-Header
+    Write-Host "  COLLECT STATIC" -ForegroundColor Cyan
     Write-Host ""
 
-    $backendCommand = @"
-`$env:DJANGO_ENV='development'
-`$env:ENV_FILE='$BackendEnv'
-Set-Location '$BackendDir'
-& '$Python' manage.py runserver 0.0.0.0:$BackendPort
-"@
+    $python = Get-VenvPython
+    if (!$python) { return }
 
-    $frontendCommand = @"
-Set-Location '$FrontendDir'
-`$env:VITE_API_URL='/api'
-npm run dev -- --host 0.0.0.0 --port $FrontendPort
-"@
+    Write-Host "Menjalankan collectstatic..." -ForegroundColor Yellow
+    Write-Host ""
 
-    Start-Process powershell -ArgumentList '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $backendCommand
-    Start-Process powershell -ArgumentList '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', $frontendCommand
+    & $python "$PSScriptRoot\backend\manage.py" collectstatic --noinput
 
-    Write-Host "Dua window PowerShell sudah dibuka untuk backend dan frontend." -ForegroundColor Green
-    return
+    Write-Host ""
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Collectstatic berhasil." -ForegroundColor Green
+    } else {
+        Write-Host "Collectstatic gagal. Cek output di atas." -ForegroundColor Red
+    }
+
+    Pause
 }
 
-Write-Host ""
-Write-Host "Menjalankan mode PRODUCTION" -ForegroundColor Green
-Write-Host "Backend env : $BackendEnv"
-Write-Host "Domain      : https://simak.rssiaga.id"
-Write-Host ""
+# ==========================
+# MAIN MENU
+# ==========================
 
-$env:DJANGO_ENV = 'production'
-$env:ENV_FILE = $BackendEnv
+while ($true) {
+    Show-Header
 
-Write-Host "[1/5] Build frontend..." -ForegroundColor Cyan
-Push-Location $FrontendDir
-npm run build
-Pop-Location
+    Write-Host "--- Server ---" -ForegroundColor DarkGray
+    Write-Host "[1] Jalankan Development"
+    Write-Host "[2] Jalankan Production"
+    Write-Host "[3] Stop Development"
+    Write-Host "[4] Stop Production"
+    Write-Host "[5] Restart Development"
+    Write-Host "[6] Restart Production"
+    Write-Host ""
+    Write-Host "--- Django ---" -ForegroundColor DarkGray
+    Write-Host "[7] Migrate Database"
+    Write-Host "[8] Build Frontend"
+    Write-Host "[9] Collect Static"
+    Write-Host ""
+    Write-Host "[0] Keluar"
+    Write-Host ""
 
-Write-Host "[2/5] Check Django..." -ForegroundColor Cyan
-Push-Location $BackendDir
-& $Python manage.py check --deploy
+    $choice = Read-Host "Pilih Menu"
 
-Write-Host "[3/5] Migrasi database..." -ForegroundColor Cyan
-& $Python manage.py migrate
-
-Write-Host "[4/5] Collect static..." -ForegroundColor Cyan
-& $Python manage.py collectstatic --noinput
-
-Write-Host "[5/5] Start server..." -ForegroundColor Cyan
-Write-Host "Aplikasi listen di http://0.0.0.0:$ProductionPort" -ForegroundColor Green
-Write-Host "Pastikan reverse proxy mengarah ke port ini dan mengirim X-Forwarded-Proto=https." -ForegroundColor Yellow
-& $Python -m waitress --listen=0.0.0.0:$ProductionPort config.wsgi:application
-Pop-Location
+    switch ($choice) {
+        "1" { Start-Development }
+        "2" { Start-Production }
+        "3" { Stop-Development }
+        "4" { Stop-Production }
+        "5" { Restart-Development }
+        "6" { Restart-Production }
+        "7" { Run-Migrate }
+        "8" { Run-Build }
+        "9" { Run-CollectStatic }
+        "0" { exit }
+        default {
+            Write-Host ""
+            Write-Host "Pilihan tidak valid." -ForegroundColor Red
+            Start-Sleep -Seconds 2
+        }
+    }
+}
