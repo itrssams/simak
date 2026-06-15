@@ -28,6 +28,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='karyawan')
     is_driver = models.BooleanField(default=False)
     is_it = models.BooleanField(default=False)
+    is_keuangan = models.BooleanField(default=False)
+    is_petty_cash_cashier = models.BooleanField(default=False)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
 
     def __str__(self):

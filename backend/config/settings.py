@@ -174,6 +174,9 @@ USE_TZ = True
 # STATIC FILES
 # ==============================================================================
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -218,11 +221,11 @@ CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS') or [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:8000',
-    'http://localhost:8600',
+    'http://localhost:8900',
     'http://127.0.0.1:8000',
-    'http://127.0.0.1:8600',
+    'http://127.0.0.1:8900',
     'http://192.168.44.15:5173',
-    'http://192.168.44.15:8600',  # ← IP PC Anda
+    'http://192.168.44.15:8900',  # ← IP PC Anda
     'http://192.168.44.15:8000',  # ← Alternative port
 ]
 
@@ -237,11 +240,11 @@ CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS') or [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:8000',
-    'http://localhost:8600',
+    'http://localhost:8900',
     'http://127.0.0.1:8000',
-    'http://127.0.0.1:8600',
+    'http://127.0.0.1:8900',
     'http://192.168.44.15:5173',
-    'http://192.168.44.15:8600',
+    'http://192.168.44.15:8900',
     'http://192.168.44.15:8000',
 ]
 

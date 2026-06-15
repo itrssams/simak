@@ -1,18 +1,20 @@
 import re
+from datetime import timedelta
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
-    Faktur, FakturItem, PembayaranFaktur,
+    Faktur, FakturItem, PembayaranFaktur, AlokasiDana,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     AuditLog,
     PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
     Kendaraan, LogPerjalanan, LaporanPerjalanan, FotoLaporanPerjalanan, LogBBM, LogMaintenance,
     ITBackupRecord, ITRepairRequest, ITCredentialNote, ITRemoteAccess, ITSubscription,
-    Announcement, AnnouncementRead
+    Announcement, AnnouncementRead,
+    InventoryOption, InventoryAsset
 )
 from .audit import infer_target, make_description, target_display_from_user
 from .audit import get_keuangan_target_display
@@ -275,20 +277,96 @@ class FakturItemInputSerializer(serializers.ModelSerializer):
         fields = ['deskripsi', 'kuantitas', 'harga_satuan', 'subtotal']
 
 
+class AlokasiDanaSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    digunakan = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    pemakaian = serializers.SerializerMethodField()
+    
+    class Meta:
+        model  = AlokasiDana
+        fields = [
+            'id', 'id_pembiayaan', 'nama_pembiayaan', 'tanggal_penerimaan',
+            'jumlah_penerimaan', 'bank', 'total_alokasi', 'sisa_alokasi',
+            'digunakan', 'pemakaian', 'created_by', 'created_by_name', 'created_at', 'keterangan'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'total_alokasi', 'sisa_alokasi', 'digunakan']
+
+    def get_pemakaian(self, obj):
+        legacy_pemakaian = [
+            {
+                'id': bayar.id,
+                'tanggal': bayar.tanggal,
+                'jumlah': bayar.jumlah,
+                'metode': bayar.metode,
+                'keterangan': bayar.keterangan,
+                'faktur': bayar.faktur_id,
+                'nomor_faktur': getattr(bayar.faktur, 'nomor_faktur', ''),
+                'created_by_name': bayar.created_by.username if bayar.created_by else '',
+                'created_at': bayar.created_at,
+            }
+            for bayar in obj.pembayaran.all()
+        ]
+        wallet_pemakaian = [
+            {
+                'id': pakai.id,
+                'tanggal': pakai.pembayaran.tanggal,
+                'jumlah': pakai.jumlah,
+                'metode': pakai.pembayaran.metode,
+                'keterangan': pakai.pembayaran.keterangan,
+                'faktur': pakai.pembayaran.faktur_id,
+                'nomor_faktur': getattr(pakai.pembayaran.faktur, 'nomor_faktur', ''),
+                'created_by_name': pakai.pembayaran.created_by.username if pakai.pembayaran.created_by else '',
+                'created_at': pakai.created_at,
+            }
+            for pakai in obj.pemakaian_alokasi.select_related('pembayaran__faktur', 'pembayaran__created_by').all()
+        ]
+        return legacy_pemakaian + wallet_pemakaian
+
+    def validate(self, attrs):
+        instance = getattr(self, 'instance', None)
+        if instance and instance.digunakan > 0:
+            locked_fields = {
+                'id_pembiayaan', 'nama_pembiayaan', 'tanggal_penerimaan',
+                'jumlah_penerimaan', 'bank',
+            }
+            changed = []
+            for field in locked_fields:
+                if field in attrs and attrs[field] != getattr(instance, field):
+                    changed.append(field)
+            if changed:
+                raise serializers.ValidationError({
+                    'detail': 'Alokasi yang sudah dipakai hanya boleh mengubah keterangan.'
+                })
+        return attrs
+
+    def update(self, instance, validated_data):
+        if instance.digunakan == 0 and 'jumlah_penerimaan' in validated_data:
+            instance.total_alokasi = validated_data['jumlah_penerimaan']
+        return super().update(instance, validated_data)
+
+
 class PembayaranFakturSerializer(serializers.ModelSerializer):
     akun_detail     = AkunSerializer(source='akun', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    verified_by_name = serializers.CharField(source='verified_by.username', read_only=True)
+    status_verifikasi_label = serializers.CharField(source='get_status_verifikasi_display', read_only=True)
+    alokasi_dana_detail = AlokasiDanaSerializer(source='alokasi_dana', read_only=True)
 
     class Meta:
         model  = PembayaranFaktur
-        fields = '__all__'
-        read_only_fields = ['created_by', 'created_at']
+        fields = [
+            'id', 'faktur', 'tanggal', 'jumlah', 'metode', 'keterangan', 'akun',
+            'akun_detail', 'alokasi_dana', 'alokasi_dana_detail', 'created_by',
+            'created_by_name', 'created_at', 'status_verifikasi', 'status_verifikasi_label',
+            'verified_by', 'verified_by_name', 'verified_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'status_verifikasi', 'verified_by', 'verified_at']
 
 
 class PembayaranFakturInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = PembayaranFaktur
-        fields = ['faktur', 'tanggal', 'jumlah', 'metode', 'keterangan', 'akun']
+        fields = ['faktur', 'tanggal', 'jumlah', 'metode', 'keterangan', 'akun', 'alokasi_dana']
 
 
 class FakturSerializer(serializers.ModelSerializer):
@@ -297,22 +375,49 @@ class FakturSerializer(serializers.ModelSerializer):
     pelanggan_detail = PelangganSerializer(source='pelanggan', read_only=True)
     created_by_name  = serializers.CharField(source='created_by.username', read_only=True)
     sisa_tagihan     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    status_label     = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model  = Faktur
-        fields = '__all__'
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar']
+        fields = [
+            'id', 'nomor_faktur', 'tanggal', 'jatuh_tempo', 'pelanggan', 'pelanggan_detail',
+            'id_pembiayaan', 'nama_pembiayaan', 'jenis', 'periode', 'beban',
+            'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
+            'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
+            'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'status', 'status_label',
+            'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan',
+            'created_by', 'created_by_name', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar', 'sisa_tagihan']
 
 
 class FakturInputSerializer(serializers.ModelSerializer):
-    items = FakturItemInputSerializer(many=True)
+    items = FakturItemInputSerializer(many=True, required=False)
 
     class Meta:
         model  = Faktur
-        fields = ['nomor_faktur', 'tanggal', 'jatuh_tempo', 'pelanggan', 'keterangan', 'status', 'items']
+        fields = [
+            'nomor_faktur', 'tanggal', 'jatuh_tempo', 'pelanggan',
+            'id_pembiayaan', 'nama_pembiayaan', 'jenis', 'periode', 'beban',
+            'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
+            'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
+            'tgl_kirim', 'xround', 'keterangan', 'status', 'items'
+        ]
+        extra_kwargs = {
+            'nomor_faktur': {'required': False, 'allow_blank': True},
+            'jatuh_tempo': {'required': False},
+        }
+
+    def validate(self, attrs):
+        tgl_kirim = attrs.get('tgl_kirim')
+        if tgl_kirim:
+            attrs['jatuh_tempo'] = tgl_kirim + timedelta(days=45)
+        elif not self.instance and not attrs.get('jatuh_tempo'):
+            attrs['jatuh_tempo'] = attrs.get('tanggal')
+        return attrs
 
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
+        items_data = validated_data.pop('items', [])
         faktur = Faktur.objects.create(**validated_data)
         total = 0
         for item in items_data:
@@ -320,6 +425,22 @@ class FakturInputSerializer(serializers.ModelSerializer):
             item.pop('subtotal', None)
             FakturItem.objects.create(faktur=faktur, subtotal=subtotal, **item)
             total += subtotal
+        if not total:
+            total = sum([
+                validated_data.get('adm', 0),
+                validated_data.get('jasa', 0),
+                validated_data.get('farmasi', 0),
+                validated_data.get('tindakan', 0),
+                validated_data.get('fisio', 0),
+                validated_data.get('lab', 0),
+                validated_data.get('rad', 0),
+                validated_data.get('kamar', 0),
+                validated_data.get('bhp', 0),
+                validated_data.get('lainnya', 0),
+                validated_data.get('ambulan', 0),
+                validated_data.get('alat', 0),
+                validated_data.get('ppn_farmasi', 0),
+            ])
         faktur.total_tagihan = total
         faktur.save()
         return faktur
@@ -337,6 +458,22 @@ class FakturInputSerializer(serializers.ModelSerializer):
                 FakturItem.objects.create(faktur=instance, subtotal=subtotal, **item)
                 total += subtotal
             instance.total_tagihan = total
+        else:
+            instance.total_tagihan = sum([
+                instance.adm or 0,
+                instance.jasa or 0,
+                instance.farmasi or 0,
+                instance.tindakan or 0,
+                instance.fisio or 0,
+                instance.lab or 0,
+                instance.rad or 0,
+                instance.kamar or 0,
+                instance.bhp or 0,
+                instance.lainnya or 0,
+                instance.ambulan or 0,
+                instance.alat or 0,
+                instance.ppn_farmasi or 0,
+            ])
         instance.save()
         return instance
 
@@ -506,6 +643,7 @@ class PettyCashSerializer(serializers.ModelSerializer):
     created_by_name     = serializers.SerializerMethodField()
     disetujui_oleh_name = serializers.SerializerMethodField()
     dicairkan_oleh_name = serializers.SerializerMethodField()
+    laporan_disetujui_oleh_name = serializers.SerializerMethodField()
     status_label        = serializers.CharField(source='get_status_display', read_only=True)
     berkas_url          = serializers.SerializerMethodField()
     laporan             = LaporanPenggunaanSerializer(read_only=True)
@@ -523,6 +661,11 @@ class PettyCashSerializer(serializers.ModelSerializer):
 
     def get_dicairkan_oleh_name(self, obj):
         return obj.dicairkan_oleh.get_full_name() or obj.dicairkan_oleh.username if obj.dicairkan_oleh else '-'
+
+    def get_laporan_disetujui_oleh_name(self, obj):
+        if not obj.laporan_disetujui_oleh:
+            return '-'
+        return obj.laporan_disetujui_oleh.get_full_name() or obj.laporan_disetujui_oleh.username
 
     def get_berkas_url(self, obj):
         request = self.context.get('request')
@@ -1066,3 +1209,67 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         if not user or not user.is_authenticated:
             return False
         return AnnouncementRead.objects.filter(announcement=obj, user=user).exists()
+
+
+class InventoryOptionSerializer(serializers.ModelSerializer):
+    option_type_label = serializers.CharField(source='get_option_type_display', read_only=True)
+
+    class Meta:
+        model = InventoryOption
+        fields = [
+            'id', 'option_type', 'option_type_label', 'name',
+            'is_active', 'sort_order', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'option_type_label', 'created_at', 'updated_at']
+
+
+class InventoryAssetSerializer(serializers.ModelSerializer):
+    unit_name = serializers.CharField(source='unit.name', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    condition_status_name = serializers.CharField(source='condition_status.name', read_only=True)
+    ownership_status_name = serializers.CharField(source='ownership_status.name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    foto_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryAsset
+        fields = [
+            'id', 'description', 'unit', 'unit_name', 'brand', 'location',
+            'category', 'category_name', 'condition_status', 'condition_status_name',
+            'foto', 'foto_url', 'manufacture_year', 'purchase_year',
+            'purchase_price', 'recommended_action',
+            'ownership_status', 'ownership_status_name',
+            'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'unit_name', 'category_name', 'condition_status_name',
+            'ownership_status_name', 'foto_url', 'created_by',
+            'created_by_name', 'created_at', 'updated_at',
+        ]
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.foto.url) if request else obj.foto.url
+        return None
+
+    def validate_option_type(self, attrs, field, expected_type):
+        option = attrs.get(field) or getattr(self.instance, field, None)
+        if option and option.option_type != expected_type:
+            raise serializers.ValidationError({field: f'Pilihan harus bertipe {expected_type}.'})
+
+    def validate(self, attrs):
+        self.validate_option_type(attrs, 'unit', 'unit')
+        self.validate_option_type(attrs, 'category', 'category')
+        self.validate_option_type(attrs, 'condition_status', 'condition')
+        self.validate_option_type(attrs, 'ownership_status', 'ownership')
+        manufacture_year = attrs.get('manufacture_year', getattr(self.instance, 'manufacture_year', None))
+        purchase_year = attrs.get('purchase_year', getattr(self.instance, 'purchase_year', None))
+        if manufacture_year and (manufacture_year < 1900 or manufacture_year > 2100):
+            raise serializers.ValidationError({'manufacture_year': 'Tahun pembuatan tidak valid.'})
+        if purchase_year and (purchase_year < 1900 or purchase_year > 2100):
+            raise serializers.ValidationError({'purchase_year': 'Tahun beli tidak valid.'})
+        return attrs

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
+import './LaporanIT.css';
 import { useToastState } from '../../context/ToastContext';
 import { getResults } from '../../utils/pagination.jsx';
 
@@ -77,85 +78,7 @@ const COLUMN_OPTIONS = [
 const DEFAULT_SECTIONS = SECTION_OPTIONS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {});
 const DEFAULT_COLUMNS = COLUMN_OPTIONS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {});
 
-const CSS = `
-@keyframes litFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.lit-page { animation: litFade .28s ease both; }
-.lit-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.lit-title { font-size: 24px; font-weight: 750; color: #102b1f; margin: 0; letter-spacing: 0; }
-.lit-muted { color: #64748b; font-size: 13px; margin: 4px 0 0; }
-.lit-panel { background: #fff; border: 1px solid #e8eef5; border-radius: 8px; box-shadow: 0 1px 5px rgba(15,23,42,.05); }
-.lit-toolbar { padding: 16px; margin-bottom: 16px; }
-.lit-grid { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 12px; align-items: end; }
-.lit-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.lit-label { font-size: 11px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.lit-input, .lit-select { height: 38px; border: 1px solid #dbe4ee; border-radius: 7px; padding: 0 10px; color: #0f172a; font-size: 13px; background: #fff; outline: none; font-family: inherit; min-width: 0; }
-.lit-input:focus, .lit-select:focus { border-color: #1f7a52; box-shadow: 0 0 0 3px rgba(31,122,82,.08); }
-.lit-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.lit-btn { height: 38px; border: 1px solid transparent; border-radius: 7px; padding: 0 13px; display: inline-flex; gap: 7px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s, transform .1s; white-space: nowrap; }
-.lit-btn:hover { transform: translateY(-1px); }
-.lit-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-.lit-btn.primary { background: #16452f; color: #fff; }
-.lit-btn.ghost { background: #fff; color: #334155; border-color: #dbe4ee; }
-.lit-btn.gold { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.lit-shortcuts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.lit-shortcut { border: 1px solid #dbe4ee; background: #f8fafc; color: #475569; height: 30px; border-radius: 7px; padding: 0 10px; font-size: 12px; font-weight: 650; cursor: pointer; }
-.lit-kpis { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.lit-kpi { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid #e8eef5; }
-.lit-kpi-label { font-size: 11px; color: #64748b; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
-.lit-kpi-value { font-size: 19px; font-weight: 800; color: #123526; margin-top: 6px; }
-.lit-report { background: #fff; border: 1px solid #dbe4ee; border-radius: 8px; overflow: hidden; }
-.lit-paper { padding: 26px 28px; background: #fff; color: #111827; }
-.lit-kop { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; border-bottom: 3px solid #16452f; padding-bottom: 13px; margin-bottom: 18px; }
-.lit-logo { width: 68px; height: 68px; object-fit: contain; }
-.lit-kop-center { text-align: center; }
-.lit-org { font-size: 17px; font-weight: 800; color: #16452f; letter-spacing: .03em; }
-.lit-org-sub { font-size: 12px; color: #334155; margin-top: 3px; }
-.lit-doc-title { text-align: center; margin: 14px 0 18px; }
-.lit-doc-title h2 { margin: 0; font-size: 16px; letter-spacing: .05em; color: #111827; text-transform: uppercase; }
-.lit-doc-title p { margin: 5px 0 0; color: #475569; font-size: 12px; }
-.lit-section { margin-top: 18px; page-break-inside: avoid; }
-.lit-section-head { font-size: 13px; font-weight: 800; color: #16452f; border-bottom: 2px solid #16452f; padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-.lit-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.lit-summary-box { border: 1px solid #dbe4ee; background: #f8fafc; border-radius: 7px; padding: 11px; }
-.lit-summary-box span { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.lit-summary-box strong { display: block; margin-top: 5px; color: #0f172a; font-size: 15px; }
-.lit-table-wrap { overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; }
-.lit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.lit-table th { background: #16452f; color: #fff; padding: 8px 9px; text-align: left; font-size: 11px; font-weight: 750; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid #123b29; }
-.lit-table td { padding: 8px 9px; border-right: 1px solid #dbe4ee; border-bottom: 1px solid #dbe4ee; color: #1e293b; vertical-align: top; }
-.lit-table th:last-child, .lit-table td:last-child { border-right: 0; }
-.lit-table tr:nth-child(even) td { background: #fbfdff; }
-.lit-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lit-badge { display: inline-flex; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 750; white-space: nowrap; background: #eef2ff; color: #3730a3; }
-.lit-empty { padding: 54px 20px; text-align: center; color: #94a3b8; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; }
-.lit-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.52); display: flex; align-items: center; justify-content: center; z-index: 80; padding: 20px; }
-.lit-modal { width: min(720px, 96vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(15,23,42,.24); }
-.lit-modal-head { padding: 18px 20px; border-bottom: 1px solid #e8eef5; display: flex; align-items: center; justify-content: space-between; }
-.lit-modal-body { padding: 18px 20px; }
-.lit-check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.lit-check { min-height: 38px; border: 1px solid #dbe4ee; border-radius: 7px; display: flex; align-items: center; gap: 9px; padding: 8px 10px; cursor: pointer; font-size: 13px; color: #334155; }
-.lit-check input { width: 16px; height: 16px; accent-color: #16452f; }
-@media (max-width: 1100px) { .lit-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); } .lit-kpis, .lit-summary-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); } }
-@media (max-width: 680px) { .lit-grid, .lit-kpis, .lit-summary-grid, .lit-check-grid { grid-template-columns: 1fr; } .lit-paper { padding: 18px 14px; } .lit-kop { grid-template-columns: 56px 1fr; } .lit-kop > div:last-child { display: none; } .lit-logo { width: 52px; height: 52px; } }
-@media print {
-    html, body { width: auto; min-height: auto; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    body * { visibility: hidden !important; }
-    #lit-print-area, #lit-print-area * { visibility: visible !important; }
-    #lit-print-area { position: static !important; width: 100% !important; max-width: none !important; border: 0 !important; overflow: visible !important; }
-    .lit-no-print { display: none !important; }
-    .lit-paper { width: 100%; padding: 0 !important; box-sizing: border-box; }
-    .lit-report { border: 0 !important; overflow: visible !important; }
-    .lit-section { page-break-inside: auto; break-inside: auto; }
-    .lit-section-head { page-break-after: avoid; break-after: avoid; }
-    .lit-summary-grid, .lit-summary-box, .lit-kop, .lit-doc-title { page-break-inside: avoid; break-inside: avoid; }
-    .lit-table { page-break-inside: auto; break-inside: auto; }
-    .lit-table thead { display: table-header-group; }
-    .lit-table tr { page-break-inside: avoid; break-inside: avoid; }
-    .lit-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .lit-table-wrap { overflow: visible !important; }
-    @page { size: A4 landscape; margin: 12mm; }
-}
-`;
+
 
 const dateToInput = (date) => {
     const y = date.getFullYear();
@@ -394,11 +317,13 @@ export default function LaporanIT() {
 
     return (
         <div className="lit-page">
-            <style>{CSS}</style>
             <div className="lit-header lit-no-print">
-                <div>
-                    <h1 className="lit-title">Laporan IT</h1>
-                    <p className="lit-muted">Filter data perbaikan IT, atur output, lalu export formal dengan kop.</p>
+                <div className="lit-page-title">
+                    <span><Wrench size={22} /></span>
+                    <div>
+                        <h1 className="lit-title">Laporan IT</h1>
+                        <p className="lit-muted">Filter data perbaikan IT, atur output, lalu export formal dengan kop.</p>
+                    </div>
                 </div>
                 <div className="lit-actions">
                     <button className="lit-btn ghost" onClick={() => setSettingOpen(true)}><Settings size={16} /> Setting Output</button>

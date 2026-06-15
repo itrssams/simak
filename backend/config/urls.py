@@ -30,6 +30,8 @@ def me_view(request):
         'role_label': user.get_role_display(),
         'is_driver': user.is_driver,
         'is_it': user.is_it,
+        'is_keuangan': user.is_keuangan,
+        'is_petty_cash_cashier': user.is_petty_cash_cashier,
         'unit': user.unit_id,
         'unit_nama': user.unit.nama if user.unit else None,
     })

@@ -6,7 +6,7 @@ from .models import (
     FotoLaporanPerjalanan, LaporanPerjalanan, LogBBM, LogMaintenance,
     PettyCash, LaporanPenggunaan, Reimbursement,
     FotoPettyCash, FotoLaporanPenggunaan, FotoReimbursement,
-    ITRepairRequest,
+    ITRepairRequest, InventoryAsset,
 )
 
 
@@ -77,6 +77,11 @@ def delete_it_repair_file(sender, instance, **kwargs):
     delete_storage_file(instance.foto)
 
 
+@receiver(pre_delete, sender=InventoryAsset)
+def delete_inventory_asset_file(sender, instance, **kwargs):
+    delete_storage_file(instance.foto)
+
+
 @receiver(pre_delete, sender=FotoPettyCash)
 def delete_foto_petty_cash_file(sender, instance, **kwargs):
     delete_storage_file(instance.foto)
@@ -110,6 +115,11 @@ def delete_replaced_reimbursement_file(sender, instance, **kwargs):
 @receiver(pre_save, sender=ITRepairRequest)
 def delete_replaced_it_repair_file(sender, instance, **kwargs):
     delete_replaced_file(instance, ITRepairRequest, 'foto')
+
+
+@receiver(pre_save, sender=InventoryAsset)
+def delete_replaced_inventory_asset_file(sender, instance, **kwargs):
+    delete_replaced_file(instance, InventoryAsset, 'foto')
 
 
 @receiver(pre_save, sender=FotoPettyCash)

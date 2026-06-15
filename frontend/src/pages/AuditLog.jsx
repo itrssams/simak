@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axiosConfig';
 import { getCount, getResults, pageParams, SimplePagination } from '../utils/pagination.jsx';
+import './AuditLog.css';
 
 const fmtDT = (s) => {
     if (!s) return '-';
@@ -38,43 +39,6 @@ const ENTITY_LABELS = {
     users: 'User',
     auth: 'Auth',
 };
-
-const CSS = `
-@keyframes alEnter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.al-page{display:flex;flex-direction:column;gap:18px;animation:alEnter .35s ease both;font-family:'Plus Jakarta Sans',sans-serif;color:#17251d}
-.al-hero{border:1px solid #d9e7df;border-radius:8px;background:linear-gradient(135deg,#10251a,#1a4731 58%,#22577a);box-shadow:0 16px 40px rgba(15,23,42,.12);overflow:hidden}
-.al-hero-inner{padding:24px 26px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
-.al-kicker{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:#c8f7d6;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
-.al-title{margin:0;color:#fff;font-size:28px;font-weight:850;letter-spacing:0}
-.al-sub{margin:7px 0 0;color:rgba(255,255,255,.66);font-size:13px;line-height:1.6}
-.al-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.al-stat,.al-panel{background:#fff;border:1px solid #e7eee9;border-radius:8px;box-shadow:0 10px 28px rgba(15,23,42,.06)}
-.al-stat{padding:16px;display:flex;align-items:center;gap:12px}
-.al-stat-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#f0fdf4;color:#1a4731}
-.al-stat-label{margin:0;color:#64748b;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}
-.al-stat-value{margin:4px 0 0;color:#111827;font-size:21px;font-weight:850}
-.al-panel{overflow:hidden}
-.al-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px;border-bottom:1px solid #edf2f7;background:#fbfdfc}
-.al-search,.al-field{height:38px;border:1px solid #dbe7e1;border-radius:8px;background:#fff;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;outline:none;box-sizing:border-box}
-.al-search-wrap{position:relative;flex:1 1 260px;min-width:220px}
-.al-search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8}
-.al-search{width:100%;padding:0 12px 0 38px}
-.al-field{padding:0 10px}
-.al-table-wrap{overflow:auto}
-.al-table{width:100%;min-width:980px;border-collapse:separate;border-spacing:0}
-.al-table th{padding:12px 14px;text-align:left;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}
-.al-table td{padding:13px 14px;border-bottom:1px solid #f1f5f9;color:#334155;font-size:13px;vertical-align:top}
-.al-table tr:hover td{background:#fbfdfc}
-.al-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;background:var(--bg);color:var(--fg);font-size:11px;font-weight:850;white-space:nowrap}
-.al-desc{font-weight:750;color:#16251b;line-height:1.45}
-.al-meta{margin-top:4px;color:#94a3b8;font-size:11px;line-height:1.5;max-width:440px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.al-empty{padding:38px 16px;text-align:center;color:#94a3b8;font-size:14px}
-.al-error{display:flex;align-items:center;gap:9px;padding:12px 14px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:8px;font-size:13px;font-weight:700}
-.al-page-btn,.al-page-size{height:34px;border:1px solid #dbe7e1;border-radius:8px;background:#fff;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800;padding:0 10px}
-.al-page-btn{min-width:34px;cursor:pointer}.al-page-btn:disabled{opacity:.45;cursor:not-allowed}
-@media(max-width:900px){.al-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.al-hero-inner{align-items:flex-start}.al-title{font-size:24px}}
-@media(max-width:560px){.al-stats{grid-template-columns:1fr}.al-toolbar{align-items:stretch}.al-field,.al-search-wrap{width:100%;flex:1 1 100%}}
-`;
 
 function ActionBadge({ action }) {
     const meta = ACTION_META[action] || { label: action || '-', bg: '#f1f5f9', fg: '#64748b' };
@@ -121,18 +85,12 @@ export default function AuditLog() {
 
     return (
         <div className="al-page">
-            <style>{CSS}</style>
-
             <section className="al-hero">
-                <div className="al-hero-inner">
+                <div className="al-page-title">
+                    <span><ShieldCheck size={22} /></span>
                     <div>
-                        <div className="al-kicker"><ShieldCheck size={14} /> Audit Trail</div>
                         <h1 className="al-title">Log aktivitas sistem</h1>
                         <p className="al-sub">Pantau siapa melakukan apa, dari modul mana, kapan, dan lewat endpoint apa.</p>
-                    </div>
-                    <div style={{ color: '#fff', textAlign: 'right' }}>
-                        <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,.58)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em' }}>Data tampil</p>
-                        <p style={{ margin: '5px 0 0', fontSize: 31, fontWeight: 850 }}>{loading ? '...' : total}</p>
                     </div>
                 </div>
             </section>

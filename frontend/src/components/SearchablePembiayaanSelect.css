@@ -1,0 +1,119 @@
+.pbiaya-select {
+  position: relative;
+  min-width: 230px;
+  width: 100%;
+  z-index: 20;
+}
+
+.pbiaya-select-control {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(226, 232, 240, .88);
+  border-radius: 15px;
+  background: rgba(255,255,255,.78);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  color: var(--inv-muted, #64748b);
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.pbiaya-select-control.open,
+.pbiaya-select-control:focus-within {
+  border-color: var(--inv-primary, #6366f1);
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12);
+}
+
+.pbiaya-select-control.disabled {
+  opacity: .62;
+  cursor: not-allowed;
+}
+
+.pbiaya-select-control input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--inv-text, #0f172a);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.pbiaya-select-control input::placeholder {
+  color: var(--inv-muted, #64748b);
+}
+
+.pbiaya-chevron {
+  flex: 0 0 auto;
+  transition: transform .18s ease;
+}
+
+.pbiaya-chevron.open {
+  transform: rotate(180deg);
+}
+
+.pbiaya-options {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 200;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 232, 240, .9);
+  border-radius: 16px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, .16);
+  padding: 6px;
+}
+
+.pbiaya-options button {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: 11px;
+  padding: 9px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  color: var(--inv-text, #0f172a);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pbiaya-options button.active,
+.pbiaya-options button:hover {
+  background: rgba(238, 242, 255, .82);
+  color: var(--inv-primary, #4f46e5);
+}
+
+.pbiaya-options button.selected {
+  background: linear-gradient(135deg, rgba(99, 102, 241, .14), rgba(6, 182, 212, .12));
+  color: var(--inv-primary, #4f46e5);
+}
+
+.pbiaya-options button span {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.pbiaya-empty {
+  padding: 16px 12px;
+  color: var(--inv-muted, #64748b);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: center;
+}

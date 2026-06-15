@@ -4,7 +4,7 @@ param(
 
     [int]$BackendPort = 8000,
     [int]$FrontendPort = 5173,
-    [int]$ProductionPort = 8600,
+    [int]$ProductionPort = 8900,
 
     [switch]$InstallDeps
 )

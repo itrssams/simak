@@ -252,21 +252,46 @@ class Transaksi(models.Model):
 
 class Faktur(models.Model):
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('dikirim', 'Dikirim'),
-        ('sebagian', 'Dibayar Sebagian'),
+        ('belum_bayar', 'Belum Bayar'),
+        ('bayar_sebagian', 'Bayar Sebagian'),
         ('lunas', 'Lunas'),
         ('batal', 'Dibatalkan'),
     ]
 
-    nomor_faktur  = models.CharField(max_length=50, unique=True)
-    tanggal       = models.DateField()
-    jatuh_tempo   = models.DateField()
-    pelanggan     = models.ForeignKey(Pelanggan, on_delete=models.PROTECT, related_name='faktur')
+    nomor_faktur    = models.CharField(max_length=50, unique=True)
+    tanggal         = models.DateField()
+    jatuh_tempo     = models.DateField()
+    pelanggan       = models.ForeignKey(Pelanggan, on_delete=models.PROTECT, related_name='faktur', null=True, blank=True)
+    
+    # Fields untuk migrated data dari rssams.invoice
+    id_pembiayaan   = models.CharField(max_length=20, blank=True, null=True, help_text='ID dari rssams.pbiaya')
+    nama_pembiayaan = models.CharField(max_length=150, blank=True, null=True)
+    jenis           = models.TextField(blank=True, null=True)
+    periode         = models.CharField(max_length=100, blank=True, null=True)
+    beban           = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Cost breakdown
+    adm       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    jasa      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    farmasi   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    tindakan  = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    fisio     = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    lab       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    rad       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    kamar     = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    bhp       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    lainnya   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    ambulan   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    alat      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    ppn_farmasi = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    
     keterangan    = models.TextField(blank=True)
-    status        = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft')
+    status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default='belum_bayar')
     total_tagihan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     total_dibayar = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    tgl_kirim     = models.DateField(null=True, blank=True)
+    xround        = models.CharField(max_length=1, default='N', help_text='Pembulatan Y/N')
+    
     created_by    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='faktur')
     created_at    = models.DateTimeField(auto_now_add=True)
     updated_at    = models.DateTimeField(auto_now=True)
@@ -277,7 +302,27 @@ class Faktur(models.Model):
         verbose_name_plural = 'Daftar Faktur'
 
     def __str__(self):
-        return f"{self.nomor_faktur} - {self.pelanggan.nama}"
+        if self.pelanggan:
+            return f"{self.nomor_faktur} - {self.pelanggan.nama}"
+        return f"{self.nomor_faktur} - {self.nama_pembiayaan}"
+
+    def save(self, *args, **kwargs):
+        # Calculate total_tagihan from cost breakdown
+        self.total_tagihan = (
+            self.adm + self.jasa + self.farmasi + self.tindakan + self.fisio + 
+            self.lab + self.rad + self.kamar + self.bhp + self.lainnya + self.ambulan + self.alat
+        )
+        if self.status == 'batal':
+            super().save(*args, **kwargs)
+            return
+        # Update status based on payment
+        if self.total_dibayar == 0:
+            self.status = 'belum_bayar'
+        elif self.total_dibayar < self.total_tagihan:
+            self.status = 'bayar_sebagian'
+        elif self.total_dibayar >= self.total_tagihan:
+            self.status = 'lunas'
+        super().save(*args, **kwargs)
 
     @property
     def sisa_tagihan(self):
@@ -306,23 +351,132 @@ class PembayaranFaktur(models.Model):
         ('bpjs', 'BPJS'),
         ('asuransi', 'Asuransi'),
     ]
+    VERIFIKASI_CHOICES = [
+        ('menunggu', 'Menunggu Verifikasi'),
+        ('terverifikasi', 'Terverifikasi'),
+        ('ditolak', 'Ditolak'),
+        ('dibatalkan', 'Dibatalkan'),
+    ]
 
     faktur     = models.ForeignKey(Faktur, on_delete=models.PROTECT, related_name='pembayaran')
     tanggal    = models.DateField()
     jumlah     = models.DecimalField(max_digits=15, decimal_places=2)
     metode     = models.CharField(max_length=20, choices=METODE_CHOICES, default='tunai')
     keterangan = models.CharField(max_length=200, blank=True)
-    akun       = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='pembayaran_faktur')
+    akun       = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='pembayaran_faktur', null=True, blank=True)
+    alokasi_dana = models.ForeignKey('AlokasiDana', on_delete=models.SET_NULL, null=True, blank=True, related_name='pembayaran')
+    status_verifikasi = models.CharField(max_length=20, choices=VERIFIKASI_CHOICES, default='menunggu')
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='pembayaran_faktur_verified')
+    verified_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='pembayaran_faktur')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-tanggal']
+        ordering = ['-tanggal', '-created_at']
         verbose_name = 'Pembayaran Faktur'
         verbose_name_plural = 'Pembayaran Faktur'
 
     def __str__(self):
-        return f"{self.faktur.nomor_faktur} - {self.jumlah}"
+        return f"{self.faktur.nomor_faktur} - {self.jumlah} ({self.tanggal})"
+
+    def save(self, *args, **kwargs):
+        # Auto-update faktur.total_dibayar
+        super().save(*args, **kwargs)
+        self._update_faktur_status()
+        # Update alokasi dana sisa if linked
+        if self.alokasi_dana:
+            self.alokasi_dana.save()
+
+    def delete(self, *args, **kwargs):
+        alokasi = self.alokasi_dana
+        alokasi_terpakai = list(AlokasiDana.objects.filter(pemakaian_alokasi__pembayaran=self).distinct())
+        super().delete(*args, **kwargs)
+        self._update_faktur_status()
+        if alokasi:
+            alokasi.save()
+        for item in alokasi_terpakai:
+            item.save()
+
+    def _update_faktur_status(self):
+        """Auto-update Faktur total_dibayar and status from verified payments only."""
+        faktur = self.faktur
+        faktur.total_dibayar = faktur.pembayaran.filter(status_verifikasi='terverifikasi').aggregate(
+            total=models.Sum('jumlah')
+        )['total'] or 0
+        faktur.save()
+
+
+class AlokasiDana(models.Model):
+    BANK_CHOICES = [
+        ('bsi', 'BSI'),
+        ('bri', 'BRI'),
+        ('mandiri', 'Mandiri'),
+        ('bca', 'BCA'),
+    ]
+
+    id_pembiayaan   = models.CharField(max_length=20, help_text='ID dari rssams.pbiaya')
+    nama_pembiayaan = models.CharField(max_length=150, help_text='Nama pembiayaan/asuransi')
+    tanggal_penerimaan = models.DateField()
+    jumlah_penerimaan  = models.DecimalField(max_digits=15, decimal_places=2)
+    bank            = models.CharField(max_length=20, choices=BANK_CHOICES)
+    total_alokasi   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    sisa_alokasi    = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    keterangan      = models.TextField(blank=True)
+    
+    created_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='alokasi_dana')
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-tanggal_penerimaan', '-created_at']
+        verbose_name = 'Alokasi Dana'
+        verbose_name_plural = 'Alokasi Dana'
+
+    def __str__(self):
+        return f"{self.nama_pembiayaan} - {self.jumlah_penerimaan} ({self.bank})"
+
+    def save(self, *args, **kwargs):
+        # Set total_alokasi = jumlah_penerimaan saat pertama kali
+        if not self.total_alokasi:
+            self.total_alokasi = self.jumlah_penerimaan
+        # Calculate sisa_alokasi from related pembayaran
+        digunakan = 0
+        if self.pk:
+            legacy_digunakan = self.pembayaran.aggregate(
+                total=models.Sum('jumlah', filter=models.Q(status_verifikasi='terverifikasi'))
+            )['total'] or 0
+            wallet_digunakan = self.pemakaian_alokasi.aggregate(
+                total=models.Sum('jumlah')
+            )['total'] or 0
+            digunakan = legacy_digunakan + wallet_digunakan
+        self.sisa_alokasi = self.total_alokasi - digunakan
+        super().save(*args, **kwargs)
+
+    @property
+    def digunakan(self):
+        """Total alokasi yang sudah digunakan"""
+        legacy_digunakan = self.pembayaran.aggregate(
+            total=models.Sum('jumlah', filter=models.Q(status_verifikasi='terverifikasi'))
+        )['total'] or 0
+        wallet_digunakan = self.pemakaian_alokasi.aggregate(
+            total=models.Sum('jumlah')
+        )['total'] or 0
+        return legacy_digunakan + wallet_digunakan
+
+
+class AlokasiDanaPemakaian(models.Model):
+    alokasi_dana = models.ForeignKey(AlokasiDana, on_delete=models.CASCADE, related_name='pemakaian_alokasi')
+    pembayaran   = models.ForeignKey(PembayaranFaktur, on_delete=models.CASCADE, related_name='pemakaian_alokasi')
+    jumlah       = models.DecimalField(max_digits=15, decimal_places=2)
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Pemakaian Alokasi Dana'
+        verbose_name_plural = 'Pemakaian Alokasi Dana'
+
+    def __str__(self):
+        return f"{self.alokasi_dana_id} -> {self.pembayaran_id}: {self.jumlah}"
 
 
 class Tagihan(models.Model):
@@ -480,6 +634,7 @@ class PettyCash(models.Model):
         ('disetujui',             'Disetujui'),
         ('ditolak',               'Ditolak'),
         ('dicairkan',             'Dicairkan'),
+        ('menunggu_approval_laporan', 'Menunggu Approval Laporan'),
         ('dilaporkan',            'Dilaporkan'),
         ('menunggu_pengembalian', 'Menunggu Pengembalian'),
         ('selesai',               'Selesai'),
@@ -496,6 +651,8 @@ class PettyCash(models.Model):
     created_by     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='petty_cash_pengajuan')
     disetujui_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='petty_cash_disetujui')
     dicairkan_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='petty_cash_dicairkan')
+    laporan_disetujui_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='petty_cash_laporan_disetujui')
+    laporan_disetujui_at = models.DateTimeField(null=True, blank=True)
     created_at     = models.DateTimeField(auto_now_add=True)
     updated_at     = models.DateTimeField(auto_now=True)
 
@@ -1184,3 +1341,65 @@ class AnnouncementRead(models.Model):
 
     def __str__(self):
         return f'{self.user} read {self.announcement}'
+
+
+class InventoryOption(models.Model):
+    OPTION_TYPE_CHOICES = [
+        ('unit', 'Unit'),
+        ('category', 'Kategori Aset'),
+        ('condition', 'Status Kelayakan'),
+        ('ownership', 'Status Kepemilikan'),
+    ]
+
+    option_type = models.CharField(max_length=20, choices=OPTION_TYPE_CHOICES)
+    name = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['option_type', 'sort_order', 'name']
+        unique_together = ('option_type', 'name')
+        indexes = [
+            models.Index(fields=['option_type', 'is_active'], name='inv_option_type_active_idx'),
+            models.Index(fields=['name'], name='inv_option_name_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_option_type_display()} - {self.name}'
+
+
+def foto_inventory_asset_path(instance, filename):
+    period = instance.created_at.strftime('%Y%m') if instance.created_at else timezone.now().strftime('%Y%m')
+    return f'inventaris/aset/{period}/{filename}'
+
+
+class InventoryAsset(models.Model):
+    description = models.TextField(verbose_name='Deskripsi Aset')
+    unit = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_unit_assets', limit_choices_to={'option_type': 'unit'})
+    brand = models.CharField(max_length=140, blank=True, verbose_name='Merek')
+    location = models.CharField(max_length=180, blank=True, verbose_name='Lokasi')
+    category = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_category_assets', limit_choices_to={'option_type': 'category'})
+    condition_status = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_condition_assets', limit_choices_to={'option_type': 'condition'})
+    foto = models.ImageField(upload_to=foto_inventory_asset_path, null=True, blank=True)
+    manufacture_year = models.PositiveIntegerField(null=True, blank=True, verbose_name='Tahun Pembuatan')
+    purchase_year = models.PositiveIntegerField(null=True, blank=True, verbose_name='Tahun Beli')
+    purchase_price = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name='Harga Beli')
+    recommended_action = models.TextField(blank=True, verbose_name='Rekomendasi Tindakan')
+    ownership_status = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_ownership_assets', limit_choices_to={'option_type': 'ownership'})
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='inventory_assets')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['unit', 'category'], name='inv_asset_unit_cat_idx'),
+            models.Index(fields=['condition_status'], name='inv_asset_condition_idx'),
+            models.Index(fields=['ownership_status'], name='inv_asset_owner_idx'),
+            models.Index(fields=['purchase_year'], name='inv_asset_purchase_year_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.description[:80]} - {self.unit.name}'

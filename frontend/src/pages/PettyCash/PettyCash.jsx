@@ -5,9 +5,8 @@ import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardL
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { id } from 'date-fns/locale';
+import './PettyCash.css';
+import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
@@ -17,8 +16,11 @@ const fmtDT = (s) => {
     const d = new Date(s);
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 };
-const dateToStr = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
-const strToDate = (s) => s ? new Date(s) : null;
+const dateToStr = (d) => {
+    if (!d) return '';
+    if (typeof d === 'string') return d;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const RIWAYAT_SALDO_PER_PAGE = 8;
 
 const PC_STATUS = {
@@ -26,6 +28,7 @@ const PC_STATUS = {
     disetujui: { label: 'Disetujui', bg: '#dcfce7', color: '#166534', dot: '#22c55e' },
     ditolak: { label: 'Ditolak', bg: '#fee2e2', color: '#991b1b', dot: '#ef4444' },
     dicairkan: { label: 'Dicairkan', bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
+    menunggu_approval_laporan: { label: 'Menunggu Approval Laporan', bg: '#eef2ff', color: '#4338ca', dot: '#6366f1' },
     dilaporkan: { label: 'Dilaporkan', bg: '#f5f3ff', color: '#6d28d9', dot: '#8b5cf6' },
     menunggu_pengembalian: { label: 'Menunggu Kembali', bg: '#fefce8', color: '#a16207', dot: '#eab308' },
     selesai: { label: 'Selesai', bg: '#f0fdf4', color: '#166534', dot: '#22c55e' },
@@ -40,657 +43,11 @@ const PC_STEPS = [
     { key: 'pending', label: 'Diajukan' },
     { key: 'disetujui', label: 'Disetujui' },
     { key: 'dicairkan', label: 'Dicairkan' },
-    { key: 'dilaporkan', label: 'Dilaporkan' },
+    { key: 'menunggu_approval_laporan', label: 'Approval Laporan' },
     { key: 'menunggu_pengembalian', label: 'Kembalian' },
     { key: 'selesai', label: 'Selesai' },
 ];
-const ORDER = ['pending', 'disetujui', 'dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai'];
-
-const STYLES = `
-@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-@keyframes barFill{from{width:0%}to{width:var(--bar-w)}}
-.pc-page{animation:fadeInUp .4s ease both}
-.pc-tr{animation:fadeInUp .3s ease both}
-.pc-saldo-banner{border-radius:16px;overflow:hidden;margin-bottom:28px;background:linear-gradient(135deg,#0f2d1a 0%,#1a4731 55%,#22543d 100%);box-shadow:0 8px 32px rgba(26,71,49,.3);animation:fadeInUp .35s ease both}
-.pc-saldo-inner{padding:24px 28px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.pc-saldo-amt{font-size:30px;font-weight:700;color:#fff;letter-spacing:-.5px;line-height:1}
-.pc-saldo-bar-track{height:4px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:10px;min-width:200px}
-.pc-saldo-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6ee7b7,#34d399);animation:barFill .9s .3s cubic-bezier(.4,0,.2,1) both}
-.pc-saldo-warn{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:8px 14px;font-size:12px;color:#fca5a5;font-weight:600;display:inline-flex;align-items:center;gap:6px}
-.pc-riwayat-table{width:100%;border-collapse:collapse;font-size:12px}
-.pc-riwayat-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0;background:#f8fafc}
-.pc-riwayat-table td{padding:8px 12px;color:#334155;border-bottom:1px solid #f1f5f9}
-.pc-riwayat-table tr:last-child td{border-bottom:none}
-.pc-page{animation:fadeInUp .4s ease both}
-.pc-tr{animation:fadeInUp .3s ease both}
-.pc-input,.pc-select,.pc-textarea{width:100%;padding:12px 14px;border:1px solid #dce8e2;border-radius:11px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;background:linear-gradient(180deg,#fff,#fbfdfc);outline:none;transition:border-color .15s,box-shadow .15s,background .15s;box-sizing:border-box}
-.pc-input:hover,.pc-select:hover,.pc-textarea:hover{border-color:#c8dcd1}
-.pc-input:focus,.pc-select:focus,.pc-textarea:focus{border-color:#2d6a4f;background:#fff;box-shadow:0 0 0 4px rgba(45,106,79,.09)}
-.pc-textarea{resize:vertical;min-height:96px;line-height:1.55}
-.pc-btn-primary{padding:10px 22px;background:linear-gradient(135deg,#1a4731 0%,#236348 100%);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 4px 12px rgba(26,71,49,.2)}
-.pc-btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,71,49,.3)}
-.pc-btn-primary:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
-.pc-btn-primary.danger{background:#dc2626}.pc-btn-primary.danger:hover{background:#b91c1c}
-.pc-btn-primary.blue{background:#1d4ed8}.pc-btn-primary.blue:hover{background:#1e40af}
-.pc-btn-ghost{padding:10px 20px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:background .15s}
-.pc-btn-ghost:hover{background:#e2e8f0}
-.pc-btn-sm{min-height:30px;padding:6px 11px;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;border:1px solid;font-family:'Plus Jakarta Sans',sans-serif;transition:background .14s,transform .1s,box-shadow .14s,border-color .14s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.pc-btn-sm:hover{transform:translateY(-1px)}
-.pc-btn-sm.n{border-color:#dce8e2;color:#475569;background:#fff}.pc-btn-sm.n:hover{background:#f8fbf9;border-color:#bfd5c9}
-.pc-btn-sm.g{border-color:#1a4731;color:#fff;background:#1a4731;box-shadow:0 8px 18px rgba(26,71,49,.18)}.pc-btn-sm.g:hover{background:#236348;border-color:#236348}
-.pc-btn-sm.b{border-color:#1d4ed8;color:#fff;background:#1d4ed8;box-shadow:0 8px 18px rgba(29,78,216,.16)}.pc-btn-sm.b:hover{background:#1e40af;border-color:#1e40af}
-.pc-btn-sm.r{border-color:#fecaca;color:#dc2626;background:#fff}.pc-btn-sm.r:hover{background:#fef2f2}
-.pc-btn-sm.y{border-color:#a16207;color:#fff;background:#a16207;box-shadow:0 8px 18px rgba(161,98,7,.14)}.pc-btn-sm.y:hover{background:#854d0e;border-color:#854d0e}
-.pc-btn-sm.p{border-color:#6d28d9;color:#fff;background:#6d28d9;box-shadow:0 8px 18px rgba(109,40,217,.15)}.pc-btn-sm.p:hover{background:#5b21b6;border-color:#5b21b6}
-.pc-action-cell{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap;min-width:210px}
-.pc-action-cell .pc-btn-sm.n{order:2}
-.pc-action-cell .pc-btn-sm.g,.pc-action-cell .pc-btn-sm.b,.pc-action-cell .pc-btn-sm.y,.pc-action-cell .pc-btn-sm.p{order:1}
-.pc-action-cell .pc-btn-sm.r{order:4}
-.pc-action-cell .pc-btn-sm.revision{order:3}
-.pc-table{width:100%;min-width:880px;border-collapse:separate;border-spacing:0}
-.pc-table thead th{padding:14px 16px;text-align:left;font-size:11px;font-weight:800;color:#6b7c74;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e6eee9;background:#f8fbf9}
-.pc-table tbody td{padding:14px 16px;font-size:13px;color:#334155;border-bottom:1px solid #edf3ef;vertical-align:middle;background:#fff}
-.pc-table tbody tr:last-child td{border-bottom:none}
-.pc-table tbody tr:hover td{background:#f7fbf9}
-.pc-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn .18s ease;backdrop-filter:blur(5px);padding:18px}
-.pc-modal{background:linear-gradient(180deg,#fff,#fbfdfc);border-radius:20px;padding:30px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 26px 70px rgba(15,23,42,.24);animation:slideUp .22s ease}
-.pc-modal.sm{max-width:440px}.pc-modal.lg{max-width:760px}
-.pc-field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
-.pc-label{font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em}
-.pc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.pc-modal-title{display:flex;align-items:center;gap:10px;margin:0 0 20px;color:#13251b;font-size:20px;font-weight:800;letter-spacing:0}
-.pc-modal-title-icon{width:38px;height:38px;border-radius:12px;background:#e7f4ed;color:#1a4731;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-.pc-modal-head{display:flex;align-items:flex-start;gap:12px;margin:0 0 18px}
-.pc-modal-head-copy{min-width:0;flex:1}
-.pc-modal-head-title{margin:0;color:#13251b;font-size:20px;font-weight:800;letter-spacing:0;line-height:1.25}
-.pc-modal-head-subtitle{margin:4px 0 0;color:#7b8d85;font-size:12.5px;line-height:1.55}
-.pc-modal-summary{background:linear-gradient(135deg,#f8fbf9,#fff);border:1px solid #e1ece6;border-radius:16px;padding:16px 18px;margin-bottom:18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start}
-.pc-modal-summary-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#819189;margin:0 0 7px}
-.pc-modal-summary-value{font-size:24px;font-weight:800;color:#17251d;line-height:1;margin:0}
-.pc-modal-summary-desc{font-size:13px;color:#64748b;line-height:1.55;margin:9px 0 0}
-.pc-modal-summary-meta{font-size:12px;color:#8aa097;margin:7px 0 0}
-.pc-modal-section{border:1px solid #e7eee9;background:#fff;border-radius:16px;padding:16px 18px;margin-bottom:16px}
-.pc-modal-section-title{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13px;font-weight:800;color:#17251d;text-transform:uppercase;letter-spacing:.045em}
-.pc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;margin-bottom:16px}
-.pc-detail-item{min-width:0}
-.pc-detail-label{font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px}
-.pc-detail-value{font-size:14px;color:#1e293b;line-height:1.55;font-weight:600;margin:0;word-break:break-word}
-.pc-form-note{display:flex;gap:10px;align-items:flex-start;background:#f8fbf9;border:1px solid #e1ece6;border-radius:14px;padding:13px 14px;color:#64748b;font-size:13px;line-height:1.55;margin-bottom:18px}
-.pc-form-link{color:#1a4731;font-weight:800;font-size:13px;display:inline-flex;align-items:center;gap:7px;margin-bottom:16px;text-decoration:none}
-.pc-form-link:hover{text-decoration:underline}
-.pc-modal-footer{display:flex;gap:12px;justify-content:flex-end;padding-top:16px;border-top:1px solid #edf3ef}
-.pc-alert-ok{background:#dcfce7;border:1px solid #86efac;border-radius:12px;color:#166534;padding:12px 16px;font-size:14px;margin-bottom:16px;animation:fadeInUp .25s ease;display:flex;align-items:center;gap:9px}
-.pc-alert-err{background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;color:#991b1b;padding:12px 16px;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:9px}
-.pc-rejection{background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:12px 14px;font-size:13px;color:#991b1b;margin-bottom:16px}
-.pc-file-zone{border:2px dashed #e2e8f0;border-radius:10px;padding:14px 18px;background:#f8fafc;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;transition:border-color .15s,background .15s,box-shadow .15s}
-.pc-file-zone:hover{border-color:#c8dcd1;box-shadow:0 8px 20px rgba(15,23,42,.04)}
-.pc-file-zone.has{border-color:#86efac;background:#f0fdf4}
-.pc-file-pick{padding:8px 16px;background:#fff;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
-.pc-file-pick:hover{background:#f1f5f9}
-.pc-upload-preview{display:flex;gap:12px;align-items:center;border:1px solid #e1ece6;background:#fbfdfc;border-radius:14px;padding:10px 12px;margin:-4px 0 16px}
-.pc-upload-thumb{width:70px;height:56px;border-radius:10px;object-fit:cover;border:1px solid #dbe7e1;background:#f8fafc;flex-shrink:0;cursor:pointer}
-.pc-upload-doc{width:70px;height:56px;border-radius:10px;border:1px solid #dbe7e1;background:#f8fafc;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0}
-.pc-upload-meta{min-width:0;flex:1}
-.pc-upload-name{font-size:13px;font-weight:800;color:#17251d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 3px}
-.pc-upload-info{font-size:11px;color:#64748b;line-height:1.45;margin:0}
-.pc-preview-modal{max-width:min(920px,94vw)!important;padding:18px!important;background:#0f172a!important}
-.pc-preview-img{display:block;max-width:100%;max-height:78vh;border-radius:12px;object-fit:contain;margin:auto;background:#111827}
-.pc-tabs{display:flex;gap:6px;margin:6px 0 0;background:#eaf1ed;border:1px solid #dce8e2;border-radius:14px;padding:5px;width:100%;max-width:520px}
-.pc-tab-pill{flex:1;padding:11px 18px;border:none;border-radius:10px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;background:transparent;color:#64748b;transition:background .18s,color .18s,box-shadow .18s;display:inline-flex;align-items:center;justify-content:center;gap:7px;outline:none;-webkit-tap-highlight-color:transparent;}
-.pc-tab-pill:focus{outline:none;box-shadow:none}
-.pc-tab-pill:focus-visible{outline:none;box-shadow:none}
-.pc-tab-pill.active{background:#fff;color:#1a4731;box-shadow:0 8px 18px rgba(15,23,42,.08)}
-.pc-tab-pill:hover:not(.active){color:#334155;background:rgba(0,0,0,.04)}
-.pc-tab-count{background:#ef4444;color:#fff;border-radius:999px;font-size:10.5px;font-weight:700;padding:1px 6px;line-height:1.4}
-.pc-filter-bar{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border-bottom:1px solid #edf3ef;background:#fff}
-.pc-filter-row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap}
-.pc-filter-search{display:flex;align-items:center;gap:8px;min-width:260px;flex:1;border:1px solid #e2e8f0;border-radius:9px;background:#fff;padding:0 11px;color:#94a3b8;transition:border-color .15s,box-shadow .15s}
-.pc-filter-search:focus-within{border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.08)}
-.pc-filter-search .pc-filter-input{border:none!important;padding:8px 0!important;box-shadow:none!important;background:transparent!important}
-.pc-filter-input{padding:7px 11px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;outline:none;background:#fff;transition:border-color .15s;min-width:0;box-sizing:border-box;flex:1}
-.pc-filter-input:focus{border-color:#2d6a4f}
-.pc-filter-select{height:38px;padding:7px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;outline:none;background:#fff;transition:border-color .15s;flex-shrink:0}
-.pc-filter-select:focus{border-color:#2d6a4f}
-.pc-filter-date-wrap{height:38px;display:flex;align-items:center;gap:5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:0 10px;flex-shrink:0}
-.pc-filter-date-wrap .react-datepicker-wrapper{width:auto}
-.pc-filter-date-wrap .react-datepicker__input-container input{padding:6px 4px;border:none;background:transparent;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;outline:none;width:88px;cursor:pointer}
-.pc-filter-reset{height:38px;padding:7px 13px;border:1px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:800;color:#dc2626;background:#fef2f2;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;flex-shrink:0}
-.pc-filter-reset:hover{background:#fee2e2}
-.pc-pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid #f1f5f9;flex-wrap:wrap;gap:10px}
-.pc-page-info{font-size:13px;color:#64748b}
-.pc-page-btns{display:flex;gap:4px}
-.pc-page-btn{width:32px;height:32px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;color:#475569;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;transition:all .14s}
-.pc-page-btn:hover:not(:disabled){border-color:#2d6a4f;color:#1a4731;background:#f0fdf4}
-.pc-page-btn.active{background:#1a4731;color:#fff;border-color:#1a4731}
-.pc-page-btn:disabled{opacity:.4;cursor:not-allowed}
-.pc-steps{display:flex;align-items:flex-start;gap:0;margin-bottom:24px}
-.pc-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
-.pc-step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:1;flex-shrink:0}
-.pc-step-line{position:absolute;top:13px;left:50%;width:100%;height:2px;z-index:0}
-.pc-step-label{font-size:10px;font-weight:600;margin-top:5px;text-align:center;line-height:1.3}
-.pc-stats-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:16px;margin-bottom:28px}
-.pc-stat-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);border:1px solid #f1f5f9;animation:fadeInUp .35s ease both}
-.pc-radio-card{flex:1;display:flex;align-items:center;gap:10px;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s;font-size:14px;font-weight:600;color:#64748b;font-family:'Plus Jakarta Sans',sans-serif}
-.pc-radio-card.approve.active{border-color:#86efac;background:#f0fdf4;color:#166534}
-.pc-radio-card.reject.active{border-color:#fca5a5;background:#fef2f2;color:#991b1b}
-.pc-shell{position:relative}
-.pc-hero{position:relative;overflow:hidden;border:1px solid #dfe9e4;border-radius:18px;background:linear-gradient(135deg,#f8fbf9 0%,#eef7f1 52%,#fffaf0 100%);padding:24px;margin-bottom:18px;box-shadow:0 14px 38px rgba(22,44,31,.08)}
-.pc-hero::after{content:'';position:absolute;right:-72px;top:-96px;width:260px;height:260px;border-radius:50%;background:rgba(26,71,49,.07);pointer-events:none}
-.pc-hero-main{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
-.pc-eyebrow{display:inline-flex;align-items:center;gap:8px;color:#1a4731;background:#e7f4ed;border:1px solid #cfe8da;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
-.pc-title{font-size:28px;font-weight:800;color:#12251a;letter-spacing:0;line-height:1.18;margin:0}
-.pc-subtitle{font-size:14px;color:#63766d;line-height:1.6;margin-top:8px;max-width:680px}
-.pc-hero-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.pc-action-primary,.pc-action-soft,.pc-action-dark{height:40px;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s,box-shadow .15s,background .15s,border-color .15s;white-space:nowrap}
-.pc-action-primary{padding:0 15px;background:#1a4731;color:#fff;border:1px solid #1a4731;box-shadow:0 10px 22px rgba(26,71,49,.2)}
-.pc-action-primary:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(26,71,49,.25)}
-.pc-action-soft{padding:0 14px;background:#fff;color:#1a4731;border:1px solid #cfe8da}
-.pc-action-soft:hover{background:#f0fdf4;border-color:#9dd8b8}
-.pc-action-dark{padding:0 14px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.2)}
-.pc-action-dark:hover{background:rgba(255,255,255,.2)}
-.pc-saldo-grid{display:grid!important;grid-template-columns:minmax(360px,2fr) repeat(2,minmax(220px,1fr))!important;gap:16px!important;margin-bottom:18px!important}
-.pc-saldo-card{border-radius:18px!important;background:linear-gradient(135deg,#0d281b 0%,#1a4731 54%,#2d6a4f 100%)!important;box-shadow:0 18px 42px rgba(26,71,49,.28)!important}
-.pc-balance-card{position:relative;overflow:hidden;border-radius:18px;background:linear-gradient(135deg,#0d281b 0%,#1a4731 54%,#2d6a4f 100%);box-shadow:0 18px 42px rgba(26,71,49,.28);animation:fadeInUp .35s ease both}
-.pc-balance-card::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.08),transparent 45%),radial-gradient(circle at 82% 10%,rgba(255,255,255,.14),transparent 30%);pointer-events:none}
-.pc-balance-inner{position:relative;z-index:1;padding:24px;min-height:220px;display:flex;flex-direction:column;justify-content:space-between}
-.pc-balance-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
-.pc-balance-icon{width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;color:#b8f5d4;flex-shrink:0}
-.pc-balance-label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.58);margin-bottom:10px}
-.pc-balance-value{font-size:34px;font-weight:800;color:#fff;line-height:1;letter-spacing:0;margin:0}
-.pc-balance-meta{font-size:11px;color:rgba(255,255,255,.56);margin-top:9px}
-.pc-balance-progress{height:7px;background:rgba(255,255,255,.13);border-radius:999px;overflow:hidden;margin-top:18px}
-.pc-balance-progress span{display:block;height:100%;border-radius:999px;transition:width 1s cubic-bezier(.4,0,.2,1)}
-.pc-balance-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;color:rgba(255,255,255,.58);font-size:11px}
-.pc-warning-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:rgba(239,68,68,.16);border:1px solid rgba(252,165,165,.32);color:#fecaca;font-weight:800}
-.pc-balance-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
-.pc-money-card{position:relative;overflow:hidden;border-radius:18px;background:#fff;border:1px solid #e7eee9;box-shadow:0 10px 28px rgba(15,23,42,.06);padding:22px;animation:fadeInUp .35s ease both}
-.pc-money-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
-.pc-money-icon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center}
-.pc-money-pill{font-size:11px;font-weight:800;border-radius:999px;padding:5px 9px}
-.pc-money-label{font-size:11px;font-weight:800;color:#819189;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
-.pc-money-value{font-size:23px;font-weight:800;line-height:1;color:#17251d;margin:0}
-.pc-money-note{font-size:12px;color:#8aa097;margin-top:8px}
-.pc-money-track{height:5px;background:#eef3f0;border-radius:999px;overflow:hidden;margin-top:16px}
-.pc-money-track span{display:block;height:100%;border-radius:999px;transition:width 1s ease}
-.pc-stats-mini{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:12px!important;margin-bottom:18px!important}
-.pc-stat-mini{background:#fff!important;border-radius:14px!important;padding:16px 18px!important;box-shadow:0 8px 24px rgba(15,23,42,.05)!important;border:1px solid #e7eee9!important;display:flex!important;align-items:center!important;gap:14px!important;animation:fadeInUp .3s ease both}
-.pc-stat-icon{width:40px!important;height:40px!important;border-radius:12px!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0}
-.pc-list-area{margin-top:4px;padding:14px;border:1px solid #e1ece6;border-radius:20px;background:linear-gradient(180deg,#f8fbf9,#eef5f1);box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
-.pc-list-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px}
-.pc-list-title{font-size:16px;font-weight:800;color:#17251d;margin:0}
-.pc-list-subtitle{font-size:12px;color:#7b8d85;margin-top:4px}
-.pc-section-card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 16px 42px rgba(15,23,42,.07);border:1px solid #e1ece6;margin-top:14px}
-.pc-empty-state{padding:64px 24px;text-align:center;color:#8aa097;background:linear-gradient(180deg,#fff,#fbfdfc)}
-.pc-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.pc-table-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #edf3ef;background:linear-gradient(135deg,#fbfdfc,#f2f8f5)}
-.pc-table-titlebar p{margin:0}
-.pc-table-heading{font-size:15px;font-weight:800;color:#17251d}
-.pc-table-subheading{font-size:12px;color:#8aa097;margin-top:3px!important}
-.pc-modal{border:none;outline:none;overflow-y:auto;scrollbar-gutter:stable both-edges}
-.pc-modal-native-scroll{overflow-y:auto;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#9aa7a0 transparent}
-.pc-modal-native-scroll::-webkit-scrollbar{width:11px;height:11px}
-.pc-modal-native-scroll::-webkit-scrollbar-track{background:transparent;border-radius:999px}
-.pc-modal-native-scroll::-webkit-scrollbar-thumb{background:#9aa7a0;background-clip:content-box;border:3px solid transparent;border-radius:999px}
-.pc-modal-native-scroll::-webkit-scrollbar-thumb:hover{background:#6f7f77;background-clip:content-box}
-.pc-modal-native-scroll::-webkit-scrollbar-corner{background:transparent}
-.pc-modal-footer{position:sticky;bottom:-30px;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 28%);margin:18px -30px -30px;padding:18px 30px 22px;border-top:1px solid rgba(225,236,230,.75)}
-.pc-modal-footer .pc-btn-primary,.pc-modal-footer .pc-btn-ghost{min-height:42px;border-radius:10px}
-.pc-approval-summary{background:#f8fbf9;border:1px solid #e1ece6;border-radius:12px;padding:16px;margin-bottom:18px}
-.pc-approval-no{font-size:13px;font-weight:800;color:#1a4731;margin:0 0 4px}
-.pc-approval-amount{font-size:24px;font-weight:800;color:#17251d;margin:0;line-height:1}
-.pc-approval-desc{font-size:13px;color:#64748b;margin:8px 0 0;line-height:1.5}
-.pc-saldo-modal{max-width:min(1100px,96vw)!important;width:100%;padding:0!important;overflow:hidden!important;background:#f8fbf9!important}
-.pc-saldo-modal-body{max-height:88vh;overflow-y:auto;padding:26px}
-.pc-saldo-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
-.pc-saldo-title{display:flex;align-items:center;gap:12px}
-.pc-saldo-title h2{font-size:21px;font-weight:800;color:#12251a;margin:0;letter-spacing:0}
-.pc-saldo-title p{font-size:13px;color:#72847b;margin:4px 0 0}
-.pc-saldo-dashboard{display:grid;grid-template-columns:minmax(280px,1.25fr) repeat(3,minmax(130px,.55fr));gap:12px;margin-bottom:16px}
-.pc-saldo-balance{position:relative;overflow:hidden;border-radius:16px;background:linear-gradient(135deg,#0d281b,#1a4731 58%,#2d6a4f);padding:20px;color:#fff;min-height:128px;box-shadow:0 14px 30px rgba(26,71,49,.23)}
-.pc-saldo-balance::after{content:'';position:absolute;right:-45px;top:-60px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.1)}
-.pc-saldo-balance-label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.62);margin:0 0 10px}
-.pc-saldo-balance-value{font-size:31px;font-weight:800;margin:0;line-height:1}
-.pc-saldo-balance-note{font-size:12px;color:rgba(255,255,255,.68);margin:12px 0 0}
-.pc-saldo-kpi{background:#fff;border:1px solid #e1ece6;border-radius:14px;padding:15px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
-.pc-saldo-kpi-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7b8d85;margin:0 0 9px}
-.pc-saldo-kpi-value{font-size:22px;font-weight:800;color:#17251d;margin:0;line-height:1}
-.pc-saldo-kpi small{display:block;font-size:11px;color:#8aa097;margin-top:8px}
-.pc-saldo-section{background:#fff;border:1px solid #e1ece6;border-radius:16px;overflow:hidden;box-shadow:0 12px 34px rgba(15,23,42,.06);margin-top:14px}
-.pc-saldo-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #edf3ef;background:linear-gradient(135deg,#fff,#f5faf7)}
-.pc-saldo-section-title{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:800;color:#17251d;margin:0}
-.pc-saldo-section-sub{font-size:12px;color:#819189;margin:4px 0 0}
-.pc-saldo-table-wrap{overflow:auto}
-.pc-saldo-table{width:100%;min-width:860px;border-collapse:separate;border-spacing:0;font-size:12px}
-.pc-saldo-table th{position:sticky;top:0;z-index:1;background:#f8fbf9;border-bottom:1px solid #dfe9e4;border-right:1px solid #edf3ef;color:#718178;text-align:left;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;font-weight:800;padding:10px 12px;white-space:nowrap}
-.pc-saldo-table td{border-bottom:1px solid #edf3ef;border-right:1px solid #f1f5f9;color:#334155;padding:11px 12px;vertical-align:middle;background:#fff}
-.pc-saldo-table tr:hover td{background:#fbfdfc}
-.pc-saldo-table th:last-child,.pc-saldo-table td:last-child{border-right:none}
-.pc-saldo-actor{display:flex;flex-direction:column;gap:2px;min-width:0}
-.pc-saldo-actor strong{font-size:12.5px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pc-saldo-actor span{font-size:11px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pc-saldo-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap}
-.pc-saldo-badge.pending{background:#fff7ed;color:#c2410c}
-.pc-saldo-badge.disetujui{background:#dcfce7;color:#166534}
-.pc-saldo-badge.ditolak{background:#fee2e2;color:#991b1b}
-.pc-saldo-empty{padding:34px 20px;text-align:center;color:#8aa097;font-size:13px;background:#fff}
-.pc-saldo-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 26px 22px;background:#fff;border-top:1px solid #e1ece6}
-.pc-saldo-footer .pc-btn-ghost{min-height:40px}
-.pc-saldo-modal .pc-action-cell{min-width:0}
-.pc-saldo-modal .pc-btn-sm{min-height:28px}
-.pc-approval-saldo{max-width:min(1040px,96vw)!important;width:100%;padding:0!important;overflow:hidden!important;background:#f8fbf9!important}
-.pc-approval-body{max-height:88vh;overflow-y:auto;padding:26px}
-.pc-approval-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
-.pc-approval-title{display:flex;align-items:center;gap:12px}
-.pc-approval-title h2{font-size:21px;font-weight:800;color:#12251a;margin:0}
-.pc-approval-title p{font-size:13px;color:#72847b;margin:4px 0 0}
-.pc-approval-grid{display:grid;grid-template-columns:minmax(310px,.92fr) minmax(420px,1.08fr);gap:16px}
-.pc-approval-card{background:#fff;border:1px solid #e1ece6;border-radius:16px;box-shadow:0 12px 34px rgba(15,23,42,.06);overflow:hidden}
-.pc-approval-card-head{padding:16px 18px;border-bottom:1px solid #edf3ef;background:linear-gradient(135deg,#fff,#f5faf7)}
-.pc-approval-card-title{font-size:14px;font-weight:800;color:#17251d;margin:0;display:flex;align-items:center;gap:8px}
-.pc-approval-content{padding:18px}
-.pc-approval-request{border:1px solid #e1ece6;border-radius:14px;background:#f8fbf9;padding:14px;margin-bottom:16px}
-.pc-approval-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
-.pc-approval-no{font-family:monospace;font-size:13px;font-weight:800;color:#1a4731;margin:0}
-.pc-approval-meta{font-size:12px;color:#819189;margin:3px 0 0}
-.pc-approval-user{display:flex;align-items:center;gap:10px;padding:11px 12px;background:#fff;border:1px solid #e1ece6;border-radius:12px;margin-bottom:12px}
-.pc-approval-avatar{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#1a4731,#236348);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
-.pc-approval-user strong{font-size:13px;color:#1e293b;display:block}
-.pc-approval-user span{font-size:11px;color:#94a3b8;display:block;margin-top:2px}
-.pc-approval-note{font-size:13px;color:#475569;line-height:1.6;margin:0;border-left:3px solid #cfe8da;padding-left:11px}
-.pc-approval-result{border:1px solid #e1ece6;border-radius:14px;padding:14px;background:#fff;margin-top:10px}
-.pc-approval-result strong{display:block;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
-.pc-approval-result p{font-size:20px;font-weight:800;color:#166534;margin:0}
-.pc-usage-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 18px;border-bottom:1px solid #edf3ef;background:#fff}
-.pc-usage-kpi{border:1px solid #e1ece6;border-radius:12px;padding:11px;background:#fbfdfc}
-.pc-usage-kpi span{font-size:10.5px;color:#819189;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
-.pc-usage-kpi strong{display:block;font-size:15px;color:#17251d;margin-top:5px}
-.pc-usage-table-wrap{max-height:360px;overflow:auto}
-.pc-usage-table{width:100%;min-width:640px;border-collapse:separate;border-spacing:0;font-size:12px}
-.pc-usage-table th{position:sticky;top:0;z-index:1;background:#f8fbf9;border-bottom:1px solid #dfe9e4;border-right:1px solid #edf3ef;color:#718178;text-align:left;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;font-weight:800;padding:10px 12px;white-space:nowrap}
-.pc-usage-table td{border-bottom:1px solid #edf3ef;border-right:1px solid #f1f5f9;color:#334155;padding:11px 12px;background:#fff;vertical-align:middle}
-.pc-usage-table th:last-child,.pc-usage-table td:last-child{border-right:none}
-.pc-approval-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 26px 22px;background:#fff;border-top:1px solid #e1ece6}
-.react-datepicker-wrapper{width:100%}
-.react-datepicker__input-container input{width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;box-sizing:border-box;cursor:pointer}
-.react-datepicker__input-container input:focus{border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.08)}
-.react-datepicker{font-family:'Plus Jakarta Sans',sans-serif !important;border:1px solid #e2e8f0 !important;border-radius:12px !important;box-shadow:0 8px 30px rgba(0,0,0,0.12) !important;overflow:hidden}
-.react-datepicker__header{background:#f0fdf4 !important;border-bottom:1px solid #bbf7d0 !important;border-radius:12px 12px 0 0 !important;padding:12px 0 8px !important}
-.react-datepicker__current-month{font-size:14px !important;font-weight:700 !important;color:#166534 !important}
-.react-datepicker__day-name{color:#94a3b8 !important;font-size:11px !important;font-weight:600 !important}
-.react-datepicker__day{color:#334155 !important;border-radius:8px !important;font-size:13px !important}
-.react-datepicker__day:hover{background:#dcfce7 !important;color:#166534 !important}
-.react-datepicker__day--selected{background:#1a4731 !important;color:#fff !important;font-weight:600 !important}
-.react-datepicker__day--today:not(.react-datepicker__day--selected){border:1.5px solid #16a34a !important;color:#16a34a !important;font-weight:600 !important;background:transparent !important}
-.react-datepicker__navigation-icon::before{border-color:#16a34a !important}
-.react-datepicker__triangle{display:none !important}
-
-/* ── RESPONSIVE STYLES ── */
-@media(max-width:1440px){
-  .pc-stats-row{grid-template-columns:1fr 1fr 1fr}
-}
-
-@media(max-width:1024px){
-  .pc-saldo-amt{font-size:24px}
-  .pc-stats-row{grid-template-columns:1fr 1fr}
-  .pc-stats-mini{grid-template-columns:repeat(2,1fr)}
-  .pc-table thead th{font-size:11px;padding:10px 12px}
-  .pc-table tbody td{font-size:12px;padding:10px 12px}
-  .pc-btn-sm{padding:4px 10px;font-size:11px}
-  .pc-filter-input{font-size:12px;padding:6px 10px}
-  .pc-filter-select{font-size:12px;padding:6px 8px}
-}
-
-@media(max-width:768px){
-  .pc-page{margin:0 -12px}
-  
-  /* Header */
-  h1{font-size:20px !important}
-  
-  /* Saldo cards grid */
-  .pc-saldo-grid{
-    display:grid !important;
-    grid-template-columns:1fr !important;
-    gap:12px !important;
-    margin-bottom:16px !important;
-  }
-  
-  /* Saldo card */
-  .pc-saldo-card{
-    padding:16px !important;
-  }
-  
-  .pc-saldo-amt{font-size:20px}
-  .pc-saldo-inner{padding:16px 16px 12px !important;gap:12px}
-  .pc-saldo-bar-track{min-width:unset;flex:1}
-
-  /* Stats grid - stack on mobile */
-  .pc-stats-row{
-    grid-template-columns:1fr !important;
-    gap:8px !important;
-    margin-bottom:16px !important;
-  }
-  
-  .pc-stat-card{padding:12px 14px}
-  .pc-stat-card p:first-child{font-size:10px}
-  .pc-stat-card p:last-child{font-size:16px}
-  
-  /* Stats mini - responsive */
-  .pc-stats-mini{
-    grid-template-columns:1fr !important;
-    gap:8px !important;
-    margin-bottom:16px !important;
-  }
-  
-  .pc-stat-mini{
-    padding:12px 14px !important;
-    gap:10px !important;
-    flex-direction:column !important;
-    align-items:flex-start !important;
-  }
-  
-  .pc-stat-icon{
-    width:32px !important;
-    height:32px !important;
-  }
-  
-  .pc-stat-mini p:first-of-type{font-size:10px !important}
-  .pc-stat-mini p:last-of-type{font-size:16px !important}
-  
-  /* Filter bar - stack and scroll */
-  .pc-filter-row{
-    flex-direction:column;
-    gap:6px !important;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    padding-bottom:4px;
-  }
-  
-  .pc-filter-input{
-    width:100%;
-    font-size:12px;
-    padding:6px 10px;
-    min-width:100px;
-  }
-  
-  .pc-filter-select{
-    width:100%;
-    font-size:12px;
-    padding:6px 8px;
-    flex-shrink:0;
-  }
-  
-  .pc-filter-date-wrap{
-    width:100%;
-    flex-shrink:0;
-  }
-  
-  .pc-filter-date-wrap .react-datepicker__input-container input{
-    width:60px;
-    font-size:11px;
-    padding:5px 3px;
-  }
-  
-  .pc-filter-reset{
-    width:100%;
-    margin-top:4px;
-  }
-  
-  /* Tabs responsiveness */
-  .pc-tabs{
-    margin-bottom:12px;
-    gap:2px;
-  }
-  
-  .pc-tab-pill{
-    padding:6px 12px;
-    font-size:12px;
-    gap:4px;
-  }
-  
-  /* Table responsiveness */
-  .pc-table{
-    font-size:12px;
-  }
-  
-  .pc-table thead th{
-    font-size:10px;
-    padding:8px 6px;
-    white-space:nowrap;
-  }
-  
-  .pc-table tbody td{
-    font-size:11px;
-    padding:8px 6px;
-  }
-  
-  /* Hide less important columns on mobile */
-  .pc-table th:nth-child(n+3):nth-child(-n+4),
-  .pc-table td:nth-child(n+3):nth-child(-n+4){
-    display:none;
-  }
-  
-  /* Keperluan column - show with reduced width */
-  .pc-table td:nth-child(3),
-  .pc-table th:nth-child(3){
-    display:table-cell !important;
-    max-width:120px;
-  }
-  
-  /* Buttons in table - stack or reduce */
-  .pc-table tbody td:last-child{
-    padding:6px 4px;
-  }
-  
-  .pc-table tbody td:last-child > div{
-    flex-direction:column;
-    gap:3px !important;
-    align-items:stretch !important;
-  }
-  
-  .pc-btn-sm{
-    padding:4px 8px;
-    font-size:10px;
-    width:100%;
-    justify-content:center;
-  }
-  
-  /* Pagination */
-  .pc-pagination{
-    flex-direction:column;
-    padding:10px 12px;
-    gap:8px;
-  }
-  
-  .pc-page-info{font-size:11px}
-  .pc-page-btn{width:28px;height:28px;font-size:11px}
-  
-  /* Modal responsiveness */
-  .pc-modal{
-    padding:20px;
-    max-width:95vw !important;
-    width:95vw;
-    max-height:95vh;
-    border-radius:12px;
-  }
-  
-  .pc-modal.sm{max-width:95vw !important}
-  .pc-modal.lg{max-width:95vw !important}
-  
-  .pc-field{margin-bottom:12px;gap:4px}
-  .pc-label{font-size:12px}
-  .pc-input,.pc-select,.pc-textarea{font-size:13px;padding:8px 10px}
-  .pc-textarea{min-height:60px}
-  
-  .pc-grid2{
-    grid-template-columns:1fr;
-    gap:10px;
-  }
-
-  .pc-modal-summary{
-    grid-template-columns:1fr;
-    padding:14px;
-  }
-
-  .pc-modal-summary-value{font-size:20px}
-  .pc-detail-grid{grid-template-columns:1fr;gap:10px}
-  .pc-modal-section{padding:14px;margin-bottom:12px}
-  .pc-modal-head-title{font-size:18px}
-  
-  .pc-btn-primary{
-    padding:8px 16px;
-    font-size:12px;
-    width:100%;
-    justify-content:center;
-  }
-  
-  .pc-btn-ghost{
-    padding:8px 16px;
-    font-size:12px;
-  }
-  
-  .pc-modal-footer{
-    flex-direction:column;
-    gap:8px;
-  }
-  
-  .pc-modal-footer button{
-    width:100%;
-  }
-  
-  /* Steps - more compact */
-  .pc-steps{
-    gap:0;
-    margin-bottom:16px;
-  }
-  
-  .pc-step{
-    gap:2px;
-  }
-  
-  .pc-step-dot{
-    width:22px;
-    height:22px;
-    font-size:9px;
-  }
-  
-  .pc-step-line{top:11px}
-  
-  .pc-step-label{
-    font-size:8px;
-    margin-top:3px;
-  }
-  
-  /* Alert box */
-  .pc-alert-ok,.pc-alert-err,.pc-rejection{
-    font-size:12px;
-    padding:10px 12px;
-    margin-bottom:12px;
-  }
-  
-  /* File uploads */
-  .pc-file-zone{
-    padding:12px 14px;
-    margin-bottom:12px;
-    flex-wrap:wrap;
-  }
-  
-  .pc-file-pick{
-    padding:6px 12px;
-    font-size:12px;
-  }
-  
-  /* Radio cards */
-  .pc-radio-card{
-    padding:9px 10px;
-    font-size:12px;
-    gap:8px;
-  }
-}
-
-@media(max-width:480px){
-  .pc-page{margin:0 -8px}
-  
-  h1{font-size:18px !important}
-  
-  .pc-saldo-amt{font-size:18px}
-  .pc-saldo-inner{padding:12px 12px 10px !important}
-  
-  /* Stats - full width */
-  .pc-stat-card{padding:10px 12px}
-  .pc-stat-card > div:first-child{width:32px;height:32px}
-  
-  /* Stats mini - stacked */
-  .pc-stats-mini{grid-template-columns:1fr !important}
-  .pc-stat-mini{padding:10px 12px !important;gap:8px !important}
-  .pc-stat-icon{width:28px !important;height:28px !important}
-  .pc-stat-mini p:first-of-type{font-size:9px !important}
-  .pc-stat-mini p:last-of-type{font-size:14px !important}
-  
-  .pc-tabs{
-    width:100%;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-  
-  .pc-tab-pill{
-    padding:5px 10px;
-    font-size:11px;
-  }
-  
-  .pc-filter-input{
-    font-size:11px;
-    padding:5px 8px;
-  }
-  
-  .pc-filter-select{
-    font-size:11px;
-  }
-  
-  .pc-table{
-    font-size:11px;
-  }
-  
-  .pc-table thead th{
-    font-size:9px;
-    padding:6px 4px;
-  }
-  
-  .pc-table tbody td{
-    font-size:10px;
-    padding:6px 4px;
-  }
-  
-  .pc-modal{
-    padding:16px;
-    max-width:100vw !important;
-    max-height:95vh;
-    border-radius:10px;
-  }
-  
-  .pc-btn-primary{
-    padding:6px 12px;
-    font-size:11px;
-  }
-  
-  .pc-btn-sm{
-    padding:3px 6px;
-    font-size:9px;
-  }
-  
-  .pc-page-btn{
-    width:24px;
-    height:24px;
-    font-size:10px;
-  }
-  
-  .pc-input,.pc-select,.pc-textarea{
-    font-size:12px;
-    padding:6px 8px;
-  }
-}
-`;
+const ORDER = ['pending', 'disetujui', 'dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'selesai'];
 
 function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, dariVal, onDari, sampaiVal, onSampai, onReset, hasFilter }) {
     return (
@@ -706,9 +63,9 @@ function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, 
                 </select>
                 <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>Tanggal</span>
                 <div className="pc-filter-date-wrap">
-                    <DatePicker selected={dariVal} onChange={onDari} selectsStart startDate={dariVal} endDate={sampaiVal} placeholderText="Dari" dateFormat="dd/MM/yy" locale={id} isClearable popperPlacement="bottom-end" />
+                    <DateField value={dateToStr(dariVal)} onChange={onDari} placeholder="Dari" />
                     <span style={{ fontSize: 11, color: '#cbd5e1', flexShrink: 0 }}>-</span>
-                    <DatePicker selected={sampaiVal} onChange={onSampai} selectsEnd startDate={dariVal} endDate={sampaiVal} minDate={dariVal} placeholderText="Sampai" dateFormat="dd/MM/yy" locale={id} isClearable popperPlacement="bottom-end" />
+                    <DateField value={dateToStr(sampaiVal)} onChange={onSampai} placeholder="Sampai" />
                 </div>
                 {hasFilter && <button className="pc-filter-reset" onClick={onReset}>Reset</button>}
             </div>
@@ -720,6 +77,7 @@ export default function PettyCash() {
     const { user } = useAuth();
     const isManajer = user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role);
     const isDirekturWadir = user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role);
+    const isPettyCashCashier = user?.is_superuser || Boolean(user?.is_petty_cash_cashier);
     const canSeeSaldo = isManajer;
 
     const [activeTab, setActiveTab] = useState('pc');
@@ -754,6 +112,7 @@ export default function PettyCash() {
     const [modalApproval, setModalApproval] = useState(null);
     const [modalCairkan, setModalCairkan] = useState(null);
     const [modalLaporan, setModalLaporan] = useState(null);
+    const [modalApprovalLaporan, setModalApprovalLaporan] = useState(null);
     const [modalKonfirmasi, setModalKonfirmasi] = useState(null);
     const [modalRevisi, setModalRevisi] = useState(null);
     const [modalHapus, setModalHapus] = useState(null);
@@ -765,6 +124,7 @@ export default function PettyCash() {
     const [notaFile, setNotaFile] = useState(null);
     const [notaFileInfo, setNotaFileInfo] = useState(null);
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
+    const [approvalLaporanForm, setApprovalLaporanForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const berkasRef = useRef(); const notaRef = useRef();
 
     // RB state
@@ -792,8 +152,22 @@ export default function PettyCash() {
     const berkasRBRef = useRef();
     const [imagePreview, setImagePreview] = useState(null);
 
+    const anyModalOpen = Boolean(
+        modalBuat || modalDetail || modalApproval || modalCairkan || modalLaporan || modalApprovalLaporan || modalKonfirmasi || modalRevisi || modalHapus ||
+        modalBuatRB || modalDetailRB || modalApprovalRB || modalCairkanRB || modalRevisiRB || modalHapusRB ||
+        modalSaldo || modalAjukanSaldo || modalApprovalSaldo || imagePreview
+    );
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchAll(); }, [page, pageSizePC, filterStatus, filterDari, filterSampai, pageRB, pageSizeRB, filterStatusRB, filterDariRB, filterSampaiRB]);
+    useEffect(() => {
+        if (!anyModalOpen) return undefined;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [anyModalOpen]);
 
     const fetchAll = async () => {
         setLoadingPC(true); setLoadingRB(true);
@@ -852,9 +226,9 @@ export default function PettyCash() {
     useEffect(() => setPageRB(1), [searchRB, filterStatusRB, filterDariRB, filterSampaiRB]);
 
     // Stats
-    const pendingPC = listPC.filter(i => i.status === 'pending').length;
+    const pendingPC = listPC.filter(i => ['pending', 'menunggu_approval_laporan'].includes(i.status)).length;
     const pendingRB = listRB.filter(i => i.status === 'pending').length;
-    const berjalanPC = listPC.filter(i => ['dicairkan', 'dilaporkan', 'menunggu_pengembalian'].includes(i.status)).length;
+    const berjalanPC = listPC.filter(i => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(i.status)).length;
     const selesaiPC = listPC.filter(i => i.status === 'selesai').length;
     // Handlers PC
     const handleBuatPC = async () => {
@@ -899,6 +273,7 @@ export default function PettyCash() {
     const handleLaporanPC = async () => {
         setError('');
         if (!formLaporan.tanggal_laporan || !formLaporan.nominal_digunakan || !formLaporan.rincian) return setError('Semua field wajib diisi.');
+        if (Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal)) return setError('Nominal digunakan tidak boleh melebihi dana yang dicairkan.');
         setSaving(true);
         try {
             const fd = new FormData();
@@ -908,6 +283,18 @@ export default function PettyCash() {
             showSuccess('Laporan penggunaan berhasil disubmit!');
             setModalLaporan(null); setFormLaporan({ tanggal_laporan: '', nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); fetchAll();
         } catch (e) { setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.'); }
+        finally { setSaving(false); }
+    };
+
+    const handleApprovalLaporanPC = async () => {
+        setError('');
+        if (approvalLaporanForm.aksi === 'tolak' && !approvalLaporanForm.catatan_tolak.trim()) return setError('Catatan tolak wajib diisi.');
+        setSaving(true);
+        try {
+            await api.post(`/keuangan/petty-cash/${modalApprovalLaporan.id}/approval-laporan/`, approvalLaporanForm);
+            showSuccess(`Laporan penggunaan berhasil ${approvalLaporanForm.aksi === 'setujui' ? 'disetujui' : 'ditolak'}!`);
+            setModalApprovalLaporan(null); fetchAll();
+        } catch (e) { setError(e.response?.data?.error || 'Gagal approve laporan penggunaan.'); }
         finally { setSaving(false); }
     };
 
@@ -1150,17 +537,15 @@ export default function PettyCash() {
 
     return (
         <div className="pc-page pc-shell">
-            <style>{STYLES}</style>
 
             <div className="pc-hero">
                 <div className="pc-hero-main">
-                    <div>
-                        <div className="pc-eyebrow">
-                            <Wallet size={14} />
-                            Dashboard Dana Operasional
+                    <div className="pc-page-title">
+                        <span><Wallet size={22} /></span>
+                        <div>
+                            <h1 className="pc-title">Petty Cash & Reimbursement</h1>
+                            <p className="pc-subtitle">Pantau saldo kas kecil, proses pengajuan, dan cek reimbursement dalam satu halaman kerja yang ringkas.</p>
                         </div>
-                        <h1 className="pc-title">Petty Cash & Reimbursement</h1>
-                        <p className="pc-subtitle">Pantau saldo kas kecil, proses pengajuan, dan cek reimbursement dalam satu halaman kerja yang ringkas.</p>
                     </div>
                 </div>
             </div>
@@ -1322,13 +707,16 @@ export default function PettyCash() {
                                                     {isDirekturWadir && item.status === 'pending' && (
                                                         <button className="pc-btn-sm g" onClick={() => { setApprovalForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApproval(item); }}>Proses</button>
                                                     )}
-                                                    {isManajer && item.status === 'disetujui' && (
+                                                    {isPettyCashCashier && item.status === 'disetujui' && (
                                                         <button className="pc-btn-sm b" onClick={() => { resetError(); setModalCairkan(item); }}>Cairkan</button>
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
                                                         <button className="pc-btn-sm p" onClick={() => { setFormLaporan({ tanggal_laporan: '', nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); resetError(); setModalLaporan(item); }}>Laporan</button>
                                                     )}
-                                                    {isManajer && ['dilaporkan', 'menunggu_pengembalian'].includes(item.status) && (
+                                                    {isDirekturWadir && item.status === 'menunggu_approval_laporan' && (
+                                                        <button className="pc-btn-sm g" onClick={() => { setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApprovalLaporan(item); }}>Approve Laporan</button>
+                                                    )}
+                                                    {isPettyCashCashier && ['dilaporkan', 'menunggu_pengembalian'].includes(item.status) && (
                                                         <button className="pc-btn-sm y" onClick={() => { resetError(); setModalKonfirmasi(item); }}>Konfirmasi</button>
                                                     )}
                                                     <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>Detail</button>
@@ -1455,7 +843,7 @@ export default function PettyCash() {
                             <div className="pc-grid2">
                                 <div className="pc-field">
                                     <label className="pc-label">Tanggal *</label>
-                                    <DatePicker selected={strToDate(formPC.tanggal)} onChange={d => setFormPC({ ...formPC, tanggal: dateToStr(d) })} dateFormat="dd MMMM yyyy" locale={id} placeholderText="Pilih tanggal..." showMonthDropdown showYearDropdown dropdownMode="select" popperPlacement="bottom-start" popperProps={{ strategy: 'fixed' }} />
+                                    <DateField value={formPC.tanggal} onChange={tanggal => setFormPC({ ...formPC, tanggal })} placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
                                     <label className="pc-label">Nominal (Rp) *</label>
@@ -1522,6 +910,8 @@ export default function PettyCash() {
                                     ['Tgl Laporan', fmtTgl(modalDetail.laporan.tanggal_laporan)],
                                     ['Nominal Digunakan', fmt(modalDetail.laporan.nominal_digunakan)],
                                     ['Selisih / Kembalian', fmt(modalDetail.laporan.selisih)],
+                                    ['Approval Laporan', modalDetail.laporan_disetujui_oleh_name || '-'],
+                                    ['Tgl Approval', fmtDT(modalDetail.laporan_disetujui_at)],
                                     ['Dikonfirmasi', modalDetail.laporan.dikonfirmasi_oleh_name || 'Belum'],
                                 ]} />
                                 <InfoBlock label="Rincian Penggunaan" value={modalDetail.laporan.rincian} />
@@ -1618,21 +1008,27 @@ export default function PettyCash() {
                             description={modalLaporan.keperluan}
                             meta={modalLaporan.no_pengajuan}
                         />
+                        {modalLaporan.catatan_tolak && <div className="pc-rejection"><strong>Catatan penolakan laporan:</strong> {modalLaporan.catatan_tolak}</div>}
                         {error && <div className="pc-alert-err">{error}</div>}
                         <ModalSection icon={<ClipboardList size={14} />} title="Data Laporan">
                             <div className="pc-grid2">
                                 <div className="pc-field">
                                     <label className="pc-label">Tanggal Laporan *</label>
-                                    <DatePicker selected={strToDate(formLaporan.tanggal_laporan)} onChange={d => setFormLaporan({ ...formLaporan, tanggal_laporan: dateToStr(d) })} dateFormat="dd MMMM yyyy" locale={id} placeholderText="Pilih tanggal..." showMonthDropdown showYearDropdown dropdownMode="select" popperPlacement="bottom-start" popperProps={{ strategy: 'fixed' }} />
+                                    <DateField value={formLaporan.tanggal_laporan} onChange={tanggal_laporan => setFormLaporan({ ...formLaporan, tanggal_laporan })} placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
                                     <label className="pc-label">Nominal Digunakan (Rp) *</label>
-                                    <input className="pc-input" type="number" placeholder="0" value={formLaporan.nominal_digunakan} onChange={e => setFormLaporan({ ...formLaporan, nominal_digunakan: e.target.value })} />
+                                    <input className="pc-input" type="number" min="0" max={modalLaporan.nominal} placeholder="0" value={formLaporan.nominal_digunakan} onChange={e => setFormLaporan({ ...formLaporan, nominal_digunakan: e.target.value })} />
                                     {formLaporan.nominal_digunakan && (
                                         <p style={{ fontSize: 11, marginTop: 3 }}>
                                             Selisih kembalian: <strong style={{ color: Number(formLaporan.nominal_digunakan) <= Number(modalLaporan.nominal) ? '#166534' : '#dc2626' }}>
                                                 {fmt(Number(modalLaporan.nominal) - Number(formLaporan.nominal_digunakan))}
                                             </strong>
+                                        </p>
+                                    )}
+                                    {Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal) && (
+                                        <p style={{ fontSize: 11, color: '#dc2626', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            <AlertTriangle size={13} /> Tidak boleh melebihi dana dicairkan.
                                         </p>
                                     )}
                                 </div>
@@ -1646,7 +1042,84 @@ export default function PettyCash() {
                         </ModalSection>
                         <div className="pc-modal-footer">
                             <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaFile(null); setNotaFileInfo(null); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
+                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
+                        </div>
+                    </div>
+                </div>, document.body
+            )}
+
+            {/* Approval Laporan Penggunaan */}
+            {modalApprovalLaporan && createPortal(
+                <div className="pc-overlay">
+                    <div className="pc-modal sm">
+                        <ModalHeader
+                            icon={<Check size={18} />}
+                            title="Approve Laporan Penggunaan"
+                            subtitle="Review realisasi dana sebelum proses petty cash bisa dilanjutkan."
+                        />
+                        {modalApprovalLaporan.laporan && (
+                            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                    <div><p style={S.dk}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>
+                                    <div><p style={S.dk}>Dana Digunakan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
+                                </div>
+                                <div style={{ padding: '10px 14px', background: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: `1px solid ${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#86efac' : '#f1f5f9'}`, marginBottom: 12 }}>
+                                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Selisih / Kembalian</p>
+                                    <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
+                                </div>
+                                <InfoBlock label="Rincian Penggunaan" value={modalApprovalLaporan.laporan.rincian} />
+                                {modalApprovalLaporan.laporan.nota_url && <ExistingAttachmentPreview url={modalApprovalLaporan.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
+                            </div>
+                        )}
+                        {error && <div className="pc-alert-err">{error}</div>}
+                        <div className="pc-field">
+                            <label className="pc-label">Keputusan</label>
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <label className={`pc-radio-card approve${approvalLaporanForm.aksi === 'setujui' ? ' active' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="aksi_laporan_pc"
+                                        value="setujui"
+                                        checked={approvalLaporanForm.aksi === 'setujui'}
+                                        onChange={() => setApprovalLaporanForm({ ...approvalLaporanForm, aksi: 'setujui' })}
+                                    /> <Check size={15} /> Setujui
+                                </label>
+                                <label className={`pc-radio-card reject${approvalLaporanForm.aksi === 'tolak' ? ' active' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="aksi_laporan_pc"
+                                        value="tolak"
+                                        checked={approvalLaporanForm.aksi === 'tolak'}
+                                        onChange={() => setApprovalLaporanForm({ ...approvalLaporanForm, aksi: 'tolak' })}
+                                    /> <X size={15} /> Tolak
+                                </label>
+                            </div>
+                        </div>
+                        {approvalLaporanForm.aksi === 'tolak' && (
+                            <div className="pc-field">
+                                <label className="pc-label">Catatan Tolak *</label>
+                                <textarea
+                                    className="pc-textarea"
+                                    placeholder="Jelaskan bagian laporan yang perlu diperbaiki..."
+                                    value={approvalLaporanForm.catatan_tolak}
+                                    onChange={e => setApprovalLaporanForm({ ...approvalLaporanForm, catatan_tolak: e.target.value })}
+                                />
+                            </div>
+                        )}
+                        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
+                            {approvalLaporanForm.aksi === 'setujui'
+                                ? 'Setelah disetujui, laporan bisa dilanjutkan ke proses penerimaan kembalian oleh petugas kas petty cash.'
+                                : 'Jika ditolak, user bisa upload laporan penggunaan ulang dari pengajuan yang sama.'}
+                        </p>
+                        <div className="pc-modal-footer">
+                            <button className="pc-btn-ghost" onClick={() => { setModalApprovalLaporan(null); resetError(); }}>Batal</button>
+                            <button
+                                className={`pc-btn-primary${approvalLaporanForm.aksi === 'tolak' ? ' danger' : ''}`}
+                                onClick={handleApprovalLaporanPC}
+                                disabled={saving}
+                            >
+                                {saving ? 'Memproses...' : approvalLaporanForm.aksi === 'setujui' ? <><Check size={15} /> Setujui Laporan</> : <><X size={15} /> Tolak Laporan</>}
+                            </button>
                         </div>
                     </div>
                 </div>, document.body
@@ -1719,7 +1192,7 @@ export default function PettyCash() {
                             <div className="pc-grid2">
                                 <div className="pc-field">
                                     <label className="pc-label">Tanggal *</label>
-                                    <DatePicker selected={strToDate(formRB.tanggal)} onChange={d => setFormRB({ ...formRB, tanggal: dateToStr(d) })} dateFormat="dd MMMM yyyy" locale={id} placeholderText="Pilih tanggal..." showMonthDropdown showYearDropdown dropdownMode="select" popperPlacement="bottom-start" popperProps={{ strategy: 'fixed' }} />
+                                    <DateField value={formRB.tanggal} onChange={tanggal => setFormRB({ ...formRB, tanggal })} placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
                                     <label className="pc-label">Nominal (Rp) *</label>
@@ -2060,7 +1533,7 @@ export default function PettyCash() {
                         {error && <div className="pc-alert-err">{error}</div>}
                         <div className="pc-field">
                             <label className="pc-label">Tanggal *</label>
-                            <DatePicker selected={strToDate(formSaldo.tanggal)} onChange={d => setFormSaldo({ ...formSaldo, tanggal: dateToStr(d) })} dateFormat="dd MMMM yyyy" locale={id} placeholderText="Pilih tanggal..." showMonthDropdown showYearDropdown dropdownMode="select" popperPlacement="bottom-start" popperProps={{ strategy: 'fixed' }} />
+                            <DateField value={formSaldo.tanggal} onChange={tanggal => setFormSaldo({ ...formSaldo, tanggal })} placeholder="Pilih tanggal..." />
                         </div>
                         <div className="pc-field">
                             <label className="pc-label">Alasan Pengajuan *</label>

@@ -167,11 +167,11 @@ Lalu pilih:
 
 Atau jalankan langsung lewat command:
 
-powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8900
 
 Kalau pertama kali di server production atau setelah update dependency:
 
-powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600 -InstallDeps
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8900 -InstallDeps
 
 Yang dilakukan script production:
 
@@ -179,12 +179,12 @@ Yang dilakukan script production:
 2. Cek konfigurasi deploy Django.
 3. Jalankan migrasi database.
 4. Kumpulkan static files.
-5. Menyalakan backend production menggunakan Waitress di port 8600.
+5. Menyalakan backend production menggunakan Waitress di port 8900.
 
 Setelah script production menyala, reverse proxy seperti Nginx/IIS/Apache
 harus diarahkan ke:
 
-http://127.0.0.1:8600
+http://127.0.0.1:8900
 
 Domain publik tetap:
 
@@ -281,11 +281,11 @@ RUN_APP.bat
 
 atau
 
-powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8900
 
 Menyalakan production sekaligus install dependency:
 
-powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600 -InstallDeps
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8900 -InstallDeps
 
 Cek backend development:
 

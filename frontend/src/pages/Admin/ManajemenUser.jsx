@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useToastState } from '../../context/ToastContext';
 import {
@@ -24,6 +24,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
+import './ManajemenUser.css';
 
 const ROLE_CHOICES = [
     { value: 'karyawan', label: 'Karyawan' },
@@ -49,463 +50,14 @@ const initialForm = {
     role: 'karyawan',
     is_driver: false,
     is_it: false,
+    is_keuangan: false,
+    is_petty_cash_cashier: false,
     unit: '',
     password: '',
     is_active: true,
 };
 
-const STYLES = `
-@keyframes muFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes muFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes muScale { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-.mu-page {
-    animation: muFadeUp .35s ease both;
-    color: #172033;
-}
-.mu-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
-}
-.mu-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.mu-title-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    color: #0f5132;
-    background: #e7f4ee;
-    border: 1px solid #cfe7db;
-}
-.mu-title h1 {
-    font-size: 24px;
-    line-height: 1.15;
-    margin: 0;
-    color: #10251b;
-    font-weight: 800;
-}
-.mu-title p {
-    margin: 4px 0 0;
-    color: #667085;
-    font-size: 13px;
-}
-.mu-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.mu-btn {
-    border: 1px solid transparent;
-    height: 38px;
-    border-radius: 8px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform .15s, box-shadow .15s, background .15s, border-color .15s;
-    white-space: nowrap;
-}
-.mu-btn:hover { transform: translateY(-1px); }
-.mu-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-.mu-btn.primary {
-    background: #155c3b;
-    color: #fff;
-    box-shadow: 0 8px 18px rgba(21, 92, 59, .18);
-}
-.mu-btn.primary:hover { background: #104d31; }
-.mu-btn.soft {
-    background: #fff;
-    color: #344054;
-    border-color: #d8dee8;
-}
-.mu-btn.soft:hover { background: #f8fafc; }
-.mu-btn.danger {
-    background: #dc2626;
-    color: #fff;
-}
-.mu-btn.danger:hover { background: #b91c1c; }
-.mu-btn.icon {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border-color: #e4e7ec;
-    background: #fff;
-    color: #475467;
-}
-.mu-btn.icon:hover { background: #f8fafc; }
-.mu-btn.icon.danger {
-    border-color: #fecaca;
-    background: #fff;
-    color: #dc2626;
-}
-.mu-btn.icon.danger:hover { background: #fef2f2; }
-
-.mu-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.mu-stat {
-    background: #fff;
-    border: 1px solid #e9edf3;
-    border-radius: 8px;
-    padding: 14px;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 78px;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-}
-.mu-stat p {
-    margin: 0;
-    color: #667085;
-    font-size: 12px;
-    font-weight: 700;
-}
-.mu-stat strong {
-    display: block;
-    margin-top: 8px;
-    font-size: 22px;
-    color: #101828;
-    line-height: 1;
-}
-.mu-stat span {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-}
-
-.mu-shell {
-    background: #fff;
-    border: 1px solid #e9edf3;
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-    overflow: hidden;
-}
-.mu-tabs {
-    display: flex;
-    gap: 2px;
-    padding: 8px;
-    border-bottom: 1px solid #edf1f6;
-    background: #f8fafc;
-}
-.mu-tab {
-    height: 36px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: #667085;
-    background: transparent;
-    cursor: pointer;
-}
-.mu-tab.active {
-    background: #fff;
-    color: #155c3b;
-    border-color: #e4e7ec;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
-}
-.mu-toolbar {
-    display: grid;
-    grid-template-columns: minmax(260px, 1fr) 190px 160px auto;
-    gap: 10px;
-    padding: 12px;
-    border-bottom: 1px solid #edf1f6;
-    align-items: center;
-}
-.mu-searchbox {
-    position: relative;
-}
-.mu-searchbox svg {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #98a2b3;
-}
-.mu-input,
-.mu-select {
-    width: 100%;
-    height: 38px;
-    border: 1px solid #d8dee8;
-    border-radius: 8px;
-    background: #fff;
-    color: #1f2937;
-    font-size: 13px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    outline: none;
-    padding: 0 12px;
-    box-sizing: border-box;
-}
-.mu-textarea {
-    width: 100%;
-    min-height: 76px;
-    border: 1px solid #d8dee8;
-    border-radius: 8px;
-    background: #fff;
-    color: #1f2937;
-    font-size: 13px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    outline: none;
-    padding: 10px 12px;
-    box-sizing: border-box;
-    resize: vertical;
-}
-.mu-searchbox .mu-input { padding-left: 38px; }
-.mu-input:focus,
-.mu-select:focus,
-.mu-textarea:focus {
-    border-color: #155c3b;
-    box-shadow: 0 0 0 3px rgba(21, 92, 59, .09);
-}
-.mu-table-wrap {
-    overflow-x: auto;
-    width: 100%;
-}
-.mu-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.mu-table th {
-    height: 42px;
-    background: #fbfcfe;
-    border-bottom: 1px solid #edf1f6;
-    padding: 0 14px;
-    text-align: left;
-    color: #667085;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-.mu-table td {
-    border-bottom: 1px solid #f1f4f8;
-    padding: 12px 14px;
-    color: #344054;
-    font-size: 13px;
-    vertical-align: middle;
-}
-.mu-table tr:hover td { background: #fbfcfe; }
-.mu-table tr:last-child td { border-bottom: none; }
-.mu-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 220px;
-}
-.mu-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background: #e7f4ee;
-    color: #155c3b;
-    display: grid;
-    place-items: center;
-    font-size: 12px;
-    font-weight: 800;
-    flex: 0 0 auto;
-}
-.mu-user-name {
-    font-weight: 800;
-    color: #1d2939;
-}
-.mu-user-sub {
-    color: #667085;
-    font-size: 12px;
-    margin-top: 2px;
-}
-.mu-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 26px;
-    border-radius: 999px;
-    padding: 0 10px;
-    font-size: 11px;
-    font-weight: 800;
-    border: 1px solid transparent;
-    white-space: nowrap;
-}
-.mu-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: currentColor;
-}
-.mu-row-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-}
-.mu-empty {
-    padding: 54px 18px;
-    text-align: center;
-    color: #667085;
-}
-.mu-empty svg {
-    color: #98a2b3;
-    margin-bottom: 10px;
-}
-.mu-alert {
-    margin-bottom: 14px;
-    border-radius: 8px;
-    padding: 12px 14px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 700;
-}
-.mu-alert.ok {
-    background: #ecfdf3;
-    border: 1px solid #abefc6;
-    color: #067647;
-}
-.mu-alert.err {
-    background: #fef3f2;
-    border: 1px solid #fecdca;
-    color: #b42318;
-}
-.mu-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(15, 23, 42, .58);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 18px;
-    animation: muFade .16s ease both;
-    backdrop-filter: blur(3px);
-}
-.mu-modal {
-    width: min(100%, 560px);
-    max-height: 92vh;
-    overflow: auto;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
-    animation: muScale .18s ease both;
-}
-.mu-modal.sm { width: min(100%, 430px); }
-.mu-modal-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 18px 20px;
-    border-bottom: 1px solid #edf1f6;
-}
-.mu-modal-head h2 {
-    margin: 0;
-    color: #101828;
-    font-size: 18px;
-    font-weight: 800;
-}
-.mu-modal-head p {
-    margin: 4px 0 0;
-    color: #667085;
-    font-size: 13px;
-}
-.mu-modal-body {
-    padding: 18px 20px 4px;
-}
-.mu-modal-foot {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 20px 20px;
-}
-.mu-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 14px;
-}
-.mu-field label {
-    color: #475467;
-    font-size: 12px;
-    font-weight: 800;
-}
-.mu-grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-.mu-check {
-    min-height: 42px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid #d8dee8;
-    border-radius: 8px;
-    color: #344054;
-    font-size: 13px;
-    font-weight: 800;
-    background: #fff;
-}
-.mu-check input { width: 16px; height: 16px; accent-color: #155c3b; }
-.mu-password {
-    position: relative;
-}
-.mu-password .mu-input { padding-right: 42px; }
-.mu-password button {
-    position: absolute;
-    right: 4px;
-    top: 4px;
-}
-.mu-note {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    color: #92400e;
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 12px;
-    line-height: 1.5;
-    margin-bottom: 14px;
-}
-
-@media (max-width: 960px) {
-    .mu-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .mu-toolbar { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 680px) {
-    .mu-head { flex-direction: column; }
-    .mu-actions, .mu-btn.primary { width: 100%; }
-    .mu-btn.primary { justify-content: center; }
-    .mu-stats { grid-template-columns: 1fr; }
-    .mu-toolbar { grid-template-columns: 1fr; }
-    .mu-tabs { overflow-x: auto; }
-    .mu-grid2 { grid-template-columns: 1fr; gap: 0; }
-    .mu-modal-foot { flex-direction: column-reverse; }
-    .mu-modal-foot .mu-btn { width: 100%; }
-}
-`;
 
 export default function ManajemenUser() {
     const { user: currentUser } = useAuth();
@@ -626,6 +178,8 @@ export default function ManajemenUser() {
             role: u.role || 'karyawan',
             is_driver: Boolean(u.is_driver),
             is_it: Boolean(u.is_it),
+            is_keuangan: Boolean(u.is_keuangan),
+            is_petty_cash_cashier: Boolean(u.is_petty_cash_cashier),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -675,6 +229,8 @@ export default function ManajemenUser() {
                 role: form.role,
                 is_driver: form.is_driver,
                 is_it: form.is_it,
+                is_keuangan: form.is_keuangan,
+                is_petty_cash_cashier: form.is_petty_cash_cashier,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -791,8 +347,6 @@ export default function ManajemenUser() {
 
     return (
         <div className="mu-page">
-            <style>{STYLES}</style>
-
             <div className="mu-head">
                 <div className="mu-title">
                     <div className="mu-title-icon"><UserCog size={22} /></div>
@@ -876,7 +430,7 @@ export default function ManajemenUser() {
                             onDelete={(u) => { setError(''); setModalHapus(u); }}
                         />
                         <div className="mu-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderTop: '1px solid #eef2f6', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 13, color: '#667085' }}>Hal {userPage} dari {pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} · {search || filterStatus ? filteredUsers.length : userTotal} user</span>
+                            <span style={{ fontSize: 13, color: '#667085' }}>Hal {userPage} dari {pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} - {search || filterStatus ? filteredUsers.length : userTotal} user</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <RowSizeSelect className="mu-select" value={userPageSize} onChange={(size) => { setUserPageSize(size); setUserPage(1); }} />
                                 <button className="mu-btn soft" disabled={userPage === 1} onClick={() => setUserPage((p) => Math.max(1, p - 1))}>{'<'}</button>
@@ -1156,6 +710,8 @@ function RoleBadge({ user }) {
             </span>
             {user?.is_driver && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Driver</span>}
             {user?.is_it && <span className="mu-badge" style={{ background: '#ccfbf1', color: '#0f766e', borderColor: '#99f6e4' }}>IT</span>}
+            {user?.is_keuangan && <span className="mu-badge" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' }}>Keuangan</span>}
+            {user?.is_petty_cash_cashier && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>Kas Petty Cash</span>}
         </div>
     );
 }
@@ -1223,6 +779,14 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                         <label className="mu-check">
                             <input type="checkbox" checked={form.is_it} onChange={(e) => setForm({ ...form, is_it: e.target.checked })} />
                             <span>Akses fitur IT</span>
+                        </label>
+                        <label className="mu-check">
+                            <input type="checkbox" checked={form.is_keuangan} onChange={(e) => setForm({ ...form, is_keuangan: e.target.checked })} />
+                            <span>Akses fitur Keuangan</span>
+                        </label>
+                        <label className="mu-check">
+                            <input type="checkbox" checked={form.is_petty_cash_cashier} onChange={(e) => setForm({ ...form, is_petty_cash_cashier: e.target.checked })} />
+                            <span>Petugas kas petty cash</span>
                         </label>
                     </div>
                     {showPassword && (
@@ -1356,3 +920,4 @@ function initials(u) {
         .join('')
         .toUpperCase();
 }
+

@@ -87,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode development
 Production:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8600
+powershell -ExecutionPolicy Bypass -File .\run-app.ps1 -Mode production -ProductionPort 8900
 ```
 
 Kalau pertama kali menjalankan atau setelah update dependency:

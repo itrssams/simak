@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+#app_siaga
+app_siaga/
+
+#Simerem
+Siaga/

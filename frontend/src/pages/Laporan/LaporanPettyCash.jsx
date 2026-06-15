@@ -27,6 +27,7 @@ import {
     YAxis,
 } from 'recharts';
 import api from '../../api/axiosConfig';
+import './LaporanPettyCash.css';
 
 const ORG = {
     name: 'RUMAH SAKIT SIAGA AL MUNAWWARAH',
@@ -70,105 +71,7 @@ const COLUMN_OPTIONS = [
 const DEFAULT_SECTIONS = SECTION_OPTIONS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {});
 const DEFAULT_COLUMNS = COLUMN_OPTIONS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {});
 
-const CSS = `
-@keyframes lpcFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.lpc-page { animation: lpcFade .28s ease both; }
-.lpc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.lpc-title { font-size: 24px; font-weight: 750; color: #102b1f; margin: 0; letter-spacing: 0; }
-.lpc-muted { color: #64748b; font-size: 13px; margin: 4px 0 0; }
-.lpc-panel { background: #fff; border: 1px solid #e8eef5; border-radius: 8px; box-shadow: 0 1px 5px rgba(15,23,42,.05); }
-.lpc-toolbar { padding: 16px; margin-bottom: 16px; }
-.lpc-grid { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 12px; align-items: end; }
-.lpc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.lpc-label { font-size: 11px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.lpc-input, .lpc-select { height: 38px; border: 1px solid #dbe4ee; border-radius: 7px; padding: 0 10px; color: #0f172a; font-size: 13px; background: #fff; outline: none; font-family: inherit; min-width: 0; }
-.lpc-input:focus, .lpc-select:focus { border-color: #1f7a52; box-shadow: 0 0 0 3px rgba(31,122,82,.08); }
-.lpc-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.lpc-btn { height: 38px; border: 1px solid transparent; border-radius: 7px; padding: 0 13px; display: inline-flex; gap: 7px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background .15s, border-color .15s, transform .1s; white-space: nowrap; }
-.lpc-btn:hover { transform: translateY(-1px); }
-.lpc-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-.lpc-btn.primary { background: #16452f; color: #fff; }
-.lpc-btn.primary:hover { background: #103924; }
-.lpc-btn.ghost { background: #fff; color: #334155; border-color: #dbe4ee; }
-.lpc-btn.ghost:hover { background: #f8fafc; }
-.lpc-btn.gold { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.lpc-shortcuts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.lpc-shortcut { border: 1px solid #dbe4ee; background: #f8fafc; color: #475569; height: 30px; border-radius: 7px; padding: 0 10px; font-size: 12px; font-weight: 650; cursor: pointer; }
-.lpc-kpis { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.lpc-kpi { padding: 15px; border-radius: 8px; background: #fff; border: 1px solid #e8eef5; }
-.lpc-kpi-label { font-size: 11px; color: #64748b; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
-.lpc-kpi-value { font-size: 19px; font-weight: 800; color: #123526; margin-top: 6px; }
-.lpc-tabs { display: flex; gap: 4px; padding: 4px; background: #eef3f7; border-radius: 8px; width: fit-content; margin-bottom: 16px; }
-.lpc-tab { border: 0; background: transparent; color: #64748b; height: 34px; padding: 0 12px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
-.lpc-tab.active { background: #fff; color: #16452f; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
-.lpc-report { background: #fff; border: 1px solid #dbe4ee; border-radius: 8px; overflow: hidden; }
-.lpc-paper { padding: 26px 28px; background: #fff; color: #111827; }
-.lpc-kop { display: grid; grid-template-columns: 76px 1fr 76px; align-items: center; border-bottom: 3px solid #16452f; padding-bottom: 13px; margin-bottom: 18px; }
-.lpc-logo { width: 68px; height: 68px; object-fit: contain; }
-.lpc-kop-center { text-align: center; }
-.lpc-org { font-size: 17px; font-weight: 800; color: #16452f; letter-spacing: .03em; }
-.lpc-org-sub { font-size: 12px; color: #334155; margin-top: 3px; }
-.lpc-doc-title { text-align: center; margin: 14px 0 18px; }
-.lpc-doc-title h2 { margin: 0; font-size: 16px; letter-spacing: .05em; color: #111827; text-transform: uppercase; }
-.lpc-doc-title p { margin: 5px 0 0; color: #475569; font-size: 12px; }
-.lpc-section { margin-top: 18px; page-break-inside: avoid; }
-.lpc-section-head { font-size: 13px; font-weight: 800; color: #16452f; border-bottom: 2px solid #16452f; padding-bottom: 6px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-.lpc-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.lpc-summary-box { border: 1px solid #dbe4ee; background: #f8fafc; border-radius: 7px; padding: 11px; }
-.lpc-summary-box span { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.lpc-summary-box strong { display: block; margin-top: 5px; color: #0f172a; font-size: 15px; }
-.lpc-table-wrap { overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; }
-.lpc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.lpc-table th { background: #16452f; color: #fff; padding: 8px 9px; text-align: left; font-size: 11px; font-weight: 750; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid #123b29; }
-.lpc-table th:last-child { border-right: 0; }
-.lpc-table td { padding: 8px 9px; border-right: 1px solid #dbe4ee; border-bottom: 1px solid #dbe4ee; color: #1e293b; vertical-align: top; }
-.lpc-table td:last-child { border-right: 0; }
-.lpc-table tr:nth-child(even) td { background: #fbfdff; }
-.lpc-table tr:last-child td { border-bottom: 0; }
-.lpc-table .total-row td { background: #f8fafc; font-weight: 800; }
-.lpc-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lpc-badge { display: inline-flex; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 750; white-space: nowrap; }
-.lpc-empty { padding: 54px 20px; text-align: center; color: #94a3b8; background: #fff; border: 1px dashed #cbd5e1; border-radius: 8px; }
-.lpc-chart-card { height: 290px; border: 1px solid #dbe4ee; border-radius: 7px; padding: 14px; }
-.lpc-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.52); display: flex; align-items: center; justify-content: center; z-index: 80; padding: 20px; }
-.lpc-modal { width: min(720px, 96vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(15,23,42,.24); }
-.lpc-modal-head { padding: 18px 20px; border-bottom: 1px solid #e8eef5; display: flex; align-items: center; justify-content: space-between; }
-.lpc-modal-body { padding: 18px 20px; }
-.lpc-check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.lpc-check { min-height: 38px; border: 1px solid #dbe4ee; border-radius: 7px; display: flex; align-items: center; gap: 9px; padding: 8px 10px; cursor: pointer; font-size: 13px; color: #334155; }
-.lpc-check input { width: 16px; height: 16px; accent-color: #16452f; }
-.lpc-filter-note { font-size: 12px; color: #64748b; margin-top: 10px; line-height: 1.5; }
-@media (max-width: 1100px) {
-    .lpc-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
-    .lpc-kpis, .lpc-summary-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
-}
-@media (max-width: 680px) {
-    .lpc-grid, .lpc-kpis, .lpc-summary-grid, .lpc-check-grid { grid-template-columns: 1fr; }
-    .lpc-paper { padding: 18px 14px; }
-    .lpc-kop { grid-template-columns: 56px 1fr; }
-    .lpc-kop > div:last-child { display: none; }
-    .lpc-logo { width: 52px; height: 52px; }
-}
-@media print {
-    html, body { width: auto; min-height: auto; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    body * { visibility: hidden !important; }
-    #lpc-print-area, #lpc-print-area * { visibility: visible !important; }
-    #lpc-print-area { position: static !important; width: 100% !important; max-width: none !important; border: 0 !important; overflow: visible !important; }
-    .lpc-no-print { display: none !important; }
-    .lpc-paper { width: 100%; padding: 0 !important; box-sizing: border-box; }
-    .lpc-report { border: 0 !important; overflow: visible !important; }
-    .lpc-section { page-break-inside: auto; break-inside: auto; }
-    .lpc-section-head { page-break-after: avoid; break-after: avoid; }
-    .lpc-summary-grid, .lpc-summary-box, .lpc-kop, .lpc-doc-title { page-break-inside: avoid; break-inside: avoid; }
-    .lpc-table { page-break-inside: auto; break-inside: auto; }
-    .lpc-table thead { display: table-header-group; }
-    .lpc-table tfoot { display: table-footer-group; }
-    .lpc-table tr { page-break-inside: avoid; break-inside: avoid; }
-    .lpc-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .lpc-table-wrap { overflow: visible !important; }
-    @page { size: A4 landscape; margin: 12mm; }
-}
-`;
+
 
 const fmt = (value) => 'Rp ' + Number(value || 0).toLocaleString('id-ID');
 const fmtNum = (value) => Number(value || 0).toLocaleString('id-ID');
@@ -639,12 +542,14 @@ export default function LaporanPettyCash() {
 
     return (
         <div className="lpc-page">
-            <style>{CSS}</style>
 
             <div className="lpc-header lpc-no-print">
-                <div>
-                    <h1 className="lpc-title">Laporan Petty Cash & Reimbursement</h1>
-                    <p className="lpc-muted">Filter lengkap, pilih output, lalu export dalam format formal berk kop.</p>
+                <div className="lpc-page-title">
+                    <span><WalletCards size={22} /></span>
+                    <div>
+                        <h1 className="lpc-title">Laporan Petty Cash & Reimbursement</h1>
+                        <p className="lpc-muted">Filter lengkap, pilih output, lalu export dalam format formal berk kop.</p>
+                    </div>
                 </div>
                 <div className="lpc-actions">
                     <button className="lpc-btn ghost" onClick={() => setShowSettings(true)}>

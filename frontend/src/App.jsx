@@ -17,18 +17,26 @@ import PettyCash from './pages/PettyCash/PettyCash';
 import RekeningBank from './pages/RekeningBank/RekeningBank';
 import ManajemenUser from './pages/Admin/ManajemenUser';
 import LaporanPettyCash from './pages/Laporan/LaporanPettyCash';
-import LaporanIT from './pages/Laporan/LaporanIT';
 import Driver from './pages/Driver/Driver';
 import AuditLog from './pages/AuditLog';
-import ITCenter from './pages/IT/ITCenter';
 import Pengumuman from './pages/Pengumuman';
+import AlokasiPembiayaan from './pages/Keuangan/AlokasiPembiayaan';
+import InvoiceDashboard from './pages/Keuangan/InvoiceDashboard';
+import InvoicePembiayaan from './pages/Keuangan/InvoicePembiayaan';
+import DaftarKunjunganInvoice from './pages/Keuangan/DaftarKunjunganInvoice';
+import InvoiceVerifikasi from './pages/Keuangan/InvoiceVerifikasi';
 
 // ── Helper cek role ────────────────────────────────────────
 const isManajerUp = (u) => u?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(u?.role);
+const isKepalaSeksiUp = (u) => u?.is_superuser || ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'].includes(u?.role);
 const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].includes(u?.role);
 const isIT = (u) => u?.is_superuser || u?.is_it;
+const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
+const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isManajerUp(u);
-const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it;
+const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
+const FEATURE_INVENTARIS_ENABLED = false;
+const FEATURE_IT_ENABLED = false;
 
 // ── Protected route dengan role guard ─────────────────────
 const ProtectedRoute = ({ children, allow }) => {
@@ -44,7 +52,8 @@ const HomeRedirect = () => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
     if (!user) return <Navigate to="/login" />;
-    if (user.is_it && !user.is_superuser) return <Navigate to="/it" />;
+    if (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser) return <Navigate to="/it" />;
+    if (isKeuanganNonManajer(user)) return <Navigate to="/keuangan/kunjungan-invoice" />;
     if (isBasicRole(user)) return <Navigate to="/petty-cash" />;
     return (
         <Layout>
@@ -62,7 +71,7 @@ const AppRoutes = () => {
             {/* Login */}
             <Route
                 path="/login"
-                element={!user ? <Login /> : (user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />))}
+                element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />)))}
             />
 
             {/* Home — redirect sesuai role */}
@@ -126,6 +135,36 @@ const AppRoutes = () => {
                     <RekeningBank />
                 </ProtectedRoute>
             } />
+            <Route path="/keuangan/alokasi-pembiayaan" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <AlokasiPembiayaan />
+                </ProtectedRoute>
+            } />
+            <Route path="/keuangan/invoices/dashboard" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <InvoiceDashboard />
+                </ProtectedRoute>
+            } />
+            <Route path="/keuangan/kunjungan-invoice" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <DaftarKunjunganInvoice />
+                </ProtectedRoute>
+            } />
+            <Route path="/keuangan/invoices" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <InvoicePembiayaan />
+                </ProtectedRoute>
+            } />
+            <Route path="/keuangan/invoices/verifikasi" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <InvoiceVerifikasi />
+                </ProtectedRoute>
+            } />
+            <Route path="/keuangan/invoices/:id" element={
+                <ProtectedRoute allow={isKeuangan}>
+                    <InvoicePembiayaan />
+                </ProtectedRoute>
+            } />
             <Route path="/audit-log" element={
                 <ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}>
                     <AuditLog />
@@ -138,10 +177,20 @@ const AppRoutes = () => {
                 </ProtectedRoute>
             } />
 
+            <Route path="/inventaris" element={
+                FEATURE_INVENTARIS_ENABLED ? (
+                    <ProtectedRoute allow={isKepalaSeksiUp}>
+                        <Navigate to="/petty-cash" />
+                    </ProtectedRoute>
+                ) : <Navigate to="/petty-cash" />
+            } />
+
             <Route path="/it" element={
-                <ProtectedRoute allow={isIT}>
-                    <ITCenter />
-                </ProtectedRoute>
+                FEATURE_IT_ENABLED ? (
+                    <ProtectedRoute allow={isIT}>
+                        <Navigate to="/petty-cash" />
+                    </ProtectedRoute>
+                ) : <Navigate to="/petty-cash" />
             } />
 
             {/* Direktur only */}
@@ -158,9 +207,11 @@ const AppRoutes = () => {
             } />
 
             <Route path="/laporan/it" element={
-                <ProtectedRoute allow={isIT}>
-                    <LaporanIT />
-                </ProtectedRoute>
+                FEATURE_IT_ENABLED ? (
+                    <ProtectedRoute allow={isIT}>
+                        <Navigate to="/petty-cash" />
+                    </ProtectedRoute>
+                ) : <Navigate to="/petty-cash" />
             } />
 
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />
