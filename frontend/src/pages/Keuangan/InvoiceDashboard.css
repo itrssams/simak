@@ -37,6 +37,7 @@
   color: white;
   background: linear-gradient(135deg, var(--inv-primary, #6366f1), #3b82f6, var(--inv-secondary, #06b6d4));
   box-shadow: var(--inv-shadow, 0 18px 45px rgba(15, 23, 42, .08));
+  flex-shrink: 0;
 }
 
 .idash-title h1 {
@@ -50,13 +51,6 @@
   margin: 4px 0 0;
   color: var(--inv-muted, #64748b);
   font-size: 14px;
-}
-
-.idash-head-buttons {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 /* BUTTON */
@@ -86,16 +80,6 @@
 
 .idash-btn.primary:hover {
   background: linear-gradient(135deg, var(--inv-primary-dark, #4f46e5), #2563eb, var(--inv-secondary, #06b6d4));
-}
-
-.idash-btn.secondary {
-  color: var(--inv-primary-dark, #4f46e5);
-  background: var(--inv-soft, rgba(99, 102, 241, 0.1));
-  border: 1px solid rgba(99, 102, 241, .18);
-}
-
-.idash-btn.secondary:hover {
-  background: rgba(238, 242, 255, .95);
 }
 
 /* FILTER */
@@ -157,7 +141,10 @@
   background: #fee2e2;
 }
 
-/* SUMMARY METRICS */
+/* ================================
+   METRIC CARDS - Redesign
+   Layout: icon kiri | teks kanan
+   ================================ */
 .idash-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -165,67 +152,76 @@
 }
 
 .idash-metric {
-  position: relative;
-  overflow: hidden;
-  min-height: 138px;
-  padding: 18px;
-  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 20px;
   color: white;
   box-shadow: var(--inv-shadow, 0 18px 45px rgba(15, 23, 42, .08));
+  min-height: 90px;
 }
 
-.idash-metric.green {
-  background: linear-gradient(135deg, var(--inv-primary, #6366f1), #3b82f6, var(--inv-secondary, #06b6d4));
+/* Variant colors */
+.idash-metric--indigo {
+  background: linear-gradient(135deg, #6366f1, #3b82f6);
 }
-
-.idash-metric.blue {
-  background: linear-gradient(135deg, #2563eb, #60a5fa);
+.idash-metric--blue {
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
 }
-
-.idash-metric.amber {
+.idash-metric--amber {
   background: linear-gradient(135deg, #d97706, #f59e0b);
 }
-
-.idash-metric.red {
+.idash-metric--red {
   background: linear-gradient(135deg, #dc2626, #fb7185);
 }
 
-.idash-metric-watermark {
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
-  color: rgba(255, 255, 255, .22);
-  pointer-events: none;
+/* Icon box */
+.idash-metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .2);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
-.idash-metric span,
-.idash-metric strong,
-.idash-metric small {
-  position: relative;
-  z-index: 2;
-  display: block;
+/* Body */
+.idash-metric-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.idash-metric span {
-  font-size: 12px;
+.idash-metric-label {
+  font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
-  letter-spacing: .04em;
-  opacity: .9;
+  letter-spacing: .06em;
+  opacity: .85;
+  white-space: nowrap;
 }
 
-.idash-metric strong {
-  margin-top: 8px;
-  font-size: 23px;
-  line-height: 1.2;
+.idash-metric-value {
+  font-size: 17px;
   font-weight: 900;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
-.idash-metric small {
-  margin-top: 8px;
-  font-size: 12px;
+.idash-metric-note {
+  font-size: 11.5px;
   font-weight: 700;
-  opacity: .9;
+  opacity: .85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* PANELS */
@@ -347,7 +343,6 @@
 
 .idash-top-item b {
   color: var(--inv-primary-dark, #4f46e5);
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-size: 13px;
@@ -446,7 +441,6 @@
 .mono {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
 }
 
@@ -611,16 +605,19 @@
     align-items: stretch;
   }
 
-  .idash-head-buttons {
-    width: 100%;
-  }
-
-  .idash-btn {
-    flex: 1;
-  }
-
   .idash-summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .idash-metric {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .idash-metric-value {
+    font-size: 15px;
   }
 
   .idash-date-tools {
@@ -644,6 +641,10 @@
 }
 
 @media (max-width: 520px) {
+  .idash-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
   .idash-date-tools {
     grid-template-columns: 1fr 1fr;
   }

@@ -1,41 +1,79 @@
-# Virtual env
+# ==========================
+# Virtual Environment
+# ==========================
 venv/
 .venv/
 
-# Python cache
+# ==========================
+# Python
+# ==========================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg
+*.egg-info/
+build/
+.eggs/
 
+# ==========================
 # Database
+# ==========================
 db.sqlite3
 *.sqlite3
 
-# Environment variables
+# ==========================
+# Environment / Secrets
+# ==========================
 .env
 .env.*
 !.env.example
 
-# Static & media
+# ==========================
+# Django Static & Media
+# ==========================
 staticfiles/
 media/
-backend/media/
 backend/staticfiles/
+backend/media/
 backend/petty_cash/
 backend/reimbursement/
-frontend/dist/
 
-# Dependencies
+# ==========================
+# Frontend
+# ==========================
+frontend/dist/
+frontend/.vite/
 node_modules/
 frontend/node_modules/
 backend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# VS Code
+# ==========================
+# Backup & Export
+# ==========================
+backup/
+export/
+
+# ==========================
+# OS
+# ==========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================
+# IDE
+# ==========================
 .vscode/
+.idea/
+*.suo
+*.user
 
-#app_siaga
+# ==========================
+# Project Lain (bukan bagian simak)
+# ==========================
 app_siaga/
-
-#Simerem
 Siaga/

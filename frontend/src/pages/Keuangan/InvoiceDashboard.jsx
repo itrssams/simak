@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
@@ -8,7 +8,6 @@ import {
     Clock3,
     FileText,
     Landmark,
-    ReceiptText,
     Search,
     TrendingUp,
     WalletCards,
@@ -19,8 +18,10 @@ import { SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
 import './InvoiceDashboard.css';
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const percent = (value) => `${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`;
+const money = (value) =>
+    `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const percent = (value) =>
+    `${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`;
 
 const emptyDashboard = {
     summary: {},
@@ -48,14 +49,14 @@ export default function InvoiceDashboard() {
                 const res = await api.get('/keuangan/invoice-dashboard/', { params });
                 if (mounted) setData(res.data || emptyDashboard);
             } catch (err) {
-                toast.error(err?.response?.data?.error || 'Gagal memuat dashboard invoice.');
+                if (mounted) toast.error(err?.response?.data?.error || 'Gagal memuat dashboard invoice.');
             } finally {
                 if (mounted) setLoading(false);
             }
         };
         fetchDashboard();
         return () => { mounted = false; };
-    }, [range, toast]);
+    }, [range]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => { setPage(1); }, [search, pageSize]);
 
@@ -75,13 +76,15 @@ export default function InvoiceDashboard() {
 
     const summary = data.summary || {};
     const aging = data.aging || {};
-    const openInvoiceList = (extra = {}) => {
+
+    const openInvoiceList = useCallback((extra = {}) => {
         const params = new URLSearchParams({
             ...Object.fromEntries(Object.entries(range).filter(([, value]) => value)),
             ...extra,
         });
         navigate(`/keuangan/invoices${params.toString() ? `?${params.toString()}` : ''}`);
-    };
+    }, [range, navigate]);
+
     const setDateRange = (key, value) => setRange((prev) => ({ ...prev, [key]: value }));
 
     return (
@@ -93,7 +96,7 @@ export default function InvoiceDashboard() {
                         <h1>Dashboard Invoice</h1>
                         <p>Ringkasan piutang pembiayaan, pembayaran, dan prioritas penagihan.</p>
                     </div>
-                </div>                
+                </div>
             </div>
 
             <section className="idash-filter-card">
@@ -111,10 +114,34 @@ export default function InvoiceDashboard() {
             </section>
 
             <section className="idash-summary-grid">
-                <MetricCard className="green" icon={FileText} label="Total Piutang" value={money(summary.total_tagihan)} note={`${summary.invoice_count || 0} invoice aktif`} />
-                <MetricCard className="blue" icon={CheckCircle2} label="Sudah Dibayar" value={money(summary.total_dibayar)} note={`Collection rate ${percent(summary.collection_rate)}`} />
-                <MetricCard className="amber" icon={WalletCards} label="Sisa Piutang" value={money(summary.sisa_piutang)} note={`${summary.belum_bayar_count || 0} belum bayar, ${summary.sebagian_count || 0} sebagian`} />
-                <MetricCard className="red" icon={AlertTriangle} label="Lewat Jatuh Tempo" value={`${summary.overdue_count || 0} invoice`} note="Perlu prioritas follow up" />
+                <MetricCard
+                    variant="indigo"
+                    icon={FileText}
+                    label="Total Piutang"
+                    value={money(summary.total_tagihan)}
+                    note={`${summary.invoice_count || 0} invoice aktif`}
+                />
+                <MetricCard
+                    variant="blue"
+                    icon={CheckCircle2}
+                    label="Sudah Dibayar"
+                    value={money(summary.total_dibayar)}
+                    note={`Collection rate ${percent(summary.collection_rate)}`}
+                />
+                <MetricCard
+                    variant="amber"
+                    icon={WalletCards}
+                    label="Sisa Piutang"
+                    value={money(summary.sisa_piutang)}
+                    note={`${summary.belum_bayar_count || 0} belum bayar · ${summary.sebagian_count || 0} sebagian`}
+                />
+                <MetricCard
+                    variant="red"
+                    icon={AlertTriangle}
+                    label="Lewat Jatuh Tempo"
+                    value={`${summary.overdue_count || 0} invoice`}
+                    note="Perlu prioritas follow up"
+                />
             </section>
 
             <section className="idash-grid">
@@ -128,8 +155,8 @@ export default function InvoiceDashboard() {
                     </div>
                     <div className="idash-aging-list">
                         <AgingRow label="Belum jatuh tempo" value={aging.belum_jatuh_tempo} color="#10b981" onClick={() => openInvoiceList({ aging: 'not_due' })} />
-                        <AgingRow label="Lewat 1-30 hari" value={aging.hari_1_30} color="#f59e0b" onClick={() => openInvoiceList({ aging: '1_30' })} />
-                        <AgingRow label="Lewat 31-60 hari" value={aging.hari_31_60} color="#f97316" onClick={() => openInvoiceList({ aging: '31_60' })} />
+                        <AgingRow label="Lewat 1–30 hari" value={aging.hari_1_30} color="#f59e0b" onClick={() => openInvoiceList({ aging: '1_30' })} />
+                        <AgingRow label="Lewat 31–60 hari" value={aging.hari_31_60} color="#f97316" onClick={() => openInvoiceList({ aging: '31_60' })} />
                         <AgingRow label="Lewat > 60 hari" value={aging.hari_lebih_60} color="#ef4444" onClick={() => openInvoiceList({ aging: 'over_60' })} />
                     </div>
                 </div>
@@ -145,7 +172,7 @@ export default function InvoiceDashboard() {
                     <div className="idash-top-list">
                         {(data.top_piutang || []).slice(0, 4).map((item, index) => (
                             <button
-                                key={`${item.id_pembiayaan}-${index}`}
+                                key={item.id_pembiayaan ?? index}
                                 type="button"
                                 className="idash-top-item"
                                 onClick={() => openInvoiceList({ id_pembiayaan: item.id_pembiayaan })}
@@ -199,7 +226,7 @@ export default function InvoiceDashboard() {
                                             <span><Landmark size={16} /></span>
                                             <div>
                                                 <strong>{item.nama_pembiayaan}</strong>
-                                                <small>ID Pembiayaan: {item.id_pembiayaan || '-'}</small>
+                                                <small>ID: {item.id_pembiayaan || '-'}</small>
                                             </div>
                                         </div>
                                     </td>
@@ -236,14 +263,17 @@ export default function InvoiceDashboard() {
     );
 }
 
-function MetricCard({ icon, label, value, note, className }) {
-    const MetricIcon = icon;
+function MetricCard({ icon: Icon, label, value, note, variant }) {
     return (
-        <div className={`idash-metric ${className}`}>
-            <div className="idash-metric-watermark"><MetricIcon size={54} /></div>
-            <span>{label}</span>
-            <strong>{value}</strong>
-            <small>{note}</small>
+        <div className={`idash-metric idash-metric--${variant}`}>
+            <div className="idash-metric-icon">
+                <Icon size={22} />
+            </div>
+            <div className="idash-metric-body">
+                <span className="idash-metric-label">{label}</span>
+                <strong className="idash-metric-value">{value}</strong>
+                <small className="idash-metric-note">{note}</small>
+            </div>
         </div>
     );
 }
