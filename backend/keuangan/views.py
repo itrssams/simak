@@ -2632,8 +2632,10 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
         )
     rows_html = ''.join(invoice_rows)
 
-    receipt_html = f"""
+    def receipt_html(label):
+        return f"""
         <section class="receipt">
+            <div class="copy-label">{escape(label)}</div>
             <header class="letterhead">
                 <div class="hospital">
                     <h1>RS SIAGA AL MUNAWWARAH SAMARINDA</h1>
@@ -2705,6 +2707,8 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
             </div>
         </section>
     """
+    receipt_one = receipt_html("Lembar 1: Arsip")
+    receipt_two = receipt_html("Lembar 2: Perusahaan")
 
     html = f"""
 <!DOCTYPE html>
@@ -2744,13 +2748,23 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
             grid-template-columns: 1fr 1fr;
         }}
         .receipt {{
+            position: relative;
             width: 100%;
             height: 196mm;
             padding: 5mm 6mm 5mm;
             overflow: hidden;
             display: grid;
-            grid-template-rows: 23mm 2mm 15mm 9mm minmax(0, 1fr) 28mm 9mm 31mm;
+            grid-template-rows: 23mm 2mm 15mm 9mm minmax(0, 1fr) 28mm 9mm 35mm;
             row-gap: 0;
+        }}
+        .copy-label {{
+            position: absolute;
+            bottom: 1.5mm;
+            left: 50%;
+            transform: translateX(-50%);
+            font: 700 7.5pt Arial, sans-serif;
+            color: #111;
+            white-space: nowrap;
         }}
         .receipt + .receipt {{
             border-top: 0;
@@ -2888,6 +2902,7 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
             font-size: 10.5pt;
             font-weight: 900;
             align-self: stretch;
+            padding-bottom: 7mm;
         }}
         .signatures div {{
             display: grid;
@@ -2918,8 +2933,8 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
 <body onload="setTimeout(() => window.print(), 250)">
     <button class="print-btn" onclick="window.print()">Print</button>
     <main class="sheet">
-        {receipt_html}
-        {receipt_html}
+        {receipt_one}
+        {receipt_two}
     </main>
 </body>
 </html>
