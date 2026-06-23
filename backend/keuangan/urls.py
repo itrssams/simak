@@ -12,7 +12,7 @@ from .views import (
     ITBackupRecordViewSet, ITRepairRequestViewSet, ITCredentialNoteViewSet, ITRemoteAccessViewSet,
     ITSubscriptionViewSet, AnnouncementViewSet,
     InventoryOptionViewSet, InventoryAssetViewSet,
-    faktur_legacy_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
+    faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
 )
 
 router = DefaultRouter()
@@ -44,6 +44,7 @@ router.register(r'it/remote-access', ITRemoteAccessViewSet, basename='it-remote-
 router.register(r'it/subscriptions', ITSubscriptionViewSet, basename='it-subscriptions')
 urlpatterns = [
     path('faktur/rekap/', faktur_rekap_print_view, name='faktur-rekap-print'),
+    path('faktur/tanda-terima/print/', faktur_tanda_terima_print_view, name='faktur-tanda-terima-print'),
     path('faktur/<int:pk>/print/', faktur_legacy_print_view, name='faktur-legacy-print'),
 
     path('', include(router.urls)),

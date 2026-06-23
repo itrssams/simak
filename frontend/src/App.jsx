@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -25,6 +26,8 @@ import InvoiceDashboard from './pages/Keuangan/InvoiceDashboard';
 import InvoicePembiayaan from './pages/Keuangan/InvoicePembiayaan';
 import DaftarKunjunganInvoice from './pages/Keuangan/DaftarKunjunganInvoice';
 import InvoiceVerifikasi from './pages/Keuangan/InvoiceVerifikasi';
+import { useIdleTimeout } from './hooks/useIdleTimeout';
+import IdleWarningModal from './components/IdleWarningModal';
 
 // ── Helper cek role ────────────────────────────────────────
 const isManajerUp = (u) => u?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(u?.role);
@@ -62,6 +65,42 @@ const HomeRedirect = () => {
     );
 };
 
+// ── Idle timeout wrapper — hanya aktif saat user login ────
+function IdleGuard() {
+    const { user, logout } = useAuth();
+    const [showWarning, setShowWarning] = useState(false);
+
+    const { resetTimer } = useIdleTimeout({
+        enabled: Boolean(user),
+        idleMs: 30 * 60 * 1000,      // 30 menit
+        warningMs: 2 * 60 * 1000,    // warning 2 menit sebelum logout
+        onWarning: () => setShowWarning(true),
+        onIdle: () => {
+            setShowWarning(false);
+            logout();
+        },
+        onActive: () => setShowWarning(false),
+    });
+
+    const handleStayLoggedIn = () => {
+        setShowWarning(false);
+        resetTimer();
+    };
+
+    const handleLogoutNow = () => {
+        setShowWarning(false);
+        logout();
+    };
+
+    return (
+        <IdleWarningModal
+            visible={showWarning}
+            onStayLoggedIn={handleStayLoggedIn}
+            onLogoutNow={handleLogoutNow}
+        />
+    );
+}
+
 // ── Routes ────────────────────────────────────────────────
 const AppRoutes = () => {
     const { user } = useAuth();
@@ -74,146 +113,40 @@ const AppRoutes = () => {
                 element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />)))}
             />
 
-            {/* Home — redirect sesuai role */}
+            {/* Home */}
             <Route path="/" element={<HomeRedirect />} />
 
-            {/* Semua role bisa akses */}
-            <Route path="/petty-cash" element={
-                <ProtectedRoute>
-                    <PettyCash />
-                </ProtectedRoute>
-            } />
+            {/* Semua role */}
+            <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
 
             {/* Manajer ke atas */}
-            <Route path="/pelanggan" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <DataPelanggan />
-                </ProtectedRoute>
-            } />
-            <Route path="/pelanggan/faktur" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <FakturPelanggan />
-                </ProtectedRoute>
-            } />
-            <Route path="/pemasok" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <DataPemasok />
-                </ProtectedRoute>
-            } />
-            <Route path="/pemasok/tagihan" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <TagihanPemasok />
-                </ProtectedRoute>
-            } />
-            <Route path="/akuntansi/bagan-akun" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <BaganAkun />
-                </ProtectedRoute>
-            } />
-            <Route path="/akuntansi/entri-jurnal" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <EntriJurnal />
-                </ProtectedRoute>
-            } />
-            <Route path="/transaksi/input" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <InputTransaksi />
-                </ProtectedRoute>
-            } />
-            <Route path="/transaksi/list" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <ListTransaksi />
-                </ProtectedRoute>
-            } />
-            <Route path="/laporan/arus-kas" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <ArusKas />
-                </ProtectedRoute>
-            } />
-            <Route path="/rekening-bank" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <RekeningBank />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/alokasi-pembiayaan" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <AlokasiPembiayaan />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/invoices/dashboard" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <InvoiceDashboard />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/kunjungan-invoice" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <DaftarKunjunganInvoice />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/invoices" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <InvoicePembiayaan />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/invoices/verifikasi" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <InvoiceVerifikasi />
-                </ProtectedRoute>
-            } />
-            <Route path="/keuangan/invoices/:id" element={
-                <ProtectedRoute allow={isKeuangan}>
-                    <InvoicePembiayaan />
-                </ProtectedRoute>
-            } />
-            <Route path="/audit-log" element={
-                <ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}>
-                    <AuditLog />
-                </ProtectedRoute>
-            } />
+            <Route path="/pelanggan" element={<ProtectedRoute allow={isManajerUp}><DataPelanggan /></ProtectedRoute>} />
+            <Route path="/pelanggan/faktur" element={<ProtectedRoute allow={isManajerUp}><FakturPelanggan /></ProtectedRoute>} />
+            <Route path="/pemasok" element={<ProtectedRoute allow={isManajerUp}><DataPemasok /></ProtectedRoute>} />
+            <Route path="/pemasok/tagihan" element={<ProtectedRoute allow={isManajerUp}><TagihanPemasok /></ProtectedRoute>} />
+            <Route path="/akuntansi/bagan-akun" element={<ProtectedRoute allow={isManajerUp}><BaganAkun /></ProtectedRoute>} />
+            <Route path="/akuntansi/entri-jurnal" element={<ProtectedRoute allow={isManajerUp}><EntriJurnal /></ProtectedRoute>} />
+            <Route path="/transaksi/input" element={<ProtectedRoute allow={isManajerUp}><InputTransaksi /></ProtectedRoute>} />
+            <Route path="/transaksi/list" element={<ProtectedRoute allow={isManajerUp}><ListTransaksi /></ProtectedRoute>} />
+            <Route path="/laporan/arus-kas" element={<ProtectedRoute allow={isManajerUp}><ArusKas /></ProtectedRoute>} />
+            <Route path="/rekening-bank" element={<ProtectedRoute allow={isManajerUp}><RekeningBank /></ProtectedRoute>} />
 
-            <Route path="/pengumuman" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <Pengumuman />
-                </ProtectedRoute>
-            } />
+            {/* Keuangan */}
+            <Route path="/keuangan/alokasi-pembiayaan" element={<ProtectedRoute allow={isKeuangan}><AlokasiPembiayaan /></ProtectedRoute>} />
+            <Route path="/keuangan/invoices/dashboard" element={<ProtectedRoute allow={isKeuangan}><InvoiceDashboard /></ProtectedRoute>} />
+            <Route path="/keuangan/kunjungan-invoice" element={<ProtectedRoute allow={isKeuangan}><DaftarKunjunganInvoice /></ProtectedRoute>} />
+            <Route path="/keuangan/invoices" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
+            <Route path="/keuangan/invoices/verifikasi" element={<ProtectedRoute allow={isKeuangan}><InvoiceVerifikasi /></ProtectedRoute>} />
+            <Route path="/keuangan/invoices/:id" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
 
-            <Route path="/inventaris" element={
-                FEATURE_INVENTARIS_ENABLED ? (
-                    <ProtectedRoute allow={isKepalaSeksiUp}>
-                        <Navigate to="/petty-cash" />
-                    </ProtectedRoute>
-                ) : <Navigate to="/petty-cash" />
-            } />
-
-            <Route path="/it" element={
-                FEATURE_IT_ENABLED ? (
-                    <ProtectedRoute allow={isIT}>
-                        <Navigate to="/petty-cash" />
-                    </ProtectedRoute>
-                ) : <Navigate to="/petty-cash" />
-            } />
-
-            {/* Direktur only */}
-            <Route path="/admin/users" element={
-                <ProtectedRoute allow={isDirekturUp}>
-                    <ManajemenUser />
-                </ProtectedRoute>
-            } />
-
-            <Route path="/laporan/petty-cash" element={
-                <ProtectedRoute allow={isManajerUp}>
-                    <LaporanPettyCash />
-                </ProtectedRoute>
-            } />
-
-            <Route path="/laporan/it" element={
-                FEATURE_IT_ENABLED ? (
-                    <ProtectedRoute allow={isIT}>
-                        <Navigate to="/petty-cash" />
-                    </ProtectedRoute>
-                ) : <Navigate to="/petty-cash" />
-            } />
-
+            {/* Lainnya */}
+            <Route path="/audit-log" element={<ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}><AuditLog /></ProtectedRoute>} />
+            <Route path="/pengumuman" element={<ProtectedRoute allow={isManajerUp}><Pengumuman /></ProtectedRoute>} />
+            <Route path="/inventaris" element={FEATURE_INVENTARIS_ENABLED ? <ProtectedRoute allow={isKepalaSeksiUp}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/admin/users" element={<ProtectedRoute allow={isDirekturUp}><ManajemenUser /></ProtectedRoute>} />
+            <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={isManajerUp}><LaporanPettyCash /></ProtectedRoute>} />
+            <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />
 
             {/* Fallback */}
@@ -227,6 +160,7 @@ function App() {
         <AuthProvider>
             <ToastProvider>
                 <BrowserRouter>
+                    <IdleGuard />
                     <AppRoutes />
                 </BrowserRouter>
             </ToastProvider>

@@ -230,6 +230,10 @@ export default function InvoicePembiayaan() {
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
     const [rekapOpen, setRekapOpen] = useState(false);
     const [rekapForm, setRekapForm] = useState({ tgl1: '', tgl2: '' });
+    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receiptSelection, setReceiptSelection] = useState(() => new Set());
+    const [receiptSelectionDetails, setReceiptSelectionDetails] = useState(() => new Map());
+    const [receiptForm, setReceiptForm] = useState({ perusahaan: '', tanggal: new Date().toISOString().slice(0, 10) });
     const [form, setForm] = useState({ ...emptyInvoice });
     const [payment, setPayment] = useState(emptyPayment);
     const [filters, setFilters] = useState({
@@ -308,13 +312,13 @@ export default function InvoicePembiayaan() {
     useEffect(() => { setPage(1); }, [filters, pageSize]);
 
     useEffect(() => {
-        if (!createOpen && !selected && !sendTarget && !sentInfoTarget && !invoiceToCancel && !paymentToDelete && !paymentToVerify && !rekapOpen) return undefined;
+        if (!createOpen && !selected && !sendTarget && !sentInfoTarget && !invoiceToCancel && !paymentToDelete && !paymentToVerify && !rekapOpen && !receiptOpen) return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [createOpen, selected, sendTarget, sentInfoTarget, invoiceToCancel, paymentToDelete, paymentToVerify, rekapOpen]);
+    }, [createOpen, selected, sendTarget, sentInfoTarget, invoiceToCancel, paymentToDelete, paymentToVerify, rekapOpen, receiptOpen]);
 
     const selectedPembiayaan = pembiayaan.find((item) => String(item.id_pembiayaan) === String(form.id_pembiayaan));
     const pembiayaanNameById = useMemo(() => {
@@ -328,6 +332,15 @@ export default function InvoicePembiayaan() {
         return pembiayaanNameById.get(String(invoice?.id_pembiayaan || '')) || storedName || invoice?.pelanggan_detail?.nama || '-';
     }, [pembiayaanNameById]);
     const totalForm = useMemo(() => COST_FIELDS.reduce((sum, [key]) => sum + parseMoneyInput(form[key]), 0), [form]);
+    const selectedReceiptInvoices = useMemo(
+        () => Array.from(receiptSelectionDetails.values()),
+        [receiptSelectionDetails],
+    );
+    const selectedReceiptTotal = useMemo(
+        () => selectedReceiptInvoices.reduce((sum, item) => sum + Number(item.total_tagihan || 0), 0),
+        [selectedReceiptInvoices],
+    );
+    const allPageInvoicesSelected = items.length > 0 && items.every((item) => receiptSelection.has(item.id));
 
     const alokasiOptions = useMemo(() => {
         if (!selected?.id_pembiayaan) return [];
@@ -368,6 +381,55 @@ export default function InvoicePembiayaan() {
         setForm({ ...emptyInvoice });
         setCreateOpen(true);
     };
+
+    const toggleReceiptSelection = (invoice, checked) => {
+        setReceiptSelection((prev) => {
+            const next = new Set(prev);
+            if (checked) next.add(invoice.id);
+            else next.delete(invoice.id);
+            return next;
+        });
+        setReceiptSelectionDetails((prev) => {
+            const next = new Map(prev);
+            if (checked) next.set(invoice.id, invoice);
+            else next.delete(invoice.id);
+            return next;
+        });
+    };
+
+    const togglePageReceiptSelection = (checked) => {
+        setReceiptSelection((prev) => {
+            const next = new Set(prev);
+            items.forEach((item) => {
+                if (checked) next.add(item.id);
+                else next.delete(item.id);
+            });
+            return next;
+        });
+        setReceiptSelectionDetails((prev) => {
+            const next = new Map(prev);
+            items.forEach((item) => {
+                if (checked) next.set(item.id, item);
+                else next.delete(item.id);
+            });
+            return next;
+        });
+    };
+
+    const openReceiptDialog = () => {
+        if (receiptSelection.size === 0) {
+            toast.error('Pilih minimal satu invoice untuk tanda terima.');
+            return;
+        }
+        const firstInvoice = selectedReceiptInvoices[0];
+        setReceiptForm({
+            perusahaan: firstInvoice ? resolvePembiayaanName(firstInvoice) : '',
+            tanggal: new Date().toISOString().slice(0, 10),
+        });
+        setReceiptOpen(true);
+    };
+
+    const closeReceiptDialog = () => setReceiptOpen(false);
 
     const closeCreate = () => {
         setCreateOpen(false);
@@ -705,6 +767,27 @@ export default function InvoicePembiayaan() {
         );
     };
 
+    const printReceipt = (event) => {
+        event.preventDefault();
+        const ids = Array.from(receiptSelection);
+        if (!ids.length) return toast.error('Pilih minimal satu invoice untuk tanda terima.');
+        if (!receiptForm.perusahaan.trim()) return toast.error('Nama perusahaan wajib diisi.');
+        if (!receiptForm.tanggal) return toast.error('Tanggal tanda terima wajib diisi.');
+
+        const baseURL = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
+        const params = new URLSearchParams({
+            ids: ids.join(','),
+            perusahaan: receiptForm.perusahaan.trim(),
+            tanggal: receiptForm.tanggal,
+        });
+        const printWindow = window.open(`${baseURL}/keuangan/faktur/tanda-terima/print/?${params.toString()}`, '_blank');
+        if (!printWindow) {
+            toast.error('Popup cetak diblokir browser.');
+            return;
+        }
+        closeReceiptDialog();
+    };
+
 
     const invoiceStats = useMemo(() => {
         const totalTagihan = items.reduce((sum, item) => sum + Number(item.total_tagihan || 0), 0);
@@ -750,6 +833,9 @@ export default function InvoicePembiayaan() {
                         </div> */}
                         <button className="inv-btn soft" type="button" onClick={openRekapDialog}>
                             <BarChart3 size={16} /> Rekapitulasi
+                        </button>
+                        <button className="inv-btn soft" type="button" onClick={openReceiptDialog}>
+                            <Printer size={16} /> Cetak Tanda Terima
                         </button>
                         <button className="inv-btn primary" type="button" onClick={openCreate}>
                             <FilePlus2 size={16} /> Buat Invoice
@@ -829,6 +915,14 @@ export default function InvoicePembiayaan() {
                         <table className="inv-table invoice-list">
                             <thead>
                                 <tr>
+                                    <th className="inv-check-col">
+                                        <input
+                                            type="checkbox"
+                                            checked={allPageInvoicesSelected}
+                                            onChange={(e) => togglePageReceiptSelection(e.target.checked)}
+                                            title="Pilih semua invoice di halaman ini"
+                                        />
+                                    </th>
                                     <th>No</th>
                                     <th>Tanggal</th>
                                     <th>Pembiayaan</th>
@@ -841,7 +935,16 @@ export default function InvoicePembiayaan() {
                                 {items.map((item) => {
                                     const hasPaymentRequest = (item.pembayaran || []).length > 0;
                                     return (
-                                        <tr key={item.id}>
+                                        <tr key={item.id} className={receiptSelection.has(item.id) ? 'inv-row-selected' : ''}>
+                                            <td className="inv-check-col">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={receiptSelection.has(item.id)}
+                                                    onChange={(e) => toggleReceiptSelection(item, e.target.checked)}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                    title={`Pilih ${item.nomor_faktur} untuk tanda terima`}
+                                                />
+                                            </td>
                                             <td className="inv-mono inv-strong">{item.nomor_faktur}</td>
                                             <td className="inv-date-cell">{dateLabel(item.tanggal)}</td>
                                             <td>
@@ -1302,6 +1405,46 @@ export default function InvoicePembiayaan() {
                             <button className="inv-btn soft" type="button" onClick={closeSendInvoice} disabled={sendingInvoice}>Batal</button>
                             <button className="inv-btn primary" type="submit" disabled={sendingInvoice}>
                                 <Send size={16} /> {sendingInvoice ? 'Menyimpan...' : 'Konfirmasi Kirim'}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
+            {receiptOpen && createPortal(
+                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeReceiptDialog}>
+                    <form className="inv-send-modal inv-receipt-modal" role="dialog" aria-modal="true" onSubmit={printReceipt} onMouseDown={(event) => event.stopPropagation()}>
+                        <div className="inv-confirm-icon send">
+                            <Printer size={23} />
+                        </div>
+                        <div className="inv-confirm-copy">
+                            <h2>Cetak Tanda Terima</h2>
+                            <p>{receiptSelection.size} invoice dipilih dengan total {money(selectedReceiptTotal)}.</p>
+                        </div>
+                        <div className="inv-send-fields">
+                            <label>Nama Perusahaan
+                                <input
+                                    className="inv-input"
+                                    list="receipt-company-options"
+                                    value={receiptForm.perusahaan}
+                                    onChange={(e) => setReceiptForm({ ...receiptForm, perusahaan: e.target.value })}
+                                    placeholder="Pilih atau ketik nama perusahaan"
+                                />
+                                <datalist id="receipt-company-options">
+                                    {pembiayaan.map((item) => (
+                                        <option key={item.id_pembiayaan} value={item.nama} />
+                                    ))}
+                                </datalist>
+                            </label>
+                            <label>Tanggal
+                                <DateInput value={receiptForm.tanggal} onChange={(e) => setReceiptForm({ ...receiptForm, tanggal: e.target.value })} />
+                            </label>
+                        </div>
+                        <div className="inv-confirm-actions">
+                            <button className="inv-btn soft" type="button" onClick={closeReceiptDialog}>Batal</button>
+                            <button className="inv-btn primary" type="submit">
+                                <Printer size={16} /> Cetak
                             </button>
                         </div>
                     </form>

@@ -364,6 +364,23 @@ select.dki-select {
   background: rgba(238, 242, 255, .58);
 }
 
+.inv-table tbody tr.inv-row-selected td {
+  background: rgba(16, 185, 129, .08);
+}
+
+.inv-check-col {
+  width: 42px;
+  min-width: 42px;
+  text-align: center !important;
+}
+
+.inv-check-col input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--inv-success);
+  cursor: pointer;
+}
+
 .inv-right {
   text-align: right !important;
 }
@@ -617,6 +634,10 @@ textarea.inv-input {
 }
 
 .inv-modal.rekap {
+  width: min(520px, 100%);
+}
+
+.inv-receipt-modal {
   width: min(520px, 100%);
 }
 

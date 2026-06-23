@@ -1072,7 +1072,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 qs = qs.filter(jatuh_tempo__lt=today - timedelta(days=30), jatuh_tempo__gte=today - timedelta(days=60))
             elif aging == 'over_60':
                 qs = qs.filter(jatuh_tempo__lt=today - timedelta(days=60))
-        return qs.order_by('-tanggal', '-created_at')
+        return qs.order_by('-nomor_faktur')
 
     @action(detail=True, methods=['post'], url_path='bayar')
     def bayar(self, request, pk=None):
@@ -2600,6 +2600,355 @@ def faktur_legacy_print_view(request, pk):
     else:
         html = _render_legacy_invoice(faktur, mode)
 
+    return HttpResponse(html)
+
+
+def _receipt_display_date(value):
+    value = (value or '').strip()
+    if not value:
+        return ''
+    try:
+        parsed = datetime.strptime(value, '%Y-%m-%d').date()
+        return _invoice_date(parsed)
+    except ValueError:
+        return value
+
+
+def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
+    logo_url = "/logo.png"
+    company_name = company_name or '-'
+    tanggal_label = _receipt_display_date(tanggal)
+    total = sum((Decimal(item.total_tagihan or 0) for item in fakturs), Decimal('0'))
+
+    invoice_rows = []
+    for index, faktur in enumerate(fakturs, start=1):
+        invoice_rows.append(
+            '<tr>'
+            f'<td class="row-no">{index}.</td>'
+            f'<td class="invoice-no">{escape(_legacy_invoice_number(faktur))}</td>'
+            f'<td class="currency">Rp.</td>'
+            f'<td class="amount">{_invoice_money(faktur.total_tagihan, 2)}</td>'
+            '</tr>'
+        )
+    rows_html = ''.join(invoice_rows)
+
+    receipt_html = f"""
+        <section class="receipt">
+            <header class="letterhead">
+                <div class="hospital">
+                    <h1>RS SIAGA AL MUNAWWARAH SAMARINDA</h1>
+                    <p>Jl. Ramania No. 3 Sidodadi - Samarinda Ulu</p>
+                    <p>Kota Samarinda - 75123, Fax. (0541) 7272700, Tlp. (0541) 739772 / 7272667</p>
+                </div>
+                <img src="{escape(logo_url)}" alt="Logo RS SIAGA AL MUNAWWARAH SAMARINDA">
+            </header>
+            <div class="rule"></div>
+
+            <h2>TANDA TERIMA INVOICE</h2>
+
+            <div class="company-line">
+                <span>NAMA PERUSAHAAN :</span>
+                <strong>{escape(company_name)}</strong>
+            </div>
+
+            <div class="invoice-block">
+                <div class="invoice-lines">
+                    <table class="invoice-table">
+                        <tbody>
+                            {rows_html}
+                        </tbody>
+                    </table>
+                </div>
+                <table class="invoice-table invoice-total">
+                    <tbody>
+                        <tr class="total-row">
+                            <td class="row-no"></td>
+                            <td class="invoice-no">TOTAL</td>
+                            <td class="currency">Rp.</td>
+                            <td class="amount">{_invoice_money(total, 2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="documents">
+                <h3>DOKUMEN TERDIRI DARI :</h3>
+                <div>
+                    <ol>
+                        <li>INVOICE</li>
+                        <li>KWITANSI</li>
+                        <li>PO</li>
+                    </ol>
+                    <ol start="4">
+                        <li>NOTA KREDIT</li>
+                        <li>BAPB</li>
+                        <li>FP</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="date-line">SAMARINDA, <span>{escape(tanggal_label)}</span></div>
+
+            <div class="signatures">
+                <div>
+                    <strong>DISERAHKAN</strong>
+                    <i></i>
+                    <span></span>
+                    <b>NAMA TERANG</b>
+                </div>
+                <div>
+                    <strong>DITERIMA</strong>
+                    <i></i>
+                    <span></span>
+                    <b>NPK.</b>
+                </div>
+            </div>
+        </section>
+    """
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Tanda Terima Invoice</title>
+    <style>
+        @page {{ size: A4 landscape; margin: 7mm; }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            margin: 0;
+            color: #111;
+            background: #f3f4f6;
+            font-family: "Times New Roman", Times, serif;
+        }}
+        .print-btn {{
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            border: 0;
+            border-radius: 5px;
+            background: #0f766e;
+            color: #fff;
+            padding: 8px 12px;
+            font: 700 12px Arial, sans-serif;
+            cursor: pointer;
+        }}
+        .sheet {{
+            width: 100%;
+            max-width: 283mm;
+            height: 196mm;
+            margin: 0 auto;
+            background: #fff;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }}
+        .receipt {{
+            width: 100%;
+            height: 196mm;
+            padding: 5mm 6mm 5mm;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 23mm 2mm 15mm 9mm minmax(0, 1fr) 28mm 9mm 31mm;
+            row-gap: 0;
+        }}
+        .receipt + .receipt {{
+            border-top: 0;
+            border-left: 1px dashed #777;
+        }}
+        .letterhead {{
+            height: 23mm;
+            display: grid;
+            grid-template-columns: 1fr 20mm;
+            align-items: center;
+            gap: 4mm;
+            text-align: center;
+        }}
+        .hospital h1 {{
+            margin: 0 0 1mm;
+            font-size: 12.5pt;
+            line-height: 1.1;
+            font-weight: 900;
+        }}
+        .hospital p {{
+            margin: 0;
+            font-size: 8.5pt;
+            line-height: 1.25;
+            font-weight: 700;
+        }}
+        .letterhead img {{
+            max-width: 19mm;
+            max-height: 19mm;
+            object-fit: contain;
+        }}
+        .rule {{
+            border-top: 2px solid #111;
+            border-bottom: 1px solid #111;
+            height: 2mm;
+        }}
+        h2 {{
+            margin: 0;
+            text-align: center;
+            font-size: 17pt;
+            line-height: 1;
+            font-weight: 900;
+            text-decoration: underline;
+            align-self: end;
+            padding-bottom: 2mm;
+        }}
+        .company-line {{
+            display: flex;
+            align-items: baseline;
+            gap: 3mm;
+            margin: 0;
+            font-size: 12pt;
+            font-weight: 900;
+            align-self: center;
+        }}
+        .company-line span {{
+            white-space: nowrap;
+        }}
+        .invoice-block {{
+            min-height: 0;
+            display: grid;
+            grid-template-rows: minmax(0, 1fr) 8mm;
+            align-self: stretch;
+        }}
+        .invoice-lines {{
+            min-height: 0;
+            overflow: hidden;
+        }}
+        .invoice-table {{
+            width: calc(100% - 3mm);
+            border-collapse: collapse;
+            margin-left: 3mm;
+            font-size: 10.5pt;
+            font-weight: 900;
+        }}
+        .invoice-table td {{
+            padding: 1mm 0;
+            vertical-align: top;
+        }}
+        .row-no {{ width: 7mm; }}
+        .invoice-no {{ width: auto; }}
+        .currency {{ width: 9mm; }}
+        .amount {{
+            width: 33mm;
+            text-align: right;
+            padding-right: 0 !important;
+            white-space: nowrap;
+        }}
+        .invoice-total {{
+            align-self: end;
+        }}
+        .total-row td {{
+            padding-top: 1mm;
+            font-size: 11.5pt;
+        }}
+        .total-row td:nth-child(2) {{
+            text-align: center;
+        }}
+        .documents {{
+            margin-top: 0;
+            font-size: 10.5pt;
+            font-weight: 900;
+            align-self: center;
+        }}
+        .documents h3 {{
+            margin: 0 0 2mm;
+            font-size: 11.5pt;
+        }}
+        .documents > div {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6mm;
+            padding-left: 7mm;
+        }}
+        .documents ol {{
+            margin: 0;
+            padding-left: 7mm;
+        }}
+        .date-line {{
+            margin-top: 0;
+            text-align: right;
+            padding-right: 4mm;
+            font-size: 10.5pt;
+            font-weight: 900;
+            align-self: center;
+        }}
+        .date-line span {{
+            display: inline;
+            text-align: center;
+        }}
+        .signatures {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12mm;
+            margin-top: 0;
+            font-size: 10.5pt;
+            font-weight: 900;
+            align-self: stretch;
+        }}
+        .signatures div {{
+            display: grid;
+            grid-template-rows: auto 1fr auto auto;
+            gap: 2mm;
+            align-content: stretch;
+        }}
+        .signatures i {{
+            display: block;
+            min-height: 0;
+        }}
+        .signatures span {{
+            display: block;
+            border-bottom: 1px solid #111;
+            height: 0;
+            width: 50mm;
+        }}
+        .signatures b {{
+            font-size: 10.5pt;
+        }}
+        @media print {{
+            body {{ background: #fff; }}
+            .print-btn {{ display: none; }}
+            .sheet {{ width: 100%; height: 196mm; }}
+        }}
+    </style>
+</head>
+<body onload="setTimeout(() => window.print(), 250)">
+    <button class="print-btn" onclick="window.print()">Print</button>
+    <main class="sheet">
+        {receipt_html}
+        {receipt_html}
+    </main>
+</body>
+</html>
+"""
+    return html
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def faktur_tanda_terima_print_view(request):
+    raw_ids = request.GET.get('ids', '')
+    ids = [item.strip() for item in raw_ids.split(',') if item.strip()]
+    if not ids:
+        return HttpResponse('<h3>Pilih minimal satu invoice.</h3>', status=400)
+
+    fakturs = list(
+        Faktur.objects
+        .select_related('pelanggan')
+        .filter(pk__in=ids)
+        .order_by('nomor_faktur')
+    )
+    if not fakturs:
+        return HttpResponse('<h3>Invoice tidak ditemukan.</h3>', status=404)
+
+    html = _render_tanda_terima_invoice(
+        fakturs,
+        request.GET.get('perusahaan', ''),
+        request.GET.get('tanggal', ''),
+    )
     return HttpResponse(html)
 
 def build_pembiayaan_name_map(ids):
