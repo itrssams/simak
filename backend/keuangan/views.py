@@ -2066,7 +2066,7 @@ def _pdf_wrap_line(pdf, text, max_width):
 
 
 def render_kwitansi_pdf_response(faktur):
-    pdf = FPDF('L', 'mm', 'A5')
+    pdf = FPDF('P', 'mm', 'A4')
     pdf.set_auto_page_break(False)
     pdf.add_page()
 
