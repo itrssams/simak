@@ -127,7 +127,7 @@ export default function DaftarKunjunganInvoice() {
             const res = await api.get('/keuangan/kunjungan-invoice/', { params });
             setRows(getResults(res.data));
             setTotal(getCount(res.data));
-            setSelectedNos((prev) => prev.filter((no) => getResults(res.data).some((row) => String(row.no) === no)));
+            // setSelectedNos((prev) => prev.filter((no) => getResults(res.data).some((row) => String(row.no) === no)));
         } catch (err) {
             toast.error(getError(err, 'Gagal memuat daftar kunjungan.'));
         } finally {
@@ -137,7 +137,7 @@ export default function DaftarKunjunganInvoice() {
 
     useEffect(() => { fetchOptions(); }, [fetchOptions]);
     useEffect(() => { fetchRows(); }, [fetchRows]);
-    useEffect(() => { setPage(1); setSelectedNos([]); }, [filters, pageSize]);
+    useEffect(() => { setPage(1); }, [filters, pageSize]);
     useEffect(() => {
         if (!detail && !invoiceDialogOpen) return undefined;
         const previousOverflow = document.body.style.overflow;

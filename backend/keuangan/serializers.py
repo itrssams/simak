@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.db import connection
 from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
@@ -287,9 +288,9 @@ class AlokasiDanaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'id_pembiayaan', 'nama_pembiayaan', 'tanggal_penerimaan',
             'jumlah_penerimaan', 'bank', 'total_alokasi', 'sisa_alokasi',
-            'digunakan', 'pemakaian', 'created_by', 'created_by_name', 'created_at', 'keterangan'
+            'digunakan', 'pemakaian', 'created_by', 'created_by_name', 'created_at', 'updated_at', 'keterangan'
         ]
-        read_only_fields = ['id', 'created_by', 'created_at', 'total_alokasi', 'sisa_alokasi', 'digunakan']
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'total_alokasi', 'sisa_alokasi', 'digunakan']
 
     def get_pemakaian(self, obj):
         legacy_pemakaian = [
@@ -376,6 +377,33 @@ class FakturSerializer(serializers.ModelSerializer):
     created_by_name  = serializers.CharField(source='created_by.username', read_only=True)
     sisa_tagihan     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
     status_label     = serializers.CharField(source='get_status_display', read_only=True)
+    pasien_invoice   = serializers.SerializerMethodField()
+
+    def get_pasien_invoice(self, obj):
+        view = self.context.get('view')
+        if getattr(view, 'action', None) == 'list' or not obj.nomor_faktur:
+            return []
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT
+                        a.no,
+                        a.noreg,
+                        b.nama
+                    FROM rssams.kunjung a
+                    INNER JOIN rssams.regpasien b ON a.noreg = b.noreg
+                    INNER JOIN rssams.verif_kunjung c ON a.no = c.no
+                    WHERE c.no_invoice = %s
+                    ORDER BY a.no
+                    """,
+                    [obj.nomor_faktur]
+                )
+                columns = [col[0] for col in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        except Exception:
+            return []
 
     class Meta:
         model  = Faktur
@@ -385,7 +413,7 @@ class FakturSerializer(serializers.ModelSerializer):
             'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
             'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
             'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'status', 'status_label',
-            'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan',
+            'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan', 'pasien_invoice',
             'created_by', 'created_by_name', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar', 'sisa_tagihan']
@@ -1273,3 +1301,4 @@ class InventoryAssetSerializer(serializers.ModelSerializer):
         if purchase_year and (purchase_year < 1900 or purchase_year > 2100):
             raise serializers.ValidationError({'purchase_year': 'Tahun beli tidak valid.'})
         return attrs
+

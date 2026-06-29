@@ -949,6 +949,24 @@ textarea.inv-input {
   overflow-wrap: anywhere;
 }
 
+.inv-patient-info {
+  align-content: start;
+}
+
+.inv-patient-list {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--inv-text);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.inv-patient-list li + li {
+  margin-top: 4px;
+}
+
 .inv-cost-label {
   color: var(--inv-muted);
 }
@@ -1015,7 +1033,7 @@ textarea.inv-input {
 
 .inv-pay-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -1043,8 +1061,17 @@ textarea.inv-input {
   color: var(--inv-text);
 }
 
+.inv-pay-summary .inv-patient-list {
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .inv-pay-summary .due {
   background: linear-gradient(135deg, rgba(251,191,36,.18), rgba(245,158,11,.08));
+}
+
+.inv-pay-summary .patient {
+  background: linear-gradient(135deg, rgba(14,165,233,.16), rgba(6,182,212,.08));
 }
 
 .inv-pay-summary .wallet {

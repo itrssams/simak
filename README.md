@@ -65,6 +65,23 @@ production : simak
 
 ## Menjalankan Aplikasi
 
+Dengan Docker:
+
+```powershell
+docker compose up --build
+```
+
+Akses aplikasi:
+
+```text
+Frontend   : http://localhost:5173
+Backend API: http://localhost:8000/api
+phpMyAdmin : http://localhost:8080
+```
+
+Database MySQL otomatis dibuat dari `docker-compose.yml` dengan nama `simak_dev`.
+Backend akan menunggu database siap lalu menjalankan migrasi sebelum server Django start.
+
 Cara paling mudah di Windows:
 
 ```text

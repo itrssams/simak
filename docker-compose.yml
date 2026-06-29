@@ -1,0 +1,78 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: simak-db
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: simak_dev
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: simak
+      MYSQL_PASSWORD: simak123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    container_name: simak-backend
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env.example
+    environment:
+      ALLOWED_HOSTS: localhost,127.0.0.1,192.168.44.15,backend
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: simak_dev
+      DB_USER: simak
+      DB_PASSWORD: simak123
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: simak-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: simak-frontend
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env.example
+    environment:
+      VITE_API_URL: /api
+      VITE_BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    command: npm run dev -- --host
+
+volumes:
+  mysql_data:

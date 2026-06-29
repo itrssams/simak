@@ -57,7 +57,7 @@ body,
 .login-photo-layer {
   position: absolute;
   inset: 0;
-  background-image: url('/images/rs-siaga.jpg');
+  background-image: url('/rs-siaga.jpg');
   background-size: cover;
   background-position: center;
   transform: scale(1.02);

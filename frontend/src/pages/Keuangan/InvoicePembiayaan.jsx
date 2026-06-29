@@ -114,6 +114,8 @@ const emptyPayment = {
 
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const dateOnly = (value) => String(value || '').slice(0, 10);
 const parseMoneyInput = (value) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     const raw = String(value || '').replace(/[^\d.,-]/g, '');
@@ -220,6 +222,7 @@ export default function InvoicePembiayaan() {
     const [deletingPaymentId, setDeletingPaymentId] = useState(null);
     const [paymentToDelete, setPaymentToDelete] = useState(null);
     const [paymentToVerify, setPaymentToVerify] = useState(null);
+    const [paymentDateTouched, setPaymentDateTouched] = useState(false);
     const [invoiceToCancel, setInvoiceToCancel] = useState(null);
     const [cancelingInvoiceId, setCancelingInvoiceId] = useState(null);
     const [sendTarget, setSendTarget] = useState(null);
@@ -286,7 +289,8 @@ export default function InvoicePembiayaan() {
         try {
             const res = await api.get(`/keuangan/faktur/${invoiceId}/`);
             setSelected(res.data);
-            setPayment({ ...emptyPayment, tanggal: new Date().toISOString().slice(0, 10) });
+            setPaymentDateTouched(false);
+            setPayment({ ...emptyPayment, tanggal: todayISO() });
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal memuat detail invoice.'));
             navigate('/keuangan/invoices');
@@ -331,6 +335,13 @@ export default function InvoicePembiayaan() {
         if (storedName && storedName.toLowerCase() !== 'unknown') return storedName;
         return pembiayaanNameById.get(String(invoice?.id_pembiayaan || '')) || storedName || invoice?.pelanggan_detail?.nama || '-';
     }, [pembiayaanNameById]);
+    const getInvoicePatientNames = useCallback((invoice) => {
+        const names = (invoice?.pasien_invoice || [])
+            .map((item) => String(item?.nama || '').trim())
+            .filter(Boolean);
+        return [...new Set(names)];
+    }, []);
+    const selectedPatientNames = useMemo(() => getInvoicePatientNames(selected), [getInvoicePatientNames, selected]);
     const totalForm = useMemo(() => COST_FIELDS.reduce((sum, [key]) => sum + parseMoneyInput(form[key]), 0), [form]);
     const selectedReceiptInvoices = useMemo(
         () => Array.from(receiptSelectionDetails.values()),
@@ -348,6 +359,21 @@ export default function InvoicePembiayaan() {
             .filter((item) => String(item.id_pembiayaan) === String(selected.id_pembiayaan) && Number(item.sisa_alokasi || 0) > 0)
             .sort((a, b) => new Date(a.tanggal_penerimaan) - new Date(b.tanggal_penerimaan));
     }, [alokasi, selected]);
+    const latestAlokasiUpdateDate = useMemo(() => {
+        const latest = [...alokasiOptions]
+            .filter((item) => item.updated_at || item.created_at || item.tanggal_penerimaan)
+            .sort((a, b) => {
+                const aTime = new Date(a.updated_at || a.created_at || a.tanggal_penerimaan || 0).getTime();
+                const bTime = new Date(b.updated_at || b.created_at || b.tanggal_penerimaan || 0).getTime();
+                return bTime - aTime;
+            })[0];
+        return dateOnly(latest?.tanggal_penerimaan || latest?.updated_at || latest?.created_at) || todayISO();
+    }, [alokasiOptions]);
+
+    useEffect(() => {
+        if (!selected?.id || paymentDateTouched) return;
+        setPayment((prev) => ({ ...prev, tanggal: latestAlokasiUpdateDate }));
+    }, [latestAlokasiUpdateDate, paymentDateTouched, selected?.id]);
 
     const walletSaldo = useMemo(
         () => alokasiOptions.reduce((sum, item) => sum + Number(item.sisa_alokasi || 0), 0),
@@ -1144,6 +1170,10 @@ export default function InvoicePembiayaan() {
                                             <Info label="Jenis" value={selected.jenis || '-'} />
                                             <Info label="Periode" value={selected.periode || '-'} />
                                             <Info label="Beban" value={selected.beban || '-'} />
+                                            <div className="inv-info-item inv-patient-info">
+                                                <span>Pasien</span>
+                                                <PatientNamesList names={selectedPatientNames} />
+                                            </div>
                                             <Info label="Status" value={<StatusBadge status={selected.status} label={selected.status_label} />} />
                                         </div>
                                     </section>
@@ -1167,6 +1197,10 @@ export default function InvoicePembiayaan() {
                                             </div>
                                         )}
                                         <div className="inv-pay-summary">
+                                            <div className="patient">
+                                                <span>Pasien</span>
+                                                <PatientNamesList names={selectedPatientNames} />
+                                            </div>
                                             <div className="due">
                                                 <span>Sisa Tagihan</span>
                                                 <strong>{money(selected.sisa_tagihan)}</strong>
@@ -1188,7 +1222,10 @@ export default function InvoicePembiayaan() {
                                             <div className="inv-pay-fields wallet">
                                                 <label>
                                                     <span className="inv-field-label"><CalendarDays size={15} /> Tgl Bayar</span>
-                                                    <DateInput value={payment.tanggal} onChange={(e) => setPayment({ ...payment, tanggal: e.target.value })} disabled={!selected.tgl_kirim} />
+                                                    <DateInput value={payment.tanggal} onChange={(e) => {
+                                                        setPaymentDateTouched(true);
+                                                        setPayment({ ...payment, tanggal: e.target.value });
+                                                    }} disabled={!selected.tgl_kirim} />
                                                 </label>
                                                 <label>
                                                     <span className="inv-field-label"><Banknote size={15} /> Jumlah</span>
@@ -1531,6 +1568,17 @@ function Info({ label, value, mono = false }) {
             <span>{label}</span>
             <strong className={mono ? 'inv-mono' : ''}>{value}</strong>
         </div>
+    );
+}
+
+function PatientNamesList({ names }) {
+    if (!names?.length) return <strong>-</strong>;
+    if (names.length === 1) return <strong>{names[0]}</strong>;
+
+    return (
+        <ul className="inv-patient-list">
+            {names.map((name) => <li key={name}>{name}</li>)}
+        </ul>
     );
 }
 
