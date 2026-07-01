@@ -434,9 +434,11 @@ def _get_pembiayaan_name(id_pembiayaan):
 
 
 def _legacy_kunjungan_where(params):
-    kunjungan_type = params.get('jenis') or 'rawat_jalan'
-    where = [KUNJUNGAN_TYPE_FILTERS.get(kunjungan_type, KUNJUNGAN_TYPE_FILTERS['rawat_jalan'])]
+    kunjungan_type = params.get('jenis') or 'semua'
+    where = []
     values = []
+    if kunjungan_type != 'semua':
+        where.append(KUNJUNGAN_TYPE_FILTERS.get(kunjungan_type, KUNJUNGAN_TYPE_FILTERS['rawat_jalan']))
 
     search = (params.get('search') or '').strip()
     if search:
@@ -474,7 +476,22 @@ def _legacy_kunjungan_where(params):
     elif invoice_status == 'sudah':
         where.append("(e.no_invoice IS NOT NULL AND e.no_invoice <> '')")
 
-    return " AND ".join(where), values, kunjungan_type
+    return " AND ".join(where) if where else "1=1", values, kunjungan_type
+
+
+def _detect_type_from_j_lay(j_lay):
+    value = str(j_lay or '')
+    if len(value) >= 20 and value[19:20] == '1':
+        return 'OK'
+    if len(value) >= 19 and value[18:19] == '1':
+        return 'VK'
+    if len(value) >= 18 and value[17:18] == '1':
+        return 'Rawat Jalan'
+    if len(value) >= 17 and value[16:17] == '1':
+        return 'Rawat Inap'
+    if len(value) >= 16 and value[15:16] == '1':
+        return 'UGD'
+    return 'Kunjungan'
 
 
 class KunjunganInvoiceView(APIView):
@@ -530,7 +547,7 @@ class KunjunganInvoiceView(APIView):
                     SELECT
                         a.no, a.noreg, b.nama, b.sex, DATE(a.tgl_masuk) AS tgl_masuk,
                         DATE(a.tgl_keluar) AS tgl_keluar, a.id_pembiayaan,
-                        c.pembiayaan AS nama_pembiayaan, a.cek,
+                        c.pembiayaan AS nama_pembiayaan, a.cek, a.j_lay,
                         IFNULL(e.no_invoice, '') AS no_invoice,
                         ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya,
                         a.dp3, a.jmlbyr
@@ -541,7 +558,11 @@ class KunjunganInvoiceView(APIView):
                 rows = _dict_fetchall(cursor)
             for row in rows:
                 row['jenis'] = kunjungan_type
-                row['jenis_label'] = KUNJUNGAN_TYPE_LABELS.get(kunjungan_type, 'Rawat Jalan')
+                row['jenis_label'] = (
+                    _detect_type_from_j_lay(row.get('j_lay'))
+                    if kunjungan_type == 'semua'
+                    else KUNJUNGAN_TYPE_LABELS.get(kunjungan_type, 'Rawat Jalan')
+                )
                 row['status_done'] = bool(row.get('cek'))
                 row['status_invoice'] = 'sudah' if row.get('no_invoice') else 'belum'
             return Response({'count': total, 'results': rows}, status=status.HTTP_200_OK)

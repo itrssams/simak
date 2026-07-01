@@ -21,6 +21,7 @@ import { getCount, getResults, pageParams, SimplePagination } from '../../utils/
 import './DaftarKunjunganInvoice.css';
 
 const JENIS_OPTIONS = [
+    { value: 'semua', label: 'Semua Jenis' },
     { value: 'rawat_jalan', label: 'Rawat Jalan' },
     { value: 'rawat_inap', label: 'Rawat Inap' },
     { value: 'ugd', label: 'UGD' },
@@ -80,7 +81,7 @@ export default function DaftarKunjunganInvoice() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [filters, setFilters] = useState({
-        jenis: 'rawat_jalan',
+        jenis: 'semua',
         search: '',
         id_pembiayaan: '',
         done: '',
@@ -93,6 +94,16 @@ export default function DaftarKunjunganInvoice() {
         () => rows.filter((row) => selectedNos.includes(String(row.no))),
         [rows, selectedNos],
     );
+    const selectableRows = useMemo(
+        () => rows.filter((row) => row.status_done && row.status_invoice !== 'sudah' && Number(row.total_biaya || 0) > 0),
+        [rows],
+    );
+    const selectableNos = useMemo(
+        () => selectableRows.map((row) => String(row.no)),
+        [selectableRows],
+    );
+    const allVisibleSelected = selectableNos.length > 0 && selectableNos.every((no) => selectedNos.includes(no));
+    const someVisibleSelected = selectableNos.some((no) => selectedNos.includes(no));
     const selectedTotal = useMemo(
         () => selectedRows.reduce((sum, row) => sum + Number(row.total_biaya || 0), 0),
         [selectedRows],
@@ -192,6 +203,16 @@ export default function DaftarKunjunganInvoice() {
     const toggleSelected = (row) => {
         const no = String(row.no);
         setSelectedNos((prev) => prev.includes(no) ? prev.filter((item) => item !== no) : [...prev, no]);
+    };
+
+    const toggleSelectAllVisible = () => {
+        if (selectableNos.length === 0) return;
+        setSelectedNos((prev) => {
+            if (selectableNos.every((no) => prev.includes(no))) {
+                return prev.filter((no) => !selectableNos.includes(no));
+            }
+            return [...new Set([...prev, ...selectableNos])];
+        });
     };
 
     const validateInvoiceSelection = () => {
@@ -402,8 +423,9 @@ export default function DaftarKunjunganInvoice() {
                             className="dki-filter-reset"
                             type="button"
                             onClick={() => {
+                                setSelectedNos([]);
                                 setFilters({
-                                    jenis: 'rawat_jalan',
+                                    jenis: 'semua',
                                     search: '',
                                     id_pembiayaan: '',
                                     done: '',
@@ -423,7 +445,20 @@ export default function DaftarKunjunganInvoice() {
                     <table className="dki-table">
                         <thead>
                             <tr>
-                                <th className="check">Pilih</th>
+                                <th className="check">
+                                    <label className="dki-check" title="Pilih semua kunjungan valid pada halaman ini">
+                                        <input
+                                            type="checkbox"
+                                            checked={allVisibleSelected}
+                                            disabled={selectableNos.length === 0}
+                                            ref={(input) => {
+                                                if (input) input.indeterminate = someVisibleSelected && !allVisibleSelected;
+                                            }}
+                                            onChange={toggleSelectAllVisible}
+                                        />
+                                        <span />
+                                    </label>
+                                </th>
                                 <th>No Kunjungan</th>
                                 <th>Tanggal</th>
                                 <th>Pasien</th>
