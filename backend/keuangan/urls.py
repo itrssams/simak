@@ -1,5 +1,5 @@
 from django.urls import path, include
-from .views import LaporanPettyCashView, PembiayaanListView, InvoiceDashboardView, KunjunganInvoiceView, InvoiceVerificationView
+from .views import LaporanPettyCashView, PembiayaanListView, PembiayaanDetailView, InvoiceDashboardView, KunjunganInvoiceView, InvoiceVerificationView
 from rest_framework.routers import DefaultRouter
 from .views import (
     AkunViewSet, TransaksiViewSet, JurnalViewSet,
@@ -53,6 +53,7 @@ urlpatterns = [
     path('invoice-verification/', InvoiceVerificationView.as_view(), name='invoice-verification'),
     path('kunjungan-invoice/', KunjunganInvoiceView.as_view(), name='kunjungan-invoice'),
     path('pembiayaan-options/', PembiayaanListView.as_view(), name='pembiayaan-options'),
+    path('pembiayaan-options/<int:id_pembiayaan>/', PembiayaanDetailView.as_view(), name='pembiayaan-detail'),
     path('laporan-petty-cash/', LaporanPettyCashView.as_view(), name='laporan-petty-cash'),
     path('faktur/rekap/excel/', faktur_rekap_excel_view, name='faktur-rekap-excel'),
     path('faktur/rekap/', faktur_rekap_print_view, name='faktur-rekap-print'),

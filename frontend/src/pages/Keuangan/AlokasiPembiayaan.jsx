@@ -42,14 +42,39 @@ const emptyForm = {
 
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+const sanitizeMoneyInput = (value) => String(value || '').replace(/[^\d.,]/g, '');
 const parseMoneyInput = (value) => {
-    const digits = String(value || '').replace(/\D/g, '');
+    const text = sanitizeMoneyInput(value);
+    if (!text) return 0;
+
+    const lastComma = text.lastIndexOf(',');
+    const lastDot = text.lastIndexOf('.');
+    const normalizeDecimal = (separator) => {
+        const separatorIndex = text.lastIndexOf(separator);
+        const integerPart = text.slice(0, separatorIndex).replace(/[^\d]/g, '');
+        const decimalPart = text.slice(separatorIndex + 1).replace(/[^\d]/g, '');
+        return decimalPart ? `${integerPart || '0'}.${decimalPart}` : integerPart;
+    };
+
+    if (lastComma > lastDot) {
+        return Number(normalizeDecimal(',')) || 0;
+    }
+
+    if (lastDot > -1) {
+        const dotCount = (text.match(/\./g) || []).length;
+        const decimalLength = text.length - lastDot - 1;
+        if (lastComma === -1 && dotCount === 1 && decimalLength > 0 && decimalLength <= 2) {
+            return Number(normalizeDecimal('.')) || 0;
+        }
+    }
+
+    const digits = text.replace(/[^\d]/g, '');
     return digits ? Number(digits) : 0;
 };
 const formatMoneyInput = (value) => {
     if (value === '' || value === null || value === undefined) return '';
     const amount = parseMoneyInput(value);
-    return amount ? `Rp ${amount.toLocaleString('en-US')}` : '';
+    return amount ? `Rp ${amount.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '';
 };
 
 function errorMessage(err, fallback) {
@@ -472,8 +497,10 @@ export default function AlokasiPembiayaan() {
                                         className="ap-input ap-input-right"
                                         type="text"
                                         inputMode="decimal"
-                                        value={formatMoneyInput(form.jumlah_penerimaan)}
-                                        onChange={(e) => setForm({ ...form, jumlah_penerimaan: String(parseMoneyInput(e.target.value) || '') })}
+                                        value={form.jumlah_penerimaan}
+                                        onChange={(e) => setForm({ ...form, jumlah_penerimaan: sanitizeMoneyInput(e.target.value) })}
+                                        onBlur={(e) => setForm({ ...form, jumlah_penerimaan: formatMoneyInput(e.target.value) })}
+                                        placeholder="Contoh: 1.000,50"
                                     />
                                 </label>
                                 <label>

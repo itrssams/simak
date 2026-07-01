@@ -26,6 +26,7 @@ import InvoiceDashboard from './pages/Keuangan/InvoiceDashboard';
 import InvoicePembiayaan from './pages/Keuangan/InvoicePembiayaan';
 import DaftarKunjunganInvoice from './pages/Keuangan/DaftarKunjunganInvoice';
 import InvoiceVerifikasi from './pages/Keuangan/InvoiceVerifikasi';
+import MasterPembiayaan from './pages/Keuangan/MasterPembiayaan';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
@@ -137,6 +138,7 @@ const AppRoutes = () => {
             <Route path="/keuangan/kunjungan-invoice" element={<ProtectedRoute allow={isKeuangan}><DaftarKunjunganInvoice /></ProtectedRoute>} />
             <Route path="/keuangan/invoices" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/invoices/verifikasi" element={<ProtectedRoute allow={isKeuangan}><InvoiceVerifikasi /></ProtectedRoute>} />
+            <Route path="/keuangan/master-pembiayaan" element={<ProtectedRoute allow={isKeuangan}><MasterPembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/invoices/:id" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
 
             {/* Lainnya */}

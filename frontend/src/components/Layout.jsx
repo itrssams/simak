@@ -99,6 +99,7 @@ const MENU_KEUANGAN = [
             { label: 'Daftar Invoice', path: '/keuangan/invoices' },
             { label: 'Verifikasi Pembayaran', path: '/keuangan/invoices/verifikasi' },
             { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
+            { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
         ],
     },
 ];
@@ -963,7 +964,7 @@ export default function Layout({ children }) {
                     opacity: 0;
                 }
                 .sb-children.open {
-                    max-height: 160px;
+                    max-height: 260px;
                     opacity: 1;
                 }
                 .sb-child {

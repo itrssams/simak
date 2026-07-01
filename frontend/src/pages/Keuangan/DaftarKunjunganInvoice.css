@@ -653,6 +653,10 @@ select.dki-select {
   grid-column: span 2;
 }
 
+.dki-form-grid > .span-2 {
+  grid-column: span 2;
+}
+
 .dki-field span {
   color: var(--inv-muted, #64748b);
 }
@@ -679,6 +683,45 @@ select.dki-select {
 .dki-field input[readonly] {
   color: var(--inv-muted, #64748b);
   background: rgba(241, 245, 249, .92);
+}
+
+.dki-field .pbiaya-select {
+  width: 100%;
+}
+
+.dki-field-help {
+  color: var(--inv-muted, #64748b);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.dki-new-pembiayaan {
+  padding: 12px;
+  border: 1px dashed rgba(99, 102, 241, .32);
+  border-radius: 16px;
+  background: rgba(238, 242, 255, .42);
+}
+
+.dki-link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--inv-primary-dark, #4f46e5);
+  font-weight: 850;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dki-link-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.dki-new-pembiayaan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .dki-modal-actions {
@@ -846,8 +889,13 @@ select.dki-select {
     grid-template-columns: 1fr;
   }
 
-  .dki-field.span-2 {
+  .dki-field.span-2,
+  .dki-form-grid > .span-2 {
     grid-column: auto;
+  }
+
+  .dki-new-pembiayaan-grid {
+    grid-template-columns: 1fr;
   }
 
   .dki-modal-backdrop {

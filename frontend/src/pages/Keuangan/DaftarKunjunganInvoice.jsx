@@ -60,6 +60,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getError = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
+const normalizePembiayaanName = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 
 export default function DaftarKunjunganInvoice() {
@@ -72,7 +73,9 @@ export default function DaftarKunjunganInvoice() {
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-    const [invoiceForm, setInvoiceForm] = useState({ jenis: '', periode: '' });
+    const [invoiceForm, setInvoiceForm] = useState({ jenis: '', periode: '', id_pembiayaan: '' });
+    const [newPembiayaanOpen, setNewPembiayaanOpen] = useState(false);
+    const [newPembiayaan, setNewPembiayaan] = useState({ nama: '', alamat: '' });
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -94,12 +97,36 @@ export default function DaftarKunjunganInvoice() {
         () => selectedRows.reduce((sum, row) => sum + Number(row.total_biaya || 0), 0),
         [selectedRows],
     );
-    const selectedPembiayaanName = selectedRows[0]?.nama_pembiayaan || '';
+    const selectedPembiayaanList = useMemo(() => {
+        const byId = new Map();
+        selectedRows.forEach((row) => {
+            const id = String(row.id_pembiayaan || '');
+            const name = row.nama_pembiayaan || 'Tanpa Pembiayaan';
+            byId.set(id, { id, name });
+        });
+        return [...byId.values()];
+    }, [selectedRows]);
+
+    const selectedInvoicePembiayaan = useMemo(
+        () => pembiayaan.find((item) => String(item.id_pembiayaan) === String(invoiceForm.id_pembiayaan)),
+        [pembiayaan, invoiceForm.id_pembiayaan],
+    );
 
     const pembiayaanOptions = useMemo(
         () => [
             { value: '', label: 'Semua Pembiayaan' },
             { value: 'non_bpjs', label: 'Non BPJS' },
+            ...pembiayaan.map((item) => ({
+                value: String(item.id_pembiayaan),
+                label: `${item.nama} - ID ${item.id_pembiayaan}`,
+            })),
+        ],
+        [pembiayaan],
+    );
+
+    const invoicePembiayaanOptions = useMemo(
+        () => [
+            { value: '', label: 'Pilih pembiayaan invoice' },
             ...pembiayaan.map((item) => ({
                 value: String(item.id_pembiayaan),
                 label: `${item.nama} - ID ${item.id_pembiayaan}`,
@@ -184,24 +211,44 @@ export default function DaftarKunjunganInvoice() {
             toast.error('Kunjungan dengan total biaya Rp 0.00 belum bisa dibuat invoice.');
             return false;
         }
-        const pembiayaanSet = new Set(selectedRows.map((row) => String(row.id_pembiayaan || '')));
-        if (pembiayaanSet.size > 1) {
-            toast.error('Pilih kunjungan dengan pembiayaan yang sama.');
-            return false;
-        }
         return true;
     };
 
     const openInvoiceDialog = () => {
         if (!validateInvoiceSelection()) return;
-        setInvoiceForm({ jenis: '', periode: '' });
+        const uniquePembiayaan = [...new Set(selectedRows.map((row) => String(row.id_pembiayaan || '')))];
+        setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: uniquePembiayaan.length === 1 ? uniquePembiayaan[0] : '' });
+        setNewPembiayaanOpen(false);
+        setNewPembiayaan({ nama: '', alamat: '' });
         setInvoiceDialogOpen(true);
     };
 
     const closeInvoiceDialog = () => {
         if (creating) return;
         setInvoiceDialogOpen(false);
-        setInvoiceForm({ jenis: '', periode: '' });
+        setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: '' });
+        setNewPembiayaanOpen(false);
+        setNewPembiayaan({ nama: '', alamat: '' });
+    };
+
+    const createPembiayaanFromDialog = async () => {
+        if (!newPembiayaan.nama.trim()) {
+            toast.error('Nama pembiayaan baru wajib diisi.');
+            return null;
+        }
+        const existingPembiayaan = pembiayaan.find(
+            (item) => normalizePembiayaanName(item.nama) === normalizePembiayaanName(newPembiayaan.nama),
+        );
+        if (existingPembiayaan) {
+            toast.error(`Pembiayaan sudah ada: ${existingPembiayaan.nama} - ID ${existingPembiayaan.id_pembiayaan}. Pilih dari daftar pembiayaan.`);
+            return null;
+        }
+        const res = await api.post('/keuangan/pembiayaan-options/', {
+            nama: newPembiayaan.nama.trim(),
+            alamat: newPembiayaan.alamat.trim(),
+        });
+        await fetchOptions();
+        return res.data;
     };
 
     const createInvoice = async (event) => {
@@ -215,20 +262,35 @@ export default function DaftarKunjunganInvoice() {
             toast.error('Periode invoice wajib diisi.');
             return;
         }
+        if (!invoiceForm.id_pembiayaan && !newPembiayaanOpen) {
+            toast.error('Pembiayaan invoice wajib dipilih.');
+            return;
+        }
 
         setCreating(true);
         try {
+            let invoicePembiayaan = selectedInvoicePembiayaan;
+            if (newPembiayaanOpen) {
+                const createdPembiayaan = await createPembiayaanFromDialog();
+                if (!createdPembiayaan) return;
+                invoicePembiayaan = createdPembiayaan;
+                setInvoiceForm((prev) => ({ ...prev, id_pembiayaan: String(createdPembiayaan.id_pembiayaan) }));
+            }
+
             const res = await api.post('/keuangan/kunjungan-invoice/', {
                 nomor_kunjungan: selectedNos,
                 tanggal: today(),
+                id_pembiayaan: String(invoicePembiayaan?.id_pembiayaan || invoiceForm.id_pembiayaan),
                 jenis: invoiceForm.jenis.trim(),
                 periode: invoiceForm.periode.trim(),
-                beban: selectedPembiayaanName || 'PEMBIAYAAN',
+                beban: invoicePembiayaan?.nama || 'PEMBIAYAAN',
             });
 
             toast.success(`Invoice ${res.data.nomor_faktur} berhasil dibuat.`);
             setInvoiceDialogOpen(false);
-            setInvoiceForm({ jenis: '', periode: '' });
+            setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: '' });
+            setNewPembiayaanOpen(false);
+            setNewPembiayaan({ nama: '', alamat: '' });
             setSelectedNos([]);
             await fetchRows();
         } catch (err) {
@@ -444,17 +506,70 @@ export default function DaftarKunjunganInvoice() {
                                 <div>
                                     <small>Tambah Invoice</small>
                                     <h2>Lengkapi Data Invoice</h2>
-                                    <p>{selectedNos.length} kunjungan dipilih untuk {selectedPembiayaanName || 'pembiayaan ini'}.</p>
+                                    <p>{selectedNos.length} kunjungan dipilih. Tentukan pembiayaan yang akan dipakai untuk invoice ini.</p>
                                 </div>
                             </div>
                             <button type="button" onClick={closeInvoiceDialog} disabled={creating}><X size={18} /> Tutup</button>
                         </div>
                         <div className="dki-create-body">
                             <div className="dki-create-summary">
-                                <Info label="Pembiayaan" value={selectedPembiayaanName || '-'} icon={Filter} />
+                                <Info
+                                    label="Pembiayaan Asal"
+                                    value={selectedPembiayaanList.map((item) => item.name).join(', ') || '-'}
+                                    icon={Filter}
+                                />
                                 <Info label="Total Terpilih" value={money(selectedTotal)} icon={ReceiptText} strong />
                             </div>
                             <div className="dki-form-grid">
+                                <div className="dki-field span-2">
+                                    <span>Pembiayaan Invoice</span>
+                                    <SearchablePembiayaanSelect
+                                        options={invoicePembiayaanOptions}
+                                        value={invoiceForm.id_pembiayaan}
+                                        onChange={(value) => {
+                                            setInvoiceForm((prev) => ({ ...prev, id_pembiayaan: value }));
+                                            setNewPembiayaanOpen(false);
+                                        }}
+                                        placeholder="Pilih pembiayaan invoice"
+                                        disabled={newPembiayaanOpen}
+                                    />
+                                    <small className="dki-field-help">
+                                        Invoice akan dialokasikan ke pembiayaan yang dipilih di sini, meski pembiayaan asal kunjungannya berbeda.
+                                    </small>
+                                </div>
+                                <div className="dki-new-pembiayaan span-2">
+                                    <button
+                                        className="dki-link-btn"
+                                        type="button"
+                                        onClick={() => {
+                                            setNewPembiayaanOpen((open) => !open);
+                                            setInvoiceForm((prev) => ({ ...prev, id_pembiayaan: '' }));
+                                        }}
+                                        disabled={creating}
+                                    >
+                                        {newPembiayaanOpen ? 'Pilih dari daftar pembiayaan' : '+ Buat pembiayaan baru'}
+                                    </button>
+                                    {newPembiayaanOpen && (
+                                        <div className="dki-new-pembiayaan-grid">
+                                            <label className="dki-field span-2">
+                                                <span>Nama Pembiayaan</span>
+                                                <input
+                                                    value={newPembiayaan.nama}
+                                                    onChange={(e) => setNewPembiayaan((prev) => ({ ...prev, nama: e.target.value }))}
+                                                    placeholder="Nama pembiayaan baru"
+                                                />
+                                            </label>
+                                            <label className="dki-field span-2">
+                                                <span>Alamat</span>
+                                                <input
+                                                    value={newPembiayaan.alamat}
+                                                    onChange={(e) => setNewPembiayaan((prev) => ({ ...prev, alamat: e.target.value }))}
+                                                    placeholder="Opsional"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
                                 <label className="dki-field">
                                     <span>Jenis</span>
                                     <input
@@ -474,7 +589,7 @@ export default function DaftarKunjunganInvoice() {
                                 </label>
                                 <label className="dki-field span-2">
                                     <span>Beban</span>
-                                    <input value={selectedPembiayaanName || '-'} readOnly />
+                                    <input value={(newPembiayaanOpen ? newPembiayaan.nama : selectedInvoicePembiayaan?.nama) || '-'} readOnly />
                                 </label>
                             </div>
                             <div className="dki-modal-actions">

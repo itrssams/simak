@@ -223,25 +223,165 @@ class AnnouncementPermission(BasePermission):
         return is_manajer_or_above(request.user)
 
 
+def _normalize_pembiayaan_name(value):
+    return ' '.join(str(value or '').strip().lower().split())
+
+
 class PembiayaanListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """Get list of pembiayaan (insurance providers) from rssams.pbiaya"""
         from django.db import connection
+        include_inactive = str(request.query_params.get('include_inactive') or '').lower() in ('1', 'true', 'yes')
+        search = (request.query_params.get('search') or '').strip()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT id_pembiayaan, pembiayaan as nama FROM rssams.pbiaya 
-                    WHERE status <> 0
-                    ORDER BY pembiayaan
-                """)
+                where = []
+                values = []
+                if not include_inactive:
+                    where.append("status <> 0")
+                if search:
+                    where.append("(pembiayaan LIKE %s OR CAST(id_pembiayaan AS CHAR) LIKE %s OR alamat LIKE %s)")
+                    needle = f"%{search}%"
+                    values.extend([needle, needle, needle])
+                where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+                cursor.execute(f"""
+                    SELECT id_pembiayaan, pembiayaan as nama, alamat, status
+                    FROM rssams.pbiaya
+                    {where_sql}
+                    ORDER BY status DESC, pembiayaan
+                """, values)
                 columns = [col[0] for col in cursor.description]
                 pembiayaan = [dict(zip(columns, row)) for row in cursor.fetchall()]
             return Response({
                 'count': len(pembiayaan),
                 'results': pembiayaan
             }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        if not is_keuangan(request.user):
+            raise PermissionDenied('Hanya user keuangan yang dapat menambah pembiayaan.')
+
+        nama = (request.data.get('nama') or request.data.get('pembiayaan') or '').strip()
+        if not nama:
+            return Response({'nama': 'Nama pembiayaan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        alamat = (request.data.get('alamat') or '').strip()
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT id_pembiayaan, pembiayaan
+                        FROM rssams.pbiaya
+                    """)
+                    existing = next(
+                        (
+                            row for row in cursor.fetchall()
+                            if _normalize_pembiayaan_name(row[1]) == _normalize_pembiayaan_name(nama)
+                        ),
+                        None,
+                    )
+                    if existing:
+                        return Response({
+                            'error': f"Pembiayaan '{existing[1]}' sudah ada dengan ID {existing[0]}. Pilih dari daftar pembiayaan.",
+                            'id_pembiayaan': existing[0],
+                            'nama': existing[1],
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    cursor.execute("SELECT COALESCE(MAX(id_pembiayaan), 0) + 1 FROM rssams.pbiaya")
+                    id_pembiayaan = int(cursor.fetchone()[0])
+
+                    cursor.execute("""
+                        INSERT INTO rssams.pbiaya
+                            (id_pembiayaan, pembiayaan, ket, status, apt, r_inap, kode, persen_apt, alamat)
+                        VALUES
+                            (%s, %s, %s, 1, 'Y', 'Y', 1, 0.00, %s)
+                    """, [id_pembiayaan, nama, nama, alamat])
+
+            return Response({
+                'id_pembiayaan': id_pembiayaan,
+                'nama': nama,
+                'alamat': alamat,
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PembiayaanDetailView(APIView):
+    permission_classes = [IsKeuanganPermission]
+
+    def patch(self, request, id_pembiayaan):
+        nama = (request.data.get('nama') or request.data.get('pembiayaan') or '').strip()
+        alamat = (request.data.get('alamat') or '').strip()
+        status_value = request.data.get('status')
+
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT id_pembiayaan, pembiayaan, alamat, status
+                        FROM rssams.pbiaya
+                        WHERE id_pembiayaan = %s
+                        LIMIT 1
+                    """, [id_pembiayaan])
+                    current = cursor.fetchone()
+                    if not current:
+                        return Response({'error': 'Pembiayaan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+
+                    next_nama = nama or current[1]
+                    if not next_nama:
+                        return Response({'nama': 'Nama pembiayaan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                    cursor.execute("""
+                        SELECT id_pembiayaan, pembiayaan
+                        FROM rssams.pbiaya
+                        WHERE id_pembiayaan <> %s
+                    """, [id_pembiayaan])
+                    duplicate = next(
+                        (
+                            row for row in cursor.fetchall()
+                            if _normalize_pembiayaan_name(row[1]) == _normalize_pembiayaan_name(next_nama)
+                        ),
+                        None,
+                    )
+                    if duplicate:
+                        return Response({
+                            'error': f"Pembiayaan '{duplicate[1]}' sudah ada dengan ID {duplicate[0]}.",
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    updates = ["pembiayaan = %s", "ket = %s", "alamat = %s"]
+                    values = [next_nama, next_nama, alamat]
+                    next_status = int(current[3] or 0)
+                    if status_value is not None:
+                        next_status = 1 if str(status_value) not in ('0', 'false', 'False') else 0
+                        updates.append("status = %s")
+                        values.append(next_status)
+                    values.append(id_pembiayaan)
+                    cursor.execute(f"""
+                        UPDATE rssams.pbiaya
+                        SET {', '.join(updates)}
+                        WHERE id_pembiayaan = %s
+                    """, values)
+
+            return Response({
+                'id_pembiayaan': int(id_pembiayaan),
+                'nama': next_nama,
+                'alamat': alamat,
+                'status': next_status,
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, id_pembiayaan):
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("UPDATE rssams.pbiaya SET status = 0 WHERE id_pembiayaan = %s", [id_pembiayaan])
+                if cursor.rowcount == 0:
+                    return Response({'error': 'Pembiayaan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -278,6 +418,20 @@ def _dict_fetchall(cursor):
 
 def _decimal_from_row(row, key):
     return Decimal(str(row.get(key) or 0))
+
+
+def _get_pembiayaan_name(id_pembiayaan):
+    if not id_pembiayaan:
+        return ''
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT pembiayaan
+            FROM rssams.pbiaya
+            WHERE id_pembiayaan = %s AND status <> 0
+            LIMIT 1
+        """, [id_pembiayaan])
+        row = cursor.fetchone()
+    return row[0] if row else ''
 
 
 def _legacy_kunjungan_where(params):
@@ -439,10 +593,6 @@ class KunjunganInvoiceView(APIView):
             if invoiced:
                 return Response({'error': f"Kunjungan sudah masuk invoice: {', '.join(invoiced)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            pembiayaan_ids = {str(row.get('id_pembiayaan') or '') for row in rows}
-            if len(pembiayaan_ids) != 1:
-                return Response({'error': 'Semua kunjungan harus memiliki pembiayaan yang sama.'}, status=status.HTTP_400_BAD_REQUEST)
-
             totals = defaultdict(lambda: Decimal('0'))
             for row in rows:
                 totals['adm'] += _decimal_from_row(row, 'adm')
@@ -458,13 +608,26 @@ class KunjunganInvoiceView(APIView):
                 totals['ambulan'] += _decimal_from_row(row, 'ambulan')
                 totals['alat'] += _decimal_from_row(row, 'alat')
 
-            id_pembiayaan = str(rows[0].get('id_pembiayaan') or '')
-            nama_pembiayaan = rows[0].get('nama_pembiayaan') or ''
+            id_pembiayaan = str(request.data.get('id_pembiayaan') or '').strip()
+            if not id_pembiayaan:
+                return Response({'id_pembiayaan': 'Pembiayaan invoice wajib dipilih.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            nama_pembiayaan = _get_pembiayaan_name(id_pembiayaan)
+            if not nama_pembiayaan:
+                return Response({'id_pembiayaan': 'Pembiayaan invoice tidak ditemukan atau tidak aktif.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            visit_pembiayaan = sorted({
+                str(row.get('nama_pembiayaan') or row.get('id_pembiayaan') or 'Tanpa Pembiayaan')
+                for row in rows
+            })
             nomor_faktur = generate_nomor_faktur(tanggal)
             jenis = request.data.get('jenis') or 'Kunjungan Pasien'
             periode = request.data.get('periode') or tanggal.strftime('%B %Y')
-            beban = request.data.get('beban') or 'RUMAH SAKIT'
-            keterangan = request.data.get('keterangan') or f"Dibuat dari kunjungan: {', '.join(nomor_kunjungan)}"
+            beban = request.data.get('beban') or nama_pembiayaan or 'PEMBIAYAAN'
+            default_keterangan = f"Dibuat dari kunjungan: {', '.join(nomor_kunjungan)}"
+            if len(visit_pembiayaan) > 1:
+                default_keterangan += f". Pembiayaan asal kunjungan: {', '.join(visit_pembiayaan)}."
+            keterangan = request.data.get('keterangan') or default_keterangan
 
             with transaction.atomic():
                 faktur = Faktur.objects.create(
