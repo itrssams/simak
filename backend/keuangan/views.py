@@ -291,15 +291,14 @@ class PembiayaanListView(APIView):
                             'nama': existing[1],
                         }, status=status.HTTP_400_BAD_REQUEST)
 
-                    cursor.execute("SELECT COALESCE(MAX(id_pembiayaan), 0) + 1 FROM rssams.pbiaya")
-                    id_pembiayaan = int(cursor.fetchone()[0])
-
                     cursor.execute("""
                         INSERT INTO rssams.pbiaya
-                            (id_pembiayaan, pembiayaan, ket, status, apt, r_inap, kode, persen_apt, alamat)
+                            (pembiayaan, ket, status, apt, r_inap, kode, persen_apt, alamat)
                         VALUES
-                            (%s, %s, %s, 1, 'Y', 'Y', 1, 0.00, %s)
-                    """, [id_pembiayaan, nama, nama, alamat])
+                            (%s, %s, 1, 'Y', 'Y', 1, 0.00, %s)
+                    """, [nama, nama, alamat])
+                    cursor.execute("SELECT LAST_INSERT_ID()")
+                    id_pembiayaan = int(cursor.fetchone()[0])
 
             return Response({
                 'id_pembiayaan': id_pembiayaan,
