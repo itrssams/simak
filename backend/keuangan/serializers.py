@@ -8,6 +8,7 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana,
+    UtangSupplier, PembayaranUtang,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     AuditLog,
@@ -509,6 +510,56 @@ class FakturInputSerializer(serializers.ModelSerializer):
 # ══════════════════════════════════════════════════════════════
 # TAGIHAN
 # ══════════════════════════════════════════════════════════════
+
+class PembayaranUtangSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    nomor_faktur = serializers.CharField(source='utang.nomor_faktur', read_only=True)
+    vendor_nama = serializers.CharField(source='utang.vendor_nama', read_only=True)
+    nominal = serializers.DecimalField(source='utang.nominal', max_digits=25, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = PembayaranUtang
+        fields = [
+            'id', 'utang', 'nomor_faktur', 'vendor_nama', 'nominal',
+            'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
+            'jumlah_bayar', 'keterangan', 'created_by', 'created_by_name', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at']
+
+
+class PembayaranUtangInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PembayaranUtang
+        fields = ['utang', 'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar', 'keterangan']
+
+    def validate(self, attrs):
+        if attrs.get('jumlah_bayar', 0) <= 0:
+            raise serializers.ValidationError({'jumlah_bayar': 'Jumlah bayar harus lebih dari 0.'})
+        return attrs
+
+
+class UtangSupplierSerializer(serializers.ModelSerializer):
+    verified_by_name = serializers.CharField(source='verified_by.username', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    total_dibayar = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
+    sisa_utang = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
+    pembayaran = PembayaranUtangSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UtangSupplier
+        fields = [
+            'id', 'app_siaga_faktur_id', 'nomor_spb', 'tanggal_spb',
+            'nomor_faktur', 'vendor_id', 'vendor_nama', 'tanggal_faktur',
+            'tanggal_jatuh_tempo', 'nominal', 'tanggal_titip',
+            'keterangan_titip', 'status', 'status_label', 'total_dibayar',
+            'sisa_utang', 'verified_by', 'verified_by_name', 'verified_at',
+            'pembayaran', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'status', 'status_label', 'total_dibayar', 'sisa_utang',
+            'verified_by', 'verified_by_name', 'verified_at', 'created_at', 'updated_at',
+        ]
+
 
 class TagihanItemSerializer(serializers.ModelSerializer):
     class Meta:

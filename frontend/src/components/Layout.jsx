@@ -45,6 +45,7 @@ const IconConfig = {
     inventory: { icon: Package, size: 18 },
     finance: { icon: HandCoins, size: 18 },
     invoice: { icon: ReceiptText, size: 18 },
+    debt: { icon: FileClock, size: 18 },
 };
 
 const renderIcon = (iconKey, overrideSize) => {
@@ -103,10 +104,19 @@ const MENU_KEUANGAN = [
         ],
     },
 ];
+const MENU_CATATAN_UTANG = [
+    {
+        label: 'Catatan Utang', icon: 'debt', children: [
+            { label: 'Obat & BHP', path: '/keuangan/catatan-utang/obat-bhp' },
+            { label: 'Alat Kesehatan', disabled: true },
+            { label: 'Pelayanan Rujukan & Laboratorium', disabled: true },
+        ],
+    },
+];
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = false;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User'];
 
 function uniqueMenus(items) {
     const result = [];
@@ -152,7 +162,7 @@ function orderMenus(items) {
 function getMenuItems(user) {
     const role = user?.role;
     const base = [];
-    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN])));
+    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG])));
     if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
     else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
     else if (role === 'kepala_seksi') base.push(...MENU_KEPALA_SEKSI);
@@ -160,6 +170,7 @@ function getMenuItems(user) {
     if (user?.is_driver) base.push(...MENU_DRIVER);
     if (user?.is_it) base.push(...MENU_IT);
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
+    if (user?.akses_catatan_utang_obat_bhp) base.push(...MENU_CATATAN_UTANG);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -245,6 +256,14 @@ function SidebarItem({ item, location, onClose, collapsed, index }) {
             {!collapsed && (
                 <div className={`sb-children${expanded ? ' open' : ''}`}>
                     {item.children.map((child) => {
+                        if (child.disabled) {
+                            return (
+                                <span key={child.label} className="sb-child disabled" title="Belum aktif">
+                                    <span className="sb-child-dot" />
+                                    <span>{child.label}</span>
+                                </span>
+                            );
+                        }
                         const childActive = matchPath(child.path);
                         return (
                             <Link
@@ -285,6 +304,7 @@ export default function Layout({ children }) {
         user?.is_it ? 'IT' : '',
         user?.is_keuangan ? 'Keuangan' : '',
         user?.is_petty_cash_cashier ? 'Kas Petty Cash' : '',
+        user?.akses_catatan_utang_obat_bhp ? 'Utang Obat & BHP' : '',
     ].filter(Boolean);
     const baseRoleLabel = ROLE_LABEL[user?.role] || (user?.is_superuser ? 'Superuser' : user?.role || '');
     const roleLabel = featureLabels.length ? `${baseRoleLabel} + ${featureLabels.join(' + ')}` : baseRoleLabel;
@@ -988,6 +1008,14 @@ export default function Layout({ children }) {
                 .sb-child.active {
                     color: #fff;
                     background: rgba(99,102,241,.28);
+                }
+                .sb-child.disabled {
+                    cursor: not-allowed;
+                    opacity: .42;
+                }
+                .sb-child.disabled:hover {
+                    color: rgba(255,255,255,.54);
+                    background: transparent;
                 }
                 .sb-child-dot {
                     width: 7px;

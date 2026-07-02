@@ -25,7 +25,8 @@ class UserSerializer(serializers.ModelSerializer):
         model  = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'role', 'role_label', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier', 'unit', 'unit_nama',
+            'role', 'role_label', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier',
+            'akses_catatan_utang_obat_bhp', 'unit', 'unit_nama',
             'is_active', 'is_staff', 'is_superuser', 'date_joined',
         ]
         read_only_fields = ['id', 'date_joined']
@@ -38,7 +39,8 @@ class UserInputSerializer(serializers.ModelSerializer):
         model  = User
         fields = [
             'username', 'email', 'first_name', 'last_name',
-            'role', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier', 'unit', 'is_active', 'password',
+            'role', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier',
+            'akses_catatan_utang_obat_bhp', 'unit', 'is_active', 'password',
         ]
 
     def create(self, validated_data):

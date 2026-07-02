@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from decimal import Decimal
 
 
 class AuditLog(models.Model):
@@ -404,6 +405,108 @@ class PembayaranFaktur(models.Model):
             total=models.Sum('jumlah')
         )['total'] or 0
         faktur.save()
+
+
+class UtangSupplier(models.Model):
+    STATUS_BELUM_DIBAYAR = 'belum_dibayar'
+    STATUS_SEBAGIAN = 'sebagian'
+    STATUS_LUNAS = 'lunas'
+    STATUS_CHOICES = [
+        (STATUS_BELUM_DIBAYAR, 'Belum Dibayar'),
+        (STATUS_SEBAGIAN, 'Sebagian'),
+        (STATUS_LUNAS, 'Lunas'),
+    ]
+
+    app_siaga_faktur_id = models.CharField(max_length=32, unique=True, help_text='ID rssams.tran_beli_brg_farmasi')
+    nomor_spb = models.CharField(max_length=50, blank=True)
+    tanggal_spb = models.DateField(null=True, blank=True)
+    nomor_faktur = models.CharField(max_length=100)
+    vendor_id = models.IntegerField(help_text='ID rssams.rekanan.id_rekanan')
+    vendor_nama = models.CharField(max_length=150, blank=True)
+    tanggal_faktur = models.DateField(null=True, blank=True)
+    tanggal_jatuh_tempo = models.DateField(null=True, blank=True)
+    nominal = models.DecimalField(max_digits=25, decimal_places=2)
+    tanggal_titip = models.DateField(null=True, blank=True)
+    keterangan_titip = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_BELUM_DIBAYAR)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='utang_supplier_verified')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'utang_supplier'
+        ordering = ['-tanggal_faktur', '-created_at']
+        indexes = [
+            models.Index(fields=['app_siaga_faktur_id'], name='utang_app_siaga_idx'),
+            models.Index(fields=['vendor_id'], name='utang_vendor_idx'),
+            models.Index(fields=['status'], name='utang_status_idx'),
+            models.Index(fields=['tanggal_jatuh_tempo'], name='utang_jtempo_idx'),
+        ]
+        verbose_name = 'Utang Supplier'
+        verbose_name_plural = 'Utang Supplier'
+
+    def __str__(self):
+        return f'{self.nomor_faktur} - {self.vendor_nama or self.vendor_id}'
+
+    @property
+    def total_dibayar(self):
+        return self.pembayaran.aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+
+    @property
+    def sisa_utang(self):
+        sisa = self.nominal - self.total_dibayar
+        return max(sisa, Decimal('0'))
+
+    def refresh_status(self, commit=True):
+        total = self.total_dibayar if self.pk else Decimal('0')
+        if total == 0:
+            self.status = self.STATUS_BELUM_DIBAYAR
+        elif total < self.nominal:
+            self.status = self.STATUS_SEBAGIAN
+        else:
+            self.status = self.STATUS_LUNAS
+        if commit:
+            self.save(update_fields=['status', 'updated_at'])
+        return self.status
+
+
+class PembayaranUtang(models.Model):
+    utang = models.ForeignKey(UtangSupplier, on_delete=models.PROTECT, related_name='pembayaran')
+    tanggal_rencana_bayar = models.DateField(null=True, blank=True)
+    tanggal_proses = models.DateField()
+    tanggal_app = models.DateField(null=True, blank=True)
+    jumlah_bayar = models.DecimalField(max_digits=25, decimal_places=2)
+    keterangan = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='pembayaran_utang')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'pembayaran_utang'
+        ordering = ['-tanggal_proses', '-created_at']
+        indexes = [
+            models.Index(fields=['utang', 'tanggal_proses'], name='payutang_utang_tgl_idx'),
+            models.Index(fields=['created_at'], name='payutang_created_idx'),
+        ]
+        verbose_name = 'Pembayaran Utang'
+        verbose_name_plural = 'Pembayaran Utang'
+
+    def __str__(self):
+        return f'{self.utang.nomor_faktur} - {self.jumlah_bayar} ({self.tanggal_proses})'
+
+    def clean(self):
+        if self.jumlah_bayar <= 0:
+            raise ValidationError('Jumlah bayar harus lebih dari 0.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+        self.utang.refresh_status()
+
+    def delete(self, *args, **kwargs):
+        utang = self.utang
+        super().delete(*args, **kwargs)
+        utang.refresh_status()
 
 
 class AlokasiDana(models.Model):

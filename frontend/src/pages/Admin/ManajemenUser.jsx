@@ -52,6 +52,7 @@ const initialForm = {
     is_it: false,
     is_keuangan: false,
     is_petty_cash_cashier: false,
+    akses_catatan_utang_obat_bhp: false,
     unit: '',
     password: '',
     is_active: true,
@@ -180,6 +181,7 @@ export default function ManajemenUser() {
             is_it: Boolean(u.is_it),
             is_keuangan: Boolean(u.is_keuangan),
             is_petty_cash_cashier: Boolean(u.is_petty_cash_cashier),
+            akses_catatan_utang_obat_bhp: Boolean(u.akses_catatan_utang_obat_bhp),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -231,6 +233,7 @@ export default function ManajemenUser() {
                 is_it: form.is_it,
                 is_keuangan: form.is_keuangan,
                 is_petty_cash_cashier: form.is_petty_cash_cashier,
+                akses_catatan_utang_obat_bhp: form.akses_catatan_utang_obat_bhp,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -712,6 +715,7 @@ function RoleBadge({ user }) {
             {user?.is_it && <span className="mu-badge" style={{ background: '#ccfbf1', color: '#0f766e', borderColor: '#99f6e4' }}>IT</span>}
             {user?.is_keuangan && <span className="mu-badge" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' }}>Keuangan</span>}
             {user?.is_petty_cash_cashier && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>Kas Petty Cash</span>}
+            {user?.akses_catatan_utang_obat_bhp && <span className="mu-badge" style={{ background: '#fef9c3', color: '#854d0e', borderColor: '#fde68a' }}>Utang Obat & BHP</span>}
         </div>
     );
 }
@@ -787,6 +791,10 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                         <label className="mu-check">
                             <input type="checkbox" checked={form.is_petty_cash_cashier} onChange={(e) => setForm({ ...form, is_petty_cash_cashier: e.target.checked })} />
                             <span>Petugas kas petty cash</span>
+                        </label>
+                        <label className="mu-check">
+                            <input type="checkbox" checked={form.akses_catatan_utang_obat_bhp} onChange={(e) => setForm({ ...form, akses_catatan_utang_obat_bhp: e.target.checked })} />
+                            <span>Akses Catatan Utang Obat & BHP</span>
                         </label>
                     </div>
                     {showPassword && (

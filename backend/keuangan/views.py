@@ -31,6 +31,7 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana, AlokasiDanaPemakaian,
+    UtangSupplier, PembayaranUtang,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     AuditLog,
@@ -47,6 +48,7 @@ from .serializers import (
     FakturSerializer, FakturInputSerializer,
     PembayaranFakturSerializer, PembayaranFakturInputSerializer,
     AlokasiDanaSerializer,
+    UtangSupplierSerializer, PembayaranUtangSerializer, PembayaranUtangInputSerializer,
     TagihanSerializer, TagihanInputSerializer,
     PembayaranTagihanSerializer, PembayaranTagihanInputSerializer,
     RekeningBankSerializer, RekeningBankInputSerializer,
@@ -100,6 +102,13 @@ def is_it(user):
 
 def is_keuangan(user):
     return user.is_authenticated and (getattr(user, 'is_keuangan', False) or user.is_superuser)
+
+
+def can_access_catatan_utang_obat_bhp(user):
+    return user.is_authenticated and (
+        user.is_superuser
+        or getattr(user, 'akses_catatan_utang_obat_bhp', False)
+    )
 
 
 def is_petty_cash_cashier(user):
@@ -204,6 +213,11 @@ class IsITPermission(BasePermission):
 class IsKeuanganPermission(BasePermission):
     def has_permission(self, request, view):
         return is_keuangan(request.user)
+
+
+class IsCatatanUtangObatBhpPermission(BasePermission):
+    def has_permission(self, request, view):
+        return can_access_catatan_utang_obat_bhp(request.user)
 
 
 class IsPettyCashSaldoPermission(BasePermission):
@@ -3483,6 +3497,326 @@ def faktur_rekap_excel_view(request):
 
 # ALOKASI DANA
 # ══════════════════════════════════════════════════════════════
+
+def _utang_order_clause(value, allowed):
+    return allowed.get(value) or next(iter(allowed.values()))
+
+
+def _build_pending_where(params):
+    where = ['u.app_siaga_faktur_id IS NULL']
+    values = []
+    search = (params.get('search') or '').strip()
+    vendor_id = (params.get('vendor_id') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_spb LIKE %s OR t.no_faktur LIKE %s OR r.nama LIKE %s OR t.id LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle])
+    if vendor_id:
+        where.append('t.id_rekanan = %s')
+        values.append(vendor_id)
+    if dari:
+        where.append('t.tgl_faktur >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tgl_faktur <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
+
+def _pending_base_sql():
+    return """
+        FROM rssams.tran_beli_brg_farmasi t
+        LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+    """
+
+
+def _fetch_app_siaga_faktur(app_siaga_faktur_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                t.id AS app_siaga_faktur_id,
+                t.id AS nomor_spb,
+                t.tgl_spb AS tanggal_spb,
+                t.no_faktur AS nomor_faktur,
+                t.id_rekanan AS vendor_id,
+                COALESCE(r.nama, '') AS vendor_nama,
+                t.tgl_faktur AS tanggal_faktur,
+                t.tgl_jtempo AS tanggal_jatuh_tempo,
+                t.gtotal AS nominal
+            FROM rssams.tran_beli_brg_farmasi t
+            LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
+            WHERE t.id = %s
+            LIMIT 1
+            """,
+            [app_siaga_faktur_id],
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        return dict(zip(columns, row))
+
+
+class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
+    queryset = UtangSupplier.objects.select_related('verified_by').prefetch_related('pembayaran__created_by').all()
+    serializer_class = UtangSupplierSerializer
+    permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        search = (params.get('search') or '').strip()
+        vendor_id = params.get('vendor_id')
+        status_filter = params.get('status')
+        dari = params.get('dari')
+        sampai = params.get('sampai')
+
+        if search:
+            qs = qs.filter(
+                Q(nomor_spb__icontains=search)
+                | Q(nomor_faktur__icontains=search)
+                | Q(vendor_nama__icontains=search)
+                | Q(app_siaga_faktur_id__icontains=search)
+            )
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        if dari:
+            qs = qs.filter(tanggal_faktur__gte=dari)
+        if sampai:
+            qs = qs.filter(tanggal_faktur__lte=sampai)
+
+        order = _utang_order_clause(params.get('ordering'), {
+            'vendor': 'vendor_nama',
+            '-vendor': '-vendor_nama',
+            'nomor_faktur': 'nomor_faktur',
+            '-nomor_faktur': '-nomor_faktur',
+            'tanggal_faktur': 'tanggal_faktur',
+            '-tanggal_faktur': '-tanggal_faktur',
+            'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
+            '-tanggal_jatuh_tempo': '-tanggal_jatuh_tempo',
+            'nominal': 'nominal',
+            '-nominal': '-nominal',
+            'status': 'status',
+            '-status': '-status',
+        })
+        return qs.order_by(order, '-created_at')
+
+    @action(detail=True, methods=['post'], url_path='bayar')
+    def bayar(self, request, pk=None):
+        utang = self.get_object()
+        if utang.status == UtangSupplier.STATUS_LUNAS:
+            return Response({'error': 'Utang sudah lunas.'}, status=status.HTTP_400_BAD_REQUEST)
+        payload = {**request.data, 'utang': utang.id}
+        serializer = PembayaranUtangInputSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        pembayaran = PembayaranUtang.objects.create(
+            utang=utang,
+            tanggal_rencana_bayar=serializer.validated_data.get('tanggal_rencana_bayar'),
+            tanggal_proses=serializer.validated_data['tanggal_proses'],
+            tanggal_app=serializer.validated_data.get('tanggal_app'),
+            jumlah_bayar=serializer.validated_data['jumlah_bayar'],
+            keterangan=serializer.validated_data.get('keterangan', ''),
+            created_by=request.user,
+        )
+        utang.refresh_from_db()
+        return Response({
+            'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
+            'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        qs = self.get_queryset()
+        total_nominal = qs.aggregate(total=Sum('nominal'))['total'] or Decimal('0')
+        pembayaran = PembayaranUtang.objects.filter(utang__in=qs).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+        return Response({
+            'utang_count': qs.count(),
+            'total_nominal': total_nominal,
+            'total_dibayar': pembayaran,
+            'total_sisa': max(total_nominal - pembayaran, Decimal('0')),
+            'belum_dibayar': qs.filter(status=UtangSupplier.STATUS_BELUM_DIBAYAR).count(),
+            'sebagian': qs.filter(status=UtangSupplier.STATUS_SEBAGIAN).count(),
+            'lunas': qs.filter(status=UtangSupplier.STATUS_LUNAS).count(),
+        })
+
+
+class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
+    queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
+    serializer_class = PembayaranUtangSerializer
+    permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        search = (params.get('search') or '').strip()
+        vendor_id = params.get('vendor_id')
+        utang_id = params.get('utang')
+        dari = params.get('dari')
+        sampai = params.get('sampai')
+
+        if search:
+            qs = qs.filter(
+                Q(utang__nomor_faktur__icontains=search)
+                | Q(utang__nomor_spb__icontains=search)
+                | Q(utang__vendor_nama__icontains=search)
+                | Q(keterangan__icontains=search)
+            )
+        if vendor_id:
+            qs = qs.filter(utang__vendor_id=vendor_id)
+        if utang_id:
+            qs = qs.filter(utang_id=utang_id)
+        if dari:
+            qs = qs.filter(tanggal_proses__gte=dari)
+        if sampai:
+            qs = qs.filter(tanggal_proses__lte=sampai)
+
+        order = _utang_order_clause(params.get('ordering'), {
+            'vendor': 'utang__vendor_nama',
+            '-vendor': '-utang__vendor_nama',
+            'nomor_faktur': 'utang__nomor_faktur',
+            '-nomor_faktur': '-utang__nomor_faktur',
+            'tanggal_proses': 'tanggal_proses',
+            '-tanggal_proses': '-tanggal_proses',
+            'jumlah_bayar': 'jumlah_bayar',
+            '-jumlah_bayar': '-jumlah_bayar',
+        })
+        return qs.order_by(order, '-created_at')
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        rows = response.data.get('results') if isinstance(response.data, dict) else response.data
+        if isinstance(rows, list):
+            running = defaultdict(Decimal)
+            page_rows = sorted(rows, key=lambda item: (item.get('utang') or 0, item.get('tanggal_proses') or '', item.get('id') or 0))
+            prior_cache = {}
+            for item in page_rows:
+                utang_id = item.get('utang')
+                if utang_id not in prior_cache:
+                    pay = PembayaranUtang.objects.filter(
+                        utang_id=utang_id,
+                        tanggal_proses__lt=item.get('tanggal_proses'),
+                    ).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+                    prior_cache[utang_id] = pay
+                running[utang_id] += Decimal(str(item.get('jumlah_bayar') or 0))
+                item['running_total_dibayar'] = prior_cache[utang_id] + running[utang_id]
+                item['running_sisa_utang'] = max(Decimal(str(item.get('nominal') or 0)) - item['running_total_dibayar'], Decimal('0'))
+        return response
+
+
+class UtangMenungguVerifikasiView(APIView):
+    permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
+    pagination_class = OptionalPageNumberPagination
+
+    def get(self, request):
+        params = request.query_params
+        where, values = _build_pending_where(params)
+        order = _utang_order_clause(params.get('ordering'), {
+            'vendor': 'r.nama',
+            '-vendor': 'r.nama DESC',
+            'nomor_spb': 't.no_spb',
+            '-nomor_spb': 't.no_spb DESC',
+            'nomor_faktur': 't.no_faktur',
+            '-nomor_faktur': 't.no_faktur DESC',
+            'tanggal_faktur': 't.tgl_faktur',
+            '-tanggal_faktur': 't.tgl_faktur DESC',
+            'tanggal_jatuh_tempo': 't.tgl_jtempo',
+            '-tanggal_jatuh_tempo': 't.tgl_jtempo DESC',
+            'nominal': 't.gtotal',
+            '-nominal': 't.gtotal DESC',
+            '-tanggal_faktur': 't.tgl_faktur DESC',
+        })
+        try:
+            page = int(params.get('page', 1))
+            page_size = min(int(params.get('page_size', 10)), 100)
+        except ValueError:
+            page, page_size = 1, 10
+        offset = max(page - 1, 0) * page_size
+
+        with connection.cursor() as cursor:
+            cursor.execute(f'SELECT COUNT(*) {_pending_base_sql()} WHERE {where}', values)
+            total = cursor.fetchone()[0]
+            cursor.execute(
+                f"""
+                SELECT
+                    t.id AS app_siaga_faktur_id,
+                    t.id AS nomor_spb,
+                    t.tgl_spb AS tanggal_spb,
+                    t.no_faktur AS nomor_faktur,
+                    t.id_rekanan AS vendor_id,
+                    COALESCE(r.nama, '') AS vendor_nama,
+                    t.tgl_faktur AS tanggal_faktur,
+                    t.tgl_jtempo AS tanggal_jatuh_tempo,
+                    t.gtotal AS nominal
+                {_pending_base_sql()}
+                WHERE {where}
+                ORDER BY {order}, t.id DESC
+                LIMIT %s OFFSET %s
+                """,
+                values + [page_size, offset],
+            )
+            columns = [col[0] for col in cursor.description]
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return Response({
+            'count': total,
+            'next': None,
+            'previous': None,
+            'results': rows,
+        })
+
+    def post(self, request):
+        app_siaga_faktur_id = request.data.get('app_siaga_faktur_id')
+        if not app_siaga_faktur_id:
+            return Response({'app_siaga_faktur_id': 'Faktur APP_SIAGA wajib dipilih.'}, status=status.HTTP_400_BAD_REQUEST)
+        if UtangSupplier.objects.filter(app_siaga_faktur_id=app_siaga_faktur_id).exists():
+            return Response({'error': 'Faktur ini sudah diverifikasi.'}, status=status.HTTP_400_BAD_REQUEST)
+        faktur = _fetch_app_siaga_faktur(app_siaga_faktur_id)
+        if not faktur:
+            return Response({'error': 'Faktur APP_SIAGA tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+
+        utang = UtangSupplier.objects.create(
+            app_siaga_faktur_id=faktur['app_siaga_faktur_id'],
+            nomor_spb=faktur.get('nomor_spb') or '',
+            tanggal_spb=faktur.get('tanggal_spb'),
+            nomor_faktur=faktur.get('nomor_faktur') or '',
+            vendor_id=faktur.get('vendor_id') or 0,
+            vendor_nama=faktur.get('vendor_nama') or '',
+            tanggal_faktur=faktur.get('tanggal_faktur'),
+            tanggal_jatuh_tempo=faktur.get('tanggal_jatuh_tempo'),
+            nominal=faktur.get('nominal') or 0,
+            tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+            keterangan_titip=request.data.get('keterangan_titip') or '',
+            verified_by=request.user,
+            verified_at=timezone.now(),
+        )
+        return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class UtangVendorOptionsView(APIView):
+    permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
+
+    def get(self, request):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DISTINCT r.id_rekanan AS id, r.nama AS nama
+                FROM rssams.rekanan r
+                INNER JOIN rssams.tran_beli_brg_farmasi t ON t.id_rekanan = r.id_rekanan
+                WHERE r.del = 'N'
+                ORDER BY r.nama
+                LIMIT 500
+                """
+            )
+            columns = [col[0] for col in cursor.description]
+            return Response([dict(zip(columns, row)) for row in cursor.fetchall()])
+
 
 class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = AlokasiDana.objects.select_related('created_by').prefetch_related('pembayaran__faktur', 'pembayaran__created_by').all()

@@ -1,0 +1,634 @@
+:root {
+  --utang-primary: #6366f1;
+  --utang-primary-dark: #4f46e5;
+  --utang-secondary: #06b6d4;
+  --utang-gold: #3b82f6;
+  --utang-success: #10b981;
+  --utang-warning: #f59e0b;
+  --utang-danger: #ef4444;
+  --utang-text: #0f172a;
+  --utang-muted: #64748b;
+  --utang-bg: #f8fafc;
+  --utang-panel: rgba(255, 255, 255, .72);
+  --utang-panel-strong: rgba(255, 255, 255, .96);
+  --utang-border: rgba(226, 232, 240, .62);
+  --utang-soft: rgba(99, 102, 241, .1);
+  --utang-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+}
+
+.utang-page,
+.utang-page * {
+  box-sizing: border-box;
+}
+
+.utang-page {
+  min-height: 100vh;
+  padding: 24px;
+  color: var(--utang-text);
+  background: var(--utang-bg);
+}
+
+.utang-hero {
+  margin-bottom: 18px;
+}
+
+.utang-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.utang-title > span,
+.utang-modal-head-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--utang-primary), #3b82f6, var(--utang-secondary));
+  box-shadow: 0 18px 42px rgba(99, 102, 241, .24);
+}
+
+.utang-title h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.utang-title p,
+.utang-card-title p,
+.utang-modal-head p {
+  margin: 4px 0 0;
+  color: var(--utang-muted);
+  font-size: 14px;
+}
+
+.utang-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+  border-bottom: 2px solid rgba(226, 232, 240, .62);
+}
+
+.utang-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: var(--utang-muted);
+  font-size: 14px;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+  transition: color .18s ease;
+}
+
+.utang-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(135deg, var(--utang-primary), #3b82f6, var(--utang-secondary));
+  border-radius: 1px;
+  opacity: 0;
+  transform: scaleX(0);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.utang-tab:hover {
+  color: var(--utang-primary);
+}
+
+.utang-tab.active {
+  color: var(--utang-primary);
+}
+
+.utang-tab.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.utang-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.utang-summary-card,
+.utang-card,
+.utang-modal,
+.utang-confirm-modal {
+  background: var(--utang-panel);
+  border: 1px solid var(--utang-border);
+  border-radius: 24px;
+  box-shadow: var(--utang-shadow);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.utang-summary-card {
+  min-height: 104px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.utang-summary-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--utang-primary);
+  background: var(--utang-soft);
+}
+
+.utang-summary-card small,
+.utang-info-item span {
+  display: block;
+  color: var(--utang-muted);
+  font-size: 11.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.utang-summary-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.utang-summary-card em {
+  display: block;
+  margin-top: 4px;
+  color: var(--utang-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.utang-card.table {
+  overflow: visible;
+}
+
+.utang-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px;
+  border-bottom: 1px solid rgba(226, 232, 240, .72);
+  background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.36));
+  border-radius: 24px 24px 0 0;
+}
+
+.utang-card-title h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.utang-btn {
+  border: 0;
+  border-radius: 14px;
+  min-height: 40px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: .18s ease;
+  white-space: nowrap;
+}
+
+.utang-btn.primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--utang-primary), #3b82f6, var(--utang-secondary));
+  box-shadow: 0 14px 28px rgba(99, 102, 241, .22);
+}
+
+.utang-btn.soft {
+  color: var(--utang-primary);
+  background: rgba(255, 255, 255, .88);
+  border: 1px solid rgba(226, 232, 240, .9);
+}
+
+.utang-btn.mini {
+  min-height: 34px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.utang-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.utang-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.utang-filter {
+  background: rgba(255,255,255,.35);
+  border-bottom-color: rgba(226, 232, 240, .72);
+}
+
+.utang-filter .dki-search,
+.utang-filter .dki-select,
+.utang-filter .dki-date-range label {
+  background: rgba(255,255,255,.72);
+  border-color: rgba(226, 232, 240, .88);
+}
+
+.utang-filter .dki-search:focus-within,
+.utang-filter .dki-select:focus-within,
+.utang-filter .dki-date-range label:focus-within {
+  border-color: var(--utang-primary);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12);
+}
+
+.utang-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.utang-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.utang-table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--utang-muted);
+  background: rgba(248, 250, 252, .72);
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, .82);
+  white-space: nowrap;
+}
+
+.utang-table td {
+  padding: 15px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, .68);
+  vertical-align: middle;
+  font-size: 14px;
+  background: rgba(255,255,255,.42);
+}
+
+.utang-table tbody tr:hover td {
+  background: rgba(238, 242, 255, .58);
+}
+
+.utang-sort-btn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.utang-right {
+  text-align: right !important;
+}
+
+.utang-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.utang-name-cell strong {
+  display: block;
+  font-weight: 850;
+}
+
+.utang-name-cell small {
+  display: block;
+  color: var(--utang-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.utang-empty {
+  padding: 34px;
+  text-align: center;
+  color: var(--utang-muted);
+  font-weight: 800;
+}
+
+.utang-empty.access {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  background: var(--utang-panel);
+  border: 1px solid var(--utang-border);
+  border-radius: 24px;
+}
+
+.utang-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.utang-status.belum_dibayar {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.utang-status.sebagian {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.utang-status.lunas {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.utang-pagination-wrap {
+  background: rgba(248, 250, 252, .58);
+  border-radius: 0 0 24px 24px;
+}
+
+.utang-page-btn,
+.utang-page-size {
+  border: 1px solid rgba(226, 232, 240, .9);
+  background: rgba(255,255,255,.76);
+  border-radius: 10px;
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--utang-text);
+  font-weight: 750;
+}
+
+.utang-modal-backdrop,
+.utang-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 24px;
+  background: rgba(15, 23, 42, .52);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.utang-modal,
+.utang-confirm-modal {
+  background: var(--utang-panel-strong);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, .25);
+  border: 1px solid rgba(250, 252, 246, .72);
+}
+
+.utang-confirm-modal {
+  width: min(480px, 100%);
+  padding: 24px;
+}
+
+.utang-modal.payment {
+  width: min(780px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.utang-modal-head {
+  padding: 20px 22px;
+  border-bottom: 1px solid rgba(226, 232, 240, .72);
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.utang-modal-head-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+}
+
+.utang-modal-head h2,
+.utang-confirm-copy h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.utang-modal-body {
+  padding: 22px;
+}
+
+.utang-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.utang-form-grid label,
+.utang-send-fields label {
+  display: grid;
+  gap: 7px;
+  color: #33473b;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.utang-input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(226, 232, 240, .9);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, .95);
+  padding: 0 13px;
+  outline: none;
+  font-weight: 700;
+  color: var(--utang-text);
+}
+
+textarea.utang-input {
+  padding-top: 12px;
+  resize: vertical;
+}
+
+.utang-input:focus {
+  border-color: var(--utang-primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12);
+}
+
+.utang-input-right {
+  text-align: right;
+}
+
+.utang-pay-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.utang-info-item {
+  min-height: 76px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, .82);
+  display: grid;
+  gap: 7px;
+}
+
+.utang-info-item strong {
+  color: var(--utang-text);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.utang-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 850;
+}
+
+.utang-confirm-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
+
+.utang-confirm-icon.ok {
+  background: #ecfdf5;
+  color: var(--utang-success);
+}
+
+.utang-confirm-copy p {
+  margin: 8px 0 0;
+  color: var(--utang-muted);
+  line-height: 1.55;
+}
+
+.utang-confirm-detail {
+  margin-top: 16px;
+  padding: 13px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, .82);
+  display: grid;
+  gap: 4px;
+}
+
+.utang-confirm-detail span {
+  color: var(--utang-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.utang-confirm-actions,
+.utang-modal-actions {
+  padding: 0 22px 22px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.utang-confirm-actions {
+  padding: 0;
+}
+
+.utang-send-fields {
+  display: grid;
+  gap: 13px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .utang-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .utang-page {
+    padding: 14px;
+  }
+
+  .utang-summary,
+  .utang-form-grid,
+  .utang-pay-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2 {
+    grid-column: auto;
+  }
+
+  .utang-card-head,
+  .utang-filter .dki-filter-row-1,
+  .utang-filter .dki-filter-row-2 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .utang-filter .dki-search,
+  .utang-filter .dki-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .utang-modal-backdrop,
+  .utang-confirm-backdrop {
+    padding: 12px;
+  }
+
+  .utang-tabs {
+    gap: 2px;
+  }
+
+  .utang-tab {
+    padding: 0 12px;
+    font-size: 13px;
+  }
+}

@@ -12,6 +12,7 @@ from .views import (
     ITBackupRecordViewSet, ITRepairRequestViewSet, ITCredentialNoteViewSet, ITRemoteAccessViewSet,
     ITSubscriptionViewSet, AnnouncementViewSet,
     InventoryOptionViewSet, InventoryAssetViewSet,
+    UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView,
     faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
 )
 
@@ -37,6 +38,8 @@ router.register(r'log-maintenance', LogMaintenanceViewSet, basename='log-mainten
 router.register(r'announcements',   AnnouncementViewSet,   basename='announcements')
 router.register(r'inventory/options', InventoryOptionViewSet, basename='inventory-options')
 router.register(r'inventory/assets',  InventoryAssetViewSet,  basename='inventory-assets')
+router.register(r'utang-supplier', UtangSupplierViewSet, basename='utang-supplier')
+router.register(r'pembayaran-utang', PembayaranUtangViewSet, basename='pembayaran-utang')
 router.register(r'it/backups',      ITBackupRecordViewSet, basename='it-backups')
 router.register(r'it/repair-requests', ITRepairRequestViewSet, basename='it-repair-requests')
 router.register(r'it/credentials',  ITCredentialNoteViewSet, basename='it-credentials')
@@ -54,6 +57,8 @@ urlpatterns = [
     path('kunjungan-invoice/', KunjunganInvoiceView.as_view(), name='kunjungan-invoice'),
     path('pembiayaan-options/', PembiayaanListView.as_view(), name='pembiayaan-options'),
     path('pembiayaan-options/<int:id_pembiayaan>/', PembiayaanDetailView.as_view(), name='pembiayaan-detail'),
+    path('catatan-utang/obat-bhp/menunggu-verifikasi/', UtangMenungguVerifikasiView.as_view(), name='utang-obat-bhp-menunggu'),
+    path('catatan-utang/obat-bhp/vendor-options/', UtangVendorOptionsView.as_view(), name='utang-obat-bhp-vendor-options'),
     path('laporan-petty-cash/', LaporanPettyCashView.as_view(), name='laporan-petty-cash'),
     path('faktur/rekap/excel/', faktur_rekap_excel_view, name='faktur-rekap-excel'),
     path('faktur/rekap/', faktur_rekap_print_view, name='faktur-rekap-print'),
