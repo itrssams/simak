@@ -11,9 +11,11 @@
   --utang-bg: #f8fafc;
   --utang-panel: rgba(255, 255, 255, .72);
   --utang-panel-strong: rgba(255, 255, 255, .96);
-  --utang-border: rgba(226, 232, 240, .62);
+  --utang-border: rgba(255, 255, 255, .62);
   --utang-soft: rgba(99, 102, 241, .1);
-  --utang-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+  --utang-shadow:
+    0 12px 35px rgba(99, 102, 241, 0.10),
+    0 24px 70px rgba(15, 23, 42, 0.08);
 }
 
 .utang-page,
@@ -55,7 +57,7 @@
   font-size: 26px;
   line-height: 1.15;
   font-weight: 900;
-  letter-spacing: 0;
+  letter-spacing: -.35px;
 }
 
 .utang-title p,
@@ -69,10 +71,11 @@
 .utang-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  padding: 0 22px;
   padding-bottom: 2px;
   border-bottom: 2px solid rgba(226, 232, 240, .62);
+  background: rgba(255,255,255,.35);
 }
 
 .utang-tab {
@@ -119,14 +122,6 @@
   transform: scaleX(1);
 }
 
-.utang-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.utang-summary-card,
 .utang-card,
 .utang-modal,
 .utang-confirm-modal {
@@ -138,25 +133,6 @@
   -webkit-backdrop-filter: blur(22px);
 }
 
-.utang-summary-card {
-  min-height: 104px;
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.utang-summary-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  color: var(--utang-primary);
-  background: var(--utang-soft);
-}
-
-.utang-summary-card small,
 .utang-info-item span {
   display: block;
   color: var(--utang-muted);
@@ -164,22 +140,6 @@
   font-weight: 850;
   text-transform: uppercase;
   letter-spacing: .03em;
-}
-
-.utang-summary-card strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 18px;
-  font-weight: 950;
-}
-
-.utang-summary-card em {
-  display: block;
-  margin-top: 4px;
-  color: var(--utang-muted);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 700;
 }
 
 .utang-card.table {
@@ -248,22 +208,80 @@
 }
 
 .utang-filter {
+  padding: 12px 16px;
   background: rgba(255,255,255,.35);
   border-bottom-color: rgba(226, 232, 240, .72);
 }
 
 .utang-filter .dki-search,
 .utang-filter .dki-select,
-.utang-filter .dki-date-range label {
+.utang-filter .utang-date-filter {
   background: rgba(255,255,255,.72);
   border-color: rgba(226, 232, 240, .88);
 }
 
-.utang-filter .dki-search:focus-within,
-.utang-filter .dki-select:focus-within,
-.utang-filter .dki-date-range label:focus-within {
-  border-color: var(--utang-primary);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, .12);
+.utang-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.utang-filter-row .dki-search {
+  flex: 1 1 340px;
+  min-width: 240px;
+}
+
+.utang-filter-row .dki-select {
+  flex: 0 0 180px;
+  min-width: 0;
+}
+
+.utang-filter-row .dki-filter-status {
+  flex-basis: 160px;
+}
+
+.utang-filter-row .dki-select:disabled {
+  color: #94a3b8;
+  background: rgba(248, 250, 252, .72);
+  cursor: not-allowed;
+}
+
+.utang-date-filter {
+  flex: 0 0 154px;
+  height: 42px;
+  border: 1px solid rgba(226, 232, 240, .88);
+  border-radius: 15px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.utang-date-filter span {
+  color: var(--utang-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.utang-date-filter .df-wrap {
+  width: 92px;
+}
+
+.utang-date-filter .df-input {
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 750;
+}
+
+.utang-filter-row .dki-filter-reset {
+  flex: 0 0 auto;
+  height: 42px;
 }
 
 .utang-table-wrap {
@@ -390,8 +408,6 @@
   border-radius: 10px;
   min-height: 34px;
   padding: 0 10px;
-  color: var(--utang-text);
-  font-weight: 750;
 }
 
 .utang-modal-backdrop,
@@ -418,17 +434,19 @@
 
 .utang-confirm-modal {
   width: min(480px, 100%);
-  padding: 24px;
+  padding: 22px;
 }
 
 .utang-modal.payment {
   width: min(780px, 100%);
   max-height: calc(100vh - 32px);
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .utang-modal-head {
-  padding: 20px 22px;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(226, 232, 240, .72);
   display: flex;
   align-items: center;
@@ -436,34 +454,38 @@
 }
 
 .utang-modal-head-icon {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 16px;
 }
 
 .utang-modal-head h2,
 .utang-confirm-copy h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 900;
 }
 
 .utang-modal-body {
-  padding: 22px;
+  padding: 12px 18px 14px;
+  overflow-y: auto;
+  display: grid;
+  gap: 9px;
+  overflow-x: visible;
 }
 
 .utang-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px 12px;
 }
 
 .utang-form-grid label,
 .utang-send-fields label {
   display: grid;
-  gap: 7px;
-  color: #33473b;
-  font-size: 13px;
+  gap: 5px;
+  color: #334155;
+  font-size: 12.5px;
   font-weight: 850;
 }
 
@@ -476,22 +498,25 @@
   min-height: 42px;
   border: 1px solid rgba(226, 232, 240, .9);
   border-radius: 14px;
-  background: rgba(248, 250, 252, .95);
+  background: rgba(255,255,255,.78);
   padding: 0 13px;
   outline: none;
   font-weight: 700;
   color: var(--utang-text);
+  transition: .18s ease;
 }
 
 textarea.utang-input {
-  padding-top: 12px;
+  min-height: 44px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   resize: vertical;
 }
 
 .utang-input:focus {
-  border-color: var(--utang-primary);
-  background: white;
+  border-color: rgba(99, 102, 241, .62);
   box-shadow: 0 0 0 4px rgba(99, 102, 241, .12);
+  background: white;
 }
 
 .utang-input-right {
@@ -501,24 +526,157 @@ textarea.utang-input {
 .utang-pay-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 0;
+  border: 1px solid rgba(226, 232, 240, .72);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,.7);
 }
 
 .utang-info-item {
-  min-height: 76px;
-  padding: 13px;
-  border-radius: 18px;
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, .82);
+  min-height: 50px;
+  padding: 8px 12px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid rgba(226, 232, 240, .72);
   display: grid;
-  gap: 7px;
+  gap: 2px;
+  align-content: center;
+}
+
+.utang-info-item:last-child {
+  border-right: 0;
 }
 
 .utang-info-item strong {
   color: var(--utang-text);
   font-size: 15px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.utang-payment-section {
+  border: 1px solid rgba(226, 232, 240, .68);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(255,255,255,.52);
+}
+
+.utang-section-title {
+  margin: 0 0 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--utang-muted);
+  font-size: 12.5px;
   font-weight: 900;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.utang-amount-field {
+  padding: 9px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, .12), rgba(6, 182, 212, .08));
+  border: 1px solid rgba(99, 102, 241, .2);
+}
+
+.utang-amount-field .utang-input {
+  min-height: 46px;
+  border-color: rgba(99, 102, 241, .28);
+  background: rgba(255,255,255,.94);
+  color: #1e1b4b;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.utang-note-field textarea.utang-input {
+  min-height: 42px;
+  line-height: 1.35;
+}
+
+.utang-modal.payment .df-wrap {
+  position: relative;
+  z-index: 3;
+  width: 198px;
+  max-width: 100%;
+}
+
+.utang-modal.payment .df-input {
+  height: 40px;
+  width: 198px;
+  max-width: 100%;
+  border-radius: 14px;
+  background: rgba(255,255,255,.78);
+  font-weight: 750;
+}
+
+.utang-history-wrap {
+  max-height: 128px;
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, .72);
+  border-radius: 12px;
+  background: rgba(255,255,255,.74);
+}
+
+.utang-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.utang-history-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 10px;
+  text-align: left;
+  color: #475569;
+  background: rgba(248, 250, 252, .96);
+  border-bottom: 1px solid rgba(226, 232, 240, .9);
+  font-weight: 900;
+}
+
+.utang-history-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(241, 245, 249, .95);
+  color: #334155;
+  vertical-align: top;
+}
+
+.utang-history-table tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, .58);
+}
+
+.utang-history-table tbody tr:hover td {
+  background: rgba(238, 242, 255, .72);
+}
+
+.utang-history-table td:nth-child(2),
+.utang-history-table th:nth-child(2) {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 900;
+}
+
+.utang-history-table td:last-child {
+  color: var(--utang-muted);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utang-history-empty {
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, .82);
+  border: 1px dashed rgba(203, 213, 225, .9);
+  color: var(--utang-muted);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
 }
 
 .utang-field-label {
@@ -529,33 +687,64 @@ textarea.utang-input {
 }
 
 .utang-confirm-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 18px;
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
-  margin-bottom: 14px;
+  flex: 0 0 auto;
 }
 
 .utang-confirm-icon.ok {
-  background: #ecfdf5;
+  background: linear-gradient(135deg, #dcfce7, #ecfdf5);
   color: var(--utang-success);
+  box-shadow: 0 14px 30px rgba(16, 185, 129, .18);
+}
+
+.utang-confirm-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .utang-confirm-copy p {
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   color: var(--utang-muted);
-  line-height: 1.55;
+  line-height: 1.45;
+  font-size: 13.5px;
+}
+
+.utang-verify-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, .72);
+  background: rgba(248, 250, 252, .74);
+}
+
+.utang-verify-info .utang-info-item {
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid rgba(226, 232, 240, .72);
+  border-radius: 12px;
+  background: rgba(255,255,255,.74);
+}
+
+.utang-verify-info .utang-info-item strong {
+  font-size: 13px;
 }
 
 .utang-confirm-detail {
-  margin-top: 16px;
-  padding: 13px;
+  margin-top: 12px;
+  padding: 12px 14px;
   border-radius: 16px;
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, .82);
+  background: linear-gradient(135deg, rgba(99, 102, 241, .1), rgba(6, 182, 212, .07));
+  border: 1px solid rgba(99, 102, 241, .18);
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .utang-confirm-detail span {
@@ -564,30 +753,56 @@ textarea.utang-input {
   font-weight: 850;
 }
 
+.utang-confirm-detail strong {
+  color: #1e1b4b;
+  font-size: 18px;
+  font-weight: 950;
+}
+
 .utang-confirm-actions,
 .utang-modal-actions {
-  padding: 0 22px 22px;
-  margin-top: 20px;
+  padding: 12px 18px;
+  margin-top: 0;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+  background: rgba(255,255,255,.88);
+  border-top: 1px solid rgba(226, 232, 240, .72);
+  position: sticky;
+  bottom: 0;
 }
 
 .utang-confirm-actions {
-  padding: 0;
+  padding: 16px 0 0;
+  margin-top: 16px;
+  border-top: 0;
+  background: transparent;
+  position: static;
 }
 
 .utang-send-fields {
   display: grid;
-  gap: 13px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
-@media (max-width: 1100px) {
-  .utang-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.utang-confirm-modal .df-wrap {
+  width: 198px;
+  max-width: 100%;
+}
+
+.utang-confirm-modal .df-input {
+  height: 40px;
+  width: 198px;
+  max-width: 100%;
+  border-radius: 14px;
+  background: rgba(255,255,255,.86);
+  font-weight: 750;
+}
+
+.utang-confirm-modal textarea.utang-input {
+  min-height: 58px;
 }
 
 @media (max-width: 900px) {
@@ -595,7 +810,6 @@ textarea.utang-input {
     padding: 14px;
   }
 
-  .utang-summary,
   .utang-form-grid,
   .utang-pay-summary {
     grid-template-columns: 1fr;
@@ -605,17 +819,29 @@ textarea.utang-input {
     grid-column: auto;
   }
 
-  .utang-card-head,
-  .utang-filter .dki-filter-row-1,
-  .utang-filter .dki-filter-row-2 {
+  .utang-card-head {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .utang-filter-row {
+    flex-wrap: wrap;
+  }
+
   .utang-filter .dki-search,
-  .utang-filter .dki-select {
-    width: 100%;
+  .utang-filter .dki-select,
+  .utang-filter .utang-date-filter {
+    flex: 1 1 100%;
     min-width: 0;
+  }
+
+  .utang-date-filter .df-wrap,
+  .utang-date-filter .df-input {
+    width: 100%;
+  }
+
+  .utang-filter-row .dki-filter-reset {
+    width: 100%;
   }
 
   .utang-modal-backdrop,

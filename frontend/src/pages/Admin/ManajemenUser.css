@@ -348,12 +348,13 @@
 .mu-modal {
     width: min(100%, 560px);
     max-height: 92vh;
-    overflow: auto;
+    overflow: hidden;
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
     animation: muScale .18s ease both;
 }
+.mu-modal.user-form { width: min(100%, 860px); }
 .mu-modal.sm { width: min(100%, 430px); }
 .mu-modal-head {
     display: flex;
@@ -376,6 +377,7 @@
 }
 .mu-modal-body {
     padding: 18px 20px 4px;
+    overflow-y: auto;
 }
 .mu-modal-foot {
     display: flex;
@@ -399,6 +401,115 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
+.mu-user-form-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+}
+.mu-account-panel {
+    min-width: 0;
+}
+.mu-permission-panel {
+    min-width: 0;
+    max-height: 390px;
+    overflow-y: auto;
+    border: 1px solid #d8dee8;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+.mu-permission-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e4e7ec;
+    background: rgba(248, 250, 252, .96);
+}
+.mu-permission-head strong {
+    display: block;
+    color: #1d2939;
+    font-size: 13px;
+    font-weight: 900;
+}
+.mu-permission-head span {
+    display: block;
+    margin-top: 2px;
+    color: #667085;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.mu-permission-list {
+    display: grid;
+    gap: 0;
+    padding: 6px;
+}
+.mu-permission-toggle {
+    position: relative;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 8px 9px 10px;
+    border-radius: 12px;
+    color: #344054;
+    cursor: pointer;
+}
+.mu-permission-toggle:hover {
+    background: rgba(255,255,255,.86);
+}
+.mu-permission-toggle span {
+    min-width: 0;
+}
+.mu-permission-toggle strong {
+    display: block;
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 850;
+}
+.mu-permission-toggle small {
+    display: block;
+    margin-top: 2px;
+    color: #667085;
+    font-size: 11.5px;
+    line-height: 1.25;
+}
+.mu-permission-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.mu-permission-toggle i {
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    flex: 0 0 auto;
+    position: relative;
+    transition: .18s ease;
+}
+.mu-permission-toggle i::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 2px;
+    top: 2px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .22);
+    transition: .18s ease;
+}
+.mu-permission-toggle input:checked + i {
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+}
+.mu-permission-toggle input:checked + i::after {
+    transform: translateX(16px);
+}
+.mu-permission-toggle input:focus-visible + i {
+    box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+}
 .mu-check {
     min-height: 42px;
     display: flex;
@@ -416,11 +527,29 @@
 .mu-password {
     position: relative;
 }
-.mu-password .mu-input { padding-right: 42px; }
+.mu-password .mu-input { padding-right: 44px; }
 .mu-password button {
     position: absolute;
-    right: 4px;
-    top: 4px;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    min-height: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    box-shadow: none;
+}
+.mu-password button:hover {
+    transform: translateY(-50%);
+    background: rgba(99, 102, 241, .1);
+    color: #4f46e5;
+}
+.mu-password button svg {
+    width: 16px;
+    height: 16px;
 }
 .mu-note {
     background: #fffbeb;
@@ -445,6 +574,8 @@
     .mu-toolbar { grid-template-columns: 1fr; }
     .mu-tabs { overflow-x: auto; }
     .mu-grid2 { grid-template-columns: 1fr; gap: 0; }
+    .mu-user-form-layout { grid-template-columns: 1fr; }
+    .mu-permission-panel { max-height: 260px; }
     .mu-modal-foot { flex-direction: column-reverse; }
     .mu-modal-foot .mu-btn { width: 100%; }
 }

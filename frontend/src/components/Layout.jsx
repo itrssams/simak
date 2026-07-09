@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     Bell,
@@ -170,7 +170,7 @@ function getMenuItems(user) {
     if (user?.is_driver) base.push(...MENU_DRIVER);
     if (user?.is_it) base.push(...MENU_IT);
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
-    if (user?.akses_catatan_utang_obat_bhp) base.push(...MENU_CATATAN_UTANG);
+    if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -304,7 +304,7 @@ export default function Layout({ children }) {
         user?.is_it ? 'IT' : '',
         user?.is_keuangan ? 'Keuangan' : '',
         user?.is_petty_cash_cashier ? 'Kas Petty Cash' : '',
-        user?.akses_catatan_utang_obat_bhp ? 'Utang Obat & BHP' : '',
+        user?.akses_catatan_utang ? 'Catatan Utang' : '',
     ].filter(Boolean);
     const baseRoleLabel = ROLE_LABEL[user?.role] || (user?.is_superuser ? 'Superuser' : user?.role || '');
     const roleLabel = featureLabels.length ? `${baseRoleLabel} + ${featureLabels.join(' + ')}` : baseRoleLabel;

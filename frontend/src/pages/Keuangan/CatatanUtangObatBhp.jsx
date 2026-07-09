@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
     AlertTriangle,
-    Banknote,
     CalendarDays,
     CheckCircle2,
     CircleDollarSign,
-    Clock3,
-    FileCheck2,
     FileClock,
     FilterX,
     HandCoins,
@@ -63,7 +60,7 @@ const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID',
 const getRefNo = (item) => item.nomor_spb || `RJ-${item.app_siaga_faktur_id}`;
 const parseMoneyInput = (value) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    const raw = String(value || '').replace(/[^const getRefNo = (item) => String(item.nomor_spb || item.id)d.,-]/g, '');
+    const raw = String(value || '').replace(/[^\d.,-]/g, '');
     if (!raw) return 0;
     const negative = raw.startsWith('-');
     const unsigned = raw.replace(/-/g, '');
@@ -119,8 +116,9 @@ export default function CatatanUtangObatBhp() {
     const [verifyForm, setVerifyForm] = useState(initialVerifyForm);
     const [paymentTarget, setPaymentTarget] = useState(null);
     const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
+    const [paymentHistory, setPaymentHistory] = useState([]);
 
-    const canAccess = Boolean(user?.is_superuser || user?.akses_catatan_utang_obat_bhp);
+    const canAccess = Boolean(user?.is_superuser || user?.akses_catatan_utang);
 
     const endpoint = useMemo(() => {
         if (mode === 'menunggu') return '/keuangan/catatan-utang/obat-bhp/menunggu-verifikasi/';
@@ -210,13 +208,20 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
-    const openPayment = (row) => {
+    const openPayment = async (row) => {
         setPaymentTarget(row);
         setPaymentForm({
             ...initialPaymentForm,
             jumlah_bayar: formatMoneyInput(row.sisa_utang || row.nominal || ''),
             keterangan: `Pembayaran faktur ${row.nomor_faktur || ''}`.trim(),
         });
+        try {
+            const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang__id: row.id, pagination: 'false', limit: 100 } });
+            const hist = Array.isArray(res.data) ? res.data : getResults(res.data) || [];
+            setPaymentHistory(hist);
+        } catch (err) {
+            setPaymentHistory([]);
+        }
     };
 
     const submitPayment = async (event) => {
@@ -267,31 +272,29 @@ export default function CatatanUtangObatBhp() {
                 </div>
             </section>
 
-            <div className="utang-tabs">
-                {TABS.map((tab) => {
-                    const TabIcon = tab.icon;
-                    const isActive = mode === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            className={`utang-tab ${isActive ? 'active' : ''}`}
-                            onClick={() => setSearchParams({ tab: tab.id })}
-                        >
-                            <TabIcon size={16} />
-                            <span>{tab.label}</span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            <SummaryStrip mode={mode} summary={summary} items={items} total={total} />
-
             <section className="utang-card table">
                 <div className="utang-card-head">
                     <div className="utang-card-title">
                         <h2>{meta.cardTitle}</h2>
                         <p>{total} data tercatat sesuai filter.</p>
                     </div>
+                </div>
+
+                <div className="utang-tabs">
+                    {TABS.map((tab) => {
+                        const TabIcon = tab.icon;
+                        const isActive = mode === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                className={`utang-tab ${isActive ? 'active' : ''}`}
+                                onClick={() => setSearchParams({ tab: tab.id })}
+                            >
+                                <TabIcon size={16} />
+                                <span>{tab.label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <FilterBar
@@ -329,14 +332,24 @@ export default function CatatanUtangObatBhp() {
             {verifyTarget && createPortal(
                 <div className="utang-confirm-backdrop" role="presentation" onMouseDown={() => setVerifyTarget(null)}>
                     <form className="utang-confirm-modal" role="dialog" aria-modal="true" onSubmit={confirmVerify} onMouseDown={(e) => e.stopPropagation()}>
-                        <div className="utang-confirm-icon ok"><CheckCircle2 size={22} /></div>
-                        <div className="utang-confirm-copy">
-                            <h2>Verifikasi Faktur?</h2>
-                            <p>Faktur <strong>{verifyTarget.nomor_faktur || '-'}</strong> dari {verifyTarget.vendor_nama || '-'} akan dicatat sebagai utang SIMAK.</p>
+                        <div className="utang-confirm-top">
+                            <div className="utang-confirm-icon ok"><CheckCircle2 size={28} /></div>
+                            <div className="utang-confirm-copy">
+                                <h2>Verifikasi Faktur?</h2>
+                                <p>Faktur ini akan dicatat sebagai utang supplier di SIMAK.</p>
+                            </div>
                         </div>
+
+                        <div className="utang-verify-info">
+                            <Info label="No Faktur" value={verifyTarget.nomor_faktur || '-'} />
+                            <Info label="Vendor" value={verifyTarget.vendor_nama || '-'} />
+                            <Info label="No Ref" value={getRefNo(verifyTarget)} />
+                            <Info label="Jatuh Tempo" value={dateLabel(verifyTarget.tanggal_jatuh_tempo)} />
+                        </div>
+
                         <div className="utang-send-fields">
                             <label><span className="utang-field-label"><CalendarDays size={15} /> Tanggal Titip</span><DateInput value={verifyForm.tanggal_titip} onChange={(value) => setVerifyForm({ ...verifyForm, tanggal_titip: value })} /></label>
-                            <label><span className="utang-field-label">Keterangan</span><textarea className="utang-input" rows={3} value={verifyForm.keterangan_titip} onChange={(e) => setVerifyForm({ ...verifyForm, keterangan_titip: e.target.value })} placeholder="Catatan titip fisik faktur" /></label>
+                            <label><span className="utang-field-label">Keterangan</span><textarea className="utang-input" rows={2} value={verifyForm.keterangan_titip} onChange={(e) => setVerifyForm({ ...verifyForm, keterangan_titip: e.target.value })} placeholder="Contoh: Faktur fisik diterima oleh bagian keuangan." /></label>
                         </div>
                         <div className="utang-confirm-detail">
                             <span>Nominal</span>
@@ -362,18 +375,39 @@ export default function CatatanUtangObatBhp() {
                             </div>
                         </div>
                         <div className="utang-modal-body">
-                            <div className="utang-pay-summary">
-                                <Info label="Nominal" value={money(paymentTarget.nominal)} />
-                                <Info label="Sudah Dibayar" value={money(paymentTarget.total_dibayar)} />
-                                <Info label="Sisa Utang" value={money(paymentTarget.sisa_utang)} />
-                            </div>
-                            <div className="utang-form-grid">
-                                <label>Tgl Rencana Bayar<DateInput value={paymentForm.tanggal_rencana_bayar} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_rencana_bayar: value })} /></label>
-                                <label>Tgl Proses<DateInput value={paymentForm.tanggal_proses} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_proses: value })} /></label>
-                                <label>Tgl App<DateInput value={paymentForm.tanggal_app} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_app: value })} /></label>
-                                <label>Jumlah Bayar<input className="utang-input utang-input-right" value={paymentForm.jumlah_bayar} onChange={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: e.target.value })} onBlur={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: formatMoneyInput(e.target.value) })} /></label>
-                                <label className="span-2">Keterangan<textarea className="utang-input" rows={3} value={paymentForm.keterangan} onChange={(e) => setPaymentForm({ ...paymentForm, keterangan: e.target.value })} /></label>
-                            </div>
+                            <section className="utang-payment-section">
+                                <SectionTitle>Invoice Summary</SectionTitle>
+                                <div className="utang-pay-summary">
+                                    <Info label="Nominal" value={money(paymentTarget.nominal)} />
+                                    <Info label="Sudah Dibayar" value={money(paymentTarget.total_dibayar)} />
+                                    <Info label="Sisa Utang" value={money(paymentTarget.sisa_utang)} />
+                                </div>
+                            </section>
+
+                            <section className="utang-payment-section">
+                                <SectionTitle>Payment Form</SectionTitle>
+                                <div className="utang-form-grid">
+                                    <label>Tgl Rencana Bayar<DateInput value={paymentForm.tanggal_rencana_bayar} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_rencana_bayar: value })} /></label>
+                                    <label>Tgl Proses<DateInput value={paymentForm.tanggal_proses} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_proses: value })} /></label>
+                                    <label>Tgl App<DateInput value={paymentForm.tanggal_app} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_app: value })} /></label>
+                                    <label className="utang-amount-field">Jumlah Bayar<input className="utang-input utang-input-right" inputMode="decimal" value={paymentForm.jumlah_bayar} onChange={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: e.target.value })} onBlur={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: formatMoneyInput(e.target.value) })} onKeyDown={(e) => e.stopPropagation()} /></label>
+                                    <label className="span-2 utang-note-field">Keterangan<textarea className="utang-input" rows={1} value={paymentForm.keterangan} onChange={(e) => setPaymentForm({ ...paymentForm, keterangan: e.target.value })} /></label>
+                                </div>
+                            </section>
+
+                            <section className="utang-payment-section">
+                                <SectionTitle icon={History}>Payment History</SectionTitle>
+                                {paymentHistory.length > 0 ? (
+                                    <div className="utang-history-wrap">
+                                        <table className="utang-history-table">
+                                            <thead><tr><th>Tgl</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
+                                            <tbody>{paymentHistory.map((item, idx) => <tr key={idx}><td>{dateLabel(item.tanggal_proses)}</td><td className="utang-mono">{money(item.jumlah_bayar)}</td><td>{item.keterangan || '-'}</td></tr>)}</tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="utang-history-empty">Belum ada riwayat pembayaran.</div>
+                                )}
+                            </section>
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setPaymentTarget(null)}>Batal</button>
@@ -387,48 +421,21 @@ export default function CatatanUtangObatBhp() {
     );
 }
 
-function SummaryStrip({ mode, summary, items, total }) {
-    if (mode === 'menunggu') {
-        const nominal = summary?.nominal ?? items.reduce((sum, item) => sum + Number(item.nominal || 0), 0);
-        return (
-            <div className="utang-summary">
-                <SummaryCard icon={FileClock} label="Menunggu Verifikasi" value={`${summary?.count ?? total} faktur`} sub="Belum masuk utang SIMAK" />
-                <SummaryCard icon={Banknote} label="Nominal Halaman Ini" value={money(nominal)} sub="Dari faktur yang tampil" mono />
-                <SummaryCard icon={FileCheck2} label="Sumber Data" value="APP_SIAGA" sub="Readonly rssams" />
-            </div>
-        );
-    }
-    return (
-        <div className="utang-summary">
-            <SummaryCard icon={ReceiptText} label="Faktur Aktif" value={`${summary?.utang_count || 0} faktur`} sub="Sudah diverifikasi" />
-            <SummaryCard icon={Banknote} label="Total Nominal" value={money(summary?.total_nominal)} sub="Nilai faktur" mono />
-            <SummaryCard icon={CircleDollarSign} label="Total Dibayar" value={money(summary?.total_dibayar)} sub="Semua pembayaran" mono />
-            <SummaryCard icon={Clock3} label="Sisa Utang" value={money(summary?.total_sisa)} sub={`${summary?.lunas || 0} lunas`} mono />
-        </div>
-    );
-}
-
 function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     return (
         <div className="dki-filter utang-filter">
-            <div className="dki-filter-row-1">
+            <div className="utang-filter-row">
                 <label className="dki-search"><Search size={16} /><input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Cari vendor / no faktur / no SPB..." /></label>
                 <select className="dki-select" value={filters.vendor_id} onChange={(e) => setFilters({ ...filters, vendor_id: e.target.value })}>
                     <option value="">Semua Vendor</option>
                     {vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.nama}</option>)}
                 </select>
-                {mode === 'aktif' && (
-                    <select className="dki-select dki-filter-status" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-                        {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
-                )}
+                <select className="dki-select dki-filter-status" value={mode === 'aktif' ? filters.status : ''} onChange={(e) => setFilters({ ...filters, status: e.target.value })} disabled={mode !== 'aktif'} title={mode === 'aktif' ? 'Filter status' : 'Status hanya tersedia di tab Utang Aktif'}>
+                    {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+                <label className="utang-date-filter"><span>Dari</span><DateInput value={filters.dari} onChange={(value) => setFilters({ ...filters, dari: value })} /></label>
+                <label className="utang-date-filter"><span>Sampai</span><DateInput value={filters.sampai} onChange={(value) => setFilters({ ...filters, sampai: value })} /></label>
                 <button className="dki-filter-reset" type="button" onClick={onReset}><FilterX size={15} /> Reset</button>
-            </div>
-            <div className="dki-filter-row-2">
-                <div className="dki-date-range">
-                    <label><span>Dari</span><DateInput value={filters.dari} onChange={(value) => setFilters({ ...filters, dari: value })} /></label>
-                    <label><span>Sampai</span><DateInput value={filters.sampai} onChange={(value) => setFilters({ ...filters, sampai: value })} /></label>
-                </div>
             </div>
         </div>
     );
@@ -469,14 +476,8 @@ function StatusBadge({ status, label }) {
     return <span className={`utang-status ${status || 'unknown'}`}>{label || status || '-'}</span>;
 }
 
-function SummaryCard({ icon = ReceiptText, label, value, sub, mono = false }) {
-    const Icon = icon;
-    return (
-        <div className="utang-summary-card">
-            <span className="utang-summary-icon"><Icon size={18} /></span>
-            <div><small>{label}</small><strong className={mono ? 'utang-mono' : ''}>{value}</strong>{sub && <em>{sub}</em>}</div>
-        </div>
-    );
+function SectionTitle({ children, icon: Icon }) {
+    return <div className="utang-section-title">{Icon && <Icon size={14} />}{children}</div>;
 }
 
 function Info({ label, value }) {

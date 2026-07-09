@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+﻿from rest_framework import viewsets, status
 from rest_framework.decorators import action, permission_classes, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated, AllowAny, SAFE_METHODS
@@ -107,7 +107,7 @@ def is_keuangan(user):
 def can_access_catatan_utang_obat_bhp(user):
     return user.is_authenticated and (
         user.is_superuser
-        or getattr(user, 'akses_catatan_utang_obat_bhp', False)
+        or getattr(user, 'akses_catatan_utang', False)
     )
 
 
@@ -1001,9 +1001,9 @@ class AuditLogViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
         return super().list(request, *args, **kwargs)
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # AKUN
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class AkunViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Akun.objects.filter(is_active=True)
@@ -1011,9 +1011,9 @@ class AkunViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsManajerOrAbovePermission]
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # PELANGGAN & PEMASOK
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class PelangganViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Pelanggan.objects.all()
@@ -1043,9 +1043,9 @@ class PemasokViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return qs
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # JURNAL
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Jurnal.objects.prefetch_related('items__akun').select_related('created_by').all()
@@ -1076,9 +1076,9 @@ class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response({'message': 'Jurnal dikembalikan ke draft.'})
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TRANSAKSI
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Transaksi.objects.select_related('akun', 'created_by').all()
@@ -1186,9 +1186,9 @@ class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         })
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # FAKTUR
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Faktur.objects.select_related('pelanggan', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -1422,7 +1422,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 _ROMAN_MONTHS = {
     1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI',
     7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII',
@@ -3496,7 +3496,7 @@ def faktur_rekap_excel_view(request):
     return response
 
 # ALOKASI DANA
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
@@ -3845,9 +3845,9 @@ class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TAGIHAN
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Tagihan.objects.select_related('pemasok', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -3915,9 +3915,9 @@ class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response({'message': 'Tagihan berhasil dibatalkan.'})
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # REKENING BANK
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = RekeningBank.objects.prefetch_related('riwayat__updated_by').select_related('updated_by').all()
@@ -3959,9 +3959,9 @@ class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response(RekeningBankSerializer(rekening, context={'request': request}).data)
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # PETTY CASH
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -3993,7 +3993,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4022,7 +4022,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Pengajuan berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status})
 
-    # POST /{id}/cairkan/ — petugas kas petty cash mencairkan dana
+    # POST /{id}/cairkan/ â€” petugas kas petty cash mencairkan dana
     @action(detail=True, methods=['post'], url_path='cairkan')
     def cairkan(self, request, pk=None):
         if not is_petty_cash_cashier(request.user):
@@ -4035,7 +4035,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': 'Dana berhasil dicairkan.', 'status': instance.status})
 
-    # POST /{id}/laporan/ — karyawan upload nota + rincian
+    # POST /{id}/laporan/ â€” karyawan upload nota + rincian
     @action(detail=True, methods=['post'], url_path='laporan', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def laporan(self, request, pk=None):
         instance = self.get_object()
@@ -4067,7 +4067,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         return Response(LaporanPenggunaanSerializer(laporan, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
-    # POST /{id}/approval-laporan/ — wadir/direktur approve laporan penggunaan
+    # POST /{id}/approval-laporan/ â€” wadir/direktur approve laporan penggunaan
     @action(detail=True, methods=['post'], url_path='approval-laporan')
     def approval_laporan(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4111,7 +4111,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'status': instance.status,
         }, status=status.HTTP_200_OK)
 
-    # POST /{id}/konfirmasi-pengembalian/ — petugas kas petty cash konfirmasi uang kembali & selesaikan
+    # POST /{id}/konfirmasi-pengembalian/ â€” petugas kas petty cash konfirmasi uang kembali & selesaikan
     @action(detail=True, methods=['post'], url_path='konfirmasi-pengembalian')
     def konfirmasi_pengembalian(self, request, pk=None):
         if not is_petty_cash_cashier(request.user):
@@ -4150,7 +4150,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
         return Response({'message': 'Pengembalian dikonfirmasi. Petty cash selesai.', 'status': instance.status})
 
-    # POST /{id}/revisi/ — karyawan revisi yang ditolak
+    # POST /{id}/revisi/ â€” karyawan revisi yang ditolak
     @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def revisi(self, request, pk=None):
         instance = self.get_object()
@@ -4174,9 +4174,9 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # REIMBURSEMENT
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -4208,7 +4208,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4232,7 +4232,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Reimbursement berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status})
 
-    # POST /{id}/cairkan/ — manajer mencairkan
+    # POST /{id}/cairkan/ â€” manajer mencairkan
     @action(detail=True, methods=['post'], url_path='cairkan')
     def cairkan(self, request, pk=None):
         if not is_manajer_or_above(self.request.user):        
@@ -4271,7 +4271,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
         return Response({'message': 'Reimbursement berhasil dicairkan.', 'status': instance.status})
 
-    # POST /{id}/revisi/ — karyawan revisi yang ditolak
+    # POST /{id}/revisi/ â€” karyawan revisi yang ditolak
     @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def revisi(self, request, pk=None):
         instance = self.get_object()
@@ -4334,7 +4334,7 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             raise PermissionDenied('Hanya manajer, direktur, atau wakil direktur yang dapat mengajukan penambahan saldo.')
         serializer.save(created_by=self.request.user)
  
-    # POST /{id}/approval/ — direktur/wadir approve atau tolak
+    # POST /{id}/approval/ â€” direktur/wadir approve atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4359,7 +4359,7 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             instance.save()
             return Response({'message': 'Pengajuan ditolak.', 'status': instance.status})
  
-        # Setujui — input nominal wajib
+        # Setujui â€” input nominal wajib
         nominal = request.data.get('nominal_diajukan')
         if not nominal:
             return Response({'error': 'Nominal penambahan wajib diisi saat menyetujui.'}, status=400)
@@ -4414,7 +4414,7 @@ class LaporanPettyCashView(APIView):
         if not dari or not sampai:
             return Response({'error': 'Parameter dari dan sampai wajib diisi.'}, status=400)
  
-        # ── Saldo awal — ambil snapshot saldo terakhir sebelum periode ──
+        # â”€â”€ Saldo awal â€” ambil snapshot saldo terakhir sebelum periode â”€â”€
         from datetime import date as date_type
         dari_date   = date_type.fromisoformat(dari)
         sampai_date = date_type.fromisoformat(sampai)
@@ -4430,7 +4430,7 @@ class LaporanPettyCashView(APIView):
 
         saldo_awal = riwayat_terakhir_sebelum.saldo_sesudah if riwayat_terakhir_sebelum else 0
 
-        # ── Riwayat dalam periode ──
+        # â”€â”€ Riwayat dalam periode â”€â”€
 
         sampai_datetime = timezone.make_aware(
             datetime.combine(sampai_date, time.max),
@@ -4465,19 +4465,19 @@ class LaporanPettyCashView(APIView):
         total_pengurangan = riwayat_periode.filter(jenis='pengurangan').aggregate(t=Sum('jumlah'))['t'] or 0
         saldo_akhir       = saldo_awal + total_penambahan - total_pengurangan
 
-        # ── Petty Cash (advance) dalam periode ──
+        # â”€â”€ Petty Cash (advance) dalam periode â”€â”€
         pc_qs = PettyCash.objects.filter(
             tanggal__gte=dari,
             tanggal__lte=sampai,
         ).select_related('created_by__unit', 'laporan')
  
-        # ── Reimbursement dalam periode ──
+        # â”€â”€ Reimbursement dalam periode â”€â”€
         rb_qs = Reimbursement.objects.filter(
             tanggal__gte=dari,
             tanggal__lte=sampai,
         ).select_related('created_by__unit')
  
-        # ── Daftar pengajuan (gabungan PC + Reimbursement) ──
+        # â”€â”€ Daftar pengajuan (gabungan PC + Reimbursement) â”€â”€
         daftar_pengajuan = []
         for pc in pc_qs:
             # Ambil realisasi kalau sudah ada laporan
@@ -4486,7 +4486,7 @@ class LaporanPettyCashView(APIView):
                 'no':       pc.no_pengajuan,
                 'tanggal':  str(pc.tanggal),
                 'jenis':    'Petty Cash',
-                'pemohon':  pc.created_by.get_full_name() or pc.created_by.username if pc.created_by else '—',
+                'pemohon':  pc.created_by.get_full_name() or pc.created_by.username if pc.created_by else 'â€”',
                 'unit':     laporan_unit_label(pc.created_by),
                 'keperluan': pc.keperluan,
                 'nominal':  float(pc.nominal),
@@ -4500,7 +4500,7 @@ class LaporanPettyCashView(APIView):
                 'no':       rb.no_reimbursement,
                 'tanggal':  str(rb.tanggal),
                 'jenis':    'Reimbursement',
-                'pemohon':  rb.created_by.get_full_name() or rb.created_by.username if rb.created_by else '—',
+                'pemohon':  rb.created_by.get_full_name() or rb.created_by.username if rb.created_by else 'â€”',
                 'unit':     laporan_unit_label(rb.created_by),
                 'keperluan': rb.keperluan,
                 'nominal':  float(rb.nominal),
@@ -4509,7 +4509,7 @@ class LaporanPettyCashView(APIView):
             })
         daftar_pengajuan.sort(key=lambda x: x['tanggal'])
  
-        # ── Total pencairan per unit ──
+        # â”€â”€ Total pencairan per unit â”€â”€
         per_unit = defaultdict(lambda: {'pc': 0, 'reimburse': 0, 'total': 0})
         for pc in pc_qs.filter(status__in=['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai']):
             unit = laporan_unit_label(pc.created_by)
@@ -4521,7 +4521,7 @@ class LaporanPettyCashView(APIView):
             per_unit[unit]['reimburse'] += float(rb.nominal)
             per_unit[unit]['total']     += float(rb.nominal)
  
-        # ── Grafik per bulan (6 bulan terakhir) ──
+        # â”€â”€ Grafik per bulan (6 bulan terakhir) â”€â”€
         from datetime import date, timedelta
         today = date.today()
         grafik = []
@@ -4551,7 +4551,7 @@ class LaporanPettyCashView(APIView):
                 'total':        float(pc_total + rb_total),
             })
  
-        # ── Rekap mutasi saldo ──
+        # â”€â”€ Rekap mutasi saldo â”€â”€
         rekap_mutasi = [{
             'waktu':      r.created_at.strftime('%d %b %Y %H:%M'),
             'jenis':      r.jenis,
@@ -4680,7 +4680,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 return Response({'error': 'Anda hanya dapat menghapus log perjalanan status pending milik sendiri.'}, status=403)
         return super().destroy(request, *args, **kwargs)
 
-    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4704,7 +4704,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Laporan berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status}, status=200)
 
-    # POST /{id}/laporan/ — driver submit laporan dengan foto
+    # POST /{id}/laporan/ â€” driver submit laporan dengan foto
     @action(detail=True, methods=['post'], url_path='laporan')
     def laporan(self, request, pk=None):
         instance = self.get_object()
@@ -4752,7 +4752,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': f'Gagal menyimpan laporan: {str(e)}'}, status=400)
 
-    # POST /{id}/selesaikan/ — tandai sebagai selesai (setelah laporan submitted)
+    # POST /{id}/selesaikan/ â€” tandai sebagai selesai (setelah laporan submitted)
     @action(detail=True, methods=['post'], url_path='selesaikan')
     def selesaikan(self, request, pk=None):
         if not is_admin_driver(request.user):
@@ -4850,7 +4850,7 @@ class LogMaintenanceViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
  
  
-# ── Rekap bulanan ──────────────────────────────────────────
+# â”€â”€ Rekap bulanan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ITBaseViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsITPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]

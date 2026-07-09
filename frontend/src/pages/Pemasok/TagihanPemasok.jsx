@@ -147,6 +147,7 @@ export default function TagihanPemasok() {
             await api.post(`/keuangan/tagihan/${selected.id}/bayar/`, { ...bayarForm, tagihan: selected.id, jumlah: Number(bayarForm.jumlah) });
             setSuccess('Pembayaran berhasil dicatat!');
             setBayarModal(false);
+            setBayarForm({ tanggal: new Date().toISOString().split('T')[0], jumlah: '', metode: 'transfer', keterangan: '', akun: '' });
             const res = await api.get(`/keuangan/tagihan/${selected.id}/`);
             setSelected(res.data);
             fetchAll();
@@ -408,27 +409,27 @@ export default function TagihanPemasok() {
 
             {/* MODAL BAYAR */}
             {bayarModal && (
-                <div className="overlay">
-                    <div className="modal">
+                <div className="overlay" onClick={() => setBayarModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#1a2e1a', marginBottom: '20px' }}>Catat Pembayaran ke Pemasok</h3>
                         {error && <div style={{ ...S.err, marginBottom: '14px' }}>{error}</div>}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                            <div style={S.field}><label style={S.lbl}>Tanggal</label><input className="fi" type="date" value={bayarForm.tanggal} onChange={e => setBayarForm({ ...bayarForm, tanggal: e.target.value })} /></div>
+                            <div style={S.field}><label style={S.lbl}>Tanggal</label><input className="fi" type="date" value={bayarForm.tanggal} onChange={e => { e.stopPropagation(); setBayarForm({ ...bayarForm, tanggal: e.target.value }); }} /></div>
                             <div style={S.field}><label style={S.lbl}>Metode</label>
-                                <select className="fi" value={bayarForm.metode} onChange={e => setBayarForm({ ...bayarForm, metode: e.target.value })}>
+                                <select className="fi" value={bayarForm.metode} onChange={e => { e.stopPropagation(); setBayarForm({ ...bayarForm, metode: e.target.value }); }}>
                                     {METODE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                 </select>
                             </div>
                         </div>
-                        <div style={S.field}><label style={S.lbl}>Jumlah *</label><input className="fi" type="number" min="0" value={bayarForm.jumlah} onChange={e => setBayarForm({ ...bayarForm, jumlah: e.target.value })} /></div>
+                        <div style={S.field}><label style={S.lbl}>Jumlah *</label><input className="fi" type="number" min="0" value={bayarForm.jumlah} onChange={e => { e.stopPropagation(); setBayarForm({ ...bayarForm, jumlah: e.target.value }); }} onKeyDown={e => e.stopPropagation()} /></div>
                         <div style={S.field}>
                             <label style={S.lbl}>Akun Kas *</label>
-                            <select className="fi" value={bayarForm.akun} onChange={e => setBayarForm({ ...bayarForm, akun: e.target.value })}>
+                            <select className="fi" value={bayarForm.akun} onChange={e => { e.stopPropagation(); setBayarForm({ ...bayarForm, akun: e.target.value }); }}>
                                 <option value="">-- Pilih Akun --</option>
                                 {akunList.filter(a => a.is_kas_setara || a.tipe === 'aset_lancar').map(a => <option key={a.id} value={a.id}>{a.kode_akun} - {a.nama_akun}</option>)}
                             </select>
                         </div>
-                        <div style={S.field}><label style={S.lbl}>Keterangan</label><input className="fi" placeholder="Catatan pembayaran..." value={bayarForm.keterangan} onChange={e => setBayarForm({ ...bayarForm, keterangan: e.target.value })} /></div>
+                        <div style={S.field}><label style={S.lbl}>Keterangan</label><input className="fi" placeholder="Catatan pembayaran..." value={bayarForm.keterangan} onChange={e => { e.stopPropagation(); setBayarForm({ ...bayarForm, keterangan: e.target.value }); }} /></div>
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
                             <button className="btn-secondary" onClick={() => setBayarModal(false)}>Batal</button>
                             <button className="btn-primary" onClick={handleBayar} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Pembayaran'}</button>
