@@ -2905,7 +2905,7 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
         </section>
     """
     receipt_one = receipt_html("Lembar 1: Arsip")
-    receipt_two = receipt_html("Lembar 2: Perusahaan")
+    receipt_two = receipt_html("Lembar 2: Asuransi/Perusahaan")
 
     html = f"""
 <!DOCTYPE html>
