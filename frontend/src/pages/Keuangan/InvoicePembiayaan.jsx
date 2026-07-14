@@ -38,6 +38,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { getInvoiceDisplayAmounts } from './invoiceDisplayUtils';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
@@ -401,7 +402,8 @@ export default function InvoicePembiayaan() {
             });
         return sequence;
     }, [selected]);
-    const paymentLimit = Math.max(0, Math.min(Number(selected?.sisa_tagihan || 0), walletSaldo) - pendingPaymentTotal);
+    const selectedDisplayAmounts = useMemo(() => getInvoiceDisplayAmounts(selected), [selected]);
+    const paymentLimit = Math.max(0, Math.min(selectedDisplayAmounts.sisa, walletSaldo) - pendingPaymentTotal);
     const isFinanceManager = Boolean(user?.is_superuser || (user?.is_keuangan && ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role)));
 
     const openCreate = () => {
@@ -677,7 +679,7 @@ export default function InvoicePembiayaan() {
         if (!selected?.tgl_kirim) return toast.error('Invoice harus dikirim dulu sebelum bisa dibayar.');
         if (!payment.tanggal) return toast.error('Tanggal bayar wajib diisi.');
         if (jumlah <= 0) return toast.error('Jumlah bayar harus lebih dari nol.');
-        if (jumlah > Number(selected?.sisa_tagihan || 0)) return toast.error('Jumlah bayar melebihi sisa tagihan.');
+        if (jumlah > selectedDisplayAmounts.sisa) return toast.error('Jumlah bayar melebihi sisa tagihan.');
         if (jumlah > walletSaldo) return toast.error('Jumlah bayar melebihi saldo pembiayaan.');
         setPaying(true);
         try {
@@ -1250,9 +1252,9 @@ export default function InvoicePembiayaan() {
                                             {COST_FIELDS.map(([key, label]) => <Info key={key} label={<CostLabel fieldKey={key} label={label} />} value={money(selected[key])} mono />)}
                                         </div>
                                         <div className="inv-balance-strip">
-                                            <span>Total: <strong>{money(selected.total_tagihan)}</strong></span>
-                                            <span>Dibayar: <strong>{money(selected.total_dibayar)}</strong></span>
-                                            <span>Sisa: <strong>{money(selected.sisa_tagihan)}</strong></span>
+                                            <span>Total: <strong>{money(selectedDisplayAmounts.total)}</strong></span>
+                                            <span>Dibayar: <strong>{money(selectedDisplayAmounts.dibayar)}</strong></span>
+                                            <span>Sisa: <strong>{money(selectedDisplayAmounts.sisa)}</strong></span>
                                         </div>
                                     </section>
                                     <section className="inv-payment-card">
@@ -1270,7 +1272,7 @@ export default function InvoicePembiayaan() {
                                             </div>
                                             <div className="due">
                                                 <span>Sisa Tagihan</span>
-                                                <strong>{money(selected.sisa_tagihan)}</strong>
+                                                <strong>{money(selectedDisplayAmounts.sisa)}</strong>
                                             </div>
                                             <div className="wallet">
                                                 <span>Saldo Pembiayaan</span>
