@@ -1,11 +1,11 @@
-﻿from rest_framework import viewsets, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action, permission_classes, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated, AllowAny, SAFE_METHODS
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.db import connection, transaction
@@ -18,6 +18,7 @@ from django.utils.html import escape
 from django.db.models import Sum, Count, Q, F
 from collections import defaultdict
 import calendar
+import re
 from django.utils import timezone
 from datetime import datetime, time, timedelta
 from openpyxl import Workbook
@@ -39,7 +40,8 @@ from .models import (
     Kendaraan, LogPerjalanan, LaporanPerjalanan, FotoLaporanPerjalanan, LogBBM, LogMaintenance,
     ITBackupRecord, ITRepairRequest, ITCredentialNote, ITRemoteAccess, ITSubscription,
     Announcement, AnnouncementRead,
-    InventoryOption, InventoryAsset
+    InventoryOption, InventoryAsset,
+    LogistikBarang, LogistikPembelian, LogistikBatch, LogistikMutasi, LogistikPermintaan, LogistikOpname
 )
 from .serializers import (
     AkunSerializer, TransaksiSerializer, TransaksiInputSerializer,
@@ -68,6 +70,8 @@ from .serializers import (
     ITSubscriptionSerializer,
     AnnouncementSerializer,
     InventoryOptionSerializer, InventoryAssetSerializer,
+    LogistikBarangSerializer, LogistikPembelianSerializer, LogistikBatchSerializer,
+    LogistikMutasiSerializer, LogistikPermintaanSerializer, LogistikOpnameSerializer,
 )
 from .audit import can_view_audit
 
@@ -102,6 +106,10 @@ def is_it(user):
 
 def is_keuangan(user):
     return user.is_authenticated and (getattr(user, 'is_keuangan', False) or user.is_superuser)
+
+
+def is_logistik(user):
+    return user.is_authenticated and (getattr(user, 'is_logistik', False) or user.is_superuser or is_manajer_or_above(user))
 
 
 def can_access_catatan_utang_obat_bhp(user):
@@ -205,6 +213,11 @@ class IsInventoryPermission(BasePermission):
         return is_kepala_seksi_or_above(request.user)
 
 
+class IsLogistikPermission(BasePermission):
+    def has_permission(self, request, view):
+        return is_logistik(request.user)
+
+
 class IsITPermission(BasePermission):
     def has_permission(self, request, view):
         return is_it(request.user)
@@ -239,6 +252,16 @@ class AnnouncementPermission(BasePermission):
 
 def _normalize_pembiayaan_name(value):
     return ' '.join(str(value or '').strip().lower().split())
+
+
+def _normalize_logistik_name(value):
+    text = str(value or '').strip()
+    if not text:
+        return ''
+    text = re.sub(r'\s*(?:-|/|:)?\s*\d{1,2}$', '', text)
+    text = re.sub(r'\s*\(\d{1,2}\)$', '', text)
+    text = re.sub(r'\s+\d{1,2}$', '', text)
+    return text.strip()
 
 
 class PembiayaanListView(APIView):
@@ -511,12 +534,69 @@ def _detect_type_from_j_lay(j_lay):
 class KunjunganInvoiceView(APIView):
     permission_classes = [IsKeuanganPermission]
 
+    def _fetch_kunjungan_for_invoice(self, cursor, nomor_kunjungan):
+        placeholders = ','.join(['%s'] * len(nomor_kunjungan))
+        cursor.execute(f"""
+            SELECT
+                a.no, a.id_pembiayaan, c.pembiayaan AS nama_pembiayaan,
+                a.cek, IFNULL(e.no_invoice, '') AS no_invoice,
+                a.adm, a.jasa, a.farmasi, a.tindakan, a.fisio, a.lab,
+                a.lab_pa, a.rad, a.kamar, a.bhp, a.lainnya, a.ambulan, a.alat,
+                ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya
+            FROM rssams.kunjung a
+            LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
+            INNER JOIN rssams.verif_kunjung e ON a.no = e.no
+            WHERE a.no IN ({placeholders})
+        """, nomor_kunjungan)
+        return _dict_fetchall(cursor)
+
+    def _sum_kunjungan_totals(self, rows):
+        totals = defaultdict(lambda: Decimal('0'))
+        for row in rows:
+            totals['adm'] += _decimal_from_row(row, 'adm')
+            totals['jasa'] += _decimal_from_row(row, 'jasa')
+            totals['farmasi'] += _decimal_from_row(row, 'farmasi')
+            totals['tindakan'] += _decimal_from_row(row, 'tindakan')
+            totals['fisio'] += _decimal_from_row(row, 'fisio')
+            totals['lab'] += _decimal_from_row(row, 'lab') + _decimal_from_row(row, 'lab_pa')
+            totals['rad'] += _decimal_from_row(row, 'rad')
+            totals['kamar'] += _decimal_from_row(row, 'kamar')
+            totals['bhp'] += _decimal_from_row(row, 'bhp')
+            totals['lainnya'] += _decimal_from_row(row, 'lainnya')
+            totals['ambulan'] += _decimal_from_row(row, 'ambulan')
+            totals['alat'] += _decimal_from_row(row, 'alat')
+        return totals
+
+    def _refresh_faktur_totals(self, faktur):
+        rows = get_invoice_kunjungan_rows(faktur)
+        if not rows:
+            return
+        totals = self._sum_kunjungan_totals(rows)
+        for field, value in totals.items():
+            setattr(faktur, field, value)
+        faktur.save()
+
     def get(self, request):
         from django.db import connection
 
         detail_no = (request.query_params.get('no') or '').strip()
+        invoice_search = (request.query_params.get('invoice_search') or '').strip()
         try:
             with connection.cursor() as cursor:
+                if invoice_search:
+                    qs = (
+                        Faktur.objects
+                        .select_related('pelanggan')
+                        .filter(
+                            Q(nomor_faktur__icontains=invoice_search) |
+                            Q(nama_pembiayaan__icontains=invoice_search) |
+                            Q(pelanggan__nama__icontains=invoice_search)
+                        )
+                        .exclude(status='batal')
+                        .order_by('-nomor_faktur')[:10]
+                    )
+                    return Response(FakturSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
                 if detail_no:
                     cursor.execute(f"""
                         SELECT
@@ -586,12 +666,51 @@ class KunjunganInvoiceView(APIView):
     def post(self, request):
         from django.db import connection
 
+        action_name = (request.data.get('action') or '').strip()
         nomor_kunjungan = request.data.get('nomor_kunjungan') or request.data.get('selected') or []
         if isinstance(nomor_kunjungan, str):
             nomor_kunjungan = [nomor_kunjungan]
         nomor_kunjungan = [str(no).strip() for no in nomor_kunjungan if str(no).strip()]
         if not nomor_kunjungan:
             return Response({'error': 'Pilih minimal satu kunjungan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if action_name == 'append':
+            invoice_number = str(request.data.get('nomor_faktur') or '').strip()
+            if not invoice_number:
+                return Response({'nomor_faktur': 'Nomor invoice wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                faktur = Faktur.objects.get(nomor_faktur=invoice_number)
+            except Faktur.DoesNotExist:
+                return Response({'nomor_faktur': 'Invoice tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+            if faktur.status == 'batal':
+                return Response({'error': 'Kunjungan tidak bisa ditambahkan ke invoice batal.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            placeholders = ','.join(['%s'] * len(nomor_kunjungan))
+            try:
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        rows = self._fetch_kunjungan_for_invoice(cursor, nomor_kunjungan)
+                        found = {str(row['no']) for row in rows}
+                        missing = [no for no in nomor_kunjungan if no not in found]
+                        if missing:
+                            return Response({'error': f"Kunjungan tidak ditemukan: {', '.join(missing)}"}, status=status.HTTP_400_BAD_REQUEST)
+                        not_done = [str(row['no']) for row in rows if not row.get('cek')]
+                        if not_done:
+                            return Response({'error': f"Transaksi belum done: {', '.join(not_done)}"}, status=status.HTTP_400_BAD_REQUEST)
+                        invoiced = [str(row['no']) for row in rows if row.get('no_invoice')]
+                        if invoiced:
+                            return Response({'error': f"Kunjungan sudah masuk invoice: {', '.join(invoiced)}"}, status=status.HTTP_400_BAD_REQUEST)
+                        no_charge = [str(row['no']) for row in rows if _decimal_from_row(row, 'total_biaya') <= 0]
+                        if no_charge:
+                            return Response({'error': f"Kunjungan belum memiliki biaya: {', '.join(no_charge)}"}, status=status.HTTP_400_BAD_REQUEST)
+                        cursor.execute(
+                            f"UPDATE rssams.verif_kunjung SET no_invoice=%s WHERE no IN ({placeholders})",
+                            [faktur.nomor_faktur, *nomor_kunjungan],
+                        )
+                    self._refresh_faktur_totals(faktur)
+                return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         tanggal = request.data.get('tanggal') or timezone.localdate().isoformat()
         try:
@@ -602,19 +721,7 @@ class KunjunganInvoiceView(APIView):
         placeholders = ','.join(['%s'] * len(nomor_kunjungan))
         try:
             with connection.cursor() as cursor:
-                cursor.execute(f"""
-                    SELECT
-                        a.no, a.id_pembiayaan, c.pembiayaan AS nama_pembiayaan,
-                        a.cek, IFNULL(e.no_invoice, '') AS no_invoice,
-                        a.adm, a.jasa, a.farmasi, a.tindakan, a.fisio, a.lab,
-                        a.lab_pa, a.rad, a.kamar, a.bhp, a.lainnya, a.ambulan, a.alat,
-                        ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya
-                    FROM rssams.kunjung a
-                    LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
-                    INNER JOIN rssams.verif_kunjung e ON a.no = e.no
-                    WHERE a.no IN ({placeholders})
-                """, nomor_kunjungan)
-                rows = _dict_fetchall(cursor)
+                rows = self._fetch_kunjungan_for_invoice(cursor, nomor_kunjungan)
 
             found = {str(row['no']) for row in rows}
             missing = [no for no in nomor_kunjungan if no not in found]
@@ -627,20 +734,7 @@ class KunjunganInvoiceView(APIView):
             if invoiced:
                 return Response({'error': f"Kunjungan sudah masuk invoice: {', '.join(invoiced)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-            totals = defaultdict(lambda: Decimal('0'))
-            for row in rows:
-                totals['adm'] += _decimal_from_row(row, 'adm')
-                totals['jasa'] += _decimal_from_row(row, 'jasa')
-                totals['farmasi'] += _decimal_from_row(row, 'farmasi')
-                totals['tindakan'] += _decimal_from_row(row, 'tindakan')
-                totals['fisio'] += _decimal_from_row(row, 'fisio')
-                totals['lab'] += _decimal_from_row(row, 'lab') + _decimal_from_row(row, 'lab_pa')
-                totals['rad'] += _decimal_from_row(row, 'rad')
-                totals['kamar'] += _decimal_from_row(row, 'kamar')
-                totals['bhp'] += _decimal_from_row(row, 'bhp')
-                totals['lainnya'] += _decimal_from_row(row, 'lainnya')
-                totals['ambulan'] += _decimal_from_row(row, 'ambulan')
-                totals['alat'] += _decimal_from_row(row, 'alat')
+            totals = self._sum_kunjungan_totals(rows)
 
             id_pembiayaan = str(request.data.get('id_pembiayaan') or '').strip()
             if not id_pembiayaan:
@@ -685,6 +779,52 @@ class KunjunganInvoiceView(APIView):
             return Response(FakturSerializer(faktur).data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+
+    def delete(self, request):
+        from django.db import connection
+
+        invoice_number = str(request.data.get('nomor_faktur') or request.query_params.get('nomor_faktur') or '').strip()
+        no_kunjungan = str(request.data.get('no') or request.query_params.get('no') or '').strip()
+        if not invoice_number or not no_kunjungan:
+            return Response({'error': 'Nomor invoice dan nomor kunjungan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            faktur = Faktur.objects.get(nomor_faktur=invoice_number)
+        except Faktur.DoesNotExist:
+            return Response({'error': 'Invoice tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+        if faktur.pembayaran.exists():
+            return Response({'error': 'Kunjungan tidak bisa dihapus dari invoice yang sudah memiliki pembayaran atau pengajuan pembayaran.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT IFNULL(no_invoice, '') FROM rssams.verif_kunjung WHERE no=%s LIMIT 1",
+                        [no_kunjungan],
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        return Response({'error': 'Kunjungan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+                    if str(row[0] or '') != faktur.nomor_faktur:
+                        return Response({'error': 'Kunjungan tidak terdaftar pada invoice ini.'}, status=status.HTTP_400_BAD_REQUEST)
+                    cursor.execute(
+                        "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no=%s AND no_invoice=%s",
+                        [no_kunjungan, faktur.nomor_faktur],
+                    )
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM rssams.verif_kunjung WHERE no_invoice=%s",
+                        [faktur.nomor_faktur],
+                    )
+                    remaining = cursor.fetchone()[0]
+                if remaining:
+                    self._refresh_faktur_totals(faktur)
+                else:
+                    faktur.adm = faktur.jasa = faktur.farmasi = faktur.tindakan = Decimal('0')
+                    faktur.fisio = faktur.lab = faktur.rad = faktur.kamar = Decimal('0')
+                    faktur.bhp = faktur.lainnya = faktur.ambulan = faktur.alat = Decimal('0')
+                    faktur.save()
+            return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _detect_type(self, no):
         from django.db import connection
@@ -1001,9 +1141,9 @@ class AuditLogViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
         return super().list(request, *args, **kwargs)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # AKUN
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class AkunViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Akun.objects.filter(is_active=True)
@@ -1011,9 +1151,9 @@ class AkunViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsManajerOrAbovePermission]
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # PELANGGAN & PEMASOK
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class PelangganViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Pelanggan.objects.all()
@@ -1043,9 +1183,9 @@ class PemasokViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return qs
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # JURNAL
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Jurnal.objects.prefetch_related('items__akun').select_related('created_by').all()
@@ -1076,9 +1216,9 @@ class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response({'message': 'Jurnal dikembalikan ke draft.'})
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # TRANSAKSI
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Transaksi.objects.select_related('akun', 'created_by').all()
@@ -1186,9 +1326,9 @@ class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         })
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # FAKTUR
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Faktur.objects.select_related('pelanggan', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -1422,7 +1562,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 _ROMAN_MONTHS = {
     1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI',
     7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII',
@@ -1449,6 +1589,19 @@ def _invoice_date(value):
 def _legacy_invoice_number(faktur):
     tanggal = faktur.tanggal or timezone.localdate()
     return f"{faktur.nomor_faktur}/Keu-02/RS-SAMS/{_ROMAN_MONTHS[tanggal.month]}/{tanggal.year}"
+
+
+def _invoice_total_tagihan(faktur):
+    return Decimal(faktur.total_tagihan or 0)
+
+
+def _invoice_print_amounts(faktur):
+    rows = get_invoice_kunjungan_rows(faktur)
+    if rows:
+        jumlah_bayar = sum((Decimal(row.get('jmlbyr') or 0) for row in rows), Decimal('0'))
+        total = sum((Decimal(row.get('ttl') or 0) for row in rows), Decimal('0'))
+        return total, jumlah_bayar
+    return _invoice_total_tagihan(faktur), Decimal('0')
 
 
 def _legacy_words(number):
@@ -1575,6 +1728,7 @@ def get_invoice_kunjungan_rows(faktur):
                     a.tindakan,
                     a.fisio,
                     a.lab,
+                    a.lab_pa,
                     a.kamar,
                     a.rad,
                     a.bhp,
@@ -1675,23 +1829,7 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
     tgl = f"{tanggal.day:02d}-{tanggal.month:02d}-{tanggal.year}"
     no_invoice = _legacy_invoice_number(faktur)
 
-    total_biaya = (
-        Decimal(faktur.adm or 0) +
-        Decimal(faktur.jasa or 0) +
-        Decimal(faktur.farmasi or 0) +
-        Decimal(faktur.tindakan or 0) +
-        Decimal(faktur.fisio or 0) +
-        Decimal(faktur.lab or 0) +
-        Decimal(faktur.rad or 0) +
-        Decimal(faktur.kamar or 0) +
-        Decimal(faktur.bhp or 0) +
-        Decimal(faktur.lainnya or 0) +
-        Decimal(faktur.ambulan or 0) +
-        Decimal(faktur.alat or 0)
-    )
-
-    jml_bayar = Decimal(faktur.total_dibayar or 0)
-    ttl_tagihan = total_biaya - jml_bayar
+    ttl_tagihan, jml_bayar = _invoice_print_amounts(faktur)
 
     if faktur.xround == 'Y':
         angka = ttl_tagihan.to_integral_value(rounding='ROUND_CEILING')
@@ -1778,7 +1916,7 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
         row(y, "-  PPN OBAT", faktur.ppn_farmasi)
 
     y += 5
-    row(y, "-  JUMLAH PEMBAYARAN", jml_bayar)
+    row(y, "-  JUMLAH YANG SUDAH DIBAYAR", jml_bayar)
 
     y += 5
     pdf.set_font('Times', 'B', 12)
@@ -2416,23 +2554,7 @@ def render_kwitansi_pdf_response(faktur):
 
 def _render_legacy_invoice(faktur, mode):
     """Replicate exact FPDF output from app_siaga print_invoice.php"""
-    total_biaya = (
-        Decimal(faktur.adm or 0) +
-        Decimal(faktur.jasa or 0) +
-        Decimal(faktur.farmasi or 0) +
-        Decimal(faktur.tindakan or 0) +
-        Decimal(faktur.fisio or 0) +
-        Decimal(faktur.lab or 0) +
-        Decimal(faktur.rad or 0) +
-        Decimal(faktur.kamar or 0) +
-        Decimal(faktur.bhp or 0) +
-        Decimal(faktur.lainnya or 0) +
-        Decimal(faktur.ambulan or 0) +
-        Decimal(faktur.alat or 0)
-    )
-
-    jml_bayar = Decimal(faktur.total_dibayar or 0)
-    total = total_biaya - jml_bayar
+    total, jml_bayar = _invoice_print_amounts(faktur)
     
     # Build cost rows dengan labels yang persis sama seperti PHP
     cost_rows_html = []
@@ -3496,7 +3618,7 @@ def faktur_rekap_excel_view(request):
     return response
 
 # ALOKASI DANA
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
@@ -3845,9 +3967,9 @@ class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # TAGIHAN
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Tagihan.objects.select_related('pemasok', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -3915,9 +4037,9 @@ class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response({'message': 'Tagihan berhasil dibatalkan.'})
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # REKENING BANK
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = RekeningBank.objects.prefetch_related('riwayat__updated_by').select_related('updated_by').all()
@@ -3959,9 +4081,9 @@ class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return Response(RekeningBankSerializer(rekening, context={'request': request}).data)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # PETTY CASH
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -3993,7 +4115,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4022,7 +4144,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Pengajuan berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status})
 
-    # POST /{id}/cairkan/ â€” petugas kas petty cash mencairkan dana
+    # POST /{id}/cairkan/ — petugas kas petty cash mencairkan dana
     @action(detail=True, methods=['post'], url_path='cairkan')
     def cairkan(self, request, pk=None):
         if not is_petty_cash_cashier(request.user):
@@ -4035,7 +4157,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': 'Dana berhasil dicairkan.', 'status': instance.status})
 
-    # POST /{id}/laporan/ â€” karyawan upload nota + rincian
+    # POST /{id}/laporan/ — karyawan upload nota + rincian
     @action(detail=True, methods=['post'], url_path='laporan', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def laporan(self, request, pk=None):
         instance = self.get_object()
@@ -4067,7 +4189,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         return Response(LaporanPenggunaanSerializer(laporan, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
-    # POST /{id}/approval-laporan/ â€” wadir/direktur approve laporan penggunaan
+    # POST /{id}/approval-laporan/ — wadir/direktur approve laporan penggunaan
     @action(detail=True, methods=['post'], url_path='approval-laporan')
     def approval_laporan(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4111,7 +4233,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'status': instance.status,
         }, status=status.HTTP_200_OK)
 
-    # POST /{id}/konfirmasi-pengembalian/ â€” petugas kas petty cash konfirmasi uang kembali & selesaikan
+    # POST /{id}/konfirmasi-pengembalian/ — petugas kas petty cash konfirmasi uang kembali & selesaikan
     @action(detail=True, methods=['post'], url_path='konfirmasi-pengembalian')
     def konfirmasi_pengembalian(self, request, pk=None):
         if not is_petty_cash_cashier(request.user):
@@ -4150,7 +4272,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
         return Response({'message': 'Pengembalian dikonfirmasi. Petty cash selesai.', 'status': instance.status})
 
-    # POST /{id}/revisi/ â€” karyawan revisi yang ditolak
+    # POST /{id}/revisi/ — karyawan revisi yang ditolak
     @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def revisi(self, request, pk=None):
         instance = self.get_object()
@@ -4174,9 +4296,9 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 # REIMBURSEMENT
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ══════════════════════════════════════════════════════════════
 
 class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -4208,7 +4330,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4232,7 +4354,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Reimbursement berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status})
 
-    # POST /{id}/cairkan/ â€” manajer mencairkan
+    # POST /{id}/cairkan/ — manajer mencairkan
     @action(detail=True, methods=['post'], url_path='cairkan')
     def cairkan(self, request, pk=None):
         if not is_manajer_or_above(self.request.user):        
@@ -4271,7 +4393,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
         return Response({'message': 'Reimbursement berhasil dicairkan.', 'status': instance.status})
 
-    # POST /{id}/revisi/ â€” karyawan revisi yang ditolak
+    # POST /{id}/revisi/ — karyawan revisi yang ditolak
     @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def revisi(self, request, pk=None):
         instance = self.get_object()
@@ -4334,7 +4456,7 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             raise PermissionDenied('Hanya manajer, direktur, atau wakil direktur yang dapat mengajukan penambahan saldo.')
         serializer.save(created_by=self.request.user)
  
-    # POST /{id}/approval/ â€” direktur/wadir approve atau tolak
+    # POST /{id}/approval/ — direktur/wadir approve atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4359,7 +4481,7 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             instance.save()
             return Response({'message': 'Pengajuan ditolak.', 'status': instance.status})
  
-        # Setujui â€” input nominal wajib
+        # Setujui — input nominal wajib
         nominal = request.data.get('nominal_diajukan')
         if not nominal:
             return Response({'error': 'Nominal penambahan wajib diisi saat menyetujui.'}, status=400)
@@ -4414,7 +4536,7 @@ class LaporanPettyCashView(APIView):
         if not dari or not sampai:
             return Response({'error': 'Parameter dari dan sampai wajib diisi.'}, status=400)
  
-        # â”€â”€ Saldo awal â€” ambil snapshot saldo terakhir sebelum periode â”€â”€
+        # ── Saldo awal — ambil snapshot saldo terakhir sebelum periode ──
         from datetime import date as date_type
         dari_date   = date_type.fromisoformat(dari)
         sampai_date = date_type.fromisoformat(sampai)
@@ -4430,7 +4552,7 @@ class LaporanPettyCashView(APIView):
 
         saldo_awal = riwayat_terakhir_sebelum.saldo_sesudah if riwayat_terakhir_sebelum else 0
 
-        # â”€â”€ Riwayat dalam periode â”€â”€
+        # ── Riwayat dalam periode ──
 
         sampai_datetime = timezone.make_aware(
             datetime.combine(sampai_date, time.max),
@@ -4465,19 +4587,19 @@ class LaporanPettyCashView(APIView):
         total_pengurangan = riwayat_periode.filter(jenis='pengurangan').aggregate(t=Sum('jumlah'))['t'] or 0
         saldo_akhir       = saldo_awal + total_penambahan - total_pengurangan
 
-        # â”€â”€ Petty Cash (advance) dalam periode â”€â”€
+        # ── Petty Cash (advance) dalam periode ──
         pc_qs = PettyCash.objects.filter(
             tanggal__gte=dari,
             tanggal__lte=sampai,
         ).select_related('created_by__unit', 'laporan')
  
-        # â”€â”€ Reimbursement dalam periode â”€â”€
+        # ── Reimbursement dalam periode ──
         rb_qs = Reimbursement.objects.filter(
             tanggal__gte=dari,
             tanggal__lte=sampai,
         ).select_related('created_by__unit')
  
-        # â”€â”€ Daftar pengajuan (gabungan PC + Reimbursement) â”€â”€
+        # ── Daftar pengajuan (gabungan PC + Reimbursement) ──
         daftar_pengajuan = []
         for pc in pc_qs:
             # Ambil realisasi kalau sudah ada laporan
@@ -4486,7 +4608,7 @@ class LaporanPettyCashView(APIView):
                 'no':       pc.no_pengajuan,
                 'tanggal':  str(pc.tanggal),
                 'jenis':    'Petty Cash',
-                'pemohon':  pc.created_by.get_full_name() or pc.created_by.username if pc.created_by else 'â€”',
+                'pemohon':  pc.created_by.get_full_name() or pc.created_by.username if pc.created_by else '—',
                 'unit':     laporan_unit_label(pc.created_by),
                 'keperluan': pc.keperluan,
                 'nominal':  float(pc.nominal),
@@ -4500,7 +4622,7 @@ class LaporanPettyCashView(APIView):
                 'no':       rb.no_reimbursement,
                 'tanggal':  str(rb.tanggal),
                 'jenis':    'Reimbursement',
-                'pemohon':  rb.created_by.get_full_name() or rb.created_by.username if rb.created_by else 'â€”',
+                'pemohon':  rb.created_by.get_full_name() or rb.created_by.username if rb.created_by else '—',
                 'unit':     laporan_unit_label(rb.created_by),
                 'keperluan': rb.keperluan,
                 'nominal':  float(rb.nominal),
@@ -4509,7 +4631,7 @@ class LaporanPettyCashView(APIView):
             })
         daftar_pengajuan.sort(key=lambda x: x['tanggal'])
  
-        # â”€â”€ Total pencairan per unit â”€â”€
+        # ── Total pencairan per unit ──
         per_unit = defaultdict(lambda: {'pc': 0, 'reimburse': 0, 'total': 0})
         for pc in pc_qs.filter(status__in=['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai']):
             unit = laporan_unit_label(pc.created_by)
@@ -4521,7 +4643,7 @@ class LaporanPettyCashView(APIView):
             per_unit[unit]['reimburse'] += float(rb.nominal)
             per_unit[unit]['total']     += float(rb.nominal)
  
-        # â”€â”€ Grafik per bulan (6 bulan terakhir) â”€â”€
+        # ── Grafik per bulan (6 bulan terakhir) ──
         from datetime import date, timedelta
         today = date.today()
         grafik = []
@@ -4551,7 +4673,7 @@ class LaporanPettyCashView(APIView):
                 'total':        float(pc_total + rb_total),
             })
  
-        # â”€â”€ Rekap mutasi saldo â”€â”€
+        # ── Rekap mutasi saldo ──
         rekap_mutasi = [{
             'waktu':      r.created_at.strftime('%d %b %Y %H:%M'),
             'jenis':      r.jenis,
@@ -4680,7 +4802,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 return Response({'error': 'Anda hanya dapat menghapus log perjalanan status pending milik sendiri.'}, status=403)
         return super().destroy(request, *args, **kwargs)
 
-    # POST /{id}/approval/ â€” manajer/direktur setujui atau tolak
+    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
     @action(detail=True, methods=['post'], url_path='approval')
     def approval(self, request, pk=None):
         if not is_direktur_or_wadir(request.user):
@@ -4704,7 +4826,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': f'Laporan berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status}, status=200)
 
-    # POST /{id}/laporan/ â€” driver submit laporan dengan foto
+    # POST /{id}/laporan/ — driver submit laporan dengan foto
     @action(detail=True, methods=['post'], url_path='laporan')
     def laporan(self, request, pk=None):
         instance = self.get_object()
@@ -4752,7 +4874,7 @@ class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': f'Gagal menyimpan laporan: {str(e)}'}, status=400)
 
-    # POST /{id}/selesaikan/ â€” tandai sebagai selesai (setelah laporan submitted)
+    # POST /{id}/selesaikan/ — tandai sebagai selesai (setelah laporan submitted)
     @action(detail=True, methods=['post'], url_path='selesaikan')
     def selesaikan(self, request, pk=None):
         if not is_admin_driver(request.user):
@@ -4850,7 +4972,7 @@ class LogMaintenanceViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
  
  
-# â”€â”€ Rekap bulanan â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Rekap bulanan ──────────────────────────────────────────
 class ITBaseViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsITPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -5147,6 +5269,598 @@ class InventoryAssetViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         })
 
 
+def legacy_fetchall(sql, params=None):
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params or [])
+        cols = [col[0] for col in cursor.description]
+        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+
+
+def legacy_fetchone(sql, params=None):
+    rows = legacy_fetchall(sql, params)
+    return rows[0] if rows else None
+
+
+def legacy_paginated(request, base_sql, count_sql, params=None):
+    page = int(request.query_params.get('page') or 1)
+    page_size = int(request.query_params.get('page_size') or 10)
+    offset = (page - 1) * page_size
+    count = legacy_fetchone(count_sql, params or [])['total']
+    rows = legacy_fetchall(f'{base_sql} LIMIT %s OFFSET %s', [*(params or []), page_size, offset])
+    return Response({'count': count, 'results': rows})
+
+
+def legacy_stock(id_brg):
+    row = legacy_fetchone(
+        """
+        SELECT
+            COALESCE((SELECT SUM(qty * isi) FROM rssams.item_logistik WHERE id_brg = %s), 0)
+            - COALESCE((SELECT SUM(qty) FROM rssams.item_out_log WHERE id_brg = %s), 0) AS stock
+        """,
+        [id_brg, id_brg],
+    )
+    stock = row['stock'] or 0
+    with connection.cursor() as cursor:
+        cursor.execute('UPDATE rssams.dafbrg_log SET stock = %s WHERE id_brg = %s', [stock, id_brg])
+    return stock
+
+
+def legacy_next_year_id(table, width=4, where_prefix=True):
+    prefix = timezone.localdate().strftime('%y')
+    where = 'WHERE LEFT(id,2) = %s' if where_prefix else ''
+    row = legacy_fetchone(
+        f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) + 1 AS next_id FROM rssams.{table} {where}",
+        [prefix] if where_prefix else [],
+    )
+    return f"{prefix}{int(row['next_id']):0{width}d}"
+
+
+def legacy_next_item_out_id(master_id):
+    row = legacy_fetchone(
+        "SELECT COALESCE(MAX(CAST(SUBSTR(id,8,3) AS UNSIGNED)), 0) + 1 AS next_id FROM rssams.item_out_log WHERE LEFT(id,6) = %s",
+        [master_id],
+    )
+    return f"{master_id}-{int(row['next_id'])}"
+
+
+class LogistikBarangViewSet(viewsets.ViewSet):
+    serializer_class = LogistikBarangSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        minimum = request.query_params.get('minimum')
+        show_all = str(request.query_params.get('show_all') or '').lower() in ('1', 'true', 'yes')
+        where = ["del = 'N'"]
+        params = []
+        if search:
+            where.append('(nama_barang LIKE %s OR merk LIKE %s)')
+            params.extend([f'%{search}%', f'%{search}%'])
+        if minimum == 'true':
+            where.append('stock_min > 0 AND stock < stock_min')
+        elif not show_all:
+            where.append('stock > 0')
+        where_sql = ' AND '.join(where)
+        base = f"""
+            SELECT id_brg AS id, id_brg, nama_barang, kemasan, satuan, isi, merk,
+                   id_gol AS golongan, stock AS stok, stock_min AS stok_minimum,
+                   del = 'N' AS is_active,
+                   stock_min > 0 AND stock < stock_min AS stok_minimum_alert
+            FROM rssams.dafbrg_log
+            WHERE {where_sql}
+            ORDER BY nama_barang
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.dafbrg_log WHERE {where_sql}"
+        return legacy_paginated(request, base, count, params)
+
+    def create(self, request):
+        data = request.data
+        row = legacy_fetchone('SELECT COALESCE(MAX(id_brg), 0) + 1 AS next_id FROM rssams.dafbrg_log')
+        id_brg = row['next_id']
+        nama_barang = _normalize_logistik_name(data.get('nama_barang', ''))
+        merk = _normalize_logistik_name(data.get('merk'))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.dafbrg_log(id_brg, nama_barang, kemasan, satuan, isi, merk, id_gol, stock_min)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                [
+                    id_brg,
+                    str(nama_barang).upper(),
+                    data.get('kemasan') or '',
+                    data.get('satuan') or '',
+                    data.get('isi') or 1,
+                    str(merk).upper(),
+                    data.get('golongan') or None,
+                    data.get('stok_minimum') or 0,
+                ],
+            )
+        return Response({'id': id_brg}, status=201)
+
+    def destroy(self, request, pk=None):
+        with connection.cursor() as cursor:
+            cursor.execute("UPDATE rssams.dafbrg_log SET del = 'Y' WHERE id_brg = %s", [pk])
+        return Response(status=204)
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        row = legacy_fetchone(
+            """
+            SELECT COUNT(*) AS total_barang,
+                   COALESCE(SUM(stock), 0) AS total_stok,
+                   SUM(CASE WHEN stock_min > 0 AND stock < stock_min THEN 1 ELSE 0 END) AS stok_minimum,
+                   SUM(CASE WHEN del = 'Y' THEN 1 ELSE 0 END) AS nonaktif
+            FROM rssams.dafbrg_log
+            """
+        )
+        return Response(row)
+
+    @action(detail=False, methods=['get'], url_path='ruang-options')
+    def ruang_options(self, request):
+        return Response({
+            'results': legacy_fetchall("SELECT id_ruang AS id, ruangan AS nama FROM rssams.kode_ruang ORDER BY ruangan")
+        })
+
+    @action(detail=True, methods=['get'], url_path='kartu-stok')
+    def kartu_stok(self, request, pk=None):
+        masuk = legacy_fetchall(
+            """
+            SELECT DATE(i.tgl_entri) AS tanggal, 'Masuk' AS jenis, i.id AS nomor, t.rekanan AS ruang,
+                   i.qty * i.isi AS masuk, 0 AS keluar, i.harga AS harga
+            FROM rssams.item_logistik i
+            LEFT JOIN rssams.tran_beli_brg_log t ON t.id = i.id
+            WHERE i.id_brg = %s
+            """,
+            [pk],
+        )
+        keluar = legacy_fetchall(
+            """
+            SELECT DATE(o.tgl) AS tanggal, 'Keluar' AS jenis, o.id AS nomor, r.ruangan AS ruang,
+                   0 AS masuk, o.qty AS keluar, o.harga AS harga
+            FROM rssams.item_out_log o
+            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+            WHERE o.id_brg = %s AND o.qty > 0
+            """,
+            [pk],
+        )
+        rows = sorted(masuk + keluar, key=lambda x: (x['tanggal'], x['jenis']))
+        saldo = 0
+        for row in rows:
+            saldo += float(row['masuk'] or 0) - float(row['keluar'] or 0)
+            row['saldo'] = saldo
+        return Response(rows)
+
+
+class LogistikVendorViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        where = "WHERE del = 'N'"
+        params = []
+        if search:
+            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s)'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        base = f"""
+            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, del
+            FROM rssams.rekanan
+            {where}
+            ORDER BY nama
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.rekanan {where}"
+        return legacy_paginated(request, base, count, params)
+
+    def create(self, request):
+        data = request.data
+        row = legacy_fetchone('SELECT COALESCE(MAX(id_rekanan), 0) + 1 AS next_id FROM rssams.rekanan')
+        vendor_id = row['next_id']
+        nama_vendor = _normalize_logistik_name(data.get('nama') or '')
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc)
+                VALUES(%s, %s, %s, %s, %s)
+                """,
+                [
+                    vendor_id,
+                    str(nama_vendor).upper(),
+                    data.get('alamat') or '',
+                    data.get('telp') or '',
+                    data.get('kc') or '',
+                ],
+            )
+        return Response({'id': vendor_id, 'id_rekanan': vendor_id}, status=201)
+
+    def partial_update(self, request, pk=None):
+        data = request.data
+        nama_vendor = _normalize_logistik_name(data.get('nama') or '')
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE rssams.rekanan
+                SET nama = %s, alamat = %s, telp = %s, kc = %s
+                WHERE id_rekanan = %s
+                """,
+                [
+                    str(nama_vendor).upper(),
+                    data.get('alamat') or '',
+                    data.get('telp') or '',
+                    data.get('kc') or '',
+                    pk,
+                ],
+            )
+        return Response({'detail': 'OK'})
+
+    def destroy(self, request, pk=None):
+        with connection.cursor() as cursor:
+            cursor.execute("UPDATE rssams.rekanan SET del = 'Y' WHERE id_rekanan = %s", [pk])
+        return Response(status=204)
+
+    @action(detail=False, methods=['get'], url_path='options')
+    def options(self, request):
+        rows = legacy_fetchall("SELECT id_rekanan AS id, nama FROM rssams.rekanan WHERE del = 'N' ORDER BY nama")
+        return Response({'results': rows})
+
+
+class LogistikPembelianViewSet(viewsets.ViewSet):
+    serializer_class = LogistikPembelianSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        where = ''
+        params = []
+        if search:
+            where = 'WHERE rekanan LIKE %s OR no_spk LIKE %s OR id LIKE %s'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        base = f"""
+            SELECT id, id AS nomor, tgl_spk AS tanggal, rekanan AS pemasok,
+                   no_spk AS no_faktur, nilai, done AS status, tgl_entri AS created_at
+            FROM rssams.tran_beli_brg_log {where}
+            ORDER BY tgl_spk DESC, id DESC
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.tran_beli_brg_log {where}"
+        res = legacy_paginated(request, base, count, params)
+        for item in res.data['results']:
+            item['items'] = legacy_fetchall(
+                """
+                SELECT i.id, i.id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
+                       b.satuan, i.qty, i.isi, i.harga, i.jml_mutasi,
+                       i.qty * i.isi - i.jml_mutasi AS stok_batch
+                FROM rssams.item_logistik i
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
+                WHERE i.id = %s
+                ORDER BY b.nama_barang
+                """,
+                [item['id']],
+            )
+        return res
+
+    def create(self, request):
+        data = request.data
+        xid = legacy_next_year_id('tran_beli_brg_log')
+        vendor_name = data.get('pemasok') or ''
+        if data.get('id_rekanan'):
+            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
+            vendor_name = vendor['nama'] if vendor else vendor_name
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.tran_beli_brg_log(id, rekanan, tgl_spk, no_spk, nilai)
+                VALUES(%s, %s, %s, %s, %s)
+                """,
+                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_faktur') or data.get('no_spb') or '', 0],
+            )
+        return Response({'id': xid, 'nomor': xid}, status=201)
+
+    def partial_update(self, request, pk=None):
+        data = request.data
+        updates = []
+        values = []
+        if 'tanggal' in data:
+            updates.append('tgl_spk = %s')
+            values.append(data.get('tanggal') or timezone.localdate())
+        if 'id_rekanan' in data or 'pemasok' in data:
+            vendor_name = data.get('pemasok') or ''
+            if data.get('id_rekanan'):
+                vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
+                vendor_name = vendor['nama'] if vendor else vendor_name
+            updates.append('rekanan = %s')
+            values.append(str(vendor_name or '').upper())
+        if 'no_faktur' in data or 'no_spb' in data:
+            updates.append('no_spk = %s')
+            values.append(data.get('no_faktur') or data.get('no_spb') or '')
+        if not updates:
+            return Response({'detail': 'Tidak ada data yang diubah.'}, status=400)
+        values.append(pk)
+        with connection.cursor() as cursor:
+            cursor.execute(f"UPDATE rssams.tran_beli_brg_log SET {', '.join(updates)} WHERE id = %s", values)
+        return Response({'detail': 'OK'})
+
+
+class LogistikBatchViewSet(viewsets.ViewSet):
+    serializer_class = LogistikBatchSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def _refresh_pembelian_total(self, pembelian_id, no_invoice=None):
+        with connection.cursor() as cursor:
+            if no_invoice is not None:
+                cursor.execute(
+                    "UPDATE rssams.tran_beli_brg_log SET no_spk = %s WHERE id = %s",
+                    [no_invoice or '', pembelian_id],
+                )
+            cursor.execute(
+                """
+                UPDATE rssams.tran_beli_brg_log
+                SET nilai = COALESCE((SELECT SUM(qty * harga) FROM rssams.item_logistik WHERE id = %s), 0),
+                    done = CASE
+                        WHEN COALESCE((SELECT COUNT(*) FROM rssams.item_logistik WHERE id = %s), 0) > 0 THEN 'Y'
+                        ELSE done
+                    END
+                WHERE id = %s
+                """,
+                [pembelian_id, pembelian_id, pembelian_id],
+            )
+
+    def create(self, request):
+        data = request.data
+        barang = legacy_fetchone('SELECT isi FROM rssams.dafbrg_log WHERE id_brg = %s', [data.get('barang')])
+        if not barang:
+            return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
+        pembelian_id = data.get('pembelian')
+        qty = data.get('qty') or 0
+        harga = data.get('harga') or 0
+        isi = data.get('isi') or barang['isi'] or 1
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.item_logistik(id, id_brg, qty, harga, isi)
+                VALUES(%s, %s, %s, %s, %s)
+                """,
+                [pembelian_id, data.get('barang'), qty, harga, isi],
+            )
+        self._refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
+        legacy_stock(data.get('barang'))
+        return Response({'detail': 'OK'}, status=201)
+
+    def partial_update(self, request, pk=None):
+        data = request.data
+        pembelian_id = pk
+        original_barang = data.get('original_barang') or data.get('barang')
+        next_barang = data.get('barang')
+        if not original_barang or not next_barang:
+            return Response({'detail': 'Barang wajib dipilih.'}, status=400)
+        barang = legacy_fetchone('SELECT isi FROM rssams.dafbrg_log WHERE id_brg = %s', [next_barang])
+        if not barang:
+            return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
+        existing = legacy_fetchone(
+            'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
+            [pembelian_id, original_barang],
+        )
+        if not existing:
+            return Response({'detail': 'Item barang masuk tidak ditemukan.'}, status=404)
+        if str(original_barang) != str(next_barang):
+            duplicate = legacy_fetchone(
+                'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
+                [pembelian_id, next_barang],
+            )
+            if duplicate:
+                return Response({'detail': 'Barang tersebut sudah ada di invoice/SPB ini.'}, status=400)
+        qty = data.get('qty') or 0
+        harga = data.get('harga') or 0
+        isi = data.get('isi') or barang['isi'] or 1
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE rssams.item_logistik
+                SET id_brg = %s, qty = %s, harga = %s, isi = %s
+                WHERE id = %s AND id_brg = %s
+                """,
+                [next_barang, qty, harga, isi, pembelian_id, original_barang],
+            )
+        self._refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
+        legacy_stock(original_barang)
+        if str(original_barang) != str(next_barang):
+            legacy_stock(next_barang)
+        return Response({'detail': 'OK'})
+
+
+def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, keterangan=''):
+    stock = legacy_stock(id_brg)
+    qty = float(qty)
+    if stock < qty:
+        raise ValidationError('Stok barang tidak cukup.')
+    master_id = legacy_next_year_id('tran_out_brg_log')
+    tgl = f"{tanggal or timezone.localdate()} {timezone.localtime().strftime('%H:%M:%S')}"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO rssams.tran_out_brg_log(id, tgl, id_ruang, pemberi, penerima)
+            VALUES(%s, %s, %s, %s, %s)
+            """,
+            [master_id, tgl, id_ruang, '', keterangan or 'SIMAK'],
+        )
+    remaining = qty
+    for batch in legacy_fetchall("SELECT * FROM rssams.item_logistik WHERE id_brg = %s ORDER BY id", [id_brg]):
+        tersedia = float(batch['qty'] or 0) * float(batch['isi'] or 0) - float(batch['jml_mutasi'] or 0)
+        if tersedia <= 0:
+            continue
+        ambil = min(remaining, tersedia)
+        harga = float(batch['harga'] or 0) / (float(batch['isi'] or 1) or 1)
+        item_id = legacy_next_item_out_id(master_id)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, 'Sudah Diberikan')
+                """,
+                [item_id, id_brg, ambil, ambil, harga, tgl, id_ruang, batch['id']],
+            )
+            cursor.execute(
+                """
+                UPDATE rssams.item_logistik
+                SET jml_mutasi = COALESCE((SELECT SUM(qty) FROM rssams.item_out_log WHERE id_brg = %s AND id_item_logistik = %s), 0)
+                WHERE id = %s AND id_brg = %s
+                """,
+                [id_brg, batch['id'], batch['id'], id_brg],
+            )
+        remaining -= ambil
+        if remaining == 0:
+            break
+    if remaining > 0:
+        raise ValidationError('Stok batch tidak cukup.')
+    total = legacy_fetchone("SELECT COALESCE(SUM(qty),0) AS jmlbrg, COALESCE(SUM(qty*harga),0) AS nilai FROM rssams.item_out_log WHERE LEFT(id,6) = %s", [master_id])
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE rssams.tran_out_brg_log SET jmlbrg = %s, nilai = %s, done = 'Y' WHERE id = %s", [total['jmlbrg'], total['nilai'], master_id])
+    legacy_stock(id_brg)
+    return master_id
+
+
+class LogistikMutasiViewSet(viewsets.ViewSet):
+    serializer_class = LogistikMutasiSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        where = 'WHERE o.qty > 0'
+        params = []
+        if search:
+            where += ' AND (b.nama_barang LIKE %s OR r.ruangan LIKE %s OR o.id LIKE %s)'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        base = f"""
+            SELECT o.id, o.id AS nomor, o.id_brg AS barang, b.nama_barang AS barang_nama, b.satuan,
+                   DATE(o.tgl) AS tanggal, o.id_ruang, r.ruangan AS ruang, o.qty, o.harga, o.status
+            FROM rssams.item_out_log o
+            INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+            {where}
+            ORDER BY o.tgl DESC, o.id DESC
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.item_out_log o INNER JOIN rssams.dafbrg_log b ON b.id_brg=o.id_brg LEFT JOIN rssams.kode_ruang r ON r.id_ruang=o.id_ruang {where}"
+        return legacy_paginated(request, base, count, params)
+
+    @transaction.atomic
+    def create(self, request):
+        master_id = create_logistik_mutasi_fifo_legacy(
+            request.data.get('barang'),
+            request.data.get('ruang'),
+            request.data.get('qty') or 0,
+            request.data.get('tanggal'),
+            request.data.get('keterangan') or '',
+        )
+        return Response({'id': master_id, 'nomor': master_id}, status=201)
+
+
+class LogistikPermintaanViewSet(viewsets.ViewSet):
+    serializer_class = LogistikPermintaanSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        status_param = request.query_params.get('status')
+        where = 'WHERE o.qty_minta > 0'
+        params = []
+        if status_param == 'menunggu':
+            where += " AND o.status = 'Belum Ditanggapi'"
+        if search:
+            where += ' AND (b.nama_barang LIKE %s OR r.ruangan LIKE %s OR o.id LIKE %s)'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        base = f"""
+            SELECT o.id, o.id_brg AS barang, b.nama_barang AS barang_nama, b.satuan,
+                   DATE(o.tgl) AS tanggal, o.id_ruang, r.ruangan AS ruang,
+                   o.qty_minta, o.qty AS qty_setuju,
+                   CASE WHEN o.status = 'Belum Ditanggapi' THEN 'menunggu'
+                        WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan','Sudah Diterima') THEN 'disetujui'
+                        ELSE 'ditolak' END AS status,
+                   o.status AS status_label, o.tgl_verif AS verified_at
+            FROM rssams.item_out_log o
+            INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+            {where}
+            ORDER BY o.tgl DESC, o.id DESC
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.item_out_log o INNER JOIN rssams.dafbrg_log b ON b.id_brg=o.id_brg LEFT JOIN rssams.kode_ruang r ON r.id_ruang=o.id_ruang {where}"
+        return legacy_paginated(request, base, count, params)
+
+    def create(self, request):
+        prefix = timezone.localdate().strftime('%y')
+        next_row = legacy_fetchone(
+            "SELECT COALESCE(MAX(CAST(SUBSTR(id,4,6) AS UNSIGNED)),0)+1 AS next_id FROM rssams.item_out_log WHERE LEFT(id,2) = %s",
+            [prefix],
+        )
+        xid = f"{prefix}-{int(next_row['next_id']):06d}"
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
+                VALUES(%s, %s, %s, 0, 0, NOW(), %s, '', 'Belum Ditanggapi')
+                """,
+                [xid, request.data.get('barang'), request.data.get('qty_minta') or 0, request.data.get('ruang')],
+            )
+        return Response({'id': xid}, status=201)
+
+    @action(detail=True, methods=['post'], url_path='verifikasi')
+    @transaction.atomic
+    def verifikasi(self, request, pk=None):
+        item = legacy_fetchone('SELECT * FROM rssams.item_out_log WHERE id = %s', [pk])
+        if not item:
+            return Response({'error': 'Permintaan tidak ditemukan.'}, status=404)
+        if item['status'] != 'Belum Ditanggapi':
+            return Response({'error': 'Permintaan sudah diverifikasi.'}, status=400)
+        status_baru = request.data.get('status')
+        qty_setuju = int(request.data.get('qty_setuju') or 0)
+        if status_baru not in ('disetujui', 'ditolak'):
+            return Response({'error': 'Status verifikasi tidak valid.'}, status=400)
+        if status_baru == 'disetujui':
+            if qty_setuju <= 0 or qty_setuju > int(item['qty_minta'] or 0):
+                return Response({'error': 'Qty disetujui harus lebih dari 0 dan tidak melebihi permintaan.'}, status=400)
+            with connection.cursor() as cursor:
+                cursor.execute("UPDATE rssams.item_out_log SET qty = %s, status = 'Disetujui', tgl_verif = NOW() WHERE id = %s", [qty_setuju, pk])
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute("UPDATE rssams.item_out_log SET qty = 0, status = 'Tidak Disetujui', tgl_verif = NOW() WHERE id = %s", [pk])
+        return Response({'detail': 'OK'})
+
+
+class LogistikOpnameViewSet(viewsets.ViewSet):
+    serializer_class = LogistikOpnameSerializer
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        where = ''
+        params = []
+        if search:
+            where = 'WHERE b.nama_barang LIKE %s'
+            params = [f'%{search}%']
+        base = f"""
+            SELECT o.id, o.id_brg AS barang, b.nama_barang AS barang_nama,
+                   o.tgl AS tanggal, o.stock_komp AS stok_sistem, o.real_stock,
+                   o.real_stock - o.stock_komp AS selisih, '' AS keterangan
+            FROM rssams.opname_brg_log o
+            LEFT JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+            {where}
+            ORDER BY o.tgl DESC, o.id DESC
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.opname_brg_log o LEFT JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg {where}"
+        return legacy_paginated(request, base, count, params)
+
+    def create(self, request):
+        data = request.data
+        row = legacy_fetchone('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM rssams.opname_brg_log')
+        stock = legacy_stock(data.get('barang'))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.opname_brg_log(id, id_brg, real_stock, stock_komp, harga, tgl)
+                VALUES(%s, %s, %s, %s, 0, %s)
+                """,
+                [row['next_id'], data.get('barang'), data.get('real_stock') or 0, stock, data.get('tanggal') or timezone.localdate()],
+            )
+        return Response({'id': row['next_id']}, status=201)
+
+
 class RekapDriverView(APIView):
     permission_classes = [IsAuthenticated]
  
@@ -5203,3 +5917,4 @@ class RekapDriverView(APIView):
             'log_bbm':        LogBBMSerializer(qs_bbm.select_related('driver','kendaraan'), many=True, context={'request': request}).data,
             'log_maintenance': LogMaintenanceSerializer(qs_maintenance.select_related('kendaraan','dilaporkan_oleh'), many=True).data,
         })
+

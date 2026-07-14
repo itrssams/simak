@@ -73,7 +73,13 @@ export default function DaftarKunjunganInvoice() {
     const [detailLoading, setDetailLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
+    const [appending, setAppending] = useState(false);
     const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+    const [appendDialogOpen, setAppendDialogOpen] = useState(false);
+    const [invoiceSearch, setInvoiceSearch] = useState('');
+    const [invoiceResults, setInvoiceResults] = useState([]);
+    const [invoiceSearching, setInvoiceSearching] = useState(false);
+    const [appendTarget, setAppendTarget] = useState(null);
     const [invoiceForm, setInvoiceForm] = useState({ jenis: '', periode: '', id_pembiayaan: '' });
     const [newPembiayaanOpen, setNewPembiayaanOpen] = useState(false);
     const [newPembiayaan, setNewPembiayaan] = useState({ nama: '', alamat: '' });
@@ -177,13 +183,13 @@ export default function DaftarKunjunganInvoice() {
     useEffect(() => { fetchRows(); }, [fetchRows]);
     useEffect(() => { setPage(1); }, [filters, pageSize]);
     useEffect(() => {
-        if (!detail && !invoiceDialogOpen) return undefined;
+        if (!detail && !invoiceDialogOpen && !appendDialogOpen) return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [detail, invoiceDialogOpen]);
+    }, [detail, invoiceDialogOpen, appendDialogOpen]);
 
     const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
 
@@ -250,6 +256,65 @@ export default function DaftarKunjunganInvoice() {
         setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: '' });
         setNewPembiayaanOpen(false);
         setNewPembiayaan({ nama: '', alamat: '' });
+    };
+
+    const openAppendDialog = () => {
+        if (!validateInvoiceSelection()) return;
+        setInvoiceSearch('');
+        setInvoiceResults([]);
+        setAppendTarget(null);
+        setAppendDialogOpen(true);
+    };
+
+    const closeAppendDialog = () => {
+        if (appending) return;
+        setAppendDialogOpen(false);
+        setInvoiceSearch('');
+        setInvoiceResults([]);
+        setAppendTarget(null);
+    };
+
+    const searchExistingInvoices = async (event) => {
+        event.preventDefault();
+        const query = invoiceSearch.trim();
+        if (!query) {
+            toast.error('Masukkan nomor invoice atau nama pembiayaan.');
+            return;
+        }
+        setInvoiceSearching(true);
+        setAppendTarget(null);
+        try {
+            const res = await api.get('/keuangan/kunjungan-invoice/', { params: { invoice_search: query } });
+            setInvoiceResults(getResults(res.data));
+        } catch (err) {
+            toast.error(getError(err, 'Gagal mencari invoice.'));
+        } finally {
+            setInvoiceSearching(false);
+        }
+    };
+
+    const appendToInvoice = async () => {
+        if (!appendTarget) {
+            toast.error('Pilih invoice tujuan terlebih dahulu.');
+            return;
+        }
+        if (!validateInvoiceSelection()) return;
+        setAppending(true);
+        try {
+            await api.post('/keuangan/kunjungan-invoice/', {
+                action: 'append',
+                nomor_kunjungan: selectedNos,
+                nomor_faktur: appendTarget.nomor_faktur,
+            });
+            toast.success(`${selectedNos.length} kunjungan berhasil dimasukkan ke invoice ${appendTarget.nomor_faktur}.`);
+            closeAppendDialog();
+            setSelectedNos([]);
+            await fetchRows();
+        } catch (err) {
+            toast.error(getError(err, 'Gagal memasukkan kunjungan ke invoice.'));
+        } finally {
+            setAppending(false);
+        }
     };
 
     const createPembiayaanFromDialog = async () => {
@@ -356,6 +421,14 @@ export default function DaftarKunjunganInvoice() {
                             onClick={openInvoiceDialog}
                         >
                             <FilePlus2 size={16} /> {creating ? 'Membuat...' : `Buat Invoice (${selectedNos.length})`}
+                        </button>
+                        <button
+                            className="dki-primary dki-create-btn"
+                            type="button"
+                            disabled={selectedNos.length === 0 || appending}
+                            onClick={openAppendDialog}
+                        >
+                            <ReceiptText size={16} /> {appending ? 'Memasukkan...' : 'Masukkan ke Invoice'}
                         </button>
                     </div>
                 </div>
@@ -635,6 +708,84 @@ export default function DaftarKunjunganInvoice() {
                             </div>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {appendDialogOpen && (
+                <div className="dki-modal-backdrop" onMouseDown={closeAppendDialog}>
+                    <div className="dki-modal dki-create-modal dki-append-modal" onMouseDown={(e) => e.stopPropagation()}>
+                        <div className="dki-modal-head">
+                            <div>
+                                <span><ReceiptText size={21} /></span>
+                                <div>
+                                    <small>Invoice Existing</small>
+                                    <h2>Masukkan ke Invoice</h2>
+                                    <p>{selectedNos.length} kunjungan dipilih. Cari invoice tujuan, pilih hasilnya, lalu konfirmasi.</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={closeAppendDialog} disabled={appending}><X size={18} /> Tutup</button>
+                        </div>
+                        <div className="dki-create-body dki-append-body">
+                            <div className="dki-create-summary dki-append-summary">
+                                <Info label="Kunjungan Dipilih" value={`${selectedNos.length} kunjungan`} icon={ClipboardList} />
+                                <Info label="Total Terpilih" value={money(selectedTotal)} icon={ReceiptText} strong />
+                            </div>
+                            <form className="dki-invoice-search" onSubmit={searchExistingInvoices}>
+                                <label className="dki-search">
+                                    <Search size={16} />
+                                    <input
+                                        value={invoiceSearch}
+                                        onChange={(e) => setInvoiceSearch(e.target.value)}
+                                        placeholder="Cari nomor invoice / pembiayaan..."
+                                        autoFocus
+                                    />
+                                </label>
+                                <button className="dki-primary" type="submit" disabled={invoiceSearching || appending}>
+                                    <Search size={16} /> {invoiceSearching ? 'Mencari...' : 'Cari'}
+                                </button>
+                            </form>
+                            {invoiceResults.length > 0 && (
+                                <div className="dki-invoice-result-panel">
+                                    <div className="dki-invoice-result-head">
+                                        <span>Hasil Pencarian</span>
+                                        <small>{invoiceResults.length} invoice</small>
+                                    </div>
+                                    <div className="dki-invoice-results">
+                                        {invoiceResults.map((invoice) => (
+                                            <button
+                                                key={invoice.id}
+                                                type="button"
+                                                className={`dki-invoice-result ${appendTarget?.id === invoice.id ? 'selected' : ''}`}
+                                                onClick={() => setAppendTarget(invoice)}
+                                                disabled={appending}
+                                            >
+                                                <span className="dki-invoice-no">{invoice.nomor_faktur}</span>
+                                                <span className="dki-invoice-name">{invoice.nama_pembiayaan || invoice.pelanggan_detail?.nama || '-'}</span>
+                                                <span className="dki-invoice-amount">{money(invoice.total_piutang ?? invoice.total_tagihan)}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {invoiceSearch.trim() && !invoiceSearching && invoiceResults.length === 0 && (
+                                <div className="dki-empty-result">Invoice tidak ditemukan.</div>
+                            )}
+                            {appendTarget && (
+                                <div className="dki-confirm-box dki-append-confirm">
+                                    <CheckCircle2 size={18} />
+                                    <span>
+                                        Kunjungan terpilih akan dimasukkan ke invoice <strong>{appendTarget.nomor_faktur}</strong>.
+                                    </span>
+                                </div>
+                            )}
+                            <div className="dki-modal-actions">
+                                <button className="dki-secondary" type="button" onClick={closeAppendDialog} disabled={appending}>Batal</button>
+                                <button className="dki-primary" type="button" onClick={appendToInvoice} disabled={!appendTarget || appending}>
+                                    <ReceiptText size={16} /> {appending ? 'Memasukkan...' : 'Konfirmasi'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

@@ -12,6 +12,8 @@ from .views import (
     ITBackupRecordViewSet, ITRepairRequestViewSet, ITCredentialNoteViewSet, ITRemoteAccessViewSet,
     ITSubscriptionViewSet, AnnouncementViewSet,
     InventoryOptionViewSet, InventoryAssetViewSet,
+    LogistikBarangViewSet, LogistikPembelianViewSet, LogistikBatchViewSet,
+    LogistikMutasiViewSet, LogistikPermintaanViewSet, LogistikOpnameViewSet, LogistikVendorViewSet,
     UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView,
     faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
 )
@@ -38,6 +40,13 @@ router.register(r'log-maintenance', LogMaintenanceViewSet, basename='log-mainten
 router.register(r'announcements',   AnnouncementViewSet,   basename='announcements')
 router.register(r'inventory/options', InventoryOptionViewSet, basename='inventory-options')
 router.register(r'inventory/assets',  InventoryAssetViewSet,  basename='inventory-assets')
+router.register(r'logistik/barang', LogistikBarangViewSet, basename='logistik-barang')
+router.register(r'logistik/vendor', LogistikVendorViewSet, basename='logistik-vendor')
+router.register(r'logistik/pembelian', LogistikPembelianViewSet, basename='logistik-pembelian')
+router.register(r'logistik/batch', LogistikBatchViewSet, basename='logistik-batch')
+router.register(r'logistik/mutasi', LogistikMutasiViewSet, basename='logistik-mutasi')
+router.register(r'logistik/permintaan', LogistikPermintaanViewSet, basename='logistik-permintaan')
+router.register(r'logistik/opname', LogistikOpnameViewSet, basename='logistik-opname')
 router.register(r'utang-supplier', UtangSupplierViewSet, basename='utang-supplier')
 router.register(r'pembayaran-utang', PembayaranUtangViewSet, basename='pembayaran-utang')
 router.register(r'it/backups',      ITBackupRecordViewSet, basename='it-backups')

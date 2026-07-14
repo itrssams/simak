@@ -31,6 +31,7 @@ class User(AbstractUser):
     is_keuangan = models.BooleanField(default=False)
     is_petty_cash_cashier = models.BooleanField(default=False)
     akses_catatan_utang = models.BooleanField(default=False)
+    is_logistik = models.BooleanField(default=False)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
 
     def __str__(self):

@@ -28,6 +28,7 @@ import DaftarKunjunganInvoice from './pages/Keuangan/DaftarKunjunganInvoice';
 import InvoiceVerifikasi from './pages/Keuangan/InvoiceVerifikasi';
 import MasterPembiayaan from './pages/Keuangan/MasterPembiayaan';
 import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
+import Logistik from './pages/Logistik/Logistik';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
@@ -37,6 +38,7 @@ const isKepalaSeksiUp = (u) => u?.is_superuser || ['kepala_seksi', 'manajer', 'w
 const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].includes(u?.role);
 const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
+const isLogistik = (u) => u?.is_superuser || u?.is_logistik || isManajerUp(u);
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isManajerUp(u);
@@ -60,6 +62,7 @@ const HomeRedirect = () => {
     if (!user) return <Navigate to="/login" />;
     if (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser) return <Navigate to="/it" />;
     if (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user)) return <Navigate to="/keuangan/catatan-utang/obat-bhp" />;
+    if (user.is_logistik && !isManajerUp(user)) return <Navigate to="/logistik" />;
     if (isKeuanganNonManajer(user)) return <Navigate to="/keuangan/kunjungan-invoice" />;
     if (isBasicRole(user)) return <Navigate to="/petty-cash" />;
     return (
@@ -114,7 +117,7 @@ const AppRoutes = () => {
             {/* Login */}
             <Route
                 path="/login"
-                element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user) ? <Navigate to="/keuangan/catatan-utang/obat-bhp" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />))))}
+                element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user) ? <Navigate to="/keuangan/catatan-utang/obat-bhp" /> : (user.is_logistik && !isManajerUp(user) ? <Navigate to="/logistik" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />)))))}
             />
 
             {/* Home */}
@@ -144,6 +147,8 @@ const AppRoutes = () => {
             <Route path="/keuangan/master-pembiayaan" element={<ProtectedRoute allow={isKeuangan}><MasterPembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/invoices/:id" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/catatan-utang/obat-bhp" element={<ProtectedRoute allow={canCatatanUtang}><CatatanUtangObatBhp /></ProtectedRoute>} />
+            <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
+            <Route path="/logistik/:section" element={<ProtectedRoute allow={isLogistik}><Logistik /></ProtectedRoute>} />
 
             {/* Lainnya */}
             <Route path="/audit-log" element={<ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}><AuditLog /></ProtectedRoute>} />

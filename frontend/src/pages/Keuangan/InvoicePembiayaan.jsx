@@ -222,6 +222,8 @@ export default function InvoicePembiayaan() {
     const [deletingPaymentId, setDeletingPaymentId] = useState(null);
     const [paymentToDelete, setPaymentToDelete] = useState(null);
     const [paymentToVerify, setPaymentToVerify] = useState(null);
+    const [visitToRemove, setVisitToRemove] = useState(null);
+    const [removingVisitNo, setRemovingVisitNo] = useState(null);
     const [paymentDateTouched, setPaymentDateTouched] = useState(false);
     const [invoiceToCancel, setInvoiceToCancel] = useState(null);
     const [cancelingInvoiceId, setCancelingInvoiceId] = useState(null);
@@ -316,13 +318,13 @@ export default function InvoicePembiayaan() {
     useEffect(() => { setPage(1); }, [filters, pageSize]);
 
     useEffect(() => {
-        if (!createOpen && !selected && !sendTarget && !sentInfoTarget && !invoiceToCancel && !paymentToDelete && !paymentToVerify && !rekapOpen && !receiptOpen) return undefined;
+        if (!createOpen && !selected && !sendTarget && !sentInfoTarget && !invoiceToCancel && !paymentToDelete && !paymentToVerify && !visitToRemove && !rekapOpen && !receiptOpen) return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [createOpen, selected, sendTarget, sentInfoTarget, invoiceToCancel, paymentToDelete, paymentToVerify, rekapOpen, receiptOpen]);
+    }, [createOpen, selected, sendTarget, sentInfoTarget, invoiceToCancel, paymentToDelete, paymentToVerify, visitToRemove, rekapOpen, receiptOpen]);
 
     const selectedPembiayaan = pembiayaan.find((item) => String(item.id_pembiayaan) === String(form.id_pembiayaan));
     const pembiayaanNameById = useMemo(() => {
@@ -348,7 +350,7 @@ export default function InvoicePembiayaan() {
         [receiptSelectionDetails],
     );
     const selectedReceiptTotal = useMemo(
-        () => selectedReceiptInvoices.reduce((sum, item) => sum + Number(item.total_tagihan || 0), 0),
+        () => selectedReceiptInvoices.reduce((sum, item) => sum + Number(item.total_piutang ?? item.total_tagihan ?? 0), 0),
         [selectedReceiptInvoices],
     );
     const allPageInvoicesSelected = items.length > 0 && items.every((item) => receiptSelection.has(item.id));
@@ -570,6 +572,33 @@ export default function InvoicePembiayaan() {
 
     const openDetail = (invoice) => {
         navigate(`/keuangan/invoices/${invoice.id}`);
+    };
+
+    const requestRemoveVisit = (visit) => {
+        setVisitToRemove(visit);
+    };
+
+    const closeRemoveVisit = () => {
+        if (removingVisitNo) return;
+        setVisitToRemove(null);
+    };
+
+    const confirmRemoveVisit = async () => {
+        if (!selected || !visitToRemove) return;
+        setRemovingVisitNo(visitToRemove.no);
+        try {
+            const res = await api.delete('/keuangan/kunjungan-invoice/', {
+                data: { nomor_faktur: selected.nomor_faktur, no: visitToRemove.no },
+            });
+            toast.success(`Kunjungan ${visitToRemove.no} berhasil dilepas dari invoice.`);
+            setVisitToRemove(null);
+            setSelected(res.data);
+            await Promise.all([fetchInvoices(), fetchOptions()]);
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal melepas kunjungan dari invoice.'));
+        } finally {
+            setRemovingVisitNo(null);
+        }
     };
 
     const requestCancelInvoice = (invoice, event) => {
@@ -953,6 +982,7 @@ export default function InvoicePembiayaan() {
                                     <th>Tanggal</th>
                                     <th>Pembiayaan</th>
                                     <th className="inv-right">Total Tagihan</th>
+                                    <th className="inv-right">Total Piutang</th>
                                     <th>Status</th>
                                     <th>Aksi</th>
                                 </tr>
@@ -982,6 +1012,7 @@ export default function InvoicePembiayaan() {
                                                 </div>
                                             </td>
                                             <td className="inv-right inv-mono">{money(item.total_tagihan)}</td>
+                                            <td className="inv-right inv-mono">{money(item.total_piutang ?? item.total_tagihan)}</td>
                                             <td><StatusBadge status={item.status} label={item.status_label} /></td>
                                             <td>
                                                 <div className="inv-action-group">
@@ -1177,6 +1208,42 @@ export default function InvoicePembiayaan() {
                                             <Info label="Status" value={<StatusBadge status={selected.status} label={selected.status_label} />} />
                                         </div>
                                     </section>
+                                    <section className="inv-detail-section inv-visit-section">
+                                        <HeaderLine title="Kunjungan Invoice" icon={ClipboardList} />
+                                        {selected.pasien_invoice?.length ? (
+                                            <div className="inv-visit-list">
+                                                {selected.pasien_invoice.map((visit) => {
+                                                    const locked = (selected.pembayaran || []).length > 0;
+                                                    return (
+                                                        <div className="inv-visit-row" key={visit.no}>
+                                                            <div>
+                                                                <strong>{visit.nama}</strong>
+                                                                <span>No {visit.no} | RM {visit.noreg}</span>
+                                                            </div>
+                                                            <div className="inv-visit-total">
+                                                                <span>Total Piutang</span>
+                                                                <strong>{money(visit.total_piutang)}</strong>
+                                                                {Number(visit.total_dibayar_pasien || 0) > 0 && (
+                                                                    <em>Bayar pasien {money(visit.total_dibayar_pasien)}</em>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                className="inv-action-btn danger"
+                                                                type="button"
+                                                                onClick={() => requestRemoveVisit(visit)}
+                                                                disabled={locked}
+                                                                title={locked ? 'Invoice yang sudah punya pembayaran atau pengajuan pembayaran tidak bisa diubah' : 'Hapus kunjungan dari invoice'}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="inv-empty compact">Belum ada kunjungan terhubung.</div>
+                                        )}
+                                    </section>
                                     <section className="inv-detail-section inv-breakdown-section">
                                         <HeaderLine title="Breakdown Biaya" icon={ClipboardList} />
                                         <div className="inv-breakdown-grid">
@@ -1302,6 +1369,34 @@ export default function InvoicePembiayaan() {
                     </div>
                 </div>,
                 document.body,
+            )}
+
+            {visitToRemove && createPortal(
+                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeRemoveVisit}>
+                    <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-remove-visit-title" onMouseDown={(event) => event.stopPropagation()}>
+                        <div className="inv-confirm-icon">
+                            <Trash2 size={24} />
+                        </div>
+                        <div className="inv-confirm-copy">
+                            <h2 id="inv-remove-visit-title">Hapus Kunjungan dari Invoice?</h2>
+                            <p>
+                                Kunjungan <strong>{visitToRemove.no}</strong> atas nama {visitToRemove.nama} akan dilepas dari invoice <strong>{selected?.nomor_faktur}</strong>.
+                                Status kunjungan akan kembali menjadi belum invoice.
+                            </p>
+                        </div>
+                        <div className="inv-confirm-detail">
+                            <span>Nomor RM</span>
+                            <strong>{visitToRemove.noreg || '-'}</strong>
+                        </div>
+                        <div className="inv-confirm-actions">
+                            <button className="inv-btn soft" type="button" onClick={closeRemoveVisit} disabled={Boolean(removingVisitNo)}>Batal</button>
+                            <button className="inv-danger-btn" type="button" onClick={confirmRemoveVisit} disabled={Boolean(removingVisitNo)}>
+                                <Trash2 size={16} /> {removingVisitNo ? 'Menghapus...' : 'Hapus Kunjungan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
 
             {paymentToDelete && createPortal(

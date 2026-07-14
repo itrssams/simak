@@ -967,6 +967,68 @@ textarea.inv-input {
   margin-top: 4px;
 }
 
+.inv-visit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.inv-visit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto) 34px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(226,232,240,.78);
+  border-radius: 16px;
+  background: rgba(255,255,255,.78);
+}
+
+.inv-visit-row strong {
+  display: block;
+  color: var(--inv-text);
+  font-size: 14px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.inv-visit-row span {
+  display: block;
+  margin-top: 3px;
+  color: var(--inv-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.inv-visit-total {
+  text-align: right;
+}
+
+.inv-visit-total span {
+  margin: 0 0 3px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.inv-visit-total strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-visit-total em {
+  display: block;
+  margin-top: 3px;
+  color: #047857;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-empty.compact {
+  padding: 14px;
+  min-height: 0;
+}
+
 .inv-cost-label {
   color: var(--inv-muted);
 }

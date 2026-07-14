@@ -16,7 +16,8 @@ from .models import (
     Kendaraan, LogPerjalanan, LaporanPerjalanan, FotoLaporanPerjalanan, LogBBM, LogMaintenance,
     ITBackupRecord, ITRepairRequest, ITCredentialNote, ITRemoteAccess, ITSubscription,
     Announcement, AnnouncementRead,
-    InventoryOption, InventoryAsset
+    InventoryOption, InventoryAsset,
+    LogistikBarang, LogistikPembelian, LogistikBatch, LogistikMutasi, LogistikPermintaan, LogistikOpname
 )
 from .audit import infer_target, make_description, target_display_from_user
 from .audit import get_keuangan_target_display
@@ -377,8 +378,44 @@ class FakturSerializer(serializers.ModelSerializer):
     pelanggan_detail = PelangganSerializer(source='pelanggan', read_only=True)
     created_by_name  = serializers.CharField(source='created_by.username', read_only=True)
     sisa_tagihan     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    total_piutang    = serializers.SerializerMethodField()
     status_label     = serializers.CharField(source='get_status_display', read_only=True)
     pasien_invoice   = serializers.SerializerMethodField()
+
+    def get_total_piutang(self, obj):
+        if obj.nomor_faktur:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT COALESCE(SUM(
+                            COALESCE(a.adm,0) +
+                            COALESCE(a.jasa,0) +
+                            COALESCE(a.farmasi,0) +
+                            COALESCE(a.tindakan,0) +
+                            COALESCE(a.fisio,0) +
+                            COALESCE(a.lab,0) +
+                            COALESCE(a.kamar,0) +
+                            COALESCE(a.rad,0) +
+                            COALESCE(a.bhp,0) +
+                            COALESCE(a.lainnya,0) +
+                            COALESCE(a.ambulan,0) +
+                            COALESCE(a.alat,0) -
+                            COALESCE(a.jmlbyr,0)
+                        ), 0) AS total_piutang,
+                        COUNT(*) AS total_rows
+                        FROM rssams.kunjung a
+                        INNER JOIN rssams.verif_kunjung c ON a.no = c.no
+                        WHERE c.no_invoice = %s
+                        """,
+                        [obj.nomor_faktur]
+                    )
+                    total_piutang, total_rows = cursor.fetchone()
+                if total_rows:
+                    return total_piutang
+            except Exception:
+                pass
+        return obj.sisa_tagihan
 
     def get_pasien_invoice(self, obj):
         view = self.context.get('view')
@@ -392,7 +429,39 @@ class FakturSerializer(serializers.ModelSerializer):
                     SELECT DISTINCT
                         a.no,
                         a.noreg,
-                        b.nama
+                        b.nama,
+                        (
+                            COALESCE(a.adm,0) +
+                            COALESCE(a.jasa,0) +
+                            COALESCE(a.farmasi,0) +
+                            COALESCE(a.tindakan,0) +
+                            COALESCE(a.fisio,0) +
+                            COALESCE(a.lab,0) +
+                            COALESCE(a.lab_pa,0) +
+                            COALESCE(a.kamar,0) +
+                            COALESCE(a.rad,0) +
+                            COALESCE(a.bhp,0) +
+                            COALESCE(a.lainnya,0) +
+                            COALESCE(a.ambulan,0) +
+                            COALESCE(a.alat,0)
+                        ) AS total_tagihan,
+                        COALESCE(a.jmlbyr,0) AS total_dibayar_pasien,
+                        (
+                            COALESCE(a.adm,0) +
+                            COALESCE(a.jasa,0) +
+                            COALESCE(a.farmasi,0) +
+                            COALESCE(a.tindakan,0) +
+                            COALESCE(a.fisio,0) +
+                            COALESCE(a.lab,0) +
+                            COALESCE(a.lab_pa,0) +
+                            COALESCE(a.kamar,0) +
+                            COALESCE(a.rad,0) +
+                            COALESCE(a.bhp,0) +
+                            COALESCE(a.lainnya,0) +
+                            COALESCE(a.ambulan,0) +
+                            COALESCE(a.alat,0) -
+                            COALESCE(a.jmlbyr,0)
+                        ) AS total_piutang
                     FROM rssams.kunjung a
                     INNER JOIN rssams.regpasien b ON a.noreg = b.noreg
                     INNER JOIN rssams.verif_kunjung c ON a.no = c.no
@@ -413,7 +482,7 @@ class FakturSerializer(serializers.ModelSerializer):
             'id_pembiayaan', 'nama_pembiayaan', 'jenis', 'periode', 'beban',
             'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
             'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
-            'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'status', 'status_label',
+            'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'total_piutang', 'status', 'status_label',
             'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan', 'pasien_invoice',
             'created_by', 'created_by_name', 'created_at', 'updated_at'
         ]
@@ -1352,4 +1421,91 @@ class InventoryAssetSerializer(serializers.ModelSerializer):
         if purchase_year and (purchase_year < 1900 or purchase_year > 2100):
             raise serializers.ValidationError({'purchase_year': 'Tahun beli tidak valid.'})
         return attrs
+
+
+class LogistikBarangSerializer(serializers.ModelSerializer):
+    stok_minimum_alert = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LogistikBarang
+        fields = '__all__'
+        read_only_fields = ['id', 'stok', 'created_by', 'created_at', 'updated_at', 'stok_minimum_alert']
+
+    def get_stok_minimum_alert(self, obj):
+        return obj.stok_minimum > 0 and obj.stok < obj.stok_minimum
+
+
+class LogistikBatchSerializer(serializers.ModelSerializer):
+    barang_nama = serializers.CharField(source='barang.nama_barang', read_only=True)
+    satuan = serializers.CharField(source='barang.satuan', read_only=True)
+    stok_batch = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = LogistikBatch
+        fields = ['id', 'pembelian', 'barang', 'barang_nama', 'satuan', 'qty', 'isi', 'harga', 'jml_mutasi', 'stok_batch', 'created_at']
+        read_only_fields = ['id', 'jml_mutasi', 'stok_batch', 'created_at']
+
+
+class LogistikPembelianSerializer(serializers.ModelSerializer):
+    items = LogistikBatchSerializer(many=True, read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LogistikPembelian
+        fields = '__all__'
+        read_only_fields = ['id', 'nomor', 'created_by', 'created_by_name', 'created_at', 'updated_at', 'items']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+
+class LogistikMutasiSerializer(serializers.ModelSerializer):
+    barang_nama = serializers.CharField(source='barang.nama_barang', read_only=True)
+    satuan = serializers.CharField(source='barang.satuan', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LogistikMutasi
+        fields = '__all__'
+        read_only_fields = ['id', 'nomor', 'batch', 'harga', 'created_by', 'created_by_name', 'created_at']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+
+class LogistikPermintaanSerializer(serializers.ModelSerializer):
+    barang_nama = serializers.CharField(source='barang.nama_barang', read_only=True)
+    satuan = serializers.CharField(source='barang.satuan', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    verified_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LogistikPermintaan
+        fields = '__all__'
+        read_only_fields = ['id', 'qty_setuju', 'status', 'created_by', 'created_by_name', 'verified_by', 'verified_by_name', 'verified_at', 'created_at']
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
+
+    def get_verified_by_name(self, obj):
+        return user_name(obj.verified_by)
+
+
+class LogistikOpnameSerializer(serializers.ModelSerializer):
+    barang_nama = serializers.CharField(source='barang.nama_barang', read_only=True)
+    stok_sistem = serializers.IntegerField(source='barang.stok', read_only=True)
+    selisih = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LogistikOpname
+        fields = '__all__'
+        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at', 'stok_sistem', 'selisih']
+
+    def get_selisih(self, obj):
+        return obj.real_stock - obj.barang.stok
+
+    def get_created_by_name(self, obj):
+        return user_name(obj.created_by)
 

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     Bell,
@@ -113,10 +113,26 @@ const MENU_CATATAN_UTANG = [
         ],
     },
 ];
+const MENU_LOGISTIK = [
+    {
+        label: 'Gudang Logistik', icon: 'inventory', children: [
+            { label: 'Daftar Barang', path: '/logistik/barang' },
+            { label: 'Master Vendor', path: '/logistik/vendor' },
+            { label: 'SPB', path: '/logistik/spb' },
+            { label: 'Penerimaan', path: '/logistik/penerimaan' },
+            { label: 'Barang Keluar', path: '/logistik/barang-keluar' },
+            { label: 'Permintaan', path: '/logistik/permintaan' },
+            { label: 'Verifikasi Permintaan', path: '/logistik/verifikasi' },
+            { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
+            { label: 'Kartu Stok', path: '/logistik/kartu-stok' },
+            { label: 'Opname', path: '/logistik/opname' },
+        ],
+    },
+];
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = false;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User'];
 
 function uniqueMenus(items) {
     const result = [];
@@ -162,7 +178,7 @@ function orderMenus(items) {
 function getMenuItems(user) {
     const role = user?.role;
     const base = [];
-    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG])));
+    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK])));
     if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
     else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
     else if (role === 'kepala_seksi') base.push(...MENU_KEPALA_SEKSI);
@@ -171,6 +187,7 @@ function getMenuItems(user) {
     if (user?.is_it) base.push(...MENU_IT);
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
     if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
+    if (user?.is_logistik || isManajerUp(user)) base.push(...MENU_LOGISTIK);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -305,6 +322,7 @@ export default function Layout({ children }) {
         user?.is_keuangan ? 'Keuangan' : '',
         user?.is_petty_cash_cashier ? 'Kas Petty Cash' : '',
         user?.akses_catatan_utang ? 'Catatan Utang' : '',
+        user?.is_logistik ? 'Logistik' : '',
     ].filter(Boolean);
     const baseRoleLabel = ROLE_LABEL[user?.role] || (user?.is_superuser ? 'Superuser' : user?.role || '');
     const roleLabel = featureLabels.length ? `${baseRoleLabel} + ${featureLabels.join(' + ')}` : baseRoleLabel;
@@ -1247,3 +1265,4 @@ export default function Layout({ children }) {
         </div>
     );
 }
+
