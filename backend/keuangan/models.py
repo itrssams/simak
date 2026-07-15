@@ -364,12 +364,13 @@ class Faktur(models.Model):
 
         effective_total = self._get_effective_total_tagihan()
         self.total_dibayar = self._get_verified_total_dibayar()
-        if self.total_dibayar == 0:
-            self.status = 'belum_bayar'
-        elif self.total_dibayar < effective_total:
-            self.status = 'bayar_sebagian'
-        elif self.total_dibayar >= effective_total:
+        sisa = effective_total - self.total_dibayar
+        if sisa <= 0:
             self.status = 'lunas'
+        elif self.total_dibayar == 0:
+            self.status = 'belum_bayar'
+        else:
+            self.status = 'bayar_sebagian'
         super().save(*args, **kwargs)
 
     @property
