@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from decimal import Decimal 
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -380,7 +381,8 @@ class FakturSerializer(serializers.ModelSerializer):
     sisa_tagihan     = serializers.SerializerMethodField()
     total_dibayar    = serializers.SerializerMethodField()
     total_piutang    = serializers.SerializerMethodField()
-    status_label     = serializers.CharField(source='get_status_display', read_only=True)
+    status           = serializers.SerializerMethodField()
+    status_label     = serializers.SerializerMethodField()
     pasien_invoice   = serializers.SerializerMethodField()
 
     def get_total_dibayar(self, obj):
@@ -425,6 +427,30 @@ class FakturSerializer(serializers.ModelSerializer):
             except Exception:
                 pass
         return obj.sisa_tagihan
+
+    def _get_effective_status(self, obj):
+        """Hitung status LIVE (bukan cuma andelin field DB), karena
+        jmlbyr di rssams.kunjung bisa berubah dari sistem lama (kasir/APP_SIAGA)
+        tanpa lewat Django, sehingga field `status` tersimpan bisa stale
+        walau sisa_tagihan/total_piutang (live query) udah 0."""
+        if obj.status == 'batal':
+            return 'batal'
+        total_piutang = self.get_total_piutang(obj)
+        total_dibayar = self.get_total_dibayar(obj)
+        sisa = total_piutang - total_dibayar
+        if sisa <= 0:
+            return 'lunas'
+        elif total_dibayar == 0:
+            return 'belum_bayar'
+        else:
+            return 'bayar_sebagian'
+
+    def get_status(self, obj):
+        return self._get_effective_status(obj)
+
+    def get_status_label(self, obj):
+        effective_status = self._get_effective_status(obj)
+        return dict(Faktur.STATUS_CHOICES).get(effective_status, effective_status)
 
     def get_pasien_invoice(self, obj):
         view = self.context.get('view')
