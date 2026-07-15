@@ -377,10 +377,19 @@ class FakturSerializer(serializers.ModelSerializer):
     pembayaran       = PembayaranFakturSerializer(many=True, read_only=True)
     pelanggan_detail = PelangganSerializer(source='pelanggan', read_only=True)
     created_by_name  = serializers.CharField(source='created_by.username', read_only=True)
-    sisa_tagihan     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    sisa_tagihan     = serializers.SerializerMethodField()
+    total_dibayar    = serializers.SerializerMethodField()
     total_piutang    = serializers.SerializerMethodField()
     status_label     = serializers.CharField(source='get_status_display', read_only=True)
     pasien_invoice   = serializers.SerializerMethodField()
+
+    def get_total_dibayar(self, obj):
+        return obj._get_verified_total_dibayar() if hasattr(obj, '_get_verified_total_dibayar') else obj.total_dibayar
+
+    def get_sisa_tagihan(self, obj):
+        if hasattr(obj, 'sisa_tagihan'):
+            return obj.sisa_tagihan
+        return Decimal('0')
 
     def get_total_piutang(self, obj):
         if obj.nomor_faktur:

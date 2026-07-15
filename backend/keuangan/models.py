@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import connection, models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -307,27 +307,75 @@ class Faktur(models.Model):
             return f"{self.nomor_faktur} - {self.pelanggan.nama}"
         return f"{self.nomor_faktur} - {self.nama_pembiayaan}"
 
+    def _get_effective_total_tagihan(self):
+        if self.nomor_faktur:
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT COALESCE(SUM(
+                            COALESCE(a.adm,0) +
+                            COALESCE(a.jasa,0) +
+                            COALESCE(a.farmasi,0) +
+                            COALESCE(a.tindakan,0) +
+                            COALESCE(a.fisio,0) +
+                            COALESCE(a.lab,0) +
+                            COALESCE(a.kamar,0) +
+                            COALESCE(a.rad,0) +
+                            COALESCE(a.bhp,0) +
+                            COALESCE(a.lainnya,0) +
+                            COALESCE(a.ambulan,0) +
+                            COALESCE(a.alat,0) -
+                            COALESCE(a.jmlbyr,0)
+                        ), 0) AS total_piutang,
+                        COUNT(*) AS total_rows
+                        FROM rssams.kunjung a
+                        INNER JOIN rssams.verif_kunjung c ON a.no = c.no
+                        WHERE c.no_invoice = %s
+                        """,
+                        [self.nomor_faktur],
+                    )
+                    total_piutang, total_rows = cursor.fetchone()
+                if total_rows:
+                    return total_piutang
+            except Exception:
+                pass
+        return self.total_tagihan
+
+    def _get_verified_total_dibayar(self):
+        excluded_keterangan = 'Payment from app_siaga migration'
+        return self.pembayaran.filter(
+            status_verifikasi='terverifikasi'
+        ).exclude(
+            keterangan=excluded_keterangan
+        ).aggregate(
+            total=models.Sum('jumlah')
+        )['total'] or Decimal('0')
+
     def save(self, *args, **kwargs):
         # Calculate total_tagihan from cost breakdown
         self.total_tagihan = (
-            self.adm + self.jasa + self.farmasi + self.tindakan + self.fisio + 
+            self.adm + self.jasa + self.farmasi + self.tindakan + self.fisio +
             self.lab + self.rad + self.kamar + self.bhp + self.lainnya + self.ambulan + self.alat
         )
         if self.status == 'batal':
             super().save(*args, **kwargs)
             return
-        # Update status based on payment
+
+        effective_total = self._get_effective_total_tagihan()
+        self.total_dibayar = self._get_verified_total_dibayar()
         if self.total_dibayar == 0:
             self.status = 'belum_bayar'
-        elif self.total_dibayar < self.total_tagihan:
+        elif self.total_dibayar < effective_total:
             self.status = 'bayar_sebagian'
-        elif self.total_dibayar >= self.total_tagihan:
+        elif self.total_dibayar >= effective_total:
             self.status = 'lunas'
         super().save(*args, **kwargs)
 
     @property
     def sisa_tagihan(self):
-        return self.total_tagihan - self.total_dibayar
+        effective_total = self._get_effective_total_tagihan()
+        return effective_total - self._get_verified_total_dibayar()
 
 
 class FakturItem(models.Model):
@@ -401,9 +449,8 @@ class PembayaranFaktur(models.Model):
     def _update_faktur_status(self):
         """Auto-update Faktur total_dibayar and status from verified payments only."""
         faktur = self.faktur
-        faktur.total_dibayar = faktur.pembayaran.filter(status_verifikasi='terverifikasi').aggregate(
-            total=models.Sum('jumlah')
-        )['total'] or 0
+        verified_total = faktur._get_verified_total_dibayar()
+        faktur.total_dibayar = verified_total
         faktur.save()
 
 
