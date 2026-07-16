@@ -80,7 +80,7 @@ export default function DaftarKunjunganInvoice() {
     const [invoiceResults, setInvoiceResults] = useState([]);
     const [invoiceSearching, setInvoiceSearching] = useState(false);
     const [appendTarget, setAppendTarget] = useState(null);
-    const [invoiceForm, setInvoiceForm] = useState({ jenis: '', periode: '', id_pembiayaan: '' });
+    const [invoiceForm, setInvoiceForm] = useState({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: '' });
     const [newPembiayaanOpen, setNewPembiayaanOpen] = useState(false);
     const [newPembiayaan, setNewPembiayaan] = useState({ nama: '', alamat: '' });
     const [total, setTotal] = useState(0);
@@ -244,7 +244,7 @@ export default function DaftarKunjunganInvoice() {
     const openInvoiceDialog = () => {
         if (!validateInvoiceSelection()) return;
         const uniquePembiayaan = [...new Set(selectedRows.map((row) => String(row.id_pembiayaan || '')))];
-        setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: uniquePembiayaan.length === 1 ? uniquePembiayaan[0] : '' });
+        setInvoiceForm({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: uniquePembiayaan.length === 1 ? uniquePembiayaan[0] : '' });
         setNewPembiayaanOpen(false);
         setNewPembiayaan({ nama: '', alamat: '' });
         setInvoiceDialogOpen(true);
@@ -253,7 +253,7 @@ export default function DaftarKunjunganInvoice() {
     const closeInvoiceDialog = () => {
         if (creating) return;
         setInvoiceDialogOpen(false);
-        setInvoiceForm({ jenis: '', periode: '', id_pembiayaan: '' });
+        setInvoiceForm({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: '' });
         setNewPembiayaanOpen(false);
         setNewPembiayaan({ nama: '', alamat: '' });
     };
@@ -340,6 +340,10 @@ export default function DaftarKunjunganInvoice() {
     const createInvoice = async (event) => {
         event.preventDefault();
         if (!validateInvoiceSelection()) return;
+        if (!invoiceForm.tanggal) {
+            toast.error('Tanggal invoice wajib diisi.');
+            return;
+        }
         if (!invoiceForm.jenis.trim()) {
             toast.error('Jenis invoice wajib diisi.');
             return;
@@ -365,7 +369,7 @@ export default function DaftarKunjunganInvoice() {
 
             const res = await api.post('/keuangan/kunjungan-invoice/', {
                 nomor_kunjungan: selectedNos,
-                tanggal: today(),
+                tanggal: invoiceForm.tanggal,
                 id_pembiayaan: String(invoicePembiayaan?.id_pembiayaan || invoiceForm.id_pembiayaan),
                 jenis: invoiceForm.jenis.trim(),
                 periode: invoiceForm.periode.trim(),
@@ -387,15 +391,15 @@ export default function DaftarKunjunganInvoice() {
     };
 
     return (
-        <div className="dki-page">        
+        <div className="dki-page">
             <div className="inv-hero">
                 <div className="inv-title">
                     <span><ReceiptText size={22} /></span>
-                    <div>                        
+                    <div>
                         <h1>Daftar Kunjungan</h1>
                         <p>Pilih transaksi pasien yang sudah done untuk dibuatkan invoice pembiayaan.</p>
                     </div>
-                </div>                
+                </div>
             </div>
 
             <section className="dki-summary">
@@ -438,7 +442,7 @@ export default function DaftarKunjunganInvoice() {
                         <label className="dki-search">
                             <Search size={16} />
                             <input value={filters.search} onChange={(e) => setFilter('search', e.target.value)} placeholder="Cari no kunjungan / RM / pasien..." />
-                        </label>                        
+                        </label>
 
                         <div className="dki-date-range">
                             <label>
@@ -678,6 +682,13 @@ export default function DaftarKunjunganInvoice() {
                                         </div>
                                     )}
                                 </div>
+                                <label className="dki-field">
+                                    <span>Tanggal Invoice</span>
+                                    <DateField
+                                        value={invoiceForm.tanggal}
+                                        onChange={(value) => setInvoiceForm((prev) => ({ ...prev, tanggal: value }))}
+                                    />
+                                </label>
                                 <label className="dki-field">
                                     <span>Jenis</span>
                                     <input
