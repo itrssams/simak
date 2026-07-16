@@ -263,14 +263,14 @@ class Faktur(models.Model):
     tanggal         = models.DateField()
     jatuh_tempo     = models.DateField()
     pelanggan       = models.ForeignKey(Pelanggan, on_delete=models.PROTECT, related_name='faktur', null=True, blank=True)
-    
+
     # Fields untuk migrated data dari rssams.invoice
     id_pembiayaan   = models.CharField(max_length=20, blank=True, null=True, help_text='ID dari rssams.pbiaya')
     nama_pembiayaan = models.CharField(max_length=150, blank=True, null=True)
     jenis           = models.TextField(blank=True, null=True)
     periode         = models.CharField(max_length=100, blank=True, null=True)
     beban           = models.CharField(max_length=100, blank=True, null=True)
-    
+
     # Cost breakdown
     adm       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     jasa      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
@@ -285,14 +285,14 @@ class Faktur(models.Model):
     ambulan   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     alat      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     ppn_farmasi = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    
+
     keterangan    = models.TextField(blank=True)
     status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default='belum_bayar')
     total_tagihan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     total_dibayar = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     tgl_kirim     = models.DateField(null=True, blank=True)
     xround        = models.CharField(max_length=1, default='N', help_text='Pembulatan Y/N')
-    
+
     created_by    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='faktur')
     created_at    = models.DateTimeField(auto_now_add=True)
     updated_at    = models.DateTimeField(auto_now=True)
@@ -363,7 +363,10 @@ class Faktur(models.Model):
             return
 
         effective_total = self._get_effective_total_tagihan()
-        self.total_dibayar = self._get_verified_total_dibayar()
+        # Kalau instance belum punya PK (baru dibuat & belum ke-insert),
+        # belum mungkin ada pembayaran yang nempel ke sini, jadi langsung 0
+        # tanpa perlu akses reverse relation `self.pembayaran` yang butuh PK.
+        self.total_dibayar = self._get_verified_total_dibayar() if self.pk else Decimal('0')
         sisa = effective_total - self.total_dibayar
         if sisa <= 0:
             self.status = 'lunas'
@@ -573,7 +576,7 @@ class AlokasiDana(models.Model):
     total_alokasi   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     sisa_alokasi    = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     keterangan      = models.TextField(blank=True)
-    
+
     created_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='alokasi_dana')
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
@@ -909,7 +912,7 @@ class FotoReimbursement(models.Model):
         if self.foto:
             from .utils_image import compress_image
             compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
-        
+
         super().save(*args, **kwargs)
 
 
@@ -933,7 +936,7 @@ class FotoPettyCash(models.Model):
         if self.foto:
             from .utils_image import compress_image
             compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
-        
+
         super().save(*args, **kwargs)
 
 
@@ -957,7 +960,7 @@ class FotoLaporanPenggunaan(models.Model):
         if self.foto:
             from .utils_image import compress_image
             compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
-        
+
         super().save(*args, **kwargs)
 
 class SaldoPettyCash(models.Model):
@@ -1049,7 +1052,7 @@ class PengajuanPenambahanSaldo(models.Model):
 
     def __str__(self):
         return f'{self.no_pengajuan} - {self.status}'
-    
+
 # ══════════════════════════════════════════════════════════════
 # Tambahkan ke keuangan/models.py
 # ══════════════════════════════════════════════════════════════
@@ -1179,13 +1182,13 @@ class FotoLaporanPerjalanan(models.Model):
 
     def __str__(self):
         return f"Foto {self.urutan} - {self.laporan.log_perjalanan.no_perjalanan}"
-    
+
     def save(self, *args, **kwargs):
         # Auto-compress image on save
         if self.foto:
             from .utils_image import compress_image
             compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
-        
+
         super().save(*args, **kwargs)
 
 
@@ -1235,7 +1238,7 @@ class LogMaintenance(models.Model):
         verbose_name_plural = 'Log Maintenance'
 
     def __str__(self):
-        return f"{self.kendaraan.plat_nomor} | {self.get_jenis_display()} | {self.tanggal}"    
+        return f"{self.kendaraan.plat_nomor} | {self.get_jenis_display()} | {self.tanggal}"
 
 
 class ITBackupRecord(models.Model):
