@@ -3625,6 +3625,7 @@ def _utang_order_clause(value, allowed):
 
 
 def _build_pending_where(params):
+    """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = ['u.app_siaga_faktur_id IS NULL']
     values = []
     search = (params.get('search') or '').strip()
@@ -3648,15 +3649,52 @@ def _build_pending_where(params):
     return ' AND '.join(where), values
 
 
+def _build_pending_where_logistik(params):
+    """WHERE builder untuk tabel logistik (tran_beli_brg_log)."""
+    where = ['t.done = \'Y\'', 'u.app_siaga_faktur_id IS NULL']
+    values = []
+    search = (params.get('search') or '').strip()
+    vendor_id = (params.get('vendor_id') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_spk LIKE %s OR t.rekanan LIKE %s OR r.nama LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle])
+    if vendor_id:
+        # filter by matched rekanan id
+        where.append('r.id_rekanan = %s')
+        values.append(vendor_id)
+    if dari:
+        where.append('t.tgl_spk >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tgl_spk <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
+
 def _pending_base_sql():
+    """FROM clause untuk farmasi — JOIN ke utang_supplier filter sumber=farmasi."""
     return """
         FROM rssams.tran_beli_brg_farmasi t
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci AND u.sumber = 'farmasi'
+    """
+
+
+def _pending_base_sql_logistik():
+    """FROM clause untuk logistik — LEFT JOIN rekanan by-nama (best-effort), JOIN ke utang_supplier filter sumber=logistik."""
+    return """
+        FROM rssams.tran_beli_brg_log t
+        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci AND u.sumber = 'logistik'
     """
 
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
+    """Fetch 1 baris faktur farmasi dari tran_beli_brg_farmasi."""
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -3684,6 +3722,36 @@ def _fetch_app_siaga_faktur(app_siaga_faktur_id):
         return dict(zip(columns, row))
 
 
+def _fetch_logistik_pembelian(pembelian_id):
+    """Fetch 1 baris dari tran_beli_brg_log + best-effort JOIN rekanan by-nama."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                CAST(t.id AS CHAR) AS app_siaga_faktur_id,
+                t.no_spk AS nomor_spb,
+                t.tgl_spk AS tanggal_spb,
+                t.no_spk AS nomor_faktur,
+                r.id_rekanan AS vendor_id_hint,
+                t.rekanan AS rekanan_text,
+                COALESCE(r.nama, t.rekanan) AS vendor_nama_hint,
+                t.tgl_spk AS tanggal_faktur,
+                NULL AS tanggal_jatuh_tempo,
+                t.nilai AS nominal
+            FROM rssams.tran_beli_brg_log t
+            LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
+            WHERE t.id = %s AND t.done = 'Y'
+            LIMIT 1
+            """,
+            [pembelian_id],
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        columns = [col[0] for col in cursor.description]
+        return dict(zip(columns, row))
+
+
 class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
     queryset = UtangSupplier.objects.select_related('verified_by').prefetch_related('pembayaran__created_by').all()
     serializer_class = UtangSupplierSerializer
@@ -3695,6 +3763,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         search = (params.get('search') or '').strip()
         vendor_id = params.get('vendor_id')
         status_filter = params.get('status')
+        sumber_filter = (params.get('sumber') or '').strip()
         dari = params.get('dari')
         sampai = params.get('sampai')
 
@@ -3709,6 +3778,8 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             qs = qs.filter(vendor_id=vendor_id)
         if status_filter:
             qs = qs.filter(status=status_filter)
+        if sumber_filter and sumber_filter != 'semua':
+            qs = qs.filter(sumber=sumber_filter)
         if dari:
             qs = qs.filter(tanggal_faktur__gte=dari)
         if sampai:
@@ -3780,6 +3851,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelView
         search = (params.get('search') or '').strip()
         vendor_id = params.get('vendor_id')
         utang_id = params.get('utang')
+        sumber_filter = (params.get('sumber') or '').strip()
         dari = params.get('dari')
         sampai = params.get('sampai')
 
@@ -3794,6 +3866,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelView
             qs = qs.filter(utang__vendor_id=vendor_id)
         if utang_id:
             qs = qs.filter(utang_id=utang_id)
+        if sumber_filter and sumber_filter != 'semua':
+            qs = qs.filter(utang__sumber=sumber_filter)
         if dari:
             qs = qs.filter(tanggal_proses__gte=dari)
         if sampai:
@@ -3838,22 +3912,7 @@ class UtangMenungguVerifikasiView(APIView):
 
     def get(self, request):
         params = request.query_params
-        where, values = _build_pending_where(params)
-        order = _utang_order_clause(params.get('ordering'), {
-            'vendor': 'r.nama',
-            '-vendor': 'r.nama DESC',
-            'nomor_spb': 't.no_spb',
-            '-nomor_spb': 't.no_spb DESC',
-            'nomor_faktur': 't.no_faktur',
-            '-nomor_faktur': 't.no_faktur DESC',
-            'tanggal_faktur': 't.tgl_faktur',
-            '-tanggal_faktur': 't.tgl_faktur DESC',
-            'tanggal_jatuh_tempo': 't.tgl_jtempo',
-            '-tanggal_jatuh_tempo': 't.tgl_jtempo DESC',
-            'nominal': 't.gtotal',
-            '-nominal': 't.gtotal DESC',
-            '-tanggal_faktur': 't.tgl_faktur DESC',
-        })
+        sumber_filter = (params.get('sumber') or 'semua').strip()
         try:
             page = int(params.get('page', 1))
             page_size = min(int(params.get('page_size', 10)), 100)
@@ -3861,28 +3920,113 @@ class UtangMenungguVerifikasiView(APIView):
             page, page_size = 1, 10
         offset = max(page - 1, 0) * page_size
 
+        # SELECT clause farmasi
+        farmasi_select = """
+            SELECT
+                CONVERT(t.id USING utf8mb4)             AS app_siaga_faktur_id,
+                CONVERT(t.id USING utf8mb4)             AS nomor_spb,
+                t.tgl_spb                               AS tanggal_spb,
+                CONVERT(t.no_faktur USING utf8mb4)       AS nomor_faktur,
+                t.id_rekanan                            AS vendor_id,
+                t.id_rekanan                            AS vendor_id_hint,
+                CONVERT(COALESCE(r.nama, '') USING utf8mb4) AS vendor_nama,
+                t.tgl_faktur                            AS tanggal_faktur,
+                t.tgl_jtempo                            AS tanggal_jatuh_tempo,
+                t.gtotal                                AS nominal,
+                'farmasi'                               AS sumber
+        """
+
+        # SELECT clause logistik
+        logistik_select = """
+            SELECT
+                CONVERT(t.id USING utf8mb4)             AS app_siaga_faktur_id,
+                CONVERT(t.no_spk USING utf8mb4)         AS nomor_spb,
+                t.tgl_spk                               AS tanggal_spb,
+                CONVERT(t.no_spk USING utf8mb4)         AS nomor_faktur,
+                r.id_rekanan                            AS vendor_id,
+                r.id_rekanan                            AS vendor_id_hint,
+                CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
+                t.tgl_spk                               AS tanggal_faktur,
+                NULL                                    AS tanggal_jatuh_tempo,
+                t.nilai                                 AS nominal,
+                'logistik'                              AS sumber
+        """
+
+        where_f, vals_f = _build_pending_where(params)
+        where_l, vals_l = _build_pending_where_logistik(params)
+
+        # Order mapping berlaku di wrapper query (alias kolom output)
+        order = _utang_order_clause(params.get('ordering'), {
+            'vendor': 'vendor_nama',
+            '-vendor': 'vendor_nama DESC',
+            'nomor_spb': 'nomor_spb',
+            '-nomor_spb': 'nomor_spb DESC',
+            'nomor_faktur': 'nomor_faktur',
+            '-nomor_faktur': 'nomor_faktur DESC',
+            'tanggal_faktur': 'tanggal_faktur',
+            '-tanggal_faktur': 'tanggal_faktur DESC',
+            'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
+            '-tanggal_jatuh_tempo': 'tanggal_jatuh_tempo DESC',
+            'nominal': 'nominal',
+            '-nominal': 'nominal DESC',
+        })
+
         with connection.cursor() as cursor:
-            cursor.execute(f'SELECT COUNT(*) {_pending_base_sql()} WHERE {where}', values)
+            if sumber_filter == 'farmasi':
+                count_sql = f'SELECT COUNT(*) {_pending_base_sql()} WHERE {where_f}'
+                count_vals = vals_f
+                data_sql = f"""
+                    SELECT * FROM (
+                        {farmasi_select}
+                        {_pending_base_sql()}
+                        WHERE {where_f}
+                    ) AS combined
+                    ORDER BY {order}, app_siaga_faktur_id DESC
+                    LIMIT %s OFFSET %s
+                """
+                data_vals = vals_f + [page_size, offset]
+
+            elif sumber_filter == 'logistik':
+                count_sql = f'SELECT COUNT(*) {_pending_base_sql_logistik()} WHERE {where_l}'
+                count_vals = vals_l
+                data_sql = f"""
+                    SELECT * FROM (
+                        {logistik_select}
+                        {_pending_base_sql_logistik()}
+                        WHERE {where_l}
+                    ) AS combined
+                    ORDER BY {order}, app_siaga_faktur_id DESC
+                    LIMIT %s OFFSET %s
+                """
+                data_vals = vals_l + [page_size, offset]
+
+            else:  # semua
+                count_sql = f"""
+                    SELECT COUNT(*) FROM (
+                        SELECT 1 {_pending_base_sql()} WHERE {where_f}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_logistik()} WHERE {where_l}
+                    ) AS combined
+                """
+                count_vals = vals_f + vals_l
+                data_sql = f"""
+                    SELECT * FROM (
+                        {farmasi_select}
+                        {_pending_base_sql()}
+                        WHERE {where_f}
+                        UNION ALL
+                        {logistik_select}
+                        {_pending_base_sql_logistik()}
+                        WHERE {where_l}
+                    ) AS combined
+                    ORDER BY {order}, app_siaga_faktur_id DESC
+                    LIMIT %s OFFSET %s
+                """
+                data_vals = vals_f + vals_l + [page_size, offset]
+
+            cursor.execute(count_sql, count_vals)
             total = cursor.fetchone()[0]
-            cursor.execute(
-                f"""
-                SELECT
-                    t.id AS app_siaga_faktur_id,
-                    t.id AS nomor_spb,
-                    t.tgl_spb AS tanggal_spb,
-                    t.no_faktur AS nomor_faktur,
-                    t.id_rekanan AS vendor_id,
-                    COALESCE(r.nama, '') AS vendor_nama,
-                    t.tgl_faktur AS tanggal_faktur,
-                    t.tgl_jtempo AS tanggal_jatuh_tempo,
-                    t.gtotal AS nominal
-                {_pending_base_sql()}
-                WHERE {where}
-                ORDER BY {order}, t.id DESC
-                LIMIT %s OFFSET %s
-                """,
-                values + [page_size, offset],
-            )
+            cursor.execute(data_sql, data_vals)
             columns = [col[0] for col in cursor.description]
             rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
@@ -3895,29 +4039,81 @@ class UtangMenungguVerifikasiView(APIView):
 
     def post(self, request):
         app_siaga_faktur_id = request.data.get('app_siaga_faktur_id')
+        sumber = (request.data.get('sumber') or 'farmasi').strip()
+
         if not app_siaga_faktur_id:
             return Response({'app_siaga_faktur_id': 'Faktur APP_SIAGA wajib dipilih.'}, status=status.HTTP_400_BAD_REQUEST)
-        if UtangSupplier.objects.filter(app_siaga_faktur_id=app_siaga_faktur_id).exists():
-            return Response({'error': 'Faktur ini sudah diverifikasi.'}, status=status.HTTP_400_BAD_REQUEST)
-        faktur = _fetch_app_siaga_faktur(app_siaga_faktur_id)
-        if not faktur:
-            return Response({'error': 'Faktur APP_SIAGA tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
 
-        utang = UtangSupplier.objects.create(
-            app_siaga_faktur_id=faktur['app_siaga_faktur_id'],
-            nomor_spb=faktur.get('nomor_spb') or '',
-            tanggal_spb=faktur.get('tanggal_spb'),
-            nomor_faktur=faktur.get('nomor_faktur') or '',
-            vendor_id=faktur.get('vendor_id') or 0,
-            vendor_nama=faktur.get('vendor_nama') or '',
-            tanggal_faktur=faktur.get('tanggal_faktur'),
-            tanggal_jatuh_tempo=faktur.get('tanggal_jatuh_tempo'),
-            nominal=faktur.get('nominal') or 0,
-            tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
-            keterangan_titip=request.data.get('keterangan_titip') or '',
-            verified_by=request.user,
-            verified_at=timezone.now(),
-        )
+        if sumber not in (UtangSupplier.SUMBER_FARMASI, UtangSupplier.SUMBER_LOGISTIK):
+            return Response({'sumber': f'Nilai sumber tidak valid: {sumber}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cek duplikat berdasarkan kombinasi (faktur_id, sumber)
+        if UtangSupplier.objects.filter(app_siaga_faktur_id=str(app_siaga_faktur_id), sumber=sumber).exists():
+            return Response({'error': 'Faktur ini sudah diverifikasi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if sumber == UtangSupplier.SUMBER_FARMASI:
+            faktur = _fetch_app_siaga_faktur(app_siaga_faktur_id)
+            if not faktur:
+                return Response({'error': 'Faktur farmasi tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+            utang = UtangSupplier.objects.create(
+                app_siaga_faktur_id=str(faktur['app_siaga_faktur_id']),
+                sumber=UtangSupplier.SUMBER_FARMASI,
+                nomor_spb=faktur.get('nomor_spb') or '',
+                tanggal_spb=faktur.get('tanggal_spb'),
+                nomor_faktur=faktur.get('nomor_faktur') or '',
+                vendor_id=faktur.get('vendor_id') or 0,
+                vendor_nama=faktur.get('vendor_nama') or '',
+                tanggal_faktur=faktur.get('tanggal_faktur'),
+                tanggal_jatuh_tempo=faktur.get('tanggal_jatuh_tempo'),
+                nominal=faktur.get('nominal') or 0,
+                tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                keterangan_titip=request.data.get('keterangan_titip') or '',
+                verified_by=request.user,
+                verified_at=timezone.now(),
+            )
+
+        else:  # logistik
+            vendor_id = request.data.get('vendor_id')
+            if not vendor_id:
+                return Response(
+                    {'vendor_id': 'Vendor wajib dipilih untuk pembelian logistik.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Validasi vendor_id ke rssams.rekanan
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id_rekanan, nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N' LIMIT 1",
+                    [vendor_id],
+                )
+                rek = cursor.fetchone()
+            if not rek:
+                return Response(
+                    {'vendor_id': 'Vendor tidak ditemukan di master rekanan.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            vendor_id_int, vendor_nama_rek = rek
+
+            faktur = _fetch_logistik_pembelian(app_siaga_faktur_id)
+            if not faktur:
+                return Response({'error': 'Data logistik tidak ditemukan atau belum selesai (done != Y).'}, status=status.HTTP_404_NOT_FOUND)
+
+            utang = UtangSupplier.objects.create(
+                app_siaga_faktur_id=str(faktur['app_siaga_faktur_id']),
+                sumber=UtangSupplier.SUMBER_LOGISTIK,
+                nomor_spb=faktur.get('nomor_spb') or '',
+                tanggal_spb=faktur.get('tanggal_spb'),
+                nomor_faktur=faktur.get('nomor_faktur') or '',
+                vendor_id=vendor_id_int,
+                vendor_nama=vendor_nama_rek,
+                tanggal_faktur=faktur.get('tanggal_faktur'),
+                tanggal_jatuh_tempo=None,  # tran_beli_brg_log tidak punya jatuh tempo
+                nominal=faktur.get('nominal') or 0,
+                tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                keterangan_titip=request.data.get('keterangan_titip') or '',
+                verified_by=request.user,
+                verified_at=timezone.now(),
+            )
+
         return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -3930,8 +4126,17 @@ class UtangVendorOptionsView(APIView):
                 """
                 SELECT DISTINCT r.id_rekanan AS id, r.nama AS nama
                 FROM rssams.rekanan r
-                INNER JOIN rssams.tran_beli_brg_farmasi t ON t.id_rekanan = r.id_rekanan
                 WHERE r.del = 'N'
+                  AND (
+                    EXISTS (
+                        SELECT 1 FROM rssams.tran_beli_brg_farmasi f
+                        WHERE f.id_rekanan = r.id_rekanan
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM rssams.tran_beli_brg_log l
+                        WHERE UPPER(TRIM(CONVERT(l.rekanan USING utf8mb4))) = UPPER(TRIM(CONVERT(r.nama USING utf8mb4)))
+                    )
+                  )
                 ORDER BY r.nama
                 LIMIT 500
                 """
@@ -5337,15 +5542,15 @@ class LogistikBarangViewSet(viewsets.ViewSet):
             where.append('(nama_barang LIKE %s OR merk LIKE %s)')
             params.extend([f'%{search}%', f'%{search}%'])
         if minimum == 'true':
-            where.append('stock_min > 0 AND stock < stock_min')
+            where.append('stock_buffer > 0 AND stock < stock_buffer')
         elif not show_all:
             where.append('stock > 0')
         where_sql = ' AND '.join(where)
         base = f"""
             SELECT id_brg AS id, id_brg, nama_barang, kemasan, satuan, isi, merk,
-                   id_gol AS golongan, stock AS stok, stock_min AS stok_minimum,
-                   del = 'N' AS is_active,
-                   stock_min > 0 AND stock < stock_min AS stok_minimum_alert
+                id_gol AS golongan, stock AS stok, stock_buffer AS stok_minimum,
+                del = 'N' AS is_active,
+                stock_buffer > 0 AND stock < stock_buffer AS stok_minimum_alert
             FROM rssams.dafbrg_log
             WHERE {where_sql}
             ORDER BY nama_barang
@@ -5362,7 +5567,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.dafbrg_log(id_brg, nama_barang, kemasan, satuan, isi, merk, id_gol, stock_min)
+                INSERT INTO rssams.dafbrg_log(id_brg, nama_barang, kemasan, satuan, isi, merk, id_gol, stock_buffer)
                 VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 [
@@ -5388,9 +5593,9 @@ class LogistikBarangViewSet(viewsets.ViewSet):
         row = legacy_fetchone(
             """
             SELECT COUNT(*) AS total_barang,
-                   COALESCE(SUM(stock), 0) AS total_stok,
-                   SUM(CASE WHEN stock_min > 0 AND stock < stock_min THEN 1 ELSE 0 END) AS stok_minimum,
-                   SUM(CASE WHEN del = 'Y' THEN 1 ELSE 0 END) AS nonaktif
+                COALESCE(SUM(stock), 0) AS total_stok,
+                SUM(CASE WHEN stock_buffer > 0 AND stock < stock_buffer THEN 1 ELSE 0 END) AS stok_minimum,
+                SUM(CASE WHEN del = 'Y' THEN 1 ELSE 0 END) AS nonaktif
             FROM rssams.dafbrg_log
             """
         )

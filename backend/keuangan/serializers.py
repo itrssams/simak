@@ -620,11 +620,14 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
     nomor_faktur = serializers.CharField(source='utang.nomor_faktur', read_only=True)
     vendor_nama = serializers.CharField(source='utang.vendor_nama', read_only=True)
     nominal = serializers.DecimalField(source='utang.nominal', max_digits=25, decimal_places=2, read_only=True)
+    sumber = serializers.CharField(source='utang.sumber', read_only=True)
+    sumber_label = serializers.CharField(source='utang.get_sumber_display', read_only=True)
 
     class Meta:
         model = PembayaranUtang
         fields = [
             'id', 'utang', 'nomor_faktur', 'vendor_nama', 'nominal',
+            'sumber', 'sumber_label',
             'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
             'jumlah_bayar', 'keterangan', 'created_by', 'created_by_name', 'created_at',
         ]
@@ -645,6 +648,7 @@ class PembayaranUtangInputSerializer(serializers.ModelSerializer):
 class UtangSupplierSerializer(serializers.ModelSerializer):
     verified_by_name = serializers.CharField(source='verified_by.username', read_only=True)
     status_label = serializers.CharField(source='get_status_display', read_only=True)
+    sumber_label = serializers.CharField(source='get_sumber_display', read_only=True)
     total_dibayar = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
     sisa_utang = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
     pembayaran = PembayaranUtangSerializer(many=True, read_only=True)
@@ -652,7 +656,8 @@ class UtangSupplierSerializer(serializers.ModelSerializer):
     class Meta:
         model = UtangSupplier
         fields = [
-            'id', 'app_siaga_faktur_id', 'nomor_spb', 'tanggal_spb',
+            'id', 'app_siaga_faktur_id', 'sumber', 'sumber_label',
+            'nomor_spb', 'tanggal_spb',
             'nomor_faktur', 'vendor_id', 'vendor_nama', 'tanggal_faktur',
             'tanggal_jatuh_tempo', 'nominal', 'tanggal_titip',
             'keterangan_titip', 'status', 'status_label', 'total_dibayar',
@@ -660,7 +665,7 @@ class UtangSupplierSerializer(serializers.ModelSerializer):
             'pembayaran', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'status', 'status_label', 'total_dibayar', 'sisa_utang',
+            'id', 'status', 'status_label', 'sumber_label', 'total_dibayar', 'sisa_utang',
             'verified_by', 'verified_by_name', 'verified_at', 'created_at', 'updated_at',
         ]
 

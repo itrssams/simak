@@ -5,11 +5,18 @@ import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import '../Keuangan/InvoicePembiayaan.css';
+import './Logistik.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (value) => Number(value || 0).toLocaleString('id-ID');
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const getError = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
+const getError = (err, fallback) => {
+    const data = err?.response?.data;
+    if (!data) return fallback;
+    if (typeof data === 'string') return data;
+    if (data.detail || data.error) return data.detail || data.error;
+    return Object.entries(data).map(([key, value]) => `${key}: ${Array.isArray(value) ? value[0] : value}`).join(' | ') || fallback;
+};
 const itemTotal = (items = []) => items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.harga || 0), 0);
 const purchaseTotal = (row) => Number(row?.nilai || 0) || itemTotal(row?.items || []);
 const parseMoneyInput = (value) => {
@@ -98,6 +105,7 @@ export default function Logistik() {
     const [vendorOptions, setVendorOptions] = useState([]);
     const [ruangOptions, setRuangOptions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -122,15 +130,19 @@ export default function Logistik() {
     const setForm = (key, patch) => setForms((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
     const fetchOptions = useCallback(async () => {
-        const [barangRes, ruangRes, vendorRes] = await Promise.all([
-            api.get('/keuangan/logistik/barang/', { params: { page_size: 1000, show_all: 'true' } }),
-            api.get('/keuangan/logistik/barang/ruang-options/'),
-            api.get('/keuangan/logistik/vendor/options/'),
-        ]);
-        setBarangOptions(getResults(barangRes.data));
-        setRuangOptions(getResults(ruangRes.data));
-        setVendorOptions(getResults(vendorRes.data));
-    }, []);
+        try {
+            const [barangRes, ruangRes, vendorRes] = await Promise.all([
+                api.get('/keuangan/logistik/barang/', { params: { page_size: 1000, show_all: 'true' } }),
+                api.get('/keuangan/logistik/barang/ruang-options/'),
+                api.get('/keuangan/logistik/vendor/options/'),
+            ]);
+            setBarangOptions(getResults(barangRes.data));
+            setRuangOptions(getResults(ruangRes.data));
+            setVendorOptions(getResults(vendorRes.data));
+        } catch (err) {
+            toast.error(getError(err, 'Gagal memuat pilihan logistik.'));
+        }
+    }, [toast]);
 
     const endpointFor = useCallback(() => {
         if (section === 'vendor') return '/keuangan/logistik/vendor/';
@@ -159,7 +171,7 @@ export default function Logistik() {
         }
     }, [endpointFor, page, pageSize, search, section, showAllBarang, toast]);
 
-    useEffect(() => { fetchOptions().catch(() => toast.error('Gagal memuat pilihan logistik.')); }, [fetchOptions, toast]);
+    useEffect(() => { fetchOptions(); }, [fetchOptions]);
     useEffect(() => { setPage(1); setRows([]); setKartuRows([]); }, [section]);
     useEffect(() => { fetchRows(); }, [fetchRows]);
 
@@ -174,33 +186,79 @@ export default function Logistik() {
         setModal(target === 'penerimaan' ? 'spb' : target);
     };
 
+    const openEditBarang = (row) => {
+        setForms((v) => ({
+            ...v,
+            barang: {
+                id: row.id,
+                nama_barang: row.nama_barang || '',
+                kemasan: row.kemasan || '',
+                satuan: row.satuan || 'PCS',
+                isi: row.isi || 1,
+                merk: row.merk || '',
+                golongan: row.golongan || '',
+                stok_minimum: row.stok_minimum || 0,
+            },
+        }));
+        setModal('barang');
+    };
+
     const saveBarang = async (e) => {
         e.preventDefault();
-        await api.post('/keuangan/logistik/barang/', forms.barang);
-        toast.success('Barang berhasil ditambahkan.');
-        setModal(null); fetchOptions(); fetchRows();
+        setSaving(true);
+        try {
+            if (forms.barang.id) {
+                await api.patch(`/keuangan/logistik/barang/${forms.barang.id}/`, forms.barang);
+                toast.success('Barang berhasil diperbarui.');
+            } else {
+                await api.post('/keuangan/logistik/barang/', forms.barang);
+                toast.success('Barang berhasil ditambahkan.');
+            }
+            setModal(null);
+            await Promise.all([fetchOptions(), fetchRows()]);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menyimpan barang.'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const saveVendor = async (e) => {
         e.preventDefault();
-        const payload = forms.vendor;
-        if (payload.id) await api.patch(`/keuangan/logistik/vendor/${payload.id}/`, payload);
-        else await api.post('/keuangan/logistik/vendor/', payload);
-        toast.success('Vendor berhasil disimpan.');
-        setModal(null); fetchOptions(); fetchRows();
+        setSaving(true);
+        try {
+            const payload = forms.vendor;
+            if (payload.id) await api.patch(`/keuangan/logistik/vendor/${payload.id}/`, payload);
+            else await api.post('/keuangan/logistik/vendor/', payload);
+            toast.success('Vendor berhasil disimpan.');
+            setModal(null);
+            await Promise.all([fetchOptions(), fetchRows()]);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menyimpan vendor.'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const saveSpb = async (e) => {
         e.preventDefault();
-        const payload = { ...forms.spb };
-        if (payload.id) {
-            await api.patch(`/keuangan/logistik/pembelian/${payload.id}/`, payload);
-            toast.success('Penerimaan berhasil diperbarui.');
-        } else {
-            await api.post('/keuangan/logistik/pembelian/', payload);
-            toast.success(section === 'penerimaan' ? 'Penerimaan berhasil dibuat.' : 'SPB berhasil dibuat.');
+        setSaving(true);
+        try {
+            const payload = { ...forms.spb };
+            if (payload.id) {
+                await api.patch(`/keuangan/logistik/pembelian/${payload.id}/`, payload);
+                toast.success('Penerimaan berhasil diperbarui.');
+            } else {
+                await api.post('/keuangan/logistik/pembelian/', payload);
+                toast.success(section === 'penerimaan' ? 'Penerimaan berhasil dibuat.' : 'SPB berhasil dibuat.');
+            }
+            setModal(null);
+            await fetchRows();
+        } catch (err) {
+            toast.error(getError(err, payload_error_fallback(section)));
+        } finally {
+            setSaving(false);
         }
-        setModal(null); fetchRows();
     };
 
     const saveItem = async (e) => {
@@ -209,36 +267,68 @@ export default function Logistik() {
             toast.error('Pilih penerimaan terlebih dahulu.');
             return;
         }
-        const payload = { ...forms.item, harga: parseMoneyInput(forms.item.harga), pembelian: activePurchase.id };
-        if (forms.item.editing) {
-            await api.patch(`/keuangan/logistik/batch/${activePurchase.id}/`, payload);
-            toast.success('Barang masuk berhasil diperbarui.');
-        } else {
-            await api.post('/keuangan/logistik/batch/', payload);
-            toast.success('Barang masuk berhasil ditambahkan.');
+        setSaving(true);
+        try {
+            const payload = { ...forms.item, harga: parseMoneyInput(forms.item.harga), pembelian: activePurchase.id };
+            if (forms.item.editing) {
+                await api.patch(`/keuangan/logistik/batch/${activePurchase.id}/`, payload);
+                toast.success('Barang masuk berhasil diperbarui.');
+            } else {
+                await api.post('/keuangan/logistik/batch/', payload);
+                toast.success('Barang masuk berhasil ditambahkan.');
+            }
+            setModal(null);
+            await fetchRows();
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menyimpan barang masuk.'));
+        } finally {
+            setSaving(false);
         }
-        setModal(null); fetchRows();
     };
 
     const saveMutasi = async (e) => {
         e.preventDefault();
-        await api.post('/keuangan/logistik/mutasi/', forms.mutasi);
-        toast.success('Barang keluar berhasil disimpan.');
-        setModal(null); fetchRows(); fetchOptions();
+        setSaving(true);
+        try {
+            await api.post('/keuangan/logistik/mutasi/', forms.mutasi);
+            toast.success('Barang keluar berhasil disimpan.');
+            setModal(null);
+            await Promise.all([fetchRows(), fetchOptions()]);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menyimpan barang keluar.'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const savePermintaan = async (e) => {
         e.preventDefault();
-        await api.post('/keuangan/logistik/permintaan/', forms.permintaan);
-        toast.success('Permintaan berhasil dibuat.');
-        setModal(null); fetchRows();
+        setSaving(true);
+        try {
+            await api.post('/keuangan/logistik/permintaan/', forms.permintaan);
+            toast.success('Permintaan berhasil dibuat.');
+            setModal(null);
+            await fetchRows();
+        } catch (err) {
+            toast.error(getError(err, 'Gagal membuat permintaan.'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const saveOpname = async (e) => {
         e.preventDefault();
-        await api.post('/keuangan/logistik/opname/', forms.opname);
-        toast.success('Opname berhasil dicatat.');
-        setModal(null); fetchRows();
+        setSaving(true);
+        try {
+            await api.post('/keuangan/logistik/opname/', forms.opname);
+            toast.success('Opname berhasil dicatat.');
+            setModal(null);
+            await fetchRows();
+        } catch (err) {
+            toast.error(getError(err, 'Gagal mencatat opname.'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const verify = async (row, status) => {
@@ -246,7 +336,7 @@ export default function Logistik() {
         try {
             await api.post(`/keuangan/logistik/permintaan/${row.id}/verifikasi/`, { status, qty_setuju: qty });
             toast.success('Permintaan berhasil diverifikasi.');
-            fetchRows();
+            await fetchRows();
         } catch (err) {
             toast.error(getError(err, 'Gagal verifikasi permintaan.'));
         }
@@ -254,22 +344,34 @@ export default function Logistik() {
 
     const loadKartu = async (id = kartuBarang) => {
         if (!id) return setKartuRows([]);
-        const res = await api.get(`/keuangan/logistik/barang/${id}/kartu-stok/`);
-        setKartuRows(res.data || []);
+        try {
+            const res = await api.get(`/keuangan/logistik/barang/${id}/kartu-stok/`);
+            setKartuRows(res.data || []);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal memuat kartu stok.'));
+        }
     };
 
     const deleteBarang = async (row) => {
         if (!window.confirm(`Hapus ${row.nama_barang}?`)) return;
-        await api.delete(`/keuangan/logistik/barang/${row.id}/`);
-        toast.success('Barang dihapus.');
-        fetchRows(); fetchOptions();
+        try {
+            await api.delete(`/keuangan/logistik/barang/${row.id}/`);
+            toast.success('Barang dihapus.');
+            await Promise.all([fetchRows(), fetchOptions()]);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menghapus barang.'));
+        }
     };
 
     const deleteVendor = async (row) => {
         if (!window.confirm(`Hapus vendor ${row.nama}?`)) return;
-        await api.delete(`/keuangan/logistik/vendor/${row.id}/`);
-        toast.success('Vendor dihapus.');
-        fetchRows(); fetchOptions();
+        try {
+            await api.delete(`/keuangan/logistik/vendor/${row.id}/`);
+            toast.success('Vendor dihapus.');
+            await Promise.all([fetchRows(), fetchOptions()]);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal menghapus vendor.'));
+        }
     };
 
     const canCreate = !['verifikasi', 'stok-minimum', 'kartu-stok', 'penerimaan'].includes(section);
@@ -288,7 +390,6 @@ export default function Logistik() {
 
     return (
         <div className="inv-page log-page">
-            <style>{LOG_STYLE}</style>
             <section className="inv-hero">
                 <div className="inv-title">
                     <span><Warehouse size={24} /></span>
@@ -341,6 +442,7 @@ export default function Logistik() {
                             setModal('item');
                         }}
                         onEditVendor={(row) => { setForms((v) => ({ ...v, vendor: row })); setModal('vendor'); }}
+                        onEditBarang={openEditBarang}
                         onEditPenerimaan={(row) => {
                             const matchedVendor = vendorOptions.find((vendor) => vendor.nama === row.pemasok);
                             setDetail(null);
@@ -379,8 +481,8 @@ export default function Logistik() {
                 </Modal>
             )}
 
-            {modal === 'barang' && <BarangModal form={forms.barang} setForm={(p) => setForm('barang', p)} onSubmit={saveBarang} onClose={() => setModal(null)} />}
-            {modal === 'vendor' && <VendorModal form={forms.vendor} setForm={(p) => setForm('vendor', p)} onSubmit={saveVendor} onClose={() => setModal(null)} />}
+            {modal === 'barang' && <BarangModal form={forms.barang} setForm={(p) => setForm('barang', p)} onSubmit={saveBarang} onClose={() => setModal(null)} saving={saving} />}
+            {modal === 'vendor' && <VendorModal form={forms.vendor} setForm={(p) => setForm('vendor', p)} onSubmit={saveVendor} onClose={() => setModal(null)} saving={saving} />}
             {modal === 'spb' && (
                 <SpbModal
                     mode={section === 'penerimaan' ? 'penerimaan' : 'spb'}
@@ -388,6 +490,7 @@ export default function Logistik() {
                     setForm={(p) => setForm('spb', p)}
                     vendors={vendorOptions}
                     purchase={activePurchase}
+                    saving={saving}
                     onEditItem={(item) => {
                         setForms((v) => ({
                             ...v,
@@ -408,15 +511,19 @@ export default function Logistik() {
                     onClose={() => setModal(null)}
                 />
             )}
-            {modal === 'item' && <ItemModal form={forms.item} setForm={(p) => setForm('item', p)} barang={barangOptions} onSubmit={saveItem} onClose={() => setModal(null)} purchase={activePurchase} />}
-            {modal === 'barang-keluar' && <MutasiModal form={forms.mutasi} setForm={(p) => setForm('mutasi', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={saveMutasi} onClose={() => setModal(null)} />}
-            {modal === 'permintaan' && <PermintaanModal form={forms.permintaan} setForm={(p) => setForm('permintaan', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={savePermintaan} onClose={() => setModal(null)} />}
-            {modal === 'opname' && <OpnameModal form={forms.opname} setForm={(p) => setForm('opname', p)} barang={barangOptions} onSubmit={saveOpname} onClose={() => setModal(null)} />}
+            {modal === 'item' && <ItemModal form={forms.item} setForm={(p) => setForm('item', p)} barang={barangOptions} onSubmit={saveItem} onClose={() => setModal(null)} purchase={activePurchase} saving={saving} />}
+            {modal === 'barang-keluar' && <MutasiModal form={forms.mutasi} setForm={(p) => setForm('mutasi', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={saveMutasi} onClose={() => setModal(null)} saving={saving} />}
+            {modal === 'permintaan' && <PermintaanModal form={forms.permintaan} setForm={(p) => setForm('permintaan', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={savePermintaan} onClose={() => setModal(null)} saving={saving} />}
+            {modal === 'opname' && <OpnameModal form={forms.opname} setForm={(p) => setForm('opname', p)} barang={barangOptions} onSubmit={saveOpname} onClose={() => setModal(null)} saving={saving} />}
         </div>
     );
 }
 
-function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
+function payload_error_fallback(section) {
+    return section === 'penerimaan' ? 'Gagal menyimpan penerimaan.' : 'Gagal menyimpan SPB.';
+}
+
+function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
     const headers = {
         barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         vendor: ['Vendor', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
@@ -432,7 +539,22 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
     const body = () => {
         if (loading) return <tr><td colSpan={headers.length} className="inv-empty">Memuat data...</td></tr>;
         if (!rows.length) return <tr><td colSpan={headers.length} className="inv-empty">Belum ada data.</td></tr>;
-        if (['barang', 'stok-minimum'].includes(section)) return rows.map((r) => <tr key={r.id}><td><strong>{r.nama_barang}</strong></td><td>{r.kemasan || '-'} x {fmt(r.isi)}</td><td>{r.satuan}</td><td>{r.merk || '-'}</td><td><Badge danger={r.stok_minimum_alert}>{fmt(r.stok)}</Badge></td><td>{fmt(r.stok_minimum)}</td><td><button className="inv-row-btn" onClick={() => onDeleteBarang(r)}><Trash2 size={15} /></button></td></tr>);
+        if (['barang', 'stok-minimum'].includes(section)) return rows.map((r) => (
+            <tr key={r.id}>
+                <td><strong>{r.nama_barang}</strong></td>
+                <td>{r.kemasan || '-'} x {fmt(r.isi)}</td>
+                <td>{r.satuan}</td>
+                <td>{r.merk || '-'}</td>
+                <td><Badge danger={r.stok_minimum_alert}>{fmt(r.stok)}</Badge></td>
+                <td>{fmt(r.stok_minimum)}</td>
+                <td>
+                    <div className="inv-row-actions">
+                        <button onClick={() => onEditBarang(r)} title="Edit barang"><Pencil size={15} /></button>
+                        <button onClick={() => onDeleteBarang(r)} title="Hapus barang"><Trash2 size={15} /></button>
+                    </div>
+                </td>
+            </tr>
+        ));
         if (section === 'vendor') return rows.map((r) => <tr key={r.id}><td><strong>{r.nama}</strong></td><td>{r.alamat || '-'}</td><td>{r.telp || '-'}</td><td>{r.kc || '-'}</td><td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td></tr>);
         if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r))}</td><td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button></div></td></tr>);
         if (section === 'penerimaan') return rows.map((r) => {
@@ -614,40 +736,191 @@ function SearchableBarangSelect({ options = [], value = '', onChange }) {
     );
 }
 
-function BarangModal({ form, setForm, onSubmit, onClose }) {
-    return <Modal title="Tambah Barang" description="Isi master barang logistik." onClose={onClose}><form onSubmit={onSubmit}><div className="inv-form-grid"><Field label="Nama Barang"><input className="inv-input" required value={form.nama_barang} onChange={(e) => setForm({ nama_barang: e.target.value })} /></Field><Field label="Satuan"><select className="inv-input" required value={form.satuan} onChange={(e) => setForm({ satuan: e.target.value })}>{UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</select></Field><Field label="Kemasan"><input className="inv-input" value={form.kemasan} onChange={(e) => setForm({ kemasan: e.target.value })} /></Field><Field label="Isi"><input className="inv-input" type="number" min="1" value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field><Field label="Merek"><input className="inv-input" value={form.merk} onChange={(e) => setForm({ merk: e.target.value })} /></Field><Field label="Stok Minimum"><input className="inv-input" type="number" min="0" value={form.stok_minimum} onChange={(e) => setForm({ stok_minimum: e.target.value })} /></Field></div><ModalFoot onClose={onClose} /></form></Modal>;
+function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
+    const isEdit = Boolean(form.id);
+    return (
+        <Modal title={isEdit ? 'Edit Barang' : 'Tambah Barang'} description={isEdit ? 'Perbarui master barang logistik.' : 'Isi master barang logistik.'} onClose={onClose} icon={isEdit ? <Pencil size={20} /> : <FilePlus2 size={20} />}>
+            <form onSubmit={onSubmit}>
+                <div className="inv-form-grid">
+                    <Field label="Nama Barang"><input className="inv-input" required value={form.nama_barang} onChange={(e) => setForm({ nama_barang: e.target.value })} /></Field>
+                    <Field label="Satuan">
+                        <select className="inv-input" required value={form.satuan} onChange={(e) => setForm({ satuan: e.target.value })}>
+                            {UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Kemasan"><input className="inv-input" value={form.kemasan} onChange={(e) => setForm({ kemasan: e.target.value })} /></Field>
+                    <Field label="Isi"><input className="inv-input" type="number" min="1" value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field>
+                    <Field label="Merek"><input className="inv-input" value={form.merk} onChange={(e) => setForm({ merk: e.target.value })} /></Field>
+                    <Field label="Stok Minimum"><input className="inv-input" type="number" min="0" value={form.stok_minimum} onChange={(e) => setForm({ stok_minimum: e.target.value })} /></Field>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} submitLabel={isEdit ? 'Simpan Perubahan' : 'Simpan'} />
+            </form>
+        </Modal>
+    );
 }
 
-function VendorModal({ form, setForm, onSubmit, onClose }) {
-    return <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan dan PIC." onClose={onClose} icon={<Pencil size={20} />}><form onSubmit={onSubmit}><div className="inv-form-grid"><Field label="Nama Vendor"><input className="inv-input" required value={form.nama} onChange={(e) => setForm({ nama: e.target.value })} /></Field><Field label="Telepon"><input className="inv-input" value={form.telp} onChange={(e) => setForm({ telp: e.target.value })} /></Field><Field label="Alamat"><input className="inv-input" value={form.alamat} onChange={(e) => setForm({ alamat: e.target.value })} /></Field><Field label="Nama PIC"><input className="inv-input" value={form.kc} onChange={(e) => setForm({ kc: e.target.value })} /></Field></div><ModalFoot onClose={onClose} /></form></Modal>;
+function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
+    return (
+        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan dan PIC." onClose={onClose} icon={<Pencil size={20} />}>
+            <form onSubmit={onSubmit}>
+                <div className="inv-form-grid">
+                    <Field label="Nama Vendor"><input className="inv-input" required value={form.nama} onChange={(e) => setForm({ nama: e.target.value })} /></Field>
+                    <Field label="Telepon"><input className="inv-input" value={form.telp} onChange={(e) => setForm({ telp: e.target.value })} /></Field>
+                    <Field label="Alamat"><input className="inv-input" value={form.alamat} onChange={(e) => setForm({ alamat: e.target.value })} /></Field>
+                    <Field label="Nama PIC"><input className="inv-input" value={form.kc} onChange={(e) => setForm({ kc: e.target.value })} /></Field>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} />
+            </form>
+        </Modal>
+    );
 }
 
-function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, onSubmit, onClose }) {
+function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, onSubmit, onClose, saving }) {
     const isPenerimaan = mode === 'penerimaan';
-    return <Modal title={isPenerimaan ? 'Edit Penerimaan' : 'Tambah SPB'} description={isPenerimaan ? 'Perbarui invoice dan daftar barang penerimaan.' : 'Buat SPB baru untuk dasar penerimaan.'} onClose={onClose} icon={isPenerimaan ? <Pencil size={20} /> : <FilePlus2 size={20} />}><form onSubmit={onSubmit}><div className={isPenerimaan ? 'log-edit-penerimaan-grid' : 'inv-form-grid'}><div className="inv-form-grid log-form-panel"><Field label={isPenerimaan ? 'Tanggal Penerimaan' : 'Tanggal SPB'}><input className="inv-input" type="date" required value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field><Field label="Vendor"><select className="inv-input" required value={form.id_rekanan} onChange={(e) => setForm({ id_rekanan: e.target.value })}><option value="">Pilih vendor</option>{vendors.map((v) => <option key={v.id} value={v.id}>{v.nama}</option>)}</select></Field>{isPenerimaan && <Field label="No Invoice"><input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} /></Field>}<Field label="Metode Pembayaran"><input className="inv-input" value={form.metode_pembayaran} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} /></Field></div>{isPenerimaan && <ItemsTable items={purchase?.items || []} editable onEdit={onEditItem} />}</div><ModalFoot onClose={onClose} submitLabel={isPenerimaan ? 'Simpan Penerimaan' : 'Simpan SPB'} /></form></Modal>;
+    return (
+        <Modal title={isPenerimaan ? 'Edit Penerimaan' : 'Tambah SPB'} description={isPenerimaan ? 'Perbarui invoice dan daftar barang penerimaan.' : 'Buat SPB baru untuk dasar penerimaan.'} onClose={onClose} icon={isPenerimaan ? <Pencil size={20} /> : <FilePlus2 size={20} />}>
+            <form onSubmit={onSubmit}>
+                <div className={isPenerimaan ? 'log-edit-penerimaan-grid' : 'inv-form-grid'}>
+                    <div className="inv-form-grid log-form-panel">
+                        <Field label={isPenerimaan ? 'Tanggal Penerimaan' : 'Tanggal SPB'}><input className="inv-input" type="date" required value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
+                        <Field label="Vendor">
+                            <select className="inv-input" required value={form.id_rekanan} onChange={(e) => setForm({ id_rekanan: e.target.value })}>
+                                <option value="">Pilih vendor</option>
+                                {vendors.map((v) => <option key={v.id} value={v.id}>{v.nama}</option>)}
+                            </select>
+                        </Field>
+                        {isPenerimaan && <Field label="No Invoice"><input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} /></Field>}
+                        <Field label="Metode Pembayaran"><input className="inv-input" value={form.metode_pembayaran} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} /></Field>
+                    </div>
+                    {isPenerimaan && <ItemsTable items={purchase?.items || []} editable onEdit={onEditItem} />}
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} submitLabel={isPenerimaan ? 'Simpan Penerimaan' : 'Simpan SPB'} />
+            </form>
+        </Modal>
+    );
 }
 
-function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase }) {
+function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase, saving }) {
     const qtyMasuk = Number(form.qty || 0) * Number(form.isi || 0);
     const harga = parseMoneyInput(form.harga);
     const grandTotal = Number(form.qty || 0) * harga;
-    return <Modal title={form.editing ? 'Edit Barang Masuk' : 'Tambah Barang Masuk'} description="Isi rincian barang yang masuk pada invoice ini." onClose={onClose} icon={form.editing ? <Pencil size={20} /> : <Plus size={20} />}><form onSubmit={onSubmit}><div className="log-penerimaan-layout"><div className="log-split-panel log-info-panel"><h3>Informasi penerimaan</h3><div className="log-summary-list"><div className="log-summary-item"><span>No SPB</span><strong>{purchase?.nomor || '-'}</strong></div><div className="log-summary-item"><span>Vendor</span><strong>{purchase?.pemasok || '-'}</strong></div><div className="log-summary-item"><span>Tanggal</span><strong>{purchase?.tanggal || '-'}</strong></div><div className="log-summary-item"><span>No Invoice</span><strong>{form.no_invoice || purchase?.no_faktur || '-'}</strong></div></div></div><div className="log-split-panel log-item-form"><Field label="No Invoice"><input className="inv-input" value={form.no_invoice} onChange={(e) => setForm({ no_invoice: e.target.value })} /></Field><Field label="Barang"><SearchableBarangSelect options={barang} value={form.barang} onChange={(value) => setForm({ barang: value })} /></Field><Field label="Qty"><input className="inv-input" type="number" min="1" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} /></Field><Field label="Isi dalam kemasan"><input className="inv-input" type="number" min="1" required value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field><Field label="Harga"><input className="inv-input inv-input-right" type="text" inputMode="decimal" placeholder="Rp 0" value={formatMoneyInput(form.harga)} onChange={(e) => setForm({ harga: normalizeMoneyDraft(e.target.value) })} /></Field><div className="log-total-strip"><div><span>Isi pack</span><strong>{fmt(qtyMasuk)}</strong></div><div><span>Qty</span><strong>{fmt(form.qty || 0)}</strong></div><div><span>Harga</span><strong>{harga ? money(harga) : '-'}</strong></div><div className="total"><span>Grand Total</span><strong>{money(grandTotal)}</strong></div></div></div></div><ModalFoot onClose={onClose} submitLabel={form.editing ? 'Simpan Barang' : 'Tambah Barang'} /></form></Modal>;
+    return (
+        <Modal title={form.editing ? 'Edit Barang Masuk' : 'Tambah Barang Masuk'} description="Isi rincian barang yang masuk pada invoice ini." onClose={onClose} icon={form.editing ? <Pencil size={20} /> : <Plus size={20} />}>
+            <form onSubmit={onSubmit}>
+                <div className="log-penerimaan-layout">
+                    <div className="log-split-panel log-info-panel">
+                        <h3>Informasi penerimaan</h3>
+                        <div className="log-summary-list">
+                            <div className="log-summary-item"><span>No SPB</span><strong>{purchase?.nomor || '-'}</strong></div>
+                            <div className="log-summary-item"><span>Vendor</span><strong>{purchase?.pemasok || '-'}</strong></div>
+                            <div className="log-summary-item"><span>Tanggal</span><strong>{purchase?.tanggal || '-'}</strong></div>
+                            <div className="log-summary-item"><span>No Invoice</span><strong>{form.no_invoice || purchase?.no_faktur || '-'}</strong></div>
+                        </div>
+                    </div>
+                    <div className="log-split-panel log-item-form">
+                        <Field label="No Invoice"><input className="inv-input" value={form.no_invoice} onChange={(e) => setForm({ no_invoice: e.target.value })} /></Field>
+                        <Field label="Barang"><SearchableBarangSelect options={barang} value={form.barang} onChange={(value) => setForm({ barang: value })} /></Field>
+                        <Field label="Qty"><input className="inv-input" type="number" min="1" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} /></Field>
+                        <Field label="Isi dalam kemasan"><input className="inv-input" type="number" min="1" required value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field>
+                        <Field label="Harga"><input className="inv-input inv-input-right" type="text" inputMode="decimal" placeholder="Rp 0" value={formatMoneyInput(form.harga)} onChange={(e) => setForm({ harga: normalizeMoneyDraft(e.target.value) })} /></Field>
+                        <div className="log-total-strip">
+                            <div><span>Isi pack</span><strong>{fmt(qtyMasuk)}</strong></div>
+                            <div><span>Qty</span><strong>{fmt(form.qty || 0)}</strong></div>
+                            <div><span>Harga</span><strong>{harga ? money(harga) : '-'}</strong></div>
+                            <div className="total"><span>Grand Total</span><strong>{money(grandTotal)}</strong></div>
+                        </div>
+                    </div>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} submitLabel={form.editing ? 'Simpan Barang' : 'Tambah Barang'} />
+            </form>
+        </Modal>
+    );
 }
 
-function MutasiModal({ form, setForm, barang, ruang, onSubmit, onClose }) {
-    return <Modal title="Barang Keluar" onClose={onClose}><form onSubmit={onSubmit}><div className="inv-form-grid"><Field label="Barang"><select required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}><option value="">Pilih barang</option>{barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang} - stok {fmt(b.stok)}</option>)}</select></Field><Field label="Tanggal"><input type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field><Field label="Ruang"><select required value={form.ruang} onChange={(e) => setForm({ ruang: e.target.value })}><option value="">Pilih ruang</option>{ruang.map((r) => <option key={r.id} value={r.id}>{r.nama}</option>)}</select></Field><Field label="Qty"><input type="number" min="1" value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} /></Field><Field label="Keterangan"><input value={form.keterangan} onChange={(e) => setForm({ keterangan: e.target.value })} /></Field></div><ModalFoot onClose={onClose} /></form></Modal>;
+function MutasiModal({ form, setForm, barang, ruang, onSubmit, onClose, saving }) {
+    return (
+        <Modal title="Barang Keluar" onClose={onClose}>
+            <form onSubmit={onSubmit}>
+                <div className="inv-form-grid">
+                    <Field label="Barang">
+                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
+                            <option value="">Pilih barang</option>
+                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang} - stok {fmt(b.stok)}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
+                    <Field label="Ruang">
+                        <select className="inv-input" required value={form.ruang} onChange={(e) => setForm({ ruang: e.target.value })}>
+                            <option value="">Pilih ruang</option>
+                            {ruang.map((r) => <option key={r.id} value={r.id}>{r.nama}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Qty"><input className="inv-input" type="number" min="1" value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} /></Field>
+                    <Field label="Keterangan"><input className="inv-input" value={form.keterangan} onChange={(e) => setForm({ keterangan: e.target.value })} /></Field>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} />
+            </form>
+        </Modal>
+    );
 }
 
-function PermintaanModal({ form, setForm, barang, ruang, onSubmit, onClose }) {
-    return <Modal title="Permintaan Barang" onClose={onClose}><form onSubmit={onSubmit}><div className="inv-form-grid"><Field label="Barang"><select required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}><option value="">Pilih barang</option>{barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}</select></Field><Field label="Tanggal"><input type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field><Field label="Ruang"><select required value={form.ruang} onChange={(e) => setForm({ ruang: e.target.value })}><option value="">Pilih ruang</option>{ruang.map((r) => <option key={r.id} value={r.id}>{r.nama}</option>)}</select></Field><Field label="Qty Minta"><input type="number" min="1" value={form.qty_minta} onChange={(e) => setForm({ qty_minta: e.target.value })} /></Field><Field label="Catatan"><input value={form.catatan} onChange={(e) => setForm({ catatan: e.target.value })} /></Field></div><ModalFoot onClose={onClose} /></form></Modal>;
+function PermintaanModal({ form, setForm, barang, ruang, onSubmit, onClose, saving }) {
+    return (
+        <Modal title="Permintaan Barang" onClose={onClose}>
+            <form onSubmit={onSubmit}>
+                <div className="inv-form-grid">
+                    <Field label="Barang">
+                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
+                            <option value="">Pilih barang</option>
+                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
+                    <Field label="Ruang">
+                        <select className="inv-input" required value={form.ruang} onChange={(e) => setForm({ ruang: e.target.value })}>
+                            <option value="">Pilih ruang</option>
+                            {ruang.map((r) => <option key={r.id} value={r.id}>{r.nama}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Qty Minta"><input className="inv-input" type="number" min="1" value={form.qty_minta} onChange={(e) => setForm({ qty_minta: e.target.value })} /></Field>
+                    <Field label="Catatan"><input className="inv-input" value={form.catatan} onChange={(e) => setForm({ catatan: e.target.value })} /></Field>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} />
+            </form>
+        </Modal>
+    );
 }
 
-function OpnameModal({ form, setForm, barang, onSubmit, onClose }) {
-    return <Modal title="Stock Opname" onClose={onClose}><form onSubmit={onSubmit}><div className="inv-form-grid"><Field label="Barang"><select required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}><option value="">Pilih barang</option>{barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}</select></Field><Field label="Tanggal"><input type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field><Field label="Real Stock"><input type="number" value={form.real_stock} onChange={(e) => setForm({ real_stock: e.target.value })} /></Field><Field label="Keterangan"><input value={form.keterangan} onChange={(e) => setForm({ keterangan: e.target.value })} /></Field></div><ModalFoot onClose={onClose} /></form></Modal>;
+function OpnameModal({ form, setForm, barang, onSubmit, onClose, saving }) {
+    return (
+        <Modal title="Stock Opname" onClose={onClose}>
+            <form onSubmit={onSubmit}>
+                <div className="inv-form-grid">
+                    <Field label="Barang">
+                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
+                            <option value="">Pilih barang</option>
+                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}
+                        </select>
+                    </Field>
+                    <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
+                    <Field label="Real Stock"><input className="inv-input" type="number" value={form.real_stock} onChange={(e) => setForm({ real_stock: e.target.value })} /></Field>
+                    <Field label="Keterangan"><input className="inv-input" value={form.keterangan} onChange={(e) => setForm({ keterangan: e.target.value })} /></Field>
+                </div>
+                <ModalFoot onClose={onClose} saving={saving} />
+            </form>
+        </Modal>
+    );
 }
 
-function ModalFoot({ onClose, submitLabel = 'Simpan' }) {
-    return <div className="inv-modal-actions"><button className="inv-btn soft" type="button" onClick={onClose}>Batal</button><button className="inv-btn primary" type="submit"><FilePlus2 size={16} /> {submitLabel}</button></div>;
+function ModalFoot({ onClose, submitLabel = 'Simpan', saving = false }) {
+    return (
+        <div className="inv-modal-actions">
+            <button className="inv-btn soft" type="button" onClick={onClose} disabled={saving}>Batal</button>
+            <button className="inv-btn primary" type="submit" disabled={saving}>
+                <FilePlus2 size={16} /> {saving ? 'Menyimpan...' : submitLabel}
+            </button>
+        </div>
+    );
 }
 
 function MiniItems({ items }) {
@@ -725,117 +998,3 @@ function ItemsTable({ items, editable = false, onEdit }) {
 function KartuTable({ rows }) {
     return <div className="inv-table-wrap"><table className="inv-table log-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Nomor</th><th>Ruang/Vendor</th><th>Masuk</th><th>Keluar</th><th>Saldo</th></tr></thead><tbody>{rows.map((r, i) => <tr key={`${r.nomor}-${i}`}><td>{r.tanggal}</td><td>{r.jenis}</td><td>{r.nomor}</td><td>{r.ruang || '-'}</td><td>{fmt(r.masuk)}</td><td>{fmt(r.keluar)}</td><td><strong>{fmt(r.saldo)}</strong></td></tr>)}{rows.length === 0 && <tr><td colSpan="7" className="inv-empty">Pilih barang untuk melihat kartu stok.</td></tr>}</tbody></table></div>;
 }
-
-const LOG_STYLE = `
-.log-page .inv-card { border-radius: 18px; }
-.log-page .inv-card-head { border-radius: 18px 18px 0 0; }
-.log-table { min-width: 980px; }
-.log-table td, .log-table th { white-space: nowrap; }
-.log-table td:first-child, .log-table td:nth-child(3) { white-space: normal; }
-.inv-row-actions { display: inline-flex; align-items: center; gap: 7px; }
-.inv-row-actions button, .inv-row-btn {
-  width: 34px; height: 34px; border: 1px solid rgba(226,232,240,.9); border-radius: 10px;
-  background: rgba(255,255,255,.86); color: #4f46e5; display: inline-flex; align-items: center;
-  justify-content: center; cursor: pointer;
-}
-.log-modal .inv-close {
-  width: auto; min-width: 86px; height: 40px; padding: 0 13px; border-radius: 14px;
-  justify-content: center; white-space: nowrap; flex: 0 0 auto;
-}
-.log-filter-segment {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 42px; padding: 4px;
-  border-radius: 14px; border: 1px solid rgba(226,232,240,.86);
-  background: rgba(248,250,252,.88);
-}
-.log-filter-segment button {
-  border: 0; border-radius: 10px; min-height: 32px; padding: 0 12px;
-  background: transparent; color: #64748b; font-size: 12px; font-weight: 900; cursor: pointer;
-}
-.log-filter-segment button.active {
-  color: #4f46e5; background: white; box-shadow: 0 8px 20px rgba(15,23,42,.08);
-}
-.inv-status { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 900; }
-.inv-status.success { color: #047857; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.22); }
-.inv-status.danger { color: #b91c1c; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.22); }
-.log-modal.inv-modal.create { width: min(1050px, calc(100vw - 32px)); }
-.log-modal.inv-modal.detail { width: min(1220px, calc(100vw - 32px)); }
-.log-modal .inv-modal-head { justify-content: space-between; gap: 14px; }
-.log-modal-title { display: flex; align-items: center; gap: 13px; min-width: 0; }
-.log-modal-title p { margin: 4px 0 0; color: #64748b; font-size: 13px; font-weight: 700; }
-.log-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.log-detail-grid div { border: 1px solid rgba(226,232,240,.85); border-radius: 14px; padding: 10px; background: rgba(255,255,255,.72); }
-.log-detail-grid span { display: block; color: #64748b; font-size: 12px; font-weight: 900; margin-bottom: 4px; text-transform: capitalize; }
-.log-detail-grid strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
-.inv-field select, .inv-field input { width: 100%; border: 1px solid rgba(226,232,240,.95); border-radius: 12px; min-height: 40px; padding: 8px 11px; font: inherit; font-size: 13px; font-weight: 750; color: #0f172a; background: rgba(255,255,255,.9); }
-.log-page .inv-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    .log-penerimaan-layout { display: grid; grid-template-columns: minmax(260px, 340px) minmax(420px, 1fr); gap: 14px; align-items: start; }
-    .log-edit-penerimaan-grid { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: 16px; align-items: start; }
-    .log-form-panel { border: 1px solid rgba(226,232,240,.86); border-radius: 18px; padding: 14px; background: rgba(255,255,255,.58); grid-template-columns: 1fr; align-self: start; }
-    .log-split-panel { border: 1px solid rgba(226,232,240,.9); border-radius: 16px; padding: 14px; background: rgba(255,255,255,.7); display: grid; gap: 10px; }
-    .log-info-panel { align-self: start; }
-    .log-item-form { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-    .log-item-form label:nth-child(2) { grid-column: span 2; }
-    .log-split-panel h3 { margin: 0; font-size: 14px; color: #0f172a; }
-    .log-summary-list { display: grid; gap: 8px; }
-    .log-summary-item { border: 1px solid rgba(226,232,240,.8); border-radius: 12px; padding: 9px 10px; background: white; }
-    .log-summary-item span { display: block; color: #64748b; font-size: 11px; font-weight: 900; margin-bottom: 3px; }
-    .log-summary-item strong { display: block; color: #0f172a; font-size: 13px; }
-    .log-summary-item.total { background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(6,182,212,.10)); border-color: rgba(99,102,241,.2); }
-    .log-search-select { position: relative; width: 100%; }
-    .log-search-control {
-      min-height: 40px; border: 1px solid rgba(226,232,240,.95); border-radius: 12px;
-      padding: 0 10px; display: flex; align-items: center; gap: 8px;
-      background: rgba(255,255,255,.92); color: #64748b;
-    }
-    .log-search-control.open { border-color: rgba(99,102,241,.42); box-shadow: 0 0 0 4px rgba(99,102,241,.10); }
-    .log-search-control input {
-      border: 0; outline: 0; background: transparent; min-width: 0; flex: 1;
-      font: inherit; font-size: 13px; font-weight: 800; color: #0f172a;
-    }
-    .log-search-control svg:last-child { transition: transform .18s ease; }
-    .log-search-control svg:last-child.open { transform: rotate(180deg); }
-    .log-search-options {
-      position: absolute; z-index: 1300; top: calc(100% + 8px); left: 0; right: 0;
-      max-height: 280px; overflow-y: auto; padding: 8px; border-radius: 16px;
-      border: 1px solid rgba(226,232,240,.86); background: rgba(255,255,255,.96);
-      box-shadow: 0 22px 45px rgba(15,23,42,.18); backdrop-filter: blur(18px);
-    }
-    .log-search-options button {
-      width: 100%; border: 0; background: transparent; border-radius: 12px; padding: 10px;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      text-align: left; color: #0f172a; cursor: pointer;
-    }
-    .log-search-options button.active, .log-search-options button:hover { background: rgba(99,102,241,.10); }
-    .log-search-options button.selected { color: #4f46e5; }
-    .log-search-options strong { display: block; font-size: 13px; line-height: 1.25; }
-    .log-search-options small { display: block; margin-top: 3px; color: #64748b; font-size: 11px; font-weight: 800; }
-    .log-search-empty { padding: 12px; color: #64748b; font-size: 12px; font-weight: 850; }
-    .log-total-strip { grid-column: span 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-    .log-total-strip div { border: 1px solid rgba(226,232,240,.82); border-radius: 12px; padding: 9px 10px; background: white; }
-    .log-total-strip span { display: block; color: #64748b; font-size: 11px; font-weight: 900; margin-bottom: 3px; }
-    .log-total-strip strong { display: block; color: #0f172a; font-size: 13px; }
-    .log-total-strip .total { background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(6,182,212,.10)); border-color: rgba(99,102,241,.2); }
-    .log-items-section { border: 1px solid rgba(255,255,255,.68); border-radius: 20px; padding: 16px; background: rgba(255,255,255,.72); display: grid; gap: 12px; }
-    .log-items-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-    .log-items-head h3 { margin: 0; font-size: 15px; color: #0f172a; font-weight: 950; }
-    .log-items-head p { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 750; }
-    .log-items-head > strong { color: #4f46e5; font-size: 15px; }
-    .log-items-wrap { border-radius: 16px; }
-    .log-items-table { min-width: 760px; }
-    .log-items-table td small { display: block; color: #64748b; font-size: 11px; margin-top: 3px; }
-    .log-items-table th, .log-items-table td { white-space: nowrap; }
-    .log-items-table td:first-child { white-space: normal; min-width: 220px; }
-    .log-edit-items { display: grid; gap: 9px; }
-    .log-edit-item { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(72px, .55fr)) 38px; gap: 8px; align-items: center; border: 1px solid rgba(226,232,240,.86); border-radius: 14px; padding: 10px; background: rgba(255,255,255,.82); }
-    .log-edit-item .name { min-width: 0; }
-    .log-edit-item .name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .log-edit-item .name span, .log-edit-item div span { display: block; color: #64748b; font-size: 11px; font-weight: 850; margin-top: 2px; }
-    .log-edit-item div strong { display: block; color: #0f172a; font-size: 12px; line-height: 1.25; }
-    @media (max-width: 1100px) { .log-penerimaan-layout, .log-edit-penerimaan-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 900px) { .log-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .log-edit-item { grid-template-columns: minmax(0, 1fr) 38px; } .log-edit-item div:not(.name) { display: none; } }
-    @media (max-width: 760px) { .log-page .inv-form-grid, .log-detail-grid, .log-penerimaan-layout, .log-item-form, .log-total-strip { grid-template-columns: 1fr; } .log-item-form label:nth-child(2), .log-total-strip { grid-column: auto; } .log-filter-segment { width: 100%; } .log-filter-segment button { flex: 1; } }
-`;
-
-
-
-

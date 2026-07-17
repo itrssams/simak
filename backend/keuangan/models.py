@@ -468,7 +468,15 @@ class UtangSupplier(models.Model):
         (STATUS_LUNAS, 'Lunas'),
     ]
 
-    app_siaga_faktur_id = models.CharField(max_length=32, unique=True, help_text='ID rssams.tran_beli_brg_farmasi')
+    SUMBER_FARMASI = 'farmasi'
+    SUMBER_LOGISTIK = 'logistik'
+    SUMBER_CHOICES = [
+        (SUMBER_FARMASI, 'Farmasi'),
+        (SUMBER_LOGISTIK, 'Logistik'),
+    ]
+
+    app_siaga_faktur_id = models.CharField(max_length=32, help_text='ID dari tabel sumber (tran_beli_brg_farmasi atau tran_beli_brg_log)')
+    sumber = models.CharField(max_length=10, choices=SUMBER_CHOICES, default=SUMBER_FARMASI, help_text='Asal transaksi: farmasi atau logistik')
     nomor_spb = models.CharField(max_length=50, blank=True)
     tanggal_spb = models.DateField(null=True, blank=True)
     nomor_faktur = models.CharField(max_length=100)
@@ -489,10 +497,16 @@ class UtangSupplier(models.Model):
         db_table = 'utang_supplier'
         ordering = ['-tanggal_faktur', '-created_at']
         indexes = [
-            models.Index(fields=['app_siaga_faktur_id'], name='utang_app_siaga_idx'),
             models.Index(fields=['vendor_id'], name='utang_vendor_idx'),
             models.Index(fields=['status'], name='utang_status_idx'),
             models.Index(fields=['tanggal_jatuh_tempo'], name='utang_jtempo_idx'),
+            models.Index(fields=['sumber'], name='utang_sumber_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['app_siaga_faktur_id', 'sumber'],
+                name='utang_faktur_sumber_uniq',
+            )
         ]
         verbose_name = 'Utang Supplier'
         verbose_name_plural = 'Utang Supplier'
