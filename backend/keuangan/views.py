@@ -10,7 +10,7 @@ from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -231,6 +231,11 @@ class IsKeuanganPermission(BasePermission):
 class IsCatatanUtangObatBhpPermission(BasePermission):
     def has_permission(self, request, view):
         return can_access_catatan_utang_obat_bhp(request.user)
+
+
+class IsLogistikOrCatatanUtangPermission(BasePermission):
+    def has_permission(self, request, view):
+        return is_logistik(request.user) or can_access_catatan_utang_obat_bhp(request.user)
 
 
 class IsPettyCashSaldoPermission(BasePermission):
@@ -3839,6 +3844,56 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             'lunas': qs.filter(status=UtangSupplier.STATUS_LUNAS).count(),
         })
 
+    @action(detail=False, methods=['post'], url_path='create-manual')
+    def create_manual(self, request):
+        """Membuat catatan utang secara manual (tidak dari database legacy)."""
+        data = request.data
+        vendor_id = data.get('vendor_id')
+        if not vendor_id:
+            return Response({'error': 'vendor_id wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ambil nama vendor dari rssams.rekanan
+        vendor_row = legacy_fetchone(
+            'SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = %s',
+            [vendor_id, 'N'],
+        )
+        if not vendor_row:
+            return Response({'error': 'Vendor tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+
+        nomor_faktur = (data.get('nomor_faktur') or '').strip()
+        if not nomor_faktur:
+            return Response({'error': 'nomor_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        nominal_raw = data.get('nominal')
+        try:
+            nominal = Decimal(str(nominal_raw))
+            if nominal <= 0:
+                raise ValueError
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'error': 'nominal tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Buat ID unik untuk utang manual agar tidak bertabrakan dengan constraint utang_faktur_sumber_uniq
+        import uuid
+        faktur_id = f'MNL-{uuid.uuid4().hex[:12].upper()}'
+
+        utang = UtangSupplier.objects.create(
+            app_siaga_faktur_id=faktur_id,
+            sumber=UtangSupplier.SUMBER_MANUAL,
+            nomor_faktur=nomor_faktur,
+            nomor_spb=data.get('nomor_spb') or '',
+            vendor_id=int(vendor_id),
+            vendor_nama=vendor_row['nama'],
+            tanggal_faktur=data.get('tanggal_faktur') or None,
+            tanggal_jatuh_tempo=data.get('tanggal_jatuh_tempo') or None,
+            nominal=nominal,
+            keterangan_titip=data.get('keterangan') or '',
+            status=UtangSupplier.STATUS_BELUM_DIBAYAR,
+            verified_by=request.user,
+            verified_at=timezone.now(),
+        )
+        return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
@@ -5638,17 +5693,17 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
 
 class LogistikVendorViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
+    permission_classes = [IsAuthenticated, IsLogistikOrCatatanUtangPermission]
 
     def list(self, request):
         search = request.query_params.get('search') or ''
         where = "WHERE del = 'N'"
         params = []
         if search:
-            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s)'
-            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s OR kategori LIKE %s)'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%']
         base = f"""
-            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, del
+            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, kategori, del
             FROM rssams.rekanan
             {where}
             ORDER BY nama
@@ -5664,8 +5719,8 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc)
-                VALUES(%s, %s, %s, %s, %s)
+                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori)
+                VALUES(%s, %s, %s, %s, %s, %s)
                 """,
                 [
                     vendor_id,
@@ -5673,6 +5728,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
                     data.get('alamat') or '',
                     data.get('telp') or '',
                     data.get('kc') or '',
+                    data.get('kategori') or '',
                 ],
             )
         return Response({'id': vendor_id, 'id_rekanan': vendor_id}, status=201)
@@ -5684,7 +5740,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
             cursor.execute(
                 """
                 UPDATE rssams.rekanan
-                SET nama = %s, alamat = %s, telp = %s, kc = %s
+                SET nama = %s, alamat = %s, telp = %s, kc = %s, kategori = %s
                 WHERE id_rekanan = %s
                 """,
                 [
@@ -5692,6 +5748,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
                     data.get('alamat') or '',
                     data.get('telp') or '',
                     data.get('kc') or '',
+                    data.get('kategori') or '',
                     pk,
                 ],
             )

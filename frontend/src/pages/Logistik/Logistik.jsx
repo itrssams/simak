@@ -88,7 +88,21 @@ const TITLES = {
 };
 
 const emptyBarang = { nama_barang: '', kemasan: '', satuan: 'PCS', isi: 1, merk: '', golongan: '', stok_minimum: 0 };
-const emptyVendor = { nama: '', alamat: '', telp: '', kc: '' };
+const VENDOR_CATEGORIES = [
+    'OBAT & BHP',
+    'ALAT KESEHATAN',
+    'PELAYANAN RUJUKAN DAN LABORATORIUM',
+    'PENUNJANG PELAYANAN RS',
+    'ATK, CETAKAN, RUMAH TANGGA DLL.',
+    'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN',
+    'KAS NEGARA',
+    'BIAYA RUTIN GAJI KARYAWAN',
+    'BIAYA RUTIN JASA MEDIS',
+    'BIAYA RUTIN JASA PELAYANAN DLL',
+    'BIAYA RUTIN BULANAN',
+    'BIAYA LAIN-LAIN',
+];
+const emptyVendor = { nama: '', alamat: '', telp: '', kc: '', kategori: '' };
 const emptySpb = { tanggal: today(), id_rekanan: '', no_spb: '', metode_pembayaran: 'Kredit' };
 const emptyItem = { barang: '', original_barang: '', qty: 1, isi: 1, harga: '', no_invoice: '', editing: false };
 const UNIT_OPTIONS = ['PCS', 'BOX', 'BTL', 'KALENG', 'PAK', 'STRIP', 'SET', 'LITER', 'GRAM', 'METER'];
@@ -526,7 +540,7 @@ function payload_error_fallback(section) {
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
     const headers = {
         barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
-        vendor: ['Vendor', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
+        vendor: ['Vendor', 'Kategori', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
@@ -555,7 +569,7 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 </td>
             </tr>
         ));
-        if (section === 'vendor') return rows.map((r) => <tr key={r.id}><td><strong>{r.nama}</strong></td><td>{r.alamat || '-'}</td><td>{r.telp || '-'}</td><td>{r.kc || '-'}</td><td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td></tr>);
+        if (section === 'vendor') return rows.map((r) => <tr key={r.id}><td><strong>{r.nama}</strong></td><td><span className="log-vendor-cat">{r.kategori || '-'}</span></td><td>{r.alamat || '-'}</td><td>{r.telp || '-'}</td><td>{r.kc || '-'}</td><td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td></tr>);
         if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r))}</td><td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button></div></td></tr>);
         if (section === 'penerimaan') return rows.map((r) => {
             const items = r.items || [];
@@ -761,10 +775,16 @@ function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
 
 function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
     return (
-        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan dan PIC." onClose={onClose} icon={<Pencil size={20} />}>
+        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan, PIC, dan kategori." onClose={onClose} icon={<Pencil size={20} />}>
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Nama Vendor"><input className="inv-input" required value={form.nama} onChange={(e) => setForm({ nama: e.target.value })} /></Field>
+                    <Field label="Kategori Rekanan">
+                        <select className="inv-input" required value={form.kategori} onChange={(e) => setForm({ kategori: e.target.value })}>
+                            <option value="">-- Pilih Kategori --</option>
+                            {VENDOR_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                    </Field>
                     <Field label="Telepon"><input className="inv-input" value={form.telp} onChange={(e) => setForm({ telp: e.target.value })} /></Field>
                     <Field label="Alamat"><input className="inv-input" value={form.alamat} onChange={(e) => setForm({ alamat: e.target.value })} /></Field>
                     <Field label="Nama PIC"><input className="inv-input" value={form.kc} onChange={(e) => setForm({ kc: e.target.value })} /></Field>

@@ -107,9 +107,8 @@ const MENU_KEUANGAN = [
 const MENU_CATATAN_UTANG = [
     {
         label: 'Catatan Utang', icon: 'debt', children: [
-            { label: 'Obat & BHP', path: '/keuangan/catatan-utang/obat-bhp' },
-            { label: 'Alat Kesehatan', disabled: true },
-            { label: 'Pelayanan Rujukan & Laboratorium', disabled: true },
+            { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
+            { label: 'Master Vendor', path: '/logistik/vendor' },
         ],
     },
 ];
@@ -117,7 +116,6 @@ const MENU_LOGISTIK = [
     {
         label: 'Gudang Logistik', icon: 'inventory', children: [
             { label: 'Daftar Barang', path: '/logistik/barang' },
-            { label: 'Master Vendor', path: '/logistik/vendor' },
             { label: 'SPB', path: '/logistik/spb' },
             { label: 'Penerimaan', path: '/logistik/penerimaan' },
             { label: 'Barang Keluar', path: '/logistik/barang-keluar' },

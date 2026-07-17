@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     CircleDollarSign,
     FileClock,
+    FilePlus2,
     FilterX,
     HandCoins,
     History,
@@ -33,9 +34,10 @@ const SUMBER_OPTIONS = [
     { value: 'semua', label: 'Semua Sumber' },
     { value: 'farmasi', label: 'Farmasi' },
     { value: 'logistik', label: 'Logistik' },
+    { value: 'manual', label: 'Manual' },
 ];
 
-const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik' };
+const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
 
 const TABS = [
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
@@ -103,6 +105,7 @@ const errorMessage = (err, fallback) => err?.response?.data?.detail || err?.resp
 const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', dari: '', sampai: '', ordering: '-tanggal_faktur' };
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), tanggal_proses: todayISO(), tanggal_app: '', jumlah_bayar: '', keterangan: '' };
+const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', nominal: '', keterangan: '' };
 
 export default function CatatanUtangObatBhp() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -127,6 +130,8 @@ export default function CatatanUtangObatBhp() {
     const [paymentTarget, setPaymentTarget] = useState(null);
     const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
     const [paymentHistory, setPaymentHistory] = useState([]);
+    const [showManual, setShowManual] = useState(false);
+    const [manualForm, setManualForm] = useState(initialManualForm);
 
     const canAccess = Boolean(user?.is_superuser || user?.akses_catatan_utang);
 
@@ -273,6 +278,39 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const openManual = () => {
+        setManualForm(initialManualForm);
+        setShowManual(true);
+    };
+
+    const submitManual = async (event) => {
+        event.preventDefault();
+        const nominal = parseMoneyInput(manualForm.nominal);
+        if (nominal <= 0) return toast.error('Nominal wajib lebih dari 0.');
+        if (!manualForm.vendor_id) return toast.error('Vendor wajib dipilih.');
+        if (!manualForm.nomor_faktur.trim()) return toast.error('Nomor faktur wajib diisi.');
+        setSaving(true);
+        try {
+            await api.post('/keuangan/utang-supplier/create-manual/', {
+                vendor_id: manualForm.vendor_id,
+                nomor_faktur: manualForm.nomor_faktur.trim(),
+                nomor_spb: manualForm.nomor_spb.trim(),
+                tanggal_faktur: manualForm.tanggal_faktur || null,
+                tanggal_jatuh_tempo: manualForm.tanggal_jatuh_tempo || null,
+                nominal,
+                keterangan: manualForm.keterangan,
+            });
+            toast.success('Catatan utang manual berhasil disimpan.');
+            setShowManual(false);
+            if (mode === 'aktif') await fetchData();
+            else setSearchParams({ tab: 'aktif' });
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal menyimpan utang manual.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (!canAccess) {
         return (
             <div className="utang-page">
@@ -302,6 +340,11 @@ export default function CatatanUtangObatBhp() {
                     <div className="utang-card-title">
                         <h2>{meta.cardTitle}</h2>
                         <p>{total} data tercatat sesuai filter.</p>
+                    </div>
+                    <div className="utang-card-actions">
+                        <button className="utang-btn-manual" type="button" onClick={openManual}>
+                            <FilePlus2 size={16} /> Catat Utang Manual
+                        </button>
                     </div>
                 </div>
 
@@ -472,6 +515,84 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setPaymentTarget(null)}>Batal</button>
                             <button className="utang-btn primary" type="submit" disabled={saving}><CircleDollarSign size={16} /> {saving ? 'Menyimpan...' : 'Simpan Pembayaran'}</button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
+            {showManual && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setShowManual(false)}>
+                    <form className="utang-modal manual" role="dialog" aria-modal="true" onSubmit={submitManual} onMouseDown={(e) => e.stopPropagation()}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon"><FilePlus2 size={20} /></span>
+                            <div>
+                                <h2>Catat Utang Manual</h2>
+                                <p>Buat catatan utang baru langsung tanpa melalui verifikasi faktur legacy.</p>
+                            </div>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-manual-grid">
+                                <label>
+                                    Vendor / Rekanan
+                                    <select
+                                        className="utang-input"
+                                        required
+                                        value={manualForm.vendor_id}
+                                        onChange={(e) => setManualForm({ ...manualForm, vendor_id: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Vendor --</option>
+                                        {vendors.map((v) => <option key={v.id} value={v.id}>{v.nama}</option>)}
+                                    </select>
+                                </label>
+                                <label>
+                                    Nomor Faktur
+                                    <input
+                                        className="utang-input"
+                                        required
+                                        placeholder="Contoh: INV/2025/001"
+                                        value={manualForm.nomor_faktur}
+                                        onChange={(e) => setManualForm({ ...manualForm, nomor_faktur: e.target.value })}
+                                    />
+                                </label>
+                                <label>
+                                    Nomor SPB / PO
+                                    <input
+                                        className="utang-input"
+                                        placeholder="Opsional"
+                                        value={manualForm.nomor_spb}
+                                        onChange={(e) => setManualForm({ ...manualForm, nomor_spb: e.target.value })}
+                                    />
+                                </label>
+                                <label>
+                                    Nominal Utang
+                                    <input
+                                        className="utang-input utang-input-right"
+                                        required
+                                        placeholder="Rp 0"
+                                        value={formatMoneyInput(manualForm.nominal)}
+                                        onChange={(e) => setManualForm({ ...manualForm, nominal: e.target.value })}
+                                    />
+                                </label>
+                                <label>Tanggal Faktur<DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
+                                <label>Tanggal Jatuh Tempo<DateInput value={manualForm.tanggal_jatuh_tempo} onChange={(v) => setManualForm({ ...manualForm, tanggal_jatuh_tempo: v })} /></label>
+                                <label className="utang-span-full">
+                                    Keterangan
+                                    <textarea
+                                        className="utang-input"
+                                        rows={2}
+                                        placeholder="Catatan tambahan (opsional)"
+                                        value={manualForm.keterangan}
+                                        onChange={(e) => setManualForm({ ...manualForm, keterangan: e.target.value })}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button type="button" className="utang-btn secondary" onClick={() => setShowManual(false)} disabled={saving}>Batal</button>
+                            <button type="submit" className="utang-btn primary" disabled={saving}>
+                                {saving ? 'Menyimpan...' : <><FilePlus2 size={15} /> Simpan Utang</>}
+                            </button>
                         </div>
                     </form>
                 </div>,

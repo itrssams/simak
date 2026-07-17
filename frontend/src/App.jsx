@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -148,7 +148,7 @@ const AppRoutes = () => {
             <Route path="/keuangan/invoices/:id" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/catatan-utang/obat-bhp" element={<ProtectedRoute allow={canCatatanUtang}><CatatanUtangObatBhp /></ProtectedRoute>} />
             <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
-            <Route path="/logistik/:section" element={<ProtectedRoute allow={isLogistik}><Logistik /></ProtectedRoute>} />
+            <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u)}><Logistik /></ProtectedRoute>} />
 
             {/* Lainnya */}
             <Route path="/audit-log" element={<ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}><AuditLog /></ProtectedRoute>} />

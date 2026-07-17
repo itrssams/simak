@@ -470,9 +470,11 @@ class UtangSupplier(models.Model):
 
     SUMBER_FARMASI = 'farmasi'
     SUMBER_LOGISTIK = 'logistik'
+    SUMBER_MANUAL = 'manual'
     SUMBER_CHOICES = [
         (SUMBER_FARMASI, 'Farmasi'),
         (SUMBER_LOGISTIK, 'Logistik'),
+        (SUMBER_MANUAL, 'Manual'),
     ]
 
     app_siaga_faktur_id = models.CharField(max_length=32, help_text='ID dari tabel sumber (tran_beli_brg_farmasi atau tran_beli_brg_log)')
