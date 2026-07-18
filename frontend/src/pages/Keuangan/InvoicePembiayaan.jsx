@@ -1186,10 +1186,10 @@ export default function InvoicePembiayaan() {
                                             )}
                                         </div> */}
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice')}><Printer size={15} /> Invoice</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice_ppn')}><FileText size={15} /> Invoice PPN</button>
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian')}><ReceiptText size={15} /> Rincian</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian_ppn')}><ClipboardList size={15} /> Rincian PPN</button>
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('kwitansi')}><ReceiptText size={15} /> Kwitansi</button>
+                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice_ppn')}><FileText size={15} /> Invoice PPN</button>
+                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian_ppn')}><ClipboardList size={15} /> Rincian PPN</button>
                                         <button className="inv-close" type="button" onClick={closeDetail}>Tutup</button>
                                     </div>
                                 </div>

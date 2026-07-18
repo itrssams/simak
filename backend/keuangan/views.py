@@ -4179,20 +4179,10 @@ class UtangVendorOptionsView(APIView):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT DISTINCT r.id_rekanan AS id, r.nama AS nama
-                FROM rssams.rekanan r
-                WHERE r.del = 'N'
-                  AND (
-                    EXISTS (
-                        SELECT 1 FROM rssams.tran_beli_brg_farmasi f
-                        WHERE f.id_rekanan = r.id_rekanan
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM rssams.tran_beli_brg_log l
-                        WHERE UPPER(TRIM(CONVERT(l.rekanan USING utf8mb4))) = UPPER(TRIM(CONVERT(r.nama USING utf8mb4)))
-                    )
-                  )
-                ORDER BY r.nama
+                SELECT id_rekanan AS id, nama
+                FROM rssams.rekanan
+                WHERE del = 'N'
+                ORDER BY nama
                 LIMIT 500
                 """
             )
@@ -5719,8 +5709,8 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori)
-                VALUES(%s, %s, %s, %s, %s, %s)
+                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori, del)
+                VALUES(%s, %s, %s, %s, %s, %s, 'N')
                 """,
                 [
                     vendor_id,
@@ -6110,17 +6100,90 @@ class LogistikOpnameViewSet(viewsets.ViewSet):
 
     def create(self, request):
         data = request.data
-        row = legacy_fetchone('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM rssams.opname_brg_log')
-        stock = legacy_stock(data.get('barang'))
+        id_brg = data.get('barang')
+        real_stock = float(data.get('real_stock') or 0)
+        tanggal = data.get('tanggal') or timezone.localdate()
+
+        # 1. Hitung stok sistem terkini dan catat opname
+        stock_sistem = float(legacy_stock(id_brg) or 0)
+        selisih = real_stock - stock_sistem
+
+        opname_row = legacy_fetchone('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM rssams.opname_brg_log')
+        opname_id = opname_row['next_id']
+
         with connection.cursor() as cursor:
             cursor.execute(
                 """
                 INSERT INTO rssams.opname_brg_log(id, id_brg, real_stock, stock_komp, harga, tgl)
                 VALUES(%s, %s, %s, %s, 0, %s)
                 """,
-                [row['next_id'], data.get('barang'), data.get('real_stock') or 0, stock, data.get('tanggal') or timezone.localdate()],
+                [opname_id, id_brg, real_stock, stock_sistem, tanggal],
             )
-        return Response({'id': row['next_id']}, status=201)
+
+        # 2. Terapkan penyesuaian stok jika ada selisih
+        if abs(selisih) >= 0.01:
+            opname_spb_id = legacy_next_year_id('tran_beli_brg_log')
+            tgl_dt = f"{tanggal} {timezone.localtime().strftime('%H:%M:%S')}"
+
+            # Buat SPB OPNAME sebagai referensi
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO rssams.tran_beli_brg_log(id, tgl_spk, no_spk, rekanan, nilai, done)
+                    VALUES(%s, %s, %s, 'STOCK OPNAME', 0, 'Y')
+                    """,
+                    [opname_spb_id, tanggal, f'OPNAME-{opname_id}'],
+                )
+
+            if selisih > 0:
+                # Stok sistem lebih rendah dari real: tambah stok masuk
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO rssams.item_logistik(id, id_brg, qty, isi, harga)
+                        VALUES(%s, %s, %s, 1, 0)
+                        """,
+                        [opname_spb_id, id_brg, selisih],
+                    )
+            else:
+                # Stok sistem lebih tinggi dari real: kurangi dengan out record
+                # Dummy batch masuk (qty=0) sebagai referensi id_item_logistik
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO rssams.item_logistik(id, id_brg, qty, isi, harga)
+                        VALUES(%s, %s, 0, 1, 0)
+                        """,
+                        [opname_spb_id, id_brg],
+                    )
+
+                # Master tran_out_brg_log untuk opname
+                opname_out_id = legacy_next_year_id('tran_out_brg_log')
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO rssams.tran_out_brg_log(id, tgl, id_ruang, pemberi, penerima, done)
+                        VALUES(%s, %s, 1, 'SIMAK', 'STOCK OPNAME', 'Y')
+                        """,
+                        [opname_out_id, tgl_dt],
+                    )
+
+                # Item out yang mengurangi stok, referensi ke dummy batch
+                out_item_id = legacy_next_item_out_id(opname_out_id)
+                qty_kurang = abs(selisih)
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
+                        VALUES(%s, %s, %s, %s, 0, %s, 1, %s, 'Sudah Diberikan')
+                        """,
+                        [out_item_id, id_brg, qty_kurang, qty_kurang, tgl_dt, opname_spb_id],
+                    )
+
+            # Refresh cache stok di dafbrg_log
+            legacy_stock(id_brg)
+
+        return Response({'id': opname_id}, status=201)
 
 
 class RekapDriverView(APIView):
