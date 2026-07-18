@@ -5679,6 +5679,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
         for row in rows:
             saldo += float(row['masuk'] or 0) - float(row['keluar'] or 0)
             row['saldo'] = saldo
+        rows.reverse()
         return Response(rows)
 
 

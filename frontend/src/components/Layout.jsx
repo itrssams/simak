@@ -1000,7 +1000,7 @@ export default function Layout({ children }) {
                     opacity: 0;
                 }
                 .sb-children.open {
-                    max-height: 260px;
+                    max-height: 500px;
                     opacity: 1;
                 }
                 .sb-child {

@@ -131,6 +131,25 @@ export default function Logistik() {
     const [activePurchase, setActivePurchase] = useState(null);
     const [kartuBarang, setKartuBarang] = useState('');
     const [kartuRows, setKartuRows] = useState([]);
+    const [kartuSearch, setKartuSearch] = useState('');
+    const [kartuJenis, setKartuJenis] = useState('all');
+    const [kartuDari, setKartuDari] = useState('');
+    const [kartuSampai, setKartuSampai] = useState('');
+
+    const filteredKartuRows = useMemo(() => {
+        return kartuRows.filter((r) => {
+            if (kartuJenis !== 'all' && r.jenis !== kartuJenis) return false;
+            if (kartuDari && r.tanggal < kartuDari) return false;
+            if (kartuSampai && r.tanggal > kartuSampai) return false;
+            if (kartuSearch) {
+                const searchNeedle = kartuSearch.toLowerCase();
+                const nomorMatch = String(r.nomor || '').toLowerCase().includes(searchNeedle);
+                const ruangMatch = String(r.ruang || '').toLowerCase().includes(searchNeedle);
+                if (!nomorMatch && !ruangMatch) return false;
+            }
+            return true;
+        });
+    }, [kartuRows, kartuJenis, kartuDari, kartuSampai, kartuSearch]);
     const [forms, setForms] = useState({
         barang: emptyBarang,
         vendor: emptyVendor,
@@ -484,7 +503,34 @@ export default function Logistik() {
                             <button className="inv-btn soft" onClick={() => loadKartu()} type="button"><Eye size={16} /> Tampilkan</button>
                         </div>
                     </div>
-                    <KartuTable rows={kartuRows} />
+                    {kartuBarang && (
+                        <div className="dki-filter" style={{ padding: '12px 20px', borderBottom: '1px solid #edf2f7', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <label className="dki-search" style={{ flex: '1 1 200px', margin: 0 }}>
+                                <Search size={16} />
+                                <input value={kartuSearch} onChange={(e) => setKartuSearch(e.target.value)} placeholder="Cari nomor atau ruang..." />
+                            </label>
+                            
+                            <select className="dki-select" style={{ height: '36px', minWidth: '120px' }} value={kartuJenis} onChange={(e) => setKartuJenis(e.target.value)}>
+                                <option value="all">Semua Jenis</option>
+                                <option value="Masuk">Masuk</option>
+                                <option value="Keluar">Keluar</option>
+                            </select>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '13px', color: '#64748b' }}>Dari</span>
+                                <input type="date" className="dki-select" style={{ height: '36px', padding: '0 8px' }} value={kartuDari} onChange={(e) => setKartuDari(e.target.value)} />
+                                <span style={{ fontSize: '13px', color: '#64748b' }}>s/d</span>
+                                <input type="date" className="dki-select" style={{ height: '36px', padding: '0 8px' }} value={kartuSampai} onChange={(e) => setKartuSampai(e.target.value)} />
+                            </div>
+
+                            {(kartuSearch || kartuJenis !== 'all' || kartuDari || kartuSampai) && (
+                                <button className="inv-btn soft" style={{ height: '36px', padding: '0 12px' }} onClick={() => { setKartuSearch(''); setKartuJenis('all'); setKartuDari(''); setKartuSampai(''); }} type="button">
+                                    Reset Filter
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    <KartuTable rows={filteredKartuRows} />
                 </section>
             )}
 
