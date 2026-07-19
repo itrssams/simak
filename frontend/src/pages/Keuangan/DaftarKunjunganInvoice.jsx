@@ -17,6 +17,7 @@ import api from '../../api/axiosConfig';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import TableSkeleton from '../../components/TableSkeleton';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './DaftarKunjunganInvoice.css';
@@ -517,40 +518,41 @@ export default function DaftarKunjunganInvoice() {
                     </div>
                 </div>
 
-                <div className="dki-table-wrap">
-                    <table className="dki-table">
-                        <thead>
-                            <tr>
-                                <th className="check">
-                                    <label className="dki-check" title="Pilih semua kunjungan valid pada halaman ini">
-                                        <input
-                                            type="checkbox"
-                                            checked={allVisibleSelected}
-                                            disabled={selectableNos.length === 0}
-                                            ref={(input) => {
-                                                if (input) input.indeterminate = someVisibleSelected && !allVisibleSelected;
-                                            }}
-                                            onChange={toggleSelectAllVisible}
-                                        />
-                                        <span />
-                                    </label>
-                                </th>
-                                <th>No Kunjungan</th>
-                                <th>Tanggal</th>
-                                <th>Pasien</th>
-                                <th>Pembiayaan</th>
-                                <th className="right">Total Biaya</th>
-                                <th>Status</th>
-                                <th>Invoice</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr><td colSpan="9" className="center dki-state-cell">Memuat daftar kunjungan...</td></tr>
-                            ) : rows.length === 0 ? (
-                                <tr><td colSpan="9" className="center dki-state-cell">Belum ada kunjungan sesuai filter.</td></tr>
-                            ) : rows.map((row) => {
+                {loading ? (
+                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={9} showHead />
+                ) : (
+                    <div className="dki-table-wrap table-fade-in">
+                        <table className="dki-table">
+                            <thead>
+                                <tr>
+                                    <th className="check">
+                                        <label className="dki-check" title="Pilih semua kunjungan valid pada halaman ini">
+                                            <input
+                                                type="checkbox"
+                                                checked={allVisibleSelected}
+                                                disabled={selectableNos.length === 0}
+                                                ref={(input) => {
+                                                    if (input) input.indeterminate = someVisibleSelected && !allVisibleSelected;
+                                                }}
+                                                onChange={toggleSelectAllVisible}
+                                            />
+                                            <span />
+                                        </label>
+                                    </th>
+                                    <th>No Kunjungan</th>
+                                    <th>Tanggal</th>
+                                    <th>Pasien</th>
+                                    <th>Pembiayaan</th>
+                                    <th className="right">Total Biaya</th>
+                                    <th>Status</th>
+                                    <th>Invoice</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.length === 0 ? (
+                                    <tr><td colSpan="9" className="center dki-state-cell">Belum ada kunjungan sesuai filter.</td></tr>
+                                ) : rows.map((row) => {
                                 const noCharge = Number(row.total_biaya || 0) <= 0;
                                 const disabled = !row.status_done || row.status_invoice === 'sudah' || noCharge;
                                 return (
@@ -594,6 +596,7 @@ export default function DaftarKunjunganInvoice() {
                         </tbody>
                     </table>
                 </div>
+                )}
 
                 <div className="dki-pagination-wrap">
                     <SimplePagination

@@ -43,6 +43,7 @@ import { getCount, getResults, pageParams, SimplePagination } from '../../utils/
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import TableSkeleton from '../../components/TableSkeleton';
 import './InvoicePembiayaan.css';
 
 const STATUS_OPTIONS = [
@@ -960,11 +961,11 @@ export default function InvoicePembiayaan() {
                 </div>
 
                 {loading ? (
-                    <div className="inv-empty">Memuat invoice...</div>
+                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={8} showHead />
                 ) : items.length === 0 ? (
                     <div className="inv-empty">Belum ada invoice sesuai filter.</div>
                 ) : (
-                    <div className="inv-table-wrap">
+                    <div className="inv-table-wrap table-fade-in">
                         <table className="inv-table invoice-list">
                             <thead>
                                 <tr>

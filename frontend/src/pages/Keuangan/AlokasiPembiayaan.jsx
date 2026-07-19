@@ -18,6 +18,7 @@ import { getResults, SimplePagination } from '../../utils/pagination.jsx';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import TableSkeleton from '../../components/TableSkeleton';
 import './AlokasiPembiayaan.css';
 
 const BANK_OPTIONS = [
@@ -434,11 +435,11 @@ export default function AlokasiPembiayaan() {
                     </div>
                 </div>
                 {loading ? (
-                    <div className="ap-empty">Memuat alokasi pembiayaan...</div>
+                    <TableSkeleton rows={6} cols={3} showHead />
                 ) : visibleGroups.length === 0 ? (
                     <div className="ap-empty">Belum ada alokasi pembiayaan.</div>
                 ) : (
-                    <div className="ap-table-wrap">
+                    <div className="ap-table-wrap table-fade-in">
                         <table className="ap-table ap-master-table">
                             <thead>
                                 <tr>

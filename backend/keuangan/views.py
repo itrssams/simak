@@ -3630,7 +3630,7 @@ def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
 
 
-def _build_pending_where_farmasi(params):
+def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = ['u.app_siaga_faktur_id IS NULL']
     values = []

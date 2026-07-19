@@ -7,6 +7,7 @@ import { getCount, getResults, pageParams, SimplePagination } from '../../utils/
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import TableSkeleton from '../../components/TableSkeleton';
 import '../Keuangan/InvoicePembiayaan.css';
 import './Logistik.css';
 
@@ -747,7 +748,7 @@ function payload_error_fallback(section) {
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
     const headers = {
         barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
-        vendor: ['Vendor', 'Kategori', 'Sumber', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
+        vendor: ['Vendor & Kategori', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
@@ -757,8 +758,11 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
         opname: ['Tanggal', 'Barang', 'Stok Sistem', 'Real', 'Selisih', 'Keterangan'],
     }[section] || [];
 
+    if (loading) {
+        return <TableSkeleton rows={8} cols={headers.length || 5} showHead />;
+    }
+
     const body = () => {
-        if (loading) return <tr><td colSpan={headers.length} className="inv-empty">Memuat data...</td></tr>;
         if (!rows.length) return <tr><td colSpan={headers.length} className="inv-empty">Belum ada data.</td></tr>;
         if (['barang', 'stok-minimum'].includes(section)) return rows.map((r) => (
             <tr key={r.id}>
@@ -778,13 +782,30 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
         ));
         if (section === 'vendor') return rows.map((r) => (
             <tr key={r.id}>
-                <td><strong>{r.nama}</strong></td>
-                <td><span className="log-vendor-cat">{r.kategori || '-'}</span></td>
+                <td>
+                    <div className="log-vendor-name-cell">
+                        <strong>{r.nama}</strong>
+                        {r.kategori && <small className="log-vendor-cat">{r.kategori}</small>}
+                    </div>
+                </td>
                 <td><Badge info={r.sumber === 'logistik'}>{r.sumber === 'logistik' ? 'Logistik' : 'Farmasi'}</Badge></td>
-                <td>{r.alamat || '-'}</td>
-                <td>{r.telp || '-'}</td>
-                <td>{r.kc || '-'}</td>
-                <td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td>
+                <td>
+                    <div className="log-vendor-address-cell" title={r.alamat || '-'}>
+                        {r.alamat || '-'}
+                    </div>
+                </td>
+                <td>
+                    <div className="log-vendor-contact-cell">
+                        <span>{r.telp || '-'}</span>
+                        {r.kc && <small className="log-vendor-pic">PIC: {r.kc}</small>}
+                    </div>
+                </td>
+                <td>
+                    <div className="inv-row-actions">
+                        <button onClick={() => onEditVendor(r)} title="Edit vendor"><Pencil size={15} /></button>
+                        <button onClick={() => onDeleteVendor(r)} title="Hapus vendor"><Trash2 size={15} /></button>
+                    </div>
+                </td>
             </tr>
         ));
         if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r))}</td><td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button></div></td></tr>);
@@ -820,7 +841,7 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
         return null;
     };
 
-    return <div className="inv-table-wrap"><table className="inv-table log-table"><thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{body()}</tbody></table></div>;
+    return <div className="inv-table-wrap table-fade-in"><table className="inv-table log-table"><thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{body()}</tbody></table></div>;
 }
 
 function Badge({ children, danger }) {

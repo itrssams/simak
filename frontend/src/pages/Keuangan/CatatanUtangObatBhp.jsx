@@ -23,6 +23,7 @@ import { useToast } from '../../context/ToastContext';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import TableSkeleton from '../../components/TableSkeleton';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './CatatanUtangObatBhp.css';
 
@@ -421,11 +422,11 @@ export default function CatatanUtangObatBhp() {
                 />
 
                 {loading ? (
-                    <div className="utang-empty">Memuat catatan utang...</div>
+                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={6} showHead />
                 ) : items.length === 0 ? (
                     <div className="utang-empty">Belum ada data sesuai filter.</div>
                 ) : (
-                    <div className="utang-table-wrap">
+                    <div className="utang-table-wrap table-fade-in">
                         {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
                         {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onSort={setOrdering} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
