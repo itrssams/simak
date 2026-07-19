@@ -346,6 +346,12 @@ select.dki-select {
   white-space: nowrap;
 }
 
+.dki-right,
+.dki-mono,
+.dki-money {
+  white-space: nowrap;
+}
+
 .dki-table td {
   padding: 15px 16px;
   border-bottom: 1px solid rgba(226, 232, 240, .68);

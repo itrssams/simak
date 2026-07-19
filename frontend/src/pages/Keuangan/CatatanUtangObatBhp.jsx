@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
+import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './CatatanUtangObatBhp.css';
 
@@ -39,11 +40,26 @@ const SUMBER_OPTIONS = [
     { value: 'manual', label: 'Manual' },
 ];
 
+const VENDOR_CATEGORIES = [
+    'OBAT & BHP',
+    'ALAT KESEHATAN',
+    'PELAYANAN RUJUKAN DAN LABORATORIUM',
+    'PENUNJANG PELAYANAN RS',
+    'ATK, CETAKAN, RUMAH TANGGA DLL.',
+    'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN',
+    'KAS NEGARA',
+    'BIAYA RUTIN GAJI KARYAWAN',
+    'BIAYA RUTIN JASA MEDIS',
+    'BIAYA RUTIN JASA PELAYANAN DLL',
+    'BIAYA RUTIN BULANAN',
+    'BIAYA LAIN-LAIN',
+];
+
 const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
 
 const TABS = [
-    { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
+    { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'histori', label: 'Histori Pembayaran', icon: History },
 ];
 
@@ -69,7 +85,7 @@ const VIEW_META = {
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getRefNo = (item) => item.nomor_spb || `RJ-${item.app_siaga_faktur_id}`;
 const parseMoneyInput = (value) => {
@@ -104,7 +120,7 @@ const formatMoneyInput = (value) => {
 };
 const errorMessage = (err, fallback) => err?.response?.data?.detail || err?.response?.data?.error || Object.values(err?.response?.data || {}).flat().join(' ') || fallback;
 
-const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', dari: '', sampai: '', ordering: '-tanggal_faktur' };
+const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-tanggal_faktur' };
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), tanggal_proses: todayISO(), tanggal_app: '', jumlah_bayar: '', keterangan: '' };
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', nominal: '', keterangan: '' };
@@ -114,13 +130,14 @@ export default function CatatanUtangObatBhp() {
     const toast = useToast();
     const { user } = useAuth();
     
-    const mode = searchParams.get('tab') || 'menunggu';
-    const meta = VIEW_META[mode] || VIEW_META.menunggu;
+    const mode = searchParams.get('tab') || 'aktif';
+    const meta = VIEW_META[mode] || VIEW_META.aktif;
     const Icon = meta.icon;
 
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
     const [summary, setSummary] = useState(null);
+    const [pendingCount, setPendingCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [filters, setFilters] = useState(initialFilters);
@@ -184,9 +201,20 @@ export default function CatatanUtangObatBhp() {
         }
     }, [canAccess, filters, items, mode, total]);
 
+    const fetchPendingCount = useCallback(async () => {
+        if (!canAccess) return;
+        try {
+            const res = await api.get('/keuangan/catatan-utang/obat-bhp/menunggu-verifikasi/', { params: { page: 1, page_size: 1 } });
+            setPendingCount(getCount(res.data));
+        } catch {
+            setPendingCount(0);
+        }
+    }, [canAccess]);
+
     useEffect(() => { fetchVendors(); }, [fetchVendors]);
     useEffect(() => { fetchData(); }, [fetchData]);
     useEffect(() => { fetchSummary(); }, [fetchSummary]);
+    useEffect(() => { fetchPendingCount(); }, [fetchPendingCount, items]);
     useEffect(() => { setPage(1); }, [filters, pageSize, mode]);
 
     useEffect(() => {
@@ -350,21 +378,38 @@ export default function CatatanUtangObatBhp() {
                     </div>
                 </div>
 
-                <div className="utang-tabs">
-                    {TABS.map((tab) => {
-                        const TabIcon = tab.icon;
-                        const isActive = mode === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                className={`utang-tab ${isActive ? 'active' : ''}`}
-                                onClick={() => setSearchParams({ tab: tab.id })}
-                            >
-                                <TabIcon size={16} />
-                                <span>{tab.label}</span>
-                            </button>
-                        );
-                    })}
+                <div className="utang-tabs-row">
+                    <div className="utang-tabs">
+                        {TABS.map((tab) => {
+                            const TabIcon = tab.icon;
+                            const isActive = mode === tab.id;
+                            const isMenunggu = tab.id === 'menunggu';
+                            const showBadge = isMenunggu && pendingCount > 0;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    className={`utang-tab ${isActive ? 'active' : ''}`}
+                                    onClick={() => setSearchParams({ tab: tab.id })}
+                                >
+                                    <TabIcon size={16} />
+                                    <span>{tab.label}</span>
+                                    {showBadge && (
+                                        <span className="utang-tab-badge" title={`${pendingCount} faktur menunggu verifikasi`}>
+                                            {pendingCount > 99 ? '99+' : pendingCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <label className="dki-search utang-tab-search">
+                        <Search size={16} />
+                        <input
+                            value={filters.search}
+                            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                            placeholder="Cari vendor / no faktur / no SPB..."
+                        />
+                    </label>
                 </div>
 
                 <FilterBar
@@ -632,13 +677,29 @@ export default function CatatanUtangObatBhp() {
 }
 
 function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
+    const vendorOptions = useMemo(() => [
+        { value: '', label: 'Semua Vendor' },
+        ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
+    ], [vendors]);
+
     return (
         <div className="dki-filter utang-filter">
             <div className="utang-filter-row">
-                <label className="dki-search"><Search size={16} /><input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="Cari vendor / no faktur / no SPB..." /></label>
-                <select className="dki-select" value={filters.vendor_id} onChange={(e) => setFilters({ ...filters, vendor_id: e.target.value })}>
-                    <option value="">Semua Vendor</option>
-                    {vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.nama}</option>)}
+                <SearchablePembiayaanSelect
+                    options={vendorOptions}
+                    value={filters.vendor_id}
+                    onChange={(val) => setFilters({ ...filters, vendor_id: val })}
+                    placeholder="Semua Vendor"
+                    className="utang-vendor-select"
+                />
+                <select
+                    className="dki-select utang-kategori-filter"
+                    value={filters.kategori || ''}
+                    onChange={(e) => setFilters({ ...filters, kategori: e.target.value })}
+                    title="Filter berdasarkan kategori vendor"
+                >
+                    <option value="">Semua Kategori</option>
+                    {VENDOR_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <select
                     className="dki-select utang-sumber-filter"
@@ -666,38 +727,43 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
 function PendingTable({ items, onVerify, onSort }) {
     return (
         <table className="utang-table">
-            <thead><tr>
-                <th>Sumber</th>
-                <SortTh label="No Ref" field="nomor_spb" onSort={onSort} />
-                <SortTh label="Tgl SPB" field="tanggal_faktur" onSort={onSort} />
-                <SortTh label="Vendor" field="vendor" onSort={onSort} />
-                <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
-                <th>Tgl Faktur</th>
-                <th>Jatuh Tempo</th>
-                <SortTh label="Grand Total" field="nominal" onSort={onSort} right />
-                <th>Aksi</th>
-            </tr></thead>
-            <tbody>{items.map((item) => (
-                <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`}>
-                    <td><SumberBadge sumber={item.sumber} /></td>
-                    <td className="utang-mono">{getRefNo(item)}</td>
-                    <td>{dateLabel(item.tanggal_spb)}</td>
-                    <td className="utang-name-cell">
-                        <strong>{item.vendor_nama || '-'}</strong>
-                        {item.sumber === 'logistik' && !item.vendor_id_hint && (
-                            <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
-                                <AlertTriangle size={12} /> Pilih vendor
-                            </span>
-                        )}
-                        {item.sumber === 'farmasi' && <small>ID {item.vendor_id}</small>}
-                    </td>
-                    <td className="utang-mono">{item.nomor_faktur || '-'}</td>
-                    <td>{dateLabel(item.tanggal_faktur)}</td>
-                    <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                    <td className="utang-right utang-mono">{money(item.nominal)}</td>
-                    <td><button className="utang-btn primary mini" onClick={() => onVerify(item)}><CheckCircle2 size={15} /> Verifikasi</button></td>
+            <thead>
+                <tr>
+                    <th>Sumber</th>
+                    <SortTh label="Vendor & Ref" field="vendor" onSort={onSort} />
+                    <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
+                    <th>Jatuh Tempo</th>
+                    <SortTh label="Grand Total" field="nominal" onSort={onSort} right />
+                    <th className="utang-right">Aksi</th>
                 </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+                {items.map((item) => (
+                    <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`}>
+                        <td><SumberBadge sumber={item.sumber} /></td>
+                        <td className="utang-name-cell">
+                            <strong>{item.vendor_nama || '-'}</strong>
+                            {item.sumber === 'logistik' && !item.vendor_id_hint && (
+                                <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
+                                    <AlertTriangle size={12} /> Pilih vendor
+                                </span>
+                            )}
+                            <small className="utang-subtext">Ref: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
+                        </td>
+                        <td>
+                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
+                        </td>
+                        <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
+                        <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
+                        <td className="utang-right">
+                            <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
+                                <CheckCircle2 size={15} /> Verifikasi
+                            </button>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
         </table>
     );
 }
@@ -705,36 +771,46 @@ function PendingTable({ items, onVerify, onSort }) {
 function ActiveTable({ items, onPayment, onSort }) {
     return (
         <table className="utang-table">
-            <thead><tr>
-                <th>Sumber</th>
-                <th>No Ref</th>
-                <th>Tgl SPB</th>
-                <SortTh label="Vendor" field="vendor" onSort={onSort} />
-                <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
-                <th>Tgl Faktur</th>
-                <SortTh label="Jatuh Tempo" field="tanggal_jatuh_tempo" onSort={onSort} />
-                <SortTh label="Nominal" field="nominal" onSort={onSort} right />
-                <th>Total Dibayar</th>
-                <th>Sisa Utang</th>
-                <SortTh label="Status" field="status" onSort={onSort} />
-                <th>Aksi</th>
-            </tr></thead>
-            <tbody>{items.map((item) => (
-                <tr key={item.id}>
-                    <td><SumberBadge sumber={item.sumber} /></td>
-                    <td className="utang-mono">{getRefNo(item)}</td>
-                    <td>{dateLabel(item.tanggal_spb)}</td>
-                    <td className="utang-name-cell"><strong>{item.vendor_nama || '-'}</strong><small>ID {item.vendor_id}</small></td>
-                    <td className="utang-mono">{item.nomor_faktur || '-'}</td>
-                    <td>{dateLabel(item.tanggal_faktur)}</td>
-                    <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                    <td className="utang-right utang-mono">{money(item.nominal)}</td>
-                    <td className="utang-right utang-mono">{money(item.total_dibayar)}</td>
-                    <td className="utang-right utang-mono">{money(item.sisa_utang)}</td>
-                    <td><StatusBadge status={item.status} label={item.status_label} /></td>
-                    <td><button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}><HandCoins size={15} /> Bayar</button></td>
+            <thead>
+                <tr>
+                    <th>Sumber</th>
+                    <SortTh label="Vendor & Ref" field="vendor" onSort={onSort} />
+                    <SortTh label="No Faktur & Tanggal" field="nomor_faktur" onSort={onSort} />
+                    <SortTh label="Sisa Utang" field="nominal" onSort={onSort} right />
+                    <SortTh label="Status" field="status" onSort={onSort} />
+                    <th className="utang-right">Aksi</th>
                 </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+                {items.map((item) => (
+                    <tr key={item.id}>
+                        <td><SumberBadge sumber={item.sumber} /></td>
+                        <td className="utang-name-cell">
+                            <strong>{item.vendor_nama || '-'}</strong>
+                            <small className="utang-subtext">Ref: {getRefNo(item)} • ID: {item.vendor_id}</small>
+                        </td>
+                        <td>
+                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <small className="utang-subtext">
+                                Tgl: {dateLabel(item.tanggal_faktur)}
+                                {item.tanggal_jatuh_tempo && ` • Tempo: ${dateLabel(item.tanggal_jatuh_tempo)}`}
+                            </small>
+                        </td>
+                        <td className="utang-right">
+                            <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
+                            <small className="utang-subtext utang-mono">
+                                Total: {money(item.nominal)} | Dibayar: {money(item.total_dibayar)}
+                            </small>
+                        </td>
+                        <td><StatusBadge status={item.status} label={item.status_label} /></td>
+                        <td className="utang-right">
+                            <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
+                                <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Bayar'}
+                            </button>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
         </table>
     );
 }
@@ -742,32 +818,34 @@ function ActiveTable({ items, onPayment, onSort }) {
 function HistoryTable({ items, onSort }) {
     return (
         <table className="utang-table">
-            <thead><tr>
-                <th>Sumber</th>
-                <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
-                <SortTh label="Vendor" field="vendor" onSort={onSort} />
-                <th>Tgl Rencana</th>
-                <SortTh label="Tgl Bayar" field="tanggal_proses" onSort={onSort} />
-                <th>Tgl App</th>
-                <SortTh label="Jumlah Bayar" field="jumlah_bayar" onSort={onSort} right />
-                <th>Running Total</th>
-                <th>Sisa Utang</th>
-                <th>Keterangan</th>
-            </tr></thead>
-            <tbody>{items.map((item) => (
-                <tr key={item.id}>
-                    <td><SumberBadge sumber={item.sumber} /></td>
-                    <td className="utang-mono">{item.nomor_faktur || '-'}</td>
-                    <td className="utang-name-cell"><strong>{item.vendor_nama || '-'}</strong></td>
-                    <td>{dateLabel(item.tanggal_rencana_bayar)}</td>
-                    <td>{dateLabel(item.tanggal_proses)}</td>
-                    <td>{dateLabel(item.tanggal_app)}</td>
-                    <td className="utang-right utang-mono">{money(item.jumlah_bayar)}</td>
-                    <td className="utang-right utang-mono">{money(item.running_total_dibayar)}</td>
-                    <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
-                    <td>{item.keterangan || '-'}</td>
+            <thead>
+                <tr>
+                    <th>Sumber</th>
+                    <SortTh label="Vendor & Faktur" field="vendor" onSort={onSort} />
+                    <SortTh label="Tgl Bayar" field="tanggal_proses" onSort={onSort} />
+                    <SortTh label="Jumlah Bayar" field="jumlah_bayar" onSort={onSort} right />
+                    <th className="utang-right">Sisa Utang</th>
+                    <th>Keterangan</th>
                 </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+                {items.map((item) => (
+                    <tr key={item.id}>
+                        <td><SumberBadge sumber={item.sumber} /></td>
+                        <td className="utang-name-cell">
+                            <strong>{item.vendor_nama || '-'}</strong>
+                            <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
+                        </td>
+                        <td>
+                            <strong>{dateLabel(item.tanggal_proses)}</strong>
+                            {item.tanggal_rencana_bayar && <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>}
+                        </td>
+                        <td className="utang-right utang-mono ok-money">{money(item.jumlah_bayar)}</td>
+                        <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
+                        <td>{item.keterangan || '-'}</td>
+                    </tr>
+                ))}
+            </tbody>
         </table>
     );
 }

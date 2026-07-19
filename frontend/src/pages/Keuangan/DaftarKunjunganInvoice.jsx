@@ -59,7 +59,7 @@ const COST_FIELDS = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getError = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
 const normalizePembiayaanName = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();

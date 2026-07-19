@@ -114,7 +114,7 @@ const emptyPayment = {
     bayar_penuh: false,
 };
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const dateOnly = (value) => String(value || '').slice(0, 10);
@@ -901,50 +901,45 @@ export default function InvoicePembiayaan() {
                     </div>
                 </div>
 
-                <div className="dki-filter">
-                    <div className="dki-filter-row-1">
+                <div className="dki-filter inv-filter">
+                    <div className="inv-filter-row">
                         <label className="dki-search">
                             <Search size={16} />
                             <input
-                                placeholder="Cari no invoice / pembiayaan..."
+                                placeholder="Cari no faktur / penagih / pembiayaan..."
                                 value={filters.search}
                                 onChange={(e) => setFilter('search', e.target.value)}
                             />
                         </label>
-                    </div>
 
-                    <div className="dki-filter-row-2">
-                        <div className="dki-date-range">
+                        <SearchablePembiayaanSelect
+                            className="dki-filter-pembiayaan"
+                            options={pembiayaanOptions}
+                            value={filters.id_pembiayaan}
+                            onChange={(value) => setFilter('id_pembiayaan', value)}
+                            placeholder="Semua Pembiayaan"
+                        />
 
-                            <SearchablePembiayaanSelect
-                                className="dki-filter-pembiayaan"
-                                options={pembiayaanOptions}
-                                value={filters.id_pembiayaan}
-                                onChange={(value) => setFilter('id_pembiayaan', value)}
-                                placeholder="Semua Pembiayaan"
-                            />
+                        <select
+                            className="dki-select dki-filter-status"
+                            value={filters.status}
+                            onChange={(e) => setFilter('status', e.target.value)}
+                        >
+                            {STATUS_OPTIONS.map((item) => (
+                                <option key={item.value} value={item.value}>
+                                    {item.label}
+                                </option>
+                            ))}
+                        </select>
 
-                            <select
-                                className="dki-select dki-filter-status"
-                                value={filters.status}
-                                onChange={(e) => setFilter('status', e.target.value)}
-                            >
-                                {STATUS_OPTIONS.map((item) => (
-                                    <option key={item.value} value={item.value}>
-                                        {item.label}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <DateRangePicker
-                                dari={filters.dari}
-                                sampai={filters.sampai}
-                                onChange={({ dari, sampai }) => {
-                                    setFilters((prev) => ({ ...prev, dari, sampai }));
-                                }}
-                                placeholder="Pilih Periode Tanggal"
-                            />
-                        </div>
+                        <DateRangePicker
+                            dari={filters.dari}
+                            sampai={filters.sampai}
+                            onChange={({ dari, sampai }) => {
+                                setFilters((prev) => ({ ...prev, dari, sampai }));
+                            }}
+                            placeholder="Pilih Periode Tanggal"
+                        />
 
                         <button
                             className="dki-filter-reset"

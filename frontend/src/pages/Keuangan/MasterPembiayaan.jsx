@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Edit3, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Building2, CheckCircle2, Edit3, MapPin, Plus, RefreshCw, Search, Trash2, X, AlertTriangle, ShieldAlert } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getResults, SimplePagination } from '../../utils/pagination.jsx';
@@ -46,6 +46,13 @@ export default function MasterPembiayaan() {
 
     useEffect(() => { fetchItems(); }, [fetchItems]);
     useEffect(() => { setPage(1); }, [search, statusFilter, pageSize]);
+
+    const stats = useMemo(() => {
+        const total = items.length;
+        const active = items.filter(i => Number(i.status) !== 0).length;
+        const inactive = total - active;
+        return { total, active, inactive };
+    }, [items]);
 
     const filteredItems = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -159,15 +166,15 @@ export default function MasterPembiayaan() {
         <div className="mp-page">
             <div className="mp-head">
                 <div className="mp-title">
-                    <span><Building2 size={22} /></span>
+                    <span className="mp-title-icon"><Building2 size={24} /></span>
                     <div>
                         <h1>Master Pembiayaan</h1>
-                        <p>Kelola daftar pembiayaan yang dipakai untuk invoice dan alokasi dana.</p>
+                        <p>Kelola daftar instansi & perusahaan pembiayaan invoice dan penagihan.</p>
                     </div>
                 </div>
                 <div className="mp-actions">
                     <button className="mp-secondary" type="button" onClick={fetchItems} disabled={loading || saving}>
-                        <RefreshCw size={16} /> Refresh
+                        <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh
                     </button>
                     <button className="mp-primary" type="button" onClick={openCreate} disabled={saving}>
                         <Plus size={16} /> Tambah Pembiayaan
@@ -175,16 +182,50 @@ export default function MasterPembiayaan() {
                 </div>
             </div>
 
+            {/* Summary Stat Cards */}
+            <div className="mp-stats-grid">
+                <div className="mp-stat-card">
+                    <div className="mp-stat-icon total"><Building2 size={20} /></div>
+                    <div className="mp-stat-info">
+                        <span className="mp-stat-label">Total Pembiayaan</span>
+                        <strong className="mp-stat-value">{stats.total}</strong>
+                    </div>
+                </div>
+                <div className="mp-stat-card">
+                    <div className="mp-stat-icon active"><CheckCircle2 size={20} /></div>
+                    <div className="mp-stat-info">
+                        <span className="mp-stat-label">Pembiayaan Aktif</span>
+                        <strong className="mp-stat-value emerald">{stats.active}</strong>
+                    </div>
+                </div>
+                <div className="mp-stat-card">
+                    <div className="mp-stat-icon inactive"><AlertTriangle size={20} /></div>
+                    <div className="mp-stat-info">
+                        <span className="mp-stat-label">Nonaktif</span>
+                        <strong className="mp-stat-value amber">{stats.inactive}</strong>
+                    </div>
+                </div>
+            </div>
+
             <section className="mp-card">
                 <div className="mp-toolbar">
                     <label className="mp-search">
                         <Search size={16} />
-                        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, ID, atau alamat..." />
+                        <input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Cari nama, ID, atau alamat pembiayaan..."
+                        />
+                        {search && (
+                            <button type="button" className="mp-search-clear" onClick={() => setSearch('')}>
+                                <X size={14} />
+                            </button>
+                        )}
                     </label>
                     <select className="mp-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                        <option value="aktif">Aktif</option>
+                        <option value="aktif">Status: Aktif</option>
                         <option value="semua">Semua Status</option>
-                        <option value="nonaktif">Nonaktif</option>
+                        <option value="nonaktif">Status: Nonaktif</option>
                     </select>
                 </div>
 
@@ -192,11 +233,11 @@ export default function MasterPembiayaan() {
                     <table className="mp-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th style={{ width: '80px' }}>ID</th>
                                 <th>Nama Pembiayaan</th>
                                 <th>Alamat</th>
-                                <th>Status</th>
-                                <th className="right">Aksi</th>
+                                <th style={{ width: '120px' }}>Status</th>
+                                <th className="right" style={{ width: '140px' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -208,13 +249,32 @@ export default function MasterPembiayaan() {
                                 const active = Number(item.status) !== 0;
                                 return (
                                     <tr key={item.id_pembiayaan} className={active ? '' : 'inactive'}>
-                                        <td className="mono">{item.id_pembiayaan}</td>
-                                        <td><strong>{item.nama}</strong></td>
-                                        <td>{item.alamat || '-'}</td>
-                                        <td><span className={`mp-badge ${active ? 'active' : 'inactive'}`}>{active ? 'Aktif' : 'Nonaktif'}</span></td>
+                                        <td>
+                                            <span className="mp-id-badge">{item.id_pembiayaan}</span>
+                                        </td>
+                                        <td>
+                                            <div className="mp-name-cell">
+                                                <strong>{item.nama}</strong>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="mp-address-cell">
+                                                {item.alamat ? (
+                                                    <span><MapPin size={13} className="mp-pin" /> {item.alamat}</span>
+                                                ) : (
+                                                    <span className="mp-na">—</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`mp-badge ${active ? 'active' : 'inactive'}`}>
+                                                <span className="mp-badge-dot" />
+                                                {active ? 'Aktif' : 'Nonaktif'}
+                                            </span>
+                                        </td>
                                         <td className="right">
                                             <div className="mp-row-actions">
-                                                <button className="mp-icon-btn" type="button" onClick={() => openEdit(item)} title="Edit">
+                                                <button className="mp-icon-btn edit" type="button" onClick={() => openEdit(item)} title="Edit Data">
                                                     <Edit3 size={15} />
                                                 </button>
                                                 {active ? (
@@ -222,7 +282,7 @@ export default function MasterPembiayaan() {
                                                         <Trash2 size={15} />
                                                     </button>
                                                 ) : (
-                                                    <button className="mp-mini-btn" type="button" onClick={() => reactivatePembiayaan(item)} disabled={saving}>
+                                                    <button className="mp-mini-btn reactivate" type="button" onClick={() => reactivatePembiayaan(item)} disabled={saving}>
                                                         Aktifkan
                                                     </button>
                                                 )}
@@ -248,77 +308,64 @@ export default function MasterPembiayaan() {
                 </div>
             </section>
 
+            {/* Modal Tambah / Edit */}
             {modalOpen && (
-                <div className="mp-modal-backdrop" onMouseDown={closeModal}>
-                    <form className="mp-modal" onSubmit={savePembiayaan} onMouseDown={(event) => event.stopPropagation()}>
+                <div className="mp-modal-overlay">
+                    <div className="mp-modal">
                         <div className="mp-modal-head">
-                            <div>
-                                <span><Building2 size={20} /></span>
-                                <div>
-                                    <small>{editing ? 'Edit Pembiayaan' : 'Tambah Pembiayaan'}</small>
-                                    <h2>{editing ? editing.nama : 'Pembiayaan Baru'}</h2>
-                                </div>
-                            </div>
-                            <button type="button" onClick={closeModal} disabled={saving}><X size={18} /> Tutup</button>
+                            <h2>{editing ? 'Edit Pembiayaan' : 'Tambah Pembiayaan Baru'}</h2>
+                            <button type="button" className="mp-close-btn" onClick={closeModal} disabled={saving}><X size={18} /></button>
                         </div>
-                        <div className="mp-modal-body">
-                            {editing && (
-                                <label className="mp-field">
-                                    <span>ID Pembiayaan</span>
-                                    <input value={editing.id_pembiayaan} readOnly />
+                        <form onSubmit={savePembiayaan}>
+                            <div className="mp-modal-body">
+                                <label className="mp-form-group">
+                                    <span>Nama Pembiayaan <small style={{ color: '#ef4444' }}>*</small></span>
+                                    <input
+                                        className="mp-input"
+                                        value={form.nama}
+                                        onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                                        placeholder="Contoh: PT ASURANSI ALLIANZ UTAMA"
+                                        autoFocus
+                                    />
                                 </label>
-                            )}
-                            <label className="mp-field">
-                                <span>Nama Pembiayaan</span>
-                                <input
-                                    value={form.nama}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, nama: event.target.value }))}
-                                    placeholder="Nama pembiayaan"
-                                    autoFocus
-                                />
-                            </label>
-                            <label className="mp-field">
-                                <span>Alamat</span>
-                                <input
-                                    value={form.alamat}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, alamat: event.target.value }))}
-                                    placeholder="Opsional"
-                                />
-                            </label>
+                                <label className="mp-form-group">
+                                    <span>Alamat Instansi</span>
+                                    <textarea
+                                        className="mp-input mp-textarea"
+                                        rows={3}
+                                        value={form.alamat}
+                                        onChange={(e) => setForm({ ...form, alamat: e.target.value })}
+                                        placeholder="Alamat kantor / gedung pembiayaan"
+                                    />
+                                </label>
+                            </div>
                             <div className="mp-modal-actions">
-                                <button className="mp-secondary" type="button" onClick={closeModal} disabled={saving}>Batal</button>
-                                <button className="mp-primary" type="submit" disabled={saving}>
-                                    {saving ? 'Menyimpan...' : 'Simpan'}
+                                <button type="button" className="mp-secondary" onClick={closeModal} disabled={saving}>Batal</button>
+                                <button type="submit" className="mp-primary" disabled={saving}>
+                                    {saving ? 'Menyimpan...' : (editing ? 'Simpan Perubahan' : 'Tambah Pembiayaan')}
                                 </button>
                             </div>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
             )}
 
+            {/* Confirm Nonaktifkan Modal */}
             {deleteTarget && (
-                <div className="mp-modal-backdrop" onMouseDown={() => !saving && setDeleteTarget(null)}>
-                    <div className="mp-modal confirm" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="mp-modal-head">
-                            <div>
-                                <span><Trash2 size={20} /></span>
-                                <div>
-                                    <small>Nonaktifkan Pembiayaan</small>
-                                    <h2>{deleteTarget.nama}</h2>
-                                </div>
-                            </div>
-                            <button type="button" onClick={() => setDeleteTarget(null)} disabled={saving}><X size={18} /> Tutup</button>
+                <div className="mp-modal-overlay">
+                    <div className="mp-modal confirm">
+                        <div className="mp-confirm-head">
+                            <div className="mp-confirm-icon"><ShieldAlert size={24} /></div>
+                            <h3>Nonaktifkan Pembiayaan?</h3>
                         </div>
-                        <div className="mp-modal-body">
-                            <p className="mp-confirm-copy">
-                                Pembiayaan ini tidak akan tampil di pilihan invoice baru, tapi histori invoice lama tetap tersimpan.
-                            </p>
-                            <div className="mp-modal-actions">
-                                <button className="mp-secondary" type="button" onClick={() => setDeleteTarget(null)} disabled={saving}>Batal</button>
-                                <button className="mp-danger" type="button" onClick={deactivatePembiayaan} disabled={saving}>
-                                    {saving ? 'Memproses...' : 'Nonaktifkan'}
-                                </button>
-                            </div>
+                        <p className="mp-confirm-text">
+                            Pembiayaan <strong>{deleteTarget.nama}</strong> (ID {deleteTarget.id_pembiayaan}) akan dinonaktifkan dari daftar pilihan invoice.
+                        </p>
+                        <div className="mp-modal-actions confirm">
+                            <button type="button" className="mp-secondary" onClick={() => setDeleteTarget(null)} disabled={saving}>Batal</button>
+                            <button type="button" className="mp-danger" onClick={deactivatePembiayaan} disabled={saving}>
+                                {saving ? 'Memproses...' : 'Ya, Nonaktifkan'}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -492,6 +492,10 @@ def _legacy_kunjungan_where(params):
     elif id_pembiayaan:
         where.append("a.id_pembiayaan = %s")
         values.append(id_pembiayaan)
+    else:
+        # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS)
+        where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s AND LOWER(c.pembiayaan) NOT LIKE %s)))")
+        values.extend(['%BPJS%', '%swadana%'])
 
     dari = (params.get('dari') or '').strip()
     if dari:
@@ -3626,12 +3630,13 @@ def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
 
 
-def _build_pending_where(params):
+def _build_pending_where_farmasi(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = ['u.app_siaga_faktur_id IS NULL']
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
+    kategori = (params.get('kategori') or '').strip()
     dari = (params.get('dari') or '').strip()
     sampai = (params.get('sampai') or '').strip()
 
@@ -3782,6 +3787,12 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             qs = qs.filter(status=status_filter)
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(sumber=sumber_filter)
+        kategori_filter = (params.get('kategori') or '').strip()
+        if kategori_filter:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id_rekanan FROM rssams.rekanan WHERE kategori = %s AND del = 'N'", [kategori_filter])
+                v_ids = [r[0] for r in cursor.fetchall()]
+            qs = qs.filter(vendor_id__in=v_ids)
         if dari:
             qs = qs.filter(tanggal_faktur__gte=dari)
         if sampai:

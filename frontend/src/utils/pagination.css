@@ -1,0 +1,112 @@
+/* pagination.css */
+.sp-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    background: transparent;
+    width: 100%;
+}
+
+.sp-info {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.sp-info strong {
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.sp-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sp-size-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.sp-size-select {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 12.5px;
+    font-weight: 700;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.sp-size-select:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.sp-size-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.sp-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 3px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.sp-nav-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sp-nav-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.sp-nav-btn:disabled {
+    color: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.sp-page-pill {
+    padding: 0 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+    border-left: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    height: 24px;
+    display: flex;
+    align-items: center;
+}
+
+.sp-page-pill strong {
+    color: #2563eb;
+    font-weight: 800;
+    margin: 0 3px;
+}

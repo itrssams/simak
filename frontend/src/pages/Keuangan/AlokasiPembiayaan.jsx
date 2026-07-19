@@ -41,7 +41,7 @@ const emptyForm = {
     keterangan: '',
 };
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const sanitizeMoneyInput = (value) => String(value || '').replace(/[^\d.,]/g, '');
 const parseMoneyInput = (value) => {
@@ -239,7 +239,12 @@ export default function AlokasiPembiayaan() {
         });
         let saldo = 0;
         return entries
-            .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal) || a.key.localeCompare(b.key))
+            .sort((a, b) => {
+                const diff = new Date(a.tanggal) - new Date(b.tanggal);
+                if (diff !== 0) return diff;
+                if (a.type !== b.type) return a.type === 'in' ? -1 : 1;
+                return a.key.localeCompare(b.key);
+            })
             .map((entry) => {
                 saldo += entry.masuk - entry.keluar;
                 return { ...entry, saldo };
@@ -385,12 +390,32 @@ export default function AlokasiPembiayaan() {
                 </div>
             </div>
 
-            <SummaryCard
-                label="Saldo Tersedia"
-                value={money(totals.sisa)}
-                tone="total"
-                description="Total dana tampungan yang masih bisa dialokasikan."
-            />
+            <div className="ap-stats-grid">
+                <div className="ap-stat-card primary">
+                    <div className="ap-stat-icon ok"><WalletCards size={22} /></div>
+                    <div className="ap-stat-info">
+                        <span className="ap-stat-label">Saldo Tampungan Tersedia</span>
+                        <strong className="ap-stat-value ok">{money(totals.sisa)}</strong>
+                        <p className="ap-stat-desc">Dana yang belum dialokasikan ke invoice</p>
+                    </div>
+                </div>
+                <div className="ap-stat-card">
+                    <div className="ap-stat-icon in"><ArrowDownCircle size={22} /></div>
+                    <div className="ap-stat-info">
+                        <span className="ap-stat-label">Total Penerimaan Masuk</span>
+                        <strong className="ap-stat-value">{money(totals.dana_masuk)}</strong>
+                        <p className="ap-stat-desc">Akumulasi seluruh penerimaan dana</p>
+                    </div>
+                </div>
+                <div className="ap-stat-card">
+                    <div className="ap-stat-icon warn"><ArrowUpCircle size={22} /></div>
+                    <div className="ap-stat-info">
+                        <span className="ap-stat-label">Total Dialokasikan</span>
+                        <strong className="ap-stat-value warn">{money(totals.digunakan)}</strong>
+                        <p className="ap-stat-desc">Telah terpakai untuk pembayaran invoice</p>
+                    </div>
+                </div>
+            </div>
 
             <div className="ap-card table">
                 <div className="ap-result-head">
@@ -434,7 +459,7 @@ export default function AlokasiPembiayaan() {
                                                 <span className="ap-name-icon"><Building2 size={17} /></span>
                                                 <div>
                                                     <strong>{group.nama_pembiayaan}</strong>
-                                                    <small>ID Pembiayaan: {group.id_pembiayaan}</small>
+                                                    <small className="ap-id-chip">ID Pembiayaan: {group.id_pembiayaan}</small>
                                                 </div>
                                             </div>
                                         </td>
@@ -546,10 +571,6 @@ export default function AlokasiPembiayaan() {
                             <span className="warn"><ArrowUpCircle size={15} /> Keluar: <strong>{money(selectedGroup.digunakan)}</strong></span>
                         </div>
                         <div className="ap-ledger-tools">
-                            <div className="ap-ledger-tools-title">
-                                <Search size={16} />
-                                <span>Filter Riwayat</span>
-                            </div>
                             <div className="ap-search">
                                 <Search size={16} />
                                 <input className="ap-input" placeholder="Cari referensi / keterangan..." value={ledgerFilters.search} onChange={(e) => setLedgerFilter('search', e.target.value)} />
@@ -565,9 +586,11 @@ export default function AlokasiPembiayaan() {
                                 }}
                                 placeholder="Pilih Periode Tanggal"
                             />
-                            <button className="ap-filter-reset" type="button" onClick={() => setLedgerFilters({ search: '', type: '', dari: '', sampai: '' })}>
-                                <X size={16} /> Reset
-                            </button>
+                            {(ledgerFilters.search || ledgerFilters.type || ledgerFilters.dari || ledgerFilters.sampai) && (
+                                <button className="ap-filter-reset" type="button" onClick={() => setLedgerFilters({ search: '', type: '', dari: '', sampai: '' })}>
+                                    <X size={16} /> Reset
+                                </button>
+                            )}
                         </div>
                         {filteredLedgerEntries.length === 0 ? (
                             <div className="ap-empty">Tidak ada riwayat dana sesuai filter.</div>
@@ -583,37 +606,41 @@ export default function AlokasiPembiayaan() {
                                             <th className="ap-right">Masuk</th>
                                             <th className="ap-right">Keluar</th>
                                             <th className="ap-right">Saldo</th>
-                                            <th className="ap-action-col">Aksi</th>
+                                            <th className="ap-action-col" style={{ width: '60px' }}>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {pagedLedgerEntries.map((entry) => {
                                             const used = Number(entry.item?.digunakan || 0) > 0;
+                                            const canDelete = entry.type === 'in' && !used;
                                             return (
                                                 <tr key={entry.key} className={`ap-ledger-row ${entry.type}`}>
                                                     <td className="ap-ledger-date">{dateLabel(entry.tanggal)}</td>
                                                     <td>
                                                         <span className={`ap-flow ${entry.type}`}>
-                                                            {entry.type === 'in' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                                                            {entry.label}
+                                                            {entry.type === 'in' ? '+' : '-'} {entry.label}
                                                         </span>
                                                     </td>
                                                     <td className="ap-ref-cell">{entry.ref}</td>
                                                     <td className="ap-note-cell">{entry.keterangan || '-'}</td>
-                                                    <td className={`ap-right ap-mono ${entry.masuk ? 'ap-money-in' : ''}`}>{entry.masuk ? money(entry.masuk) : '-'}</td>
-                                                    <td className={`ap-right ap-mono ${entry.keluar ? 'ap-money-out' : ''}`}>{entry.keluar ? money(entry.keluar) : '-'}</td>
+                                                    <td className={`ap-right ap-mono ${entry.masuk ? 'ap-money-in' : ''}`}>{entry.masuk ? money(entry.masuk) : '—'}</td>
+                                                    <td className={`ap-right ap-mono ${entry.keluar ? 'ap-money-out' : ''}`}>{entry.keluar ? money(entry.keluar) : '—'}</td>
                                                     <td className="ap-right ap-mono ap-strong">{money(entry.saldo)}</td>
                                                     <td className="ap-action-col">
                                                         <div className="ap-row-actions">
-                                                            <button
-                                                                className="delete"
-                                                                type="button"
-                                                                title={entry.type === 'out' ? 'Dana keluar tidak dihapus dari sini' : used ? 'Sudah dipakai' : 'Hapus'}
-                                                                disabled={entry.type === 'out' || used || saving}
-                                                                onClick={() => requestRemove(entry.item)}
-                                                            >
-                                                                <Trash2 size={15} />
-                                                            </button>
+                                                            {entry.type === 'in' ? (
+                                                                <button
+                                                                    className="ap-icon-btn danger"
+                                                                    type="button"
+                                                                    title={used ? "Penerimaan ini tidak bisa dihapus karena dana sudah dialokasikan ke invoice" : "Hapus penerimaan dana ini"}
+                                                                    disabled={used || saving}
+                                                                    onClick={() => requestRemove(entry.item)}
+                                                                >
+                                                                    <Trash2 size={15} />
+                                                                </button>
+                                                            ) : (
+                                                                <span className="ap-no-action" title="Alokasi otomatis dari invoice">—</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

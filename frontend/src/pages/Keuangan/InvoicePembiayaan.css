@@ -170,6 +170,34 @@
   align-items: center;
 }
 
+.inv-filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  width: 100%;
+}
+
+.inv-filter-row .dki-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.inv-filter-row .dki-filter-pembiayaan {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.inv-filter-row .dki-filter-status {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.inv-filter-row .dki-filter-reset {
+  height: 42px;
+  flex: 0 0 auto;
+}
+
 .dki-filter-row-1 {
   margin-bottom: 12px;
 }
