@@ -15,6 +15,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getResults, SimplePagination } from '../../utils/pagination.jsx';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import './AlokasiPembiayaan.css';
@@ -556,8 +557,14 @@ export default function AlokasiPembiayaan() {
                             <select className="ap-input ap-select-native ap-ledger-type" value={ledgerFilters.type} onChange={(e) => setLedgerFilter('type', e.target.value)}>
                                 {LEDGER_TYPE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                             </select>
-                            <DateInput value={ledgerFilters.dari} onChange={(e) => setLedgerFilter('dari', e.target.value)} />
-                            <DateInput value={ledgerFilters.sampai} onChange={(e) => setLedgerFilter('sampai', e.target.value)} />
+                            <DateRangePicker
+                                dari={ledgerFilters.dari}
+                                sampai={ledgerFilters.sampai}
+                                onChange={({ dari, sampai }) => {
+                                    setLedgerFilters((prev) => ({ ...prev, dari, sampai }));
+                                }}
+                                placeholder="Pilih Periode Tanggal"
+                            />
                             <button className="ap-filter-reset" type="button" onClick={() => setLedgerFilters({ search: '', type: '', dari: '', sampai: '' })}>
                                 <X size={16} /> Reset
                             </button>

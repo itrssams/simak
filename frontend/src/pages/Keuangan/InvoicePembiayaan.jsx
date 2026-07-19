@@ -40,6 +40,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { getInvoiceDisplayAmounts } from './invoiceDisplayUtils';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import './InvoicePembiayaan.css';
@@ -935,14 +936,14 @@ export default function InvoicePembiayaan() {
                                 ))}
                             </select>
 
-                            <label>
-                                <span>Dari</span>
-                                <DateInput value={filters.dari} onChange={(e) => setFilter('dari', e.target.value)} />
-                            </label>
-                            <label>
-                                <span>Sampai</span>
-                                <DateInput value={filters.sampai} onChange={(e) => setFilter('sampai', e.target.value)} />
-                            </label>
+                            <DateRangePicker
+                                dari={filters.dari}
+                                sampai={filters.sampai}
+                                onChange={({ dari, sampai }) => {
+                                    setFilters((prev) => ({ ...prev, dari, sampai }));
+                                }}
+                                placeholder="Pilih Periode Tanggal"
+                            />
                         </div>
 
                         <button
