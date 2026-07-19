@@ -263,10 +263,7 @@ def _normalize_logistik_name(value):
     text = str(value or '').strip()
     if not text:
         return ''
-    text = re.sub(r'\s*(?:-|/|:)?\s*\d{1,2}$', '', text)
-    text = re.sub(r'\s*\(\d{1,2}\)$', '', text)
-    text = re.sub(r'\s+\d{1,2}$', '', text)
-    return text.strip()
+    return ' '.join(text.split())
 
 
 class PembiayaanListView(APIView):
@@ -3664,9 +3661,9 @@ def _build_pending_where_logistik(params):
     sampai = (params.get('sampai') or '').strip()
 
     if search:
-        where.append('(t.no_spk LIKE %s OR t.rekanan LIKE %s OR r.nama LIKE %s)')
+        where.append('(t.id LIKE %s OR t.no_spk LIKE %s OR t.rekanan LIKE %s OR r.nama LIKE %s)')
         needle = f'%{search}%'
-        values.extend([needle, needle, needle])
+        values.extend([needle, needle, needle, needle])
     if vendor_id:
         # filter by matched rekanan id
         where.append('r.id_rekanan = %s')
@@ -3734,9 +3731,9 @@ def _fetch_logistik_pembelian(pembelian_id):
             """
             SELECT
                 CAST(t.id AS CHAR) AS app_siaga_faktur_id,
-                t.no_spk AS nomor_spb,
+                CAST(t.id AS CHAR) AS nomor_spb,
                 t.tgl_spk AS tanggal_spb,
-                t.no_spk AS nomor_faktur,
+                COALESCE(NULLIF(t.no_spk, ''), CAST(t.id AS CHAR)) AS nomor_faktur,
                 r.id_rekanan AS vendor_id_hint,
                 t.rekanan AS rekanan_text,
                 COALESCE(r.nama, t.rekanan) AS vendor_nama_hint,
@@ -3995,9 +3992,9 @@ class UtangMenungguVerifikasiView(APIView):
         logistik_select = """
             SELECT
                 CONVERT(t.id USING utf8mb4)             AS app_siaga_faktur_id,
-                CONVERT(t.no_spk USING utf8mb4)         AS nomor_spb,
+                CONVERT(t.id USING utf8mb4)             AS nomor_spb,
                 t.tgl_spk                               AS tanggal_spb,
-                CONVERT(t.no_spk USING utf8mb4)         AS nomor_faktur,
+                CONVERT(COALESCE(NULLIF(t.no_spk, ''), t.id) USING utf8mb4) AS nomor_faktur,
                 r.id_rekanan                            AS vendor_id,
                 r.id_rekanan                            AS vendor_id_hint,
                 CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
@@ -5688,13 +5685,21 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
     def list(self, request):
         search = request.query_params.get('search') or ''
+        sumber = (request.query_params.get('sumber') or 'semua').strip().lower()
+        kategori = (request.query_params.get('kategori') or '').strip()
         where = "WHERE del = 'N'"
         params = []
+        if sumber not in ['semua', 'all', '']:
+            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
+            params.extend([sumber, sumber])
+        if kategori:
+            where += " AND kategori = %s"
+            params.append(kategori)
         if search:
-            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s OR kategori LIKE %s)'
-            params = [f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%']
+            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s OR kc LIKE %s OR kategori LIKE %s)'
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
         base = f"""
-            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, kategori, del
+            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, COALESCE(kategori, '') AS kategori, COALESCE(sumber, 'farmasi') AS sumber, del
             FROM rssams.rekanan
             {where}
             ORDER BY nama
@@ -5707,11 +5712,12 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         row = legacy_fetchone('SELECT COALESCE(MAX(id_rekanan), 0) + 1 AS next_id FROM rssams.rekanan')
         vendor_id = row['next_id']
         nama_vendor = _normalize_logistik_name(data.get('nama') or '')
+        sumber = data.get('sumber') or 'logistik'
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori, del)
-                VALUES(%s, %s, %s, %s, %s, %s, 'N')
+                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori, sumber, del)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, 'N')
                 """,
                 [
                     vendor_id,
@@ -5720,6 +5726,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
                     data.get('telp') or '',
                     data.get('kc') or '',
                     data.get('kategori') or '',
+                    sumber,
                 ],
             )
         return Response({'id': vendor_id, 'id_rekanan': vendor_id}, status=201)
@@ -5727,21 +5734,28 @@ class LogistikVendorViewSet(viewsets.ViewSet):
     def partial_update(self, request, pk=None):
         data = request.data
         nama_vendor = _normalize_logistik_name(data.get('nama') or '')
+        updates = ['nama = %s', 'alamat = %s', 'telp = %s', 'kc = %s']
+        params = [
+            str(nama_vendor).upper(),
+            data.get('alamat') or '',
+            data.get('telp') or '',
+            data.get('kc') or '',
+        ]
+        if 'kategori' in data:
+            updates.append('kategori = %s')
+            params.append(data.get('kategori') or '')
+        if 'sumber' in data:
+            updates.append('sumber = %s')
+            params.append(data.get('sumber') or 'logistik')
+        params.append(pk)
         with connection.cursor() as cursor:
             cursor.execute(
-                """
+                f"""
                 UPDATE rssams.rekanan
-                SET nama = %s, alamat = %s, telp = %s, kc = %s, kategori = %s
+                SET {', '.join(updates)}
                 WHERE id_rekanan = %s
                 """,
-                [
-                    str(nama_vendor).upper(),
-                    data.get('alamat') or '',
-                    data.get('telp') or '',
-                    data.get('kc') or '',
-                    data.get('kategori') or '',
-                    pk,
-                ],
+                params,
             )
         return Response({'detail': 'OK'})
 
@@ -5752,7 +5766,13 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
-        rows = legacy_fetchall("SELECT id_rekanan AS id, nama FROM rssams.rekanan WHERE del = 'N' ORDER BY nama")
+        sumber = request.query_params.get('sumber') or 'all'
+        where = "WHERE del = 'N'"
+        params = []
+        if sumber != 'all' and sumber != 'semua':
+            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
+            params.extend([sumber, sumber])
+        rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama FROM rssams.rekanan {where} ORDER BY nama", params)
         return Response({'results': rows})
 
 
@@ -5831,10 +5851,27 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
             cursor.execute(f"UPDATE rssams.tran_beli_brg_log SET {', '.join(updates)} WHERE id = %s", values)
         return Response({'detail': 'OK'})
 
+    @action(detail=True, methods=['post'], url_path='submit')
+    def submit(self, request, pk=None):
+        existing = legacy_fetchone("SELECT id, done FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
+        if not existing:
+            return Response({'detail': 'Penerimaan tidak ditemukan.'}, status=404)
+        count = legacy_fetchone("SELECT COUNT(*) AS total FROM rssams.item_logistik WHERE id = %s", [pk])
+        if not count or count['total'] == 0:
+            return Response({'detail': 'Tidak dapat mengirim penerimaan kosong. Tambahkan barang terlebih dahulu.'}, status=400)
+        with connection.cursor() as cursor:
+            cursor.execute("UPDATE rssams.tran_beli_brg_log SET done = 'Y' WHERE id = %s", [pk])
+        return Response({'detail': 'Penerimaan berhasil dikirim ke Keuangan.'})
+
 
 class LogistikBatchViewSet(viewsets.ViewSet):
     serializer_class = LogistikBatchSerializer
     permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def _check_not_submitted(self, pembelian_id):
+        row = legacy_fetchone("SELECT done FROM rssams.tran_beli_brg_log WHERE id = %s", [pembelian_id])
+        if row and str(row.get('done') or '').upper() == 'Y':
+            raise ValidationError('Penerimaan ini sudah dikirim ke Keuangan dan tidak dapat diubah.')
 
     def _refresh_pembelian_total(self, pembelian_id, no_invoice=None):
         with connection.cursor() as cursor:
@@ -5846,22 +5883,19 @@ class LogistikBatchViewSet(viewsets.ViewSet):
             cursor.execute(
                 """
                 UPDATE rssams.tran_beli_brg_log
-                SET nilai = COALESCE((SELECT SUM(qty * harga) FROM rssams.item_logistik WHERE id = %s), 0),
-                    done = CASE
-                        WHEN COALESCE((SELECT COUNT(*) FROM rssams.item_logistik WHERE id = %s), 0) > 0 THEN 'Y'
-                        ELSE done
-                    END
+                SET nilai = COALESCE((SELECT SUM(qty * harga) FROM rssams.item_logistik WHERE id = %s), 0)
                 WHERE id = %s
                 """,
-                [pembelian_id, pembelian_id, pembelian_id],
+                [pembelian_id, pembelian_id],
             )
 
     def create(self, request):
         data = request.data
+        pembelian_id = data.get('pembelian')
+        self._check_not_submitted(pembelian_id)
         barang = legacy_fetchone('SELECT isi FROM rssams.dafbrg_log WHERE id_brg = %s', [data.get('barang')])
         if not barang:
             return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
-        pembelian_id = data.get('pembelian')
         qty = data.get('qty') or 0
         harga = data.get('harga') or 0
         isi = data.get('isi') or barang['isi'] or 1
@@ -5880,6 +5914,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
     def partial_update(self, request, pk=None):
         data = request.data
         pembelian_id = pk
+        self._check_not_submitted(pembelian_id)
         original_barang = data.get('original_barang') or data.get('barang')
         next_barang = data.get('barang')
         if not original_barang or not next_barang:
@@ -5917,6 +5952,33 @@ class LogistikBatchViewSet(viewsets.ViewSet):
         if str(original_barang) != str(next_barang):
             legacy_stock(next_barang)
         return Response({'detail': 'OK'})
+
+    def destroy(self, request, pk=None):
+        pembelian_id = pk
+        self._check_not_submitted(pembelian_id)
+        barang_id = request.query_params.get('barang')
+        if not barang_id:
+            return Response({'detail': 'ID Barang wajib disertakan.'}, status=400)
+        
+        existing = legacy_fetchone(
+            'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
+            [pembelian_id, barang_id],
+        )
+        if not existing:
+            return Response({'detail': 'Item barang tidak ditemukan.'}, status=404)
+        
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM rssams.item_logistik
+                WHERE id = %s AND id_brg = %s
+                """,
+                [pembelian_id, barang_id],
+            )
+        
+        self._refresh_pembelian_total(pembelian_id)
+        legacy_stock(barang_id)
+        return Response(status=204)
 
 
 def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, keterangan=''):

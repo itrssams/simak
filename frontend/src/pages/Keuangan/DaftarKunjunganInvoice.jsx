@@ -14,6 +14,7 @@ import {
     X,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import { useToast } from '../../context/ToastContext';
@@ -58,7 +59,7 @@ const COST_FIELDS = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getError = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
 const normalizePembiayaanName = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -444,16 +445,14 @@ export default function DaftarKunjunganInvoice() {
                             <input value={filters.search} onChange={(e) => setFilter('search', e.target.value)} placeholder="Cari no kunjungan / RM / pasien..." />
                         </label>
 
-                        <div className="dki-date-range">
-                            <label>
-                                <span>Dari</span>
-                                <DateField value={filters.dari} onChange={(value) => setFilter('dari', value)} />
-                            </label>
-                            <label>
-                                <span>Sampai</span>
-                                <DateField value={filters.sampai} onChange={(value) => setFilter('sampai', value)} />
-                            </label>
-                        </div>
+                        <DateRangePicker
+                            dari={filters.dari}
+                            sampai={filters.sampai}
+                            onChange={({ dari, sampai }) => {
+                                setFilters((prev) => ({ ...prev, dari, sampai }));
+                            }}
+                            placeholder="Pilih Periode Tanggal"
+                        />
                     </div>
 
                     <div className="dki-filter-row-2">

@@ -6,6 +6,7 @@ import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
 import './PettyCash.css';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
 
@@ -61,12 +62,15 @@ function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, 
                     <option value="">Semua Status</option>
                     {Object.entries(statusCfg).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
-                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>Tanggal</span>
-                <div className="pc-filter-date-wrap">
-                    <DateField value={dateToStr(dariVal)} onChange={onDari} placeholder="Dari" />
-                    <span style={{ fontSize: 11, color: '#cbd5e1', flexShrink: 0 }}>-</span>
-                    <DateField value={dateToStr(sampaiVal)} onChange={onSampai} placeholder="Sampai" />
-                </div>
+                <DateRangePicker
+                    dari={dateToStr(dariVal)}
+                    sampai={dateToStr(sampaiVal)}
+                    onChange={({ dari, sampai }) => {
+                        onDari(dari ? new Date(dari) : null);
+                        onSampai(sampai ? new Date(sampai) : null);
+                    }}
+                    placeholder="Pilih Periode Tanggal"
+                />
                 {hasFilter && <button className="pc-filter-reset" onClick={onReset}>Reset</button>}
             </div>
         </div>

@@ -5,6 +5,7 @@ import {
     UserRound,
 } from 'lucide-react';
 import api from '../api/axiosConfig';
+import DateRangePicker from '../components/DateRangePicker';
 import { getCount, getResults, pageParams, SimplePagination } from '../utils/pagination.jsx';
 import './AuditLog.css';
 
@@ -115,8 +116,14 @@ export default function AuditLog() {
                         {Object.entries(ACTION_META).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
                     </select>
                     <input className="al-field" placeholder="Modul" value={filters.entity} onChange={(e) => updateFilter('entity', e.target.value)} />
-                    <input className="al-field" type="date" value={filters.dari} onChange={(e) => updateFilter('dari', e.target.value)} />
-                    <input className="al-field" type="date" value={filters.sampai} onChange={(e) => updateFilter('sampai', e.target.value)} />
+                    <DateRangePicker
+                        dari={filters.dari}
+                        sampai={filters.sampai}
+                        onChange={({ dari, sampai }) => {
+                            setFilters((prev) => ({ ...prev, dari, sampai }));
+                        }}
+                        placeholder="Pilih Periode Tanggal"
+                    />
                     <button className="al-field" style={{ cursor: 'pointer', fontWeight: 850, color: '#1a4731' }} onClick={fetchLogs}>Terapkan</button>
                 </div>
 

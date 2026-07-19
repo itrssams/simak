@@ -7,7 +7,7 @@ import {
     Loader,
     Printer,
     Search,
-    Settings,
+import DateRangePicker from '../../components/DateRangePicker';
     Wrench,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -334,8 +334,17 @@ export default function LaporanIT() {
 
             <div className="lit-panel lit-toolbar lit-no-print">
                 <div className="lit-grid">
-                    <Field label="Dari"><input className="lit-input" type="date" value={dari} onChange={(e) => setDari(e.target.value)} /></Field>
-                    <Field label="Sampai"><input className="lit-input" type="date" value={sampai} onChange={(e) => setSampai(e.target.value)} /></Field>
+                    <Field label="Periode Tanggal">
+                        <DateRangePicker
+                            dari={dari}
+                            sampai={sampai}
+                            onChange={({ dari: d, sampai: s }) => {
+                                setDari(d);
+                                setSampai(s);
+                            }}
+                            placeholder="Pilih Periode Tanggal"
+                        />
+                    </Field>
                     <Field label="Status"><select className="lit-select" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
                     <Field label="Prioritas"><select className="lit-select" value={priority} onChange={(e) => setPriority(e.target.value)}>{PRIORITY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
                     <Field label="Kategori"><select className="lit-select" value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>

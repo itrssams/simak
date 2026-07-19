@@ -15,10 +15,12 @@ import {
     Search,
     ShieldCheck,
     Truck,
+    X,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './CatatanUtangObatBhp.css';
@@ -400,41 +402,58 @@ export default function CatatanUtangObatBhp() {
             {verifyTarget && createPortal(
                 <div className="utang-confirm-backdrop" role="presentation" onMouseDown={() => setVerifyTarget(null)}>
                     <form className="utang-confirm-modal" role="dialog" aria-modal="true" onSubmit={confirmVerify} onMouseDown={(e) => e.stopPropagation()}>
-                        <div className="utang-confirm-top">
-                            <div className="utang-confirm-icon ok"><CheckCircle2 size={28} /></div>
-                            <div className="utang-confirm-copy">
-                                <h2>Verifikasi Faktur?</h2>
-                                <p>Faktur ini akan dicatat sebagai utang supplier di SIMAK.</p>
-                            </div>
-                        </div>
-
-                        <div className="utang-verify-info">
-                            <Info label="Sumber" value={<SumberBadge sumber={verifyTarget.sumber} />} />
-                            <Info label="No Faktur" value={verifyTarget.nomor_faktur || '-'} />
-                            <Info label="Vendor" value={verifyTarget.vendor_nama || '-'} />
-                            <Info label="No Ref" value={getRefNo(verifyTarget)} />
-                            <Info label="Jatuh Tempo" value={dateLabel(verifyTarget.tanggal_jatuh_tempo)} />
-                        </div>
-
-                        {/* Dropdown vendor WAJIB untuk logistik yang tidak auto-match */}
-                        {verifyTarget.sumber === 'logistik' && (
-                            <div className="utang-vendor-warning">
-                                <Truck size={15} />
+                        <div className="utang-confirm-head">
+                            <div className="utang-confirm-head-copy">
+                                <span className="utang-confirm-head-icon"><CheckCircle2 size={22} /></span>
                                 <div>
-                                    <strong>Pembelian Logistik</strong>
-                                    {!verifyTarget.vendor_id_hint ? (
-                                        <span> — Vendor tidak terdeteksi otomatis. Pilih vendor dari master data di bawah untuk melanjutkan verifikasi.</span>
-                                    ) : (
-                                        <span> — Vendor terdeteksi otomatis (<em>{verifyTarget.vendor_nama}</em>). Ubah jika tidak sesuai.</span>
-                                    )}
+                                    <h2>Verifikasi Faktur</h2>
+                                    <p>Catat faktur sebagai utang supplier di SIMAK</p>
                                 </div>
                             </div>
-                        )}
+                            <button className="utang-confirm-close" type="button" onClick={() => setVerifyTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
 
-                        {verifyTarget.sumber === 'logistik' && (
-                            <div className="utang-vendor-select-wrap">
-                                <label>
-                                    <span className="utang-field-label"><ShieldCheck size={15} /> Vendor <span className="utang-required">*</span></span>
+                        <div className="utang-confirm-body">
+                            <div className="utang-verify-card">
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Sumber</span>
+                                    <span className="val"><SumberBadge sumber={verifyTarget.sumber} /></span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono">{verifyTarget.nomor_faktur || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Vendor</span>
+                                    <span className="val bold">{verifyTarget.vendor_nama || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Ref / SPB</span>
+                                    <span className="val">{getRefNo(verifyTarget)}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Jatuh Tempo</span>
+                                    <span className="val">{dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
+                                </div>
+                                <div className="utang-verify-row total">
+                                    <span className="lbl">Nominal Faktur</span>
+                                    <span className="val price">{money(verifyTarget.nominal)}</span>
+                                </div>
+                            </div>
+
+                            {verifyTarget.sumber === 'logistik' && (
+                                <div className="utang-vendor-warning">
+                                    <Truck size={16} />
+                                    <div>
+                                        <strong>Pembelian Logistik</strong>
+                                        <span> — {!verifyTarget.vendor_id_hint ? 'Vendor belum terhubung ke Master Data. Pilih vendor di bawah.' : `Vendor terdeteksi (${verifyTarget.vendor_nama}). Ubah jika perlu.`}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {verifyTarget.sumber === 'logistik' && (
+                                <div className="utang-field-block">
+                                    <label className="utang-field-lbl"><ShieldCheck size={15} /> Vendor Master <span className="utang-req">*</span></label>
                                     <select
                                         className="utang-input utang-select"
                                         value={verifyForm.vendor_id}
@@ -446,21 +465,31 @@ export default function CatatanUtangObatBhp() {
                                             <option key={v.id} value={v.id}>{v.nama}</option>
                                         ))}
                                     </select>
-                                </label>
-                            </div>
-                        )}
+                                </div>
+                            )}
 
-                        <div className="utang-send-fields">
-                            <label><span className="utang-field-label"><CalendarDays size={15} /> Tanggal Titip</span><DateInput value={verifyForm.tanggal_titip} onChange={(value) => setVerifyForm({ ...verifyForm, tanggal_titip: value })} /></label>
-                            <label><span className="utang-field-label">Keterangan</span><textarea className="utang-input" rows={2} value={verifyForm.keterangan_titip} onChange={(e) => setVerifyForm({ ...verifyForm, keterangan_titip: e.target.value })} placeholder="Contoh: Faktur fisik diterima oleh bagian keuangan." /></label>
+                            <div className="utang-field-block">
+                                <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Titip</label>
+                                <DateInput value={verifyForm.tanggal_titip} onChange={(value) => setVerifyForm({ ...verifyForm, tanggal_titip: value })} />
+                            </div>
+
+                            <div className="utang-field-block">
+                                <label className="utang-field-lbl">Keterangan Catatan Utang</label>
+                                <textarea
+                                    className="utang-input"
+                                    rows={2}
+                                    value={verifyForm.keterangan_titip}
+                                    onChange={(e) => setVerifyForm({ ...verifyForm, keterangan_titip: e.target.value })}
+                                    placeholder="Contoh: Faktur fisik diterima oleh bagian keuangan."
+                                />
+                            </div>
                         </div>
-                        <div className="utang-confirm-detail">
-                            <span>Nominal</span>
-                            <strong>{money(verifyTarget.nominal)}</strong>
-                        </div>
+
                         <div className="utang-confirm-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setVerifyTarget(null)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving}><CheckCircle2 size={16} /> {saving ? 'Menyimpan...' : 'Konfirmasi'}</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving}>
+                                <CheckCircle2 size={16} /> {saving ? 'Menyimpan...' : 'Konfirmasi Verifikasi'}
+                            </button>
                         </div>
                     </form>
                 </div>,
@@ -622,8 +651,12 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                 <select className="dki-select dki-filter-status" value={mode === 'aktif' ? filters.status : ''} onChange={(e) => setFilters({ ...filters, status: e.target.value })} disabled={mode !== 'aktif'} title={mode === 'aktif' ? 'Filter status' : 'Status hanya tersedia di tab Utang Aktif'}>
                     {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
-                <label className="utang-date-filter"><span>Dari</span><DateInput value={filters.dari} onChange={(value) => setFilters({ ...filters, dari: value })} /></label>
-                <label className="utang-date-filter"><span>Sampai</span><DateInput value={filters.sampai} onChange={(value) => setFilters({ ...filters, sampai: value })} /></label>
+                <DateRangePicker
+                    dari={filters.dari}
+                    sampai={filters.sampai}
+                    onChange={({ dari, sampai }) => setFilters({ ...filters, dari, sampai })}
+                    placeholder="Pilih Periode Tanggal"
+                />
                 <button className="dki-filter-reset" type="button" onClick={onReset}><FilterX size={15} /> Reset</button>
             </div>
         </div>

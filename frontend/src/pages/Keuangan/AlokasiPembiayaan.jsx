@@ -40,7 +40,7 @@ const emptyForm = {
     keterangan: '',
 };
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const sanitizeMoneyInput = (value) => String(value || '').replace(/[^\d.,]/g, '');
 const parseMoneyInput = (value) => {

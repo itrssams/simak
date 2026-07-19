@@ -113,7 +113,7 @@ const emptyPayment = {
     bayar_penuh: false,
 };
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const dateOnly = (value) => String(value || '').slice(0, 10);
@@ -151,12 +151,12 @@ const formatMoneyInput = (value) => {
     const draftMatch = raw.match(/^(-?\d+)(\.(\d{0,2})?)$/);
     if (draftMatch) {
         const [, integer, decimal = ''] = draftMatch;
-        return `Rp ${Number(integer || 0).toLocaleString('en-US')}${decimal}`;
+        return `Rp ${Number(integer || 0).toLocaleString('id-ID')}${decimal ? ',' + decimal.slice(1) : ''}`;
     }
     const amount = parseMoneyInput(value);
-    if (!amount) return raw.endsWith('.') ? 'Rp 0.' : '';
+    if (!amount) return raw.endsWith('.') || raw.endsWith(',') ? 'Rp 0,' : '';
     const hasDecimal = !Number.isInteger(amount);
-    return `Rp ${amount.toLocaleString('en-US', {
+    return `Rp ${amount.toLocaleString('id-ID', {
         minimumFractionDigits: hasDecimal ? 2 : 0,
         maximumFractionDigits: 2,
     })}`;

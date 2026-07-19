@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import './SearchablePembiayaanSelect.css';
 
@@ -14,14 +15,18 @@ export default function SearchablePembiayaanSelect({
 }) {
     const rootRef = useRef(null);
     const inputRef = useRef(null);
+    const popoverRef = useRef(null);
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
 
-    const selectedOption = useMemo(
-        () => options.find((item) => String(item.value) === String(value)),
-        [options, value],
-    );
+    const selectedOption = useMemo(() => {
+        const found = options.find((item) => String(item.value) === String(value));
+        if (found) return found;
+        if (value) return { value, label: value }; // Fallback to display the raw value if not in options
+        return null;
+    }, [options, value]);
 
     const filteredOptions = useMemo(() => {
         const needle = normalize(query);
@@ -36,13 +41,48 @@ export default function SearchablePembiayaanSelect({
     useEffect(() => {
         if (!open) return undefined;
         const handlePointerDown = (event) => {
-            if (!rootRef.current?.contains(event.target)) {
+            const target = event.target;
+            const insideRoot = rootRef.current?.contains(target);
+            const insidePopover = popoverRef.current?.contains(target);
+            if (!insideRoot && !insidePopover) {
                 setOpen(false);
                 setQuery('');
             }
         };
         document.addEventListener('mousedown', handlePointerDown);
         return () => document.removeEventListener('mousedown', handlePointerDown);
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const updatePosition = () => {
+            const rect = rootRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const gap = 6;
+            const viewportPadding = 10;
+            const popoverHeight = popoverRef.current?.offsetHeight || 260;
+            const bottomTop = rect.bottom + gap;
+            const topTop = rect.top - popoverHeight - gap;
+            const top = bottomTop + popoverHeight > window.innerHeight - viewportPadding
+                ? Math.max(viewportPadding, topTop)
+                : bottomTop;
+
+            setPosition({
+                top,
+                left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding)),
+                width: Math.max(rect.width, 0),
+            });
+        };
+
+        updatePosition();
+        const raf = window.requestAnimationFrame(updatePosition);
+        window.addEventListener('resize', updatePosition);
+        window.addEventListener('scroll', updatePosition, true);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('scroll', updatePosition, true);
+        };
     }, [open]);
 
     useEffect(() => {
@@ -95,6 +135,45 @@ export default function SearchablePembiayaanSelect({
         }
     };
 
+    const popover = open ? createPortal(
+        <div
+            ref={popoverRef}
+            className="pbiaya-options df-popover-portal"
+            style={{
+                position: 'fixed',
+                top: position.top,
+                left: position.left,
+                width: position.width,
+                zIndex: 2147483647,
+            }}
+            role="listbox"
+        >
+            {filteredOptions.length === 0 ? (
+                <div className="pbiaya-empty">Pilihan tidak ditemukan</div>
+            ) : filteredOptions.map((option, index) => {
+                const selected = String(option.value) === String(value);
+                return (
+                    <button
+                        key={`${option.value}-${option.label}`}
+                        type="button"
+                        className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}`}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                            selectOption(option);
+                        }}
+                        role="option"
+                        aria-selected={selected}
+                    >
+                        <span>{option.label}</span>
+                        {selected && <Check size={15} />}
+                    </button>
+                );
+            })}
+        </div>,
+        document.body
+    ) : null;
+
     return (
         <div
             ref={rootRef}
@@ -116,32 +195,7 @@ export default function SearchablePembiayaanSelect({
                 />
                 <ChevronDown size={16} className={`pbiaya-chevron${open ? ' open' : ''}`} />
             </div>
-            {open && (
-                <div className="pbiaya-options" role="listbox">
-                    {filteredOptions.length === 0 ? (
-                        <div className="pbiaya-empty">Pembiayaan tidak ditemukan</div>
-                    ) : filteredOptions.map((option, index) => {
-                        const selected = String(option.value) === String(value);
-                        return (
-                            <button
-                                key={`${option.value}-${option.label}`}
-                                type="button"
-                                className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}`}
-                                onMouseEnter={() => setActiveIndex(index)}
-                                onMouseDown={(event) => {
-                                    event.preventDefault();
-                                    selectOption(option);
-                                }}
-                                role="option"
-                                aria-selected={selected}
-                            >
-                                <span>{option.label}</span>
-                                {selected && <Check size={15} />}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+            {popover}
         </div>
     );
 }

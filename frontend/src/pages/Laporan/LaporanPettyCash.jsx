@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useToastState } from '../../context/ToastContext';
 import {
@@ -27,6 +27,7 @@ import {
     YAxis,
 } from 'recharts';
 import api from '../../api/axiosConfig';
+import DateRangePicker from '../../components/DateRangePicker';
 import './LaporanPettyCash.css';
 
 const ORG = {
@@ -570,12 +571,16 @@ export default function LaporanPettyCash() {
             <div className="lpc-panel lpc-toolbar lpc-no-print">
                 <div className="lpc-grid">
                     <div className="lpc-field">
-                        <label className="lpc-label">Dari</label>
-                        <input className="lpc-input" type="date" value={dari} onChange={(event) => setDari(event.target.value)} />
-                    </div>
-                    <div className="lpc-field">
-                        <label className="lpc-label">Sampai</label>
-                        <input className="lpc-input" type="date" value={sampai} onChange={(event) => setSampai(event.target.value)} />
+                        <label className="lpc-label">Periode Tanggal</label>
+                        <DateRangePicker
+                            dari={dari}
+                            sampai={sampai}
+                            onChange={({ dari: d, sampai: s }) => {
+                                setDari(d);
+                                setSampai(s);
+                            }}
+                            placeholder="Pilih Periode Tanggal"
+                        />
                     </div>
                     <div className="lpc-field">
                         <label className="lpc-label">Jenis</label>

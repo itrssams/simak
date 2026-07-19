@@ -223,22 +223,24 @@
 .utang-filter-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   width: 100%;
 }
 
 .utang-filter-row .dki-search {
-  flex: 1 1 340px;
-  min-width: 240px;
+  flex: 1 1 200px;
+  min-width: 160px;
 }
 
 .utang-filter-row .dki-select {
-  flex: 0 0 180px;
-  min-width: 0;
+  flex: 1 1 140px;
+  min-width: 120px;
 }
 
 .utang-filter-row .dki-filter-status {
-  flex-basis: 160px;
+  flex: 1 1 130px;
+  min-width: 110px;
 }
 
 .utang-filter-row .dki-select:disabled {
@@ -248,7 +250,7 @@
 }
 
 .utang-date-filter {
-  flex: 0 0 154px;
+  flex: 0 0 auto;
   height: 42px;
   border: 1px solid rgba(226, 232, 240, .88);
   border-radius: 15px;
@@ -424,8 +426,7 @@
   justify-content: center;
 }
 
-.utang-modal,
-.utang-confirm-modal {
+.utang-modal {
   background: var(--utang-panel-strong);
   border-radius: 24px;
   box-shadow: 0 30px 80px rgba(15, 23, 42, .25);
@@ -433,8 +434,202 @@
 }
 
 .utang-confirm-modal {
-  width: min(480px, 100%);
-  padding: 22px;
+  width: clamp(340px, 92vw, 480px);
+  max-height: calc(100vh - 36px);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.28);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: utangModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes utangModalPop {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.utang-confirm-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+}
+
+.utang-confirm-head-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.utang-confirm-head-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #dcfce7;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bbf7d0;
+  flex-shrink: 0;
+}
+
+.utang-confirm-head-copy h2 {
+  margin: 0;
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.utang-confirm-head-copy p {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.utang-confirm-close {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: 0.15s ease;
+  flex-shrink: 0;
+}
+.utang-confirm-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.utang-confirm-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.utang-verify-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.utang-verify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.utang-verify-row .lbl {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.utang-verify-row .val {
+  color: #1e293b;
+  font-weight: 600;
+  text-align: right;
+}
+
+.utang-verify-row .val.mono {
+  font-family: monospace;
+  background: #ffffff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 12.5px;
+}
+
+.utang-verify-row .val.bold {
+  color: #0f172a;
+  font-weight: 750;
+}
+
+.utang-verify-row.total {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.utang-verify-row.total .lbl {
+  font-weight: 750;
+  color: #0f172a;
+  font-size: 13.5px;
+}
+
+.utang-verify-row.total .price {
+  font-size: 17px;
+  font-weight: 850;
+  color: #2563eb;
+}
+
+.utang-vendor-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.utang-vendor-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.utang-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.utang-field-lbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.utang-req {
+  color: #ef4444;
+}
+
+.utang-confirm-actions {
+  padding: 18px 24px 22px 24px;
+  border-top: 1px solid #f1f5f9;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.utang-confirm-actions .utang-btn {
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 750;
+  font-size: 14px;
 }
 
 .utang-modal.payment {
@@ -759,7 +954,6 @@ textarea.utang-input {
   font-weight: 950;
 }
 
-.utang-confirm-actions,
 .utang-modal-actions {
   padding: 12px 18px;
   margin-top: 0;
@@ -774,11 +968,25 @@ textarea.utang-input {
 }
 
 .utang-confirm-actions {
-  padding: 16px 0 0;
-  margin-top: 16px;
-  border-top: 0;
-  background: transparent;
-  position: static;
+  padding: 18px 24px 24px 24px !important;
+  margin-top: 0 !important;
+  border-top: 1px solid #f1f5f9 !important;
+  background: #ffffff !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1.4fr !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.utang-confirm-actions .utang-btn {
+  height: 44px !important;
+  border-radius: 12px !important;
+  font-weight: 750 !important;
+  font-size: 14px !important;
 }
 
 .utang-send-fields {

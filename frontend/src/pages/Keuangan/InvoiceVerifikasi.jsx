@@ -12,13 +12,14 @@ import {
     X,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './InvoiceVerifikasi.css';
 
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const errorMessage = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
 
@@ -132,16 +133,14 @@ export default function InvoiceVerifikasi() {
                             placeholder="Cari invoice / pembiayaan / pengaju..."
                         />
                     </label>
-                    <div className="ivf-date-range">
-                        <label>
-                            <span>Dari</span>
-                            <DateField value={filters.dari} onChange={(value) => setFilter('dari', value)} />
-                        </label>
-                        <label>
-                            <span>Sampai</span>
-                            <DateField value={filters.sampai} onChange={(value) => setFilter('sampai', value)} />
-                        </label>
-                    </div>
+                    <DateRangePicker
+                        dari={filters.dari}
+                        sampai={filters.sampai}
+                        onChange={({ dari, sampai }) => {
+                            setFilters((prev) => ({ ...prev, dari, sampai }));
+                        }}
+                        placeholder="Pilih Periode Tanggal"
+                    />
                     <button className="ivf-reset" type="button" onClick={resetFilters}>
                         <X size={16} /> Reset
                     </button>

@@ -93,6 +93,7 @@ export default function DateField({ value, onChange, disabled = false, placehold
                 showMonthDropdown
                 showYearDropdown
                 dropdownMode="select"
+                showDaysOutsideCurrentMonth
             />
             <div className="df-actions">
                 <button type="button" className="df-btn soft" onClick={cancel}>Batal</button>

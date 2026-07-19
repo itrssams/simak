@@ -1,15 +1,45 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Check, CheckCircle2, ChevronDown, Eye, FilePlus2, Pencil, Plus, RefreshCw, Search, Trash2, Warehouse, X } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { Archive, BadgeDollarSign, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
+import DateRangePicker from '../../components/DateRangePicker';
+import DateField from '../../components/DateField';
+import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import '../Keuangan/InvoicePembiayaan.css';
 import './Logistik.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (value) => Number(value || 0).toLocaleString('id-ID');
-const money = (value) => `Rp ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatRefNo = (value) => {
+    if (value === null || value === undefined) return '-';
+    const str = String(value).trim();
+    if (!str || str === '0' || str === 'null' || str === 'undefined') return '-';
+    return str;
+};
+const formatDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return String(value);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+const formatDateTime = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return String(value);
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    const hasTime = String(value).includes(':') || String(value).includes('T');
+    if (!hasTime) return `${day} ${month} ${year}`;
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day} ${month} ${year}, ${hours}:${minutes}`;
+};
 const getError = (err, fallback) => {
     const data = err?.response?.data;
     if (!data) return fallback;
@@ -49,12 +79,12 @@ const formatMoneyInput = (value) => {
     const draftMatch = raw.match(/^(-?\d+)(\.(\d{0,2})?)$/);
     if (draftMatch) {
         const [, integer, decimal = ''] = draftMatch;
-        return `Rp ${Number(integer || 0).toLocaleString('en-US')}${decimal}`;
+        return `Rp ${Number(integer || 0).toLocaleString('id-ID')}${decimal ? ',' + decimal.slice(1) : ''}`;
     }
     const amount = parseMoneyInput(value);
-    if (!amount) return raw.endsWith('.') ? 'Rp 0.' : '';
+    if (!amount) return raw.endsWith('.') || raw.endsWith(',') ? 'Rp 0,' : '';
     const hasDecimal = !Number.isInteger(amount);
-    return `Rp ${amount.toLocaleString('en-US', { minimumFractionDigits: hasDecimal ? 2 : 0, maximumFractionDigits: 2 })}`;
+    return `Rp ${amount.toLocaleString('id-ID', { minimumFractionDigits: hasDecimal ? 2 : 0, maximumFractionDigits: 2 })}`;
 };
 const normalizeMoneyDraft = (value) => {
     const raw = String(value || '').replace(/[^\d.,]/g, '');
@@ -127,7 +157,10 @@ export default function Logistik() {
     const [modal, setModal] = useState(null);
     const [showAllBarang, setShowAllBarang] = useState(false);
     const [penerimaanFilter, setPenerimaanFilter] = useState('all');
+    const [vendorSumberFilter, setVendorSumberFilter] = useState('all');
+    const [vendorKategoriFilter, setVendorKategoriFilter] = useState('');
     const [detail, setDetail] = useState(null);
+    const [confirmSubmitTarget, setConfirmSubmitTarget] = useState(null);
     const [activePurchase, setActivePurchase] = useState(null);
     const [kartuBarang, setKartuBarang] = useState('');
     const [kartuRows, setKartuRows] = useState([]);
@@ -165,9 +198,9 @@ export default function Logistik() {
     const fetchOptions = useCallback(async () => {
         try {
             const [barangRes, ruangRes, vendorRes] = await Promise.all([
-                api.get('/keuangan/logistik/barang/', { params: { page_size: 1000, show_all: 'true' } }),
+                api.get('/keuangan/logistik/barang/?page_size=2000'),
                 api.get('/keuangan/logistik/barang/ruang-options/'),
-                api.get('/keuangan/logistik/vendor/options/'),
+                api.get('/keuangan/logistik/vendor/options/?sumber=logistik'),
             ]);
             setBarangOptions(getResults(barangRes.data));
             setRuangOptions(getResults(ruangRes.data));
@@ -194,6 +227,10 @@ export default function Logistik() {
             if (section === 'stok-minimum') params.minimum = true;
             if (section === 'verifikasi') params.status = 'menunggu';
             if (section === 'barang') params.show_all = showAllBarang ? 'true' : 'false';
+            if (section === 'vendor') {
+                if (vendorSumberFilter !== 'all') params.sumber = vendorSumberFilter;
+                if (vendorKategoriFilter) params.kategori = vendorKategoriFilter;
+            }
             const listRes = await api.get(endpointFor(), { params });
             setRows(getResults(listRes.data));
             setTotal(getCount(listRes.data));
@@ -202,7 +239,22 @@ export default function Logistik() {
         } finally {
             setLoading(false);
         }
-    }, [endpointFor, page, pageSize, search, section, showAllBarang, toast]);
+    }, [endpointFor, page, pageSize, search, section, showAllBarang, vendorSumberFilter, vendorKategoriFilter, toast]);
+
+    const [searchParams] = useSearchParams();
+    const urlSumber = searchParams.get('sumber');
+
+    useEffect(() => {
+        if (section === 'vendor') {
+            if (urlSumber === 'logistik') {
+                setVendorSumberFilter('logistik');
+            } else if (urlSumber === 'semua' || urlSumber === 'all') {
+                setVendorSumberFilter('all');
+            } else if (urlSumber === 'farmasi') {
+                setVendorSumberFilter('farmasi');
+            }
+        }
+    }, [section, urlSumber]);
 
     useEffect(() => { fetchOptions(); }, [fetchOptions]);
     useEffect(() => { setPage(1); setRows([]); setKartuRows([]); }, [section]);
@@ -278,6 +330,20 @@ export default function Logistik() {
         setSaving(true);
         try {
             const payload = { ...forms.spb };
+            // id_rekanan now stores vendor name (since penerimaan API only provides name).
+            // Look up the numeric vendor ID from vendorOptions before sending to backend.
+            const selectedVendorName = String(payload.id_rekanan || '').trim().toUpperCase();
+            const matchedVendorObj = vendorOptions.find(
+                (v) => String(v.nama || '').trim().toUpperCase() === selectedVendorName
+            );
+            if (matchedVendorObj) {
+                payload.id_rekanan = String(matchedVendorObj.id);
+                payload.pemasok = matchedVendorObj.nama;
+            } else {
+                // Fallback: treat value as name text
+                payload.pemasok = payload.id_rekanan;
+                delete payload.id_rekanan;
+            }
             if (payload.id) {
                 await api.patch(`/keuangan/logistik/pembelian/${payload.id}/`, payload);
                 toast.success('Penerimaan berhasil diperbarui.');
@@ -312,8 +378,41 @@ export default function Logistik() {
             }
             setModal(null);
             await fetchRows();
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Gagal menyimpan barang masuk.');
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const deleteItem = async (item) => {
+        if (!window.confirm(`Hapus barang ${item.barang_nama} dari penerimaan ini?`)) return;
+        setSaving(true);
+        try {
+            await api.delete(`/keuangan/logistik/batch/${item.id}/?barang=${item.barang}`);
+            toast.success('Barang berhasil dihapus.');
+            const res = await api.get(`/keuangan/logistik/pembelian/${activePurchase.id}/`);
+            setActivePurchase(res.data);
+            fetchRows();
+        } catch (e) {
+            toast.error('Gagal menghapus barang.');
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const submitToFinance = async (id) => {
+        setSaving(true);
+        try {
+            await api.post(`/keuangan/logistik/pembelian/${id}/submit/`);
+            toast.success('Penerimaan berhasil dikirim ke Keuangan.');
+            setForms((v) => ({ ...v, spb: { ...v.spb, status: 'Y' } }));
+            setActivePurchase((v) => v ? { ...v, status: 'Y' } : v);
+            await fetchRows();
         } catch (err) {
-            toast.error(getError(err, 'Gagal menyimpan barang masuk.'));
+            toast.error(err.response?.data?.detail || err.response?.data?.message || 'Gagal mengirim ke Keuangan.');
         } finally {
             setSaving(false);
         }
@@ -454,6 +553,26 @@ export default function Logistik() {
                                     <button className={showAllBarang ? 'active' : ''} type="button" onClick={() => setShowAllBarang(true)}>Semua</button>
                                 </div>
                             )}
+                            {section === 'vendor' && (
+                                <>
+                                    <select
+                                        className="inv-input"
+                                        value={vendorKategoriFilter}
+                                        onChange={(e) => setVendorKategoriFilter(e.target.value)}
+                                        style={{ minWidth: 200, padding: '8px 12px', fontSize: '13px' }}
+                                    >
+                                        <option value="">Semua Kategori</option>
+                                        {VENDOR_CATEGORIES.map((cat) => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                    <div className="log-filter-segment" role="group" aria-label="Filter vendor">
+                                        <button className={vendorSumberFilter === 'all' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('all')}>Semua Vendor</button>
+                                        <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('logistik')}>Khusus Logistik</button>
+                                        <button className={vendorSumberFilter === 'farmasi' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('farmasi')}>Khusus Farmasi</button>
+                                    </div>
+                                </>
+                            )}
                             {section === 'penerimaan' && (
                                 <div className="log-filter-segment" role="group" aria-label="Filter penerimaan">
                                     <button className={penerimaanFilter === 'all' ? 'active' : ''} type="button" onClick={() => setPenerimaanFilter('all')}>Semua</button>
@@ -477,10 +596,23 @@ export default function Logistik() {
                         onEditVendor={(row) => { setForms((v) => ({ ...v, vendor: row })); setModal('vendor'); }}
                         onEditBarang={openEditBarang}
                         onEditPenerimaan={(row) => {
-                            const matchedVendor = vendorOptions.find((vendor) => vendor.nama === row.pemasok);
+                            // Backend penerimaan only returns pemasok (name string), not a numeric vendor ID.
+                            // We store the uppercase pemasok name as id_rekanan so the dropdown can match it.
+                            const pemasokName = String(row.pemasok || '').trim();
                             setDetail(null);
                             setActivePurchase(row);
-                            setForms((v) => ({ ...v, spb: { ...emptySpb, id: row.id, tanggal: row.tanggal || today(), id_rekanan: matchedVendor?.id || '', no_spb: row.no_faktur || '', metode_pembayaran: 'Kredit' } }));
+                            setForms((v) => ({
+                                ...v,
+                                spb: {
+                                    ...emptySpb,
+                                    id: row.id,
+                                    tanggal: row.tanggal || today(),
+                                    id_rekanan: pemasokName,
+                                    no_spb: formatRefNo(row.no_faktur || row.no_spb),
+                                    metode_pembayaran: row.metode_pembayaran || 'Kredit',
+                                    status: row.status || 'N',
+                                },
+                            }));
                             setModal('spb');
                         }}
                         onDeleteBarang={deleteBarang}
@@ -516,12 +648,15 @@ export default function Logistik() {
                                 <option value="Keluar">Keluar</option>
                             </select>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '13px', color: '#64748b' }}>Dari</span>
-                                <input type="date" className="dki-select" style={{ height: '36px', padding: '0 8px' }} value={kartuDari} onChange={(e) => setKartuDari(e.target.value)} />
-                                <span style={{ fontSize: '13px', color: '#64748b' }}>s/d</span>
-                                <input type="date" className="dki-select" style={{ height: '36px', padding: '0 8px' }} value={kartuSampai} onChange={(e) => setKartuSampai(e.target.value)} />
-                            </div>
+                            <DateRangePicker
+                                dari={kartuDari}
+                                sampai={kartuSampai}
+                                onChange={({ dari, sampai }) => {
+                                    setKartuDari(dari);
+                                    setKartuSampai(sampai);
+                                }}
+                                placeholder="Pilih Periode Tanggal"
+                            />
 
                             {(kartuSearch || kartuJenis !== 'all' || kartuDari || kartuSampai) && (
                                 <button className="inv-btn soft" style={{ height: '36px', padding: '0 12px' }} onClick={() => { setKartuSearch(''); setKartuJenis('all'); setKartuDari(''); setKartuSampai(''); }} type="button">
@@ -545,7 +680,7 @@ export default function Logistik() {
             {modal === 'vendor' && <VendorModal form={forms.vendor} setForm={(p) => setForm('vendor', p)} onSubmit={saveVendor} onClose={() => setModal(null)} saving={saving} />}
             {modal === 'spb' && (
                 <SpbModal
-                    mode={section === 'penerimaan' ? 'penerimaan' : 'spb'}
+                    mode={section}
                     form={forms.spb}
                     setForm={(p) => setForm('spb', p)}
                     vendors={vendorOptions}
@@ -557,6 +692,7 @@ export default function Logistik() {
                             item: {
                                 ...emptyItem,
                                 editing: true,
+                                id: item.id,
                                 barang: item.barang,
                                 original_barang: item.barang,
                                 qty: item.qty,
@@ -567,8 +703,33 @@ export default function Logistik() {
                         }));
                         setModal('item');
                     }}
+                    onDeleteItem={deleteItem}
+                    onSubmitToFinance={() => setConfirmSubmitTarget(forms.spb)}
                     onSubmit={saveSpb}
                     onClose={() => setModal(null)}
+                    onAddItem={() => {
+                        setForms((v) => ({
+                            ...v,
+                            item: {
+                                ...emptyItem,
+                                editing: false,
+                                no_invoice: forms.spb.no_spb || activePurchase?.no_faktur || '',
+                            },
+                        }));
+                        setModal('item');
+                    }}
+                />
+            )}
+            {confirmSubmitTarget && (
+                <ConfirmSubmitModal
+                    target={confirmSubmitTarget}
+                    onClose={() => setConfirmSubmitTarget(null)}
+                    onConfirm={() => {
+                        const id = confirmSubmitTarget.id;
+                        setConfirmSubmitTarget(null);
+                        submitToFinance(id);
+                    }}
+                    saving={saving}
                 />
             )}
             {modal === 'item' && <ItemModal form={forms.item} setForm={(p) => setForm('item', p)} barang={barangOptions} onSubmit={saveItem} onClose={() => setModal(null)} purchase={activePurchase} saving={saving} />}
@@ -586,9 +747,9 @@ function payload_error_fallback(section) {
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
     const headers = {
         barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
-        vendor: ['Vendor', 'Kategori', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
+        vendor: ['Vendor', 'Kategori', 'Sumber', 'Alamat', 'Telepon', 'Nama PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Aksi'],
-        penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Aksi'],
+        penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
         permintaan: ['Tanggal', 'Barang', 'Ruang', 'Minta', 'Setuju', 'Status', 'Aksi'],
         verifikasi: ['Tanggal', 'Barang', 'Ruang', 'Minta', 'Setuju', 'Status', 'Aksi'],
@@ -615,12 +776,24 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 </td>
             </tr>
         ));
-        if (section === 'vendor') return rows.map((r) => <tr key={r.id}><td><strong>{r.nama}</strong></td><td><span className="log-vendor-cat">{r.kategori || '-'}</span></td><td>{r.alamat || '-'}</td><td>{r.telp || '-'}</td><td>{r.kc || '-'}</td><td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td></tr>);
+        if (section === 'vendor') return rows.map((r) => (
+            <tr key={r.id}>
+                <td><strong>{r.nama}</strong></td>
+                <td><span className="log-vendor-cat">{r.kategori || '-'}</span></td>
+                <td><Badge info={r.sumber === 'logistik'}>{r.sumber === 'logistik' ? 'Logistik' : 'Farmasi'}</Badge></td>
+                <td>{r.alamat || '-'}</td>
+                <td>{r.telp || '-'}</td>
+                <td>{r.kc || '-'}</td>
+                <td><div className="inv-row-actions"><button onClick={() => onEditVendor(r)}><Pencil size={15} /></button><button onClick={() => onDeleteVendor(r)}><Trash2 size={15} /></button></div></td>
+            </tr>
+        ));
         if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r))}</td><td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button></div></td></tr>);
         if (section === 'penerimaan') return rows.map((r) => {
             const items = r.items || [];
             const qtyMasuk = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.isi || 0), 0);
             const grandTotal = purchaseTotal(r);
+            const isCash = r.metode_pembayaran === 'Cash';
+            const isSubmitted = r.status === 'Y';
             return (
                 <tr key={r.id}>
                     <td>{r.tanggal || '-'}</td>
@@ -628,7 +801,16 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                     <td>{r.pemasok || '-'}</td>
                     <td>{items.length ? fmt(qtyMasuk) : '-'}</td>
                     <td>{money(grandTotal)}</td>
-                    <td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat penerimaan"><Eye size={15} /></button><button onClick={() => onItem(r)} title="Tambah barang masuk"><Plus size={15} /></button><button onClick={() => onEditPenerimaan(r)} title="Edit invoice penerimaan"><Pencil size={15} /></button></div></td>
+                    <td>
+                        {isCash ? (
+                            <Badge info>Tunai (Selesai)</Badge>
+                        ) : isSubmitted ? (
+                            <Badge success>Dikirim ke Keuangan</Badge>
+                        ) : (
+                            <Badge warning>Draft (Belum Kirim)</Badge>
+                        )}
+                    </td>
+                    <td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat penerimaan"><Eye size={15} /></button><button onClick={() => onEditPenerimaan(r)} title={isSubmitted ? "Lihat invoice penerimaan (terkunci)" : "Edit invoice penerimaan"}><Pencil size={15} /></button></div></td>
                 </tr>
             );
         });
@@ -647,22 +829,51 @@ function Badge({ children, danger }) {
 
 function DetailInfo({ row, section }) {
     const isPurchase = ['spb', 'penerimaan'].includes(section);
-    const fields = isPurchase
-        ? [
-            ['No SPB', row.nomor || row.id],
-            ['Tanggal', row.tanggal],
-            ['Vendor', row.pemasok],
-            ['No Faktur', row.no_faktur],
-            ['Grand Total', money(purchaseTotal(row))],
-            ['Dibuat', row.created_at],
-        ]
-        : Object.entries(row)
+    if (!isPurchase) {
+        const fields = Object.entries(row)
             .filter(([key]) => !['items', 'status'].includes(key))
             .slice(0, 12)
             .map(([key, value]) => [humanLabel(key), value]);
+        return (
+            <div className="log-detail-grid">
+                {fields.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || '-'}</strong></div>)}
+            </div>
+        );
+    }
+
     return (
-        <div className="log-detail-grid">
-            {fields.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || '-'}</strong></div>)}
+        <div className="log-detail-wrapper">
+            <h3 className="inv-section-title"><ReceiptText size={16} /> Informasi Penerimaan Logistik</h3>
+            <div className="inv-info-grid log-info-grid-3">
+                <div className="inv-info-item">
+                    <span>No SPB / Ref</span>
+                    <strong className="inv-mono">{formatRefNo(row.nomor || row.id_spb || row.id)}</strong>
+                </div>
+                <div className="inv-info-item">
+                    <span>Tanggal Penerimaan</span>
+                    <strong>{formatDate(row.tanggal)}</strong>
+                </div>
+                <div className="inv-info-item">
+                    <span>Vendor / Rekanan</span>
+                    <strong>{row.pemasok || '-'}</strong>
+                </div>
+                <div className="inv-info-item">
+                    <span>No Invoice / Faktur</span>
+                    <strong>{formatRefNo(row.no_faktur || row.no_spb || row.no_invoice)}</strong>
+                </div>
+                <div className="inv-info-item">
+                    <span>Metode Pembayaran</span>
+                    <strong>{row.metode_pembayaran || 'Kredit'}</strong>
+                </div>
+                <div className="inv-info-item">
+                    <span>Waktu Input</span>
+                    <strong>{formatDateTime(row.created_at)}</strong>
+                </div>
+            </div>
+            <div className="log-total-banner">
+                <span><ReceiptText size={18} /> Grand Total Nilai Penerimaan</span>
+                <strong className="inv-mono">{money(purchaseTotal(row))}</strong>
+            </div>
         </div>
     );
 }
@@ -675,9 +886,18 @@ function humanLabel(key) {
 
 function Modal({ title, description = 'Lengkapi data lalu simpan.', children, onClose, variant = 'create', icon = <FilePlus2 size={20} /> }) {
     const isDetail = variant === 'detail';
+
+    useEffect(() => {
+        const originalStyle = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
     return (
         <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
-            <div className={`inv-modal ${isDetail ? 'detail' : 'create'} log-modal`} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className={`inv-modal ${isDetail ? 'detail' : 'create'} log-modal ${variant}`.trim()} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                 <div className={`inv-modal-head ${isDetail ? 'inv-detail-head' : ''}`}>
                     <div className={isDetail ? 'inv-detail-title' : 'log-modal-title'}>
                         <span className={`inv-modal-head-icon ${isDetail ? 'detail' : ''}`}>{icon}</span>
@@ -694,8 +914,58 @@ function Modal({ title, description = 'Lengkapi data lalu simpan.', children, on
     );
 }
 
-function Field({ label, children }) {
-    return <label className="inv-field">{label}{children}</label>;
+function ConfirmSubmitModal({ target, onClose, onConfirm, saving }) {
+    useEffect(() => {
+        const originalStyle = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
+    return (
+        <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
+            <div className="log-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+                <button className="log-confirm-close" type="button" onClick={onClose} aria-label="Tutup">
+                    <X size={18} />
+                </button>
+
+                <div className="log-confirm-icon-wrapper">
+                    <div className="log-confirm-icon-circle">
+                        <Send size={24} />
+                    </div>
+                </div>
+
+                <div className="log-confirm-body">
+                    <h3>Kirim ke Keuangan?</h3>
+                    <p className="log-confirm-sub">
+                        Faktur <strong>{target?.no_spb || target?.id}</strong> akan diserahkan ke antrean <em>Catatan Utang - Menunggu Verifikasi</em>.
+                    </p>
+
+                    <div className="log-confirm-warning-card">
+                        <div className="log-confirm-warning-header">
+                            <Lock size={14} />
+                            <span>Status Akan Terkunci</span>
+                        </div>
+                        <p>Setelah dikirim, status penerimaan ini akan <strong>Terkunci</strong> dan data barang tidak dapat diubah lagi oleh Logistik.</p>
+                    </div>
+                </div>
+
+                <div className="log-confirm-actions">
+                    <button className="inv-btn soft" type="button" onClick={onClose} disabled={saving}>
+                        Batal
+                    </button>
+                    <button className="inv-btn success" type="button" onClick={onConfirm} disabled={saving}>
+                        <Send size={16} /> Ya, Kirim ke Keuangan
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Field({ label, children, className = '' }) {
+    return <label className={`inv-field ${className}`.trim()}>{label}{children}</label>;
 }
 
 function SearchableBarangSelect({ options = [], value = '', onChange }) {
@@ -799,21 +1069,47 @@ function SearchableBarangSelect({ options = [], value = '', onChange }) {
 function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
     const isEdit = Boolean(form.id);
     return (
-        <Modal title={isEdit ? 'Edit Barang' : 'Tambah Barang'} description={isEdit ? 'Perbarui master barang logistik.' : 'Isi master barang logistik.'} onClose={onClose} icon={isEdit ? <Pencil size={20} /> : <FilePlus2 size={20} />}>
+        <Modal
+            title={isEdit ? 'Edit Barang' : 'Tambah Barang'}
+            description={isEdit ? 'Perbarui master barang logistik.' : 'Isi rincian data barang logistik baru.'}
+            onClose={onClose}
+            variant="barang-compact"
+            icon={isEdit ? <Pencil size={20} /> : <FilePlus2 size={20} />}
+        >
             <form onSubmit={onSubmit}>
-                <div className="inv-form-grid">
-                    <Field label="Nama Barang"><input className="inv-input" required value={form.nama_barang} onChange={(e) => setForm({ nama_barang: e.target.value })} /></Field>
-                    <Field label="Satuan">
-                        <select className="inv-input" required value={form.satuan} onChange={(e) => setForm({ satuan: e.target.value })}>
-                            {UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                        </select>
-                    </Field>
-                    <Field label="Kemasan"><input className="inv-input" value={form.kemasan} onChange={(e) => setForm({ kemasan: e.target.value })} /></Field>
-                    <Field label="Isi"><input className="inv-input" type="number" min="1" value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field>
-                    <Field label="Merek"><input className="inv-input" value={form.merk} onChange={(e) => setForm({ merk: e.target.value })} /></Field>
-                    <Field label="Stok Minimum"><input className="inv-input" type="number" min="0" value={form.stok_minimum} onChange={(e) => setForm({ stok_minimum: e.target.value })} /></Field>
+                <div className="log-barang-form">
+                    <div className="log-form-row">
+                        <label className="log-field-main">
+                            <span className="inv-field-label"><Package size={15} /> Nama Barang</span>
+                            <input className="inv-input" required value={form.nama_barang} onChange={(e) => setForm({ nama_barang: e.target.value })} placeholder="Masukkan nama barang" />
+                        </label>
+                        <label className="log-field-sub">
+                            <span className="inv-field-label"><Tag size={15} /> Merek</span>
+                            <input className="inv-input" value={form.merk} onChange={(e) => setForm({ merk: e.target.value })} placeholder="Merek / Brand" />
+                        </label>
+                    </div>
+                    <div className="log-form-grid-2">
+                        <label>
+                            <span className="inv-field-label"><Layers size={15} /> Satuan</span>
+                            <select className="inv-input" required value={form.satuan} onChange={(e) => setForm({ satuan: e.target.value })}>
+                                {UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                            </select>
+                        </label>
+                        <label>
+                            <span className="inv-field-label"><Archive size={15} /> Kemasan</span>
+                            <input className="inv-input" value={form.kemasan} onChange={(e) => setForm({ kemasan: e.target.value })} placeholder="Contoh: Box / Botol" />
+                        </label>
+                        <label>
+                            <span className="inv-field-label"><Hash size={15} /> Isi per Kemasan</span>
+                            <input className="inv-input" type="number" min="1" value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} placeholder="1" />
+                        </label>
+                        <label>
+                            <span className="inv-field-label"><ShieldAlert size={15} /> Stok Minimum</span>
+                            <input className="inv-input" type="number" min="0" value={form.stok_minimum} onChange={(e) => setForm({ stok_minimum: e.target.value })} placeholder="0" />
+                        </label>
+                    </div>
                 </div>
-                <ModalFoot onClose={onClose} saving={saving} submitLabel={isEdit ? 'Simpan Perubahan' : 'Simpan'} />
+                <ModalFoot onClose={onClose} saving={saving} submitLabel={isEdit ? 'Simpan Perubahan' : 'Simpan Barang'} />
             </form>
         </Modal>
     );
@@ -841,26 +1137,122 @@ function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
     );
 }
 
-function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, onSubmit, onClose, saving }) {
+function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, onDeleteItem, onSubmitToFinance, onAddItem, onSubmit, onClose, saving }) {
     const isPenerimaan = mode === 'penerimaan';
+    const isLocked = isPenerimaan && form.metode_pembayaran !== 'Cash' && (form.status === 'Y' || purchase?.status === 'Y');
+    const items = purchase?.items || [];
+    const hasItems = items.length > 0;
+    const canSubmitToFinance = isPenerimaan && !isLocked && form.metode_pembayaran !== 'Cash' && hasItems;
+
+    // For penerimaan mode: the existing record only stores vendor name (pemasok), not numeric ID.
+    // So we use the normalized uppercase vendor name as the select value for reliable matching.
+    const vendorOptions = useMemo(() => [
+        { value: '', label: 'Pilih vendor' },
+        ...vendors.map((v) => ({
+            value: String(v.nama || v.label || '').trim().toUpperCase(),
+            label: v.nama || v.label || String(v.id || ''),
+        })),
+    ], [vendors]);
+
+    // Normalize the stored value for comparison (uppercase, trimmed)
+    const normalizedVendorValue = useMemo(() => {
+        const raw = String(form.id_rekanan || '').trim().toUpperCase();
+        return raw;
+    }, [form.id_rekanan]);
+
     return (
-        <Modal title={isPenerimaan ? 'Edit Penerimaan' : 'Tambah SPB'} description={isPenerimaan ? 'Perbarui invoice dan daftar barang penerimaan.' : 'Buat SPB baru untuk dasar penerimaan.'} onClose={onClose} icon={isPenerimaan ? <Pencil size={20} /> : <FilePlus2 size={20} />}>
+        <Modal
+            title={isPenerimaan ? (isLocked ? 'Detail Penerimaan (Terkunci)' : 'Edit Penerimaan') : 'Tambah SPB'}
+            description={isPenerimaan ? (isLocked ? 'Faktur ini telah dikirim ke Keuangan dan tidak dapat diubah.' : 'Perbarui invoice dan daftar barang penerimaan.') : 'Isi informasi SPB baru untuk dasar penerimaan gudang.'}
+            onClose={onClose}
+            variant={isPenerimaan ? 'create' : 'spb-compact'}
+            icon={isPenerimaan ? (isLocked ? <Lock size={20} /> : <Pencil size={20} />) : <FilePlus2 size={20} />}
+        >
             <form onSubmit={onSubmit}>
-                <div className={isPenerimaan ? 'log-edit-penerimaan-grid' : 'inv-form-grid'}>
-                    <div className="inv-form-grid log-form-panel">
-                        <Field label={isPenerimaan ? 'Tanggal Penerimaan' : 'Tanggal SPB'}><input className="inv-input" type="date" required value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
-                        <Field label="Vendor">
-                            <select className="inv-input" required value={form.id_rekanan} onChange={(e) => setForm({ id_rekanan: e.target.value })}>
-                                <option value="">Pilih vendor</option>
-                                {vendors.map((v) => <option key={v.id} value={v.id}>{v.nama}</option>)}
-                            </select>
-                        </Field>
-                        {isPenerimaan && <Field label="No Invoice"><input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} /></Field>}
-                        <Field label="Metode Pembayaran"><input className="inv-input" value={form.metode_pembayaran} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} /></Field>
+                {isPenerimaan ? (
+                    <div className="log-edit-penerimaan-vertical">
+                        {isLocked && (
+                            <div className="log-locked-banner">
+                                <Lock size={18} />
+                                <span>Penerimaan ini telah dikirim ke Keuangan dan statusnya <strong>Terkunci</strong>. Data tidak dapat diubah lagi.</span>
+                            </div>
+                        )}
+                        <div className="log-edit-header-panel">
+                            <label>
+                                <span className="inv-field-label"><CalendarDays size={15} /> Tanggal</span>
+                                <DateField value={form.tanggal} onChange={(value) => setForm({ tanggal: value })} disabled={isLocked} />
+                            </label>
+                            <label>
+                                <span className="inv-field-label"><CreditCard size={15} /> Pembayaran</span>
+                                <select className="inv-input" value={form.metode_pembayaran || 'Kredit'} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} disabled={isLocked}>
+                                    <option value="Kredit">Kredit</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </label>
+                            <label className="log-edit-vendor-full">
+                                <span className="inv-field-label"><Building2 size={15} /> Vendor / Rekanan</span>
+                                <SearchablePembiayaanSelect
+                                    options={vendorOptions}
+                                    value={normalizedVendorValue}
+                                    onChange={(value) => setForm({ id_rekanan: value })}
+                                    placeholder="Pilih vendor"
+                                    disabled={isLocked}
+                                />
+                            </label>
+                            <label className="log-edit-invoice-full">
+                                <span className="inv-field-label"><FileText size={15} /> No Invoice / Faktur</span>
+                                <input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} placeholder="Masukkan no invoice" title={form.no_spb || ''} disabled={isLocked} />
+                            </label>
+                        </div>
+                        <div className="log-edit-table-container">
+                            <ItemsTable
+                                items={items}
+                                editable={!isLocked}
+                                onEdit={onEditItem}
+                                onDelete={onDeleteItem}
+                                onAddItem={onAddItem}
+                            />
+                        </div>
                     </div>
-                    {isPenerimaan && <ItemsTable items={purchase?.items || []} editable onEdit={onEditItem} />}
+                ) : (
+                    <div className="log-spb-form">
+                        <div className="log-spb-row">
+                            <label className="inv-date-compact">
+                                <span className="inv-field-label"><CalendarDays size={15} /> Tanggal SPB</span>
+                                <DateField value={form.tanggal} onChange={(value) => setForm({ tanggal: value })} />
+                            </label>
+                            <label>
+                                <span className="inv-field-label"><CreditCard size={15} /> Metode Pembayaran</span>
+                                <select className="inv-input" value={form.metode_pembayaran || 'Kredit'} onChange={(e) => setForm({ metode_pembayaran: e.target.value })}>
+                                    <option value="Kredit">Kredit</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </label>
+                        </div>
+                        <label className="log-spb-vendor">
+                            <span className="inv-field-label"><Building2 size={15} /> Vendor / Rekanan</span>
+                            <SearchablePembiayaanSelect
+                                options={vendorOptions}
+                                value={form.id_rekanan}
+                                onChange={(value) => setForm({ id_rekanan: value })}
+                                placeholder="Pilih vendor"
+                            />
+                        </label>
+                    </div>
+                )}
+                <div className="inv-modal-actions">
+                    <button className="inv-btn soft" type="button" onClick={onClose} disabled={saving}>Tutup</button>
+                    {canSubmitToFinance && (
+                        <button className="inv-btn success" type="button" onClick={() => onSubmitToFinance(form.id)} disabled={saving}>
+                            <Send size={16} /> Kirim ke Keuangan
+                        </button>
+                    )}
+                    {!isLocked && (
+                        <button className="inv-btn primary" type="submit" disabled={saving}>
+                            <FilePlus2 size={16} /> {saving ? 'Menyimpan...' : 'Simpan Penerimaan'}
+                        </button>
+                    )}
                 </div>
-                <ModalFoot onClose={onClose} saving={saving} submitLabel={isPenerimaan ? 'Simpan Penerimaan' : 'Simpan SPB'} />
             </form>
         </Modal>
     );
@@ -870,30 +1262,80 @@ function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase, saving 
     const qtyMasuk = Number(form.qty || 0) * Number(form.isi || 0);
     const harga = parseMoneyInput(form.harga);
     const grandTotal = Number(form.qty || 0) * harga;
+    const isCalculated = Boolean(form.barang && Number(form.qty || 0) > 0 && harga > 0);
+
     return (
         <Modal title={form.editing ? 'Edit Barang Masuk' : 'Tambah Barang Masuk'} description="Isi rincian barang yang masuk pada invoice ini." onClose={onClose} icon={form.editing ? <Pencil size={20} /> : <Plus size={20} />}>
             <form onSubmit={onSubmit}>
-                <div className="log-penerimaan-layout">
-                    <div className="log-split-panel log-info-panel">
-                        <h3>Informasi penerimaan</h3>
-                        <div className="log-summary-list">
-                            <div className="log-summary-item"><span>No SPB</span><strong>{purchase?.nomor || '-'}</strong></div>
-                            <div className="log-summary-item"><span>Vendor</span><strong>{purchase?.pemasok || '-'}</strong></div>
-                            <div className="log-summary-item"><span>Tanggal</span><strong>{purchase?.tanggal || '-'}</strong></div>
-                            <div className="log-summary-item"><span>No Invoice</span><strong>{form.no_invoice || purchase?.no_faktur || '-'}</strong></div>
+                <div className="log-item-entry-layout">
+                    <div className="log-item-sidebar">
+                        <h3>Informasi Penerimaan</h3>
+                        <div className="log-item-meta-list">
+                            <div className="log-item-meta">
+                                <span>No SPB</span>
+                                <strong>{formatRefNo(purchase?.nomor)}</strong>
+                            </div>
+                            <div className="log-item-meta">
+                                <span>Vendor / Rekanan</span>
+                                <strong>{purchase?.pemasok || '-'}</strong>
+                            </div>
+                            <div className="log-item-meta">
+                                <span>Tanggal</span>
+                                <strong>{formatDate(purchase?.tanggal)}</strong>
+                            </div>
+                            <div className="log-item-meta">
+                                <span>No Invoice / Faktur</span>
+                                <strong>{formatRefNo(form.no_invoice || purchase?.no_faktur || purchase?.no_spb)}</strong>
+                            </div>
                         </div>
                     </div>
-                    <div className="log-split-panel log-item-form">
-                        <Field label="No Invoice"><input className="inv-input" value={form.no_invoice} onChange={(e) => setForm({ no_invoice: e.target.value })} /></Field>
-                        <Field label="Barang"><SearchableBarangSelect options={barang} value={form.barang} onChange={(value) => setForm({ barang: value })} /></Field>
-                        <Field label="Qty"><input className="inv-input" type="number" min="1" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} /></Field>
-                        <Field label="Isi dalam kemasan"><input className="inv-input" type="number" min="1" required value={form.isi} onChange={(e) => setForm({ isi: e.target.value })} /></Field>
-                        <Field label="Harga"><input className="inv-input inv-input-right" type="text" inputMode="decimal" placeholder="Rp 0" value={formatMoneyInput(form.harga)} onChange={(e) => setForm({ harga: normalizeMoneyDraft(e.target.value) })} /></Field>
-                        <div className="log-total-strip">
-                            <div><span>Isi pack</span><strong>{fmt(qtyMasuk)}</strong></div>
-                            <div><span>Qty</span><strong>{fmt(form.qty || 0)}</strong></div>
-                            <div><span>Harga</span><strong>{harga ? money(harga) : '-'}</strong></div>
-                            <div className="total"><span>Grand Total</span><strong>{money(grandTotal)}</strong></div>
+                    <div className="log-item-form-area">
+                        <div className="log-item-form-grid">
+                            <label className="log-item-form-full">
+                                <span className="inv-field-label"><Package size={15} /> Pilih Barang</span>
+                                <SearchableBarangSelect 
+                                    options={barang} 
+                                    value={form.barang} 
+                                    onChange={(value) => {
+                                        const selected = barang.find((b) => String(b.id) === String(value));
+                                        setForm({ 
+                                            barang: value,
+                                            isi: selected?.isi || 1
+                                        });
+                                    }} 
+                                />
+                            </label>
+                            <label>
+                                <span className="inv-field-label"><Hash size={15} /> Qty Kemasan</span>
+                                <input className="inv-input inv-input-left" type="number" min="1" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} placeholder="1" />
+                            </label>
+                            <label>
+                                <span className="inv-field-label"><Archive size={15} /> Isi per Kemasan</span>
+                                <input className="inv-input inv-input-left" type="number" readOnly value={form.isi} placeholder="1" title="Sesuai data master barang" style={{ background: '#f8fafc', color: '#64748b', cursor: 'not-allowed', borderColor: '#e2e8f0' }} />
+                            </label>
+                            <label className="log-item-form-full">
+                                <span className="inv-field-label"><BadgeDollarSign size={15} /> Harga Satuan</span>
+                                <input className="inv-input inv-input-right" type="text" inputMode="decimal" placeholder="Rp 0" value={formatMoneyInput(form.harga)} onChange={(e) => setForm({ harga: normalizeMoneyDraft(e.target.value) })} />
+                            </label>
+                        </div>
+                        <div className="log-item-calc-box">
+                            <div>
+                                <span>Total Qty Masuk</span>
+                                <strong>{fmt(qtyMasuk)}</strong>
+                            </div>
+                            <div>
+                                <span>Qty Kemasan</span>
+                                <strong>{fmt(form.qty || 0)}</strong>
+                            </div>
+                            <div>
+                                <span>Harga Satuan</span>
+                                <strong>{harga ? money(harga) : 'Rp -'}</strong>
+                            </div>
+                            <div className={`total ${isCalculated ? 'ready' : 'muted'}`}>
+                                <span>Grand Total</span>
+                                <strong>{isCalculated ? money(grandTotal) : 'Rp -'}</strong>
+                                {!isCalculated && <small>Belum dihitung</small>}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -993,17 +1435,27 @@ function MiniItems({ items }) {
     return <ItemsTable items={items} />;
 }
 
-function ItemsTable({ items, editable = false, onEdit }) {
-    const grandTotal = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.harga || 0), 0);
+function ItemsTable({ items = [], editable = false, onEdit, onDelete, onAddItem }) {
+    const grandTotal = useMemo(() => {
+        return items.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.harga || 0)), 0);
+    }, [items]);
+    const totalQtyMasuk = useMemo(() => {
+        return items.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.isi || 0)), 0);
+    }, [items]);
+
     if (editable) {
         return (
             <section className="log-items-section">
                 <div className="log-items-head">
                     <div>
                         <h3>Daftar Barang</h3>
-                        <p>{items.length ? `${items.length} barang tercatat` : 'Belum ada barang masuk.'}</p>
+                        <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang masuk.'}</p>
                     </div>
-                    <strong>{money(grandTotal)}</strong>
+                    {onAddItem && (
+                        <button className="inv-btn primary compact" style={{ padding: '8px 14px' }} type="button" onClick={onAddItem}>
+                            <Plus size={15} /> Tambah Barang
+                        </button>
+                    )}
                 </div>
                 <div className="log-edit-items">
                     {items.map((item) => {
@@ -1016,12 +1468,23 @@ function ItemsTable({ items, editable = false, onEdit }) {
                                 <div><span>Isi</span><strong>{fmt(item.isi)}</strong></div>
                                 <div><span>Harga</span><strong>{money(item.harga)}</strong></div>
                                 <div><span>Total</span><strong>{money(total)}</strong></div>
-                                <button className="inv-row-btn" type="button" onClick={() => onEdit(item)} title="Edit barang"><Pencil size={15} /></button>
+                                <div className="inv-row-actions">
+                                    <button className="inv-row-btn" type="button" onClick={() => onEdit(item)} title="Edit barang"><Pencil size={15} /></button>
+                                    {onDelete && <button className="inv-row-btn" type="button" onClick={() => onDelete(item)} title="Hapus barang"><Trash2 size={15} /></button>}
+                                </div>
                             </div>
                         );
                     })}
                     {!items.length && <div className="inv-empty">Belum ada barang di invoice ini.</div>}
                 </div>
+                {items.length > 0 && (
+                    <div className="log-items-footer">
+                        <div className="log-items-total-display">
+                            <span>Grand Total Invoice</span>
+                            <strong className="inv-mono">{money(grandTotal)}</strong>
+                        </div>
+                    </div>
+                )}
             </section>
         );
     }
@@ -1030,9 +1493,8 @@ function ItemsTable({ items, editable = false, onEdit }) {
             <div className="log-items-head">
                 <div>
                     <h3>Daftar Barang</h3>
-                    <p>{items.length ? `${items.length} barang tercatat` : 'Belum ada barang masuk.'}</p>
+                    <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang masuk.'}</p>
                 </div>
-                <strong>{money(grandTotal)}</strong>
             </div>
             <div className="inv-table-wrap log-items-wrap">
                 <table className="inv-table log-items-table">

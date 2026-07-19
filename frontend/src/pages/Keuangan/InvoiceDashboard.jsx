@@ -15,6 +15,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
+import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import './InvoiceDashboard.css';
 
@@ -105,11 +106,12 @@ export default function InvoiceDashboard() {
                     <span>Filter dashboard berdasarkan tanggal pembuatan invoice.</span>
                 </div>
                 <div className="idash-date-tools">
-                    <DateField value={range.dari} onChange={(value) => setDateRange('dari', value)} />
-                    <DateField value={range.sampai} onChange={(value) => setDateRange('sampai', value)} />
-                    {(range.dari || range.sampai) && (
-                        <button type="button" className="idash-clear-btn" onClick={() => setRange({ dari: '', sampai: '' })}>Reset</button>
-                    )}
+                    <DateRangePicker
+                        dari={range.dari}
+                        sampai={range.sampai}
+                        onChange={({ dari, sampai }) => setRange({ dari, sampai })}
+                        placeholder="Pilih Periode Tanggal"
+                    />
                 </div>
             </section>
 
