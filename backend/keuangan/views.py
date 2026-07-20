@@ -3788,7 +3788,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(sumber=sumber_filter)
         kategori_filter = (params.get('kategori') or '').strip()
-        if kategori_filter:
+        if kategori_filter and 'kategori' in _get_rekanan_columns():
             with connection.cursor() as cursor:
                 cursor.execute("SELECT id_rekanan FROM rssams.rekanan WHERE kategori = %s AND del = 'N'", [kategori_filter])
                 v_ids = [r[0] for r in cursor.fetchall()]
@@ -5548,6 +5548,47 @@ def legacy_paginated(request, base_sql, count_sql, params=None):
     return Response({'count': count, 'results': rows})
 
 
+_rekanan_columns_cache = None
+
+
+def _get_rekanan_columns():
+    global _rekanan_columns_cache
+    if _rekanan_columns_cache is not None:
+        return _rekanan_columns_cache
+
+    cols = set()
+    table_name = "rssams.rekanan"
+    with connection.cursor() as cursor:
+        try:
+            cursor.execute("SHOW COLUMNS FROM rssams.rekanan")
+            cols = {row[0].lower() for row in cursor.fetchall()}
+        except Exception:
+            try:
+                cursor.execute("SHOW COLUMNS FROM rekanan")
+                cols = {row[0].lower() for row in cursor.fetchall()}
+                table_name = "rekanan"
+            except Exception:
+                pass
+
+        if cols:
+            if 'sumber' not in cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN sumber VARCHAR(50) DEFAULT 'farmasi'")
+                    cols.add('sumber')
+                except Exception:
+                    pass
+            if 'kategori' not in cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN kategori VARCHAR(100) DEFAULT ''")
+                    cols.add('kategori')
+                except Exception:
+                    pass
+
+    _rekanan_columns_cache = cols
+    return _rekanan_columns_cache
+
+
+
 def legacy_stock(id_brg):
     row = legacy_fetchone(
         """
@@ -5695,22 +5736,35 @@ class LogistikVendorViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsLogistikOrCatatanUtangPermission]
 
     def list(self, request):
+        cols = _get_rekanan_columns()
+        has_sumber = 'sumber' in cols
+        has_kategori = 'kategori' in cols
+
         search = request.query_params.get('search') or ''
         sumber = (request.query_params.get('sumber') or 'semua').strip().lower()
         kategori = (request.query_params.get('kategori') or '').strip()
         where = "WHERE del = 'N'"
         params = []
-        if sumber not in ['semua', 'all', '']:
+
+        if has_sumber and sumber not in ['semua', 'all', '']:
             where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
             params.extend([sumber, sumber])
-        if kategori:
+        if has_kategori and kategori:
             where += " AND kategori = %s"
             params.append(kategori)
+
         if search:
-            where += ' AND (nama LIKE %s OR alamat LIKE %s OR telp LIKE %s OR kc LIKE %s OR kategori LIKE %s)'
-            params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
+            search_conds = ['nama LIKE %s', 'alamat LIKE %s', 'telp LIKE %s', 'kc LIKE %s']
+            if has_kategori:
+                search_conds.append('kategori LIKE %s')
+            where += ' AND (' + ' OR '.join(search_conds) + ')'
+            params.extend([f'%{search}%'] * len(search_conds))
+
+        kategori_expr = "COALESCE(kategori, '') AS kategori" if has_kategori else "'' AS kategori"
+        sumber_expr = "COALESCE(sumber, 'farmasi') AS sumber" if has_sumber else "'farmasi' AS sumber"
+
         base = f"""
-            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, COALESCE(kategori, '') AS kategori, COALESCE(sumber, 'farmasi') AS sumber, del
+            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, {kategori_expr}, {sumber_expr}, del
             FROM rssams.rekanan
             {where}
             ORDER BY nama
@@ -5719,30 +5773,48 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         return legacy_paginated(request, base, count, params)
 
     def create(self, request):
+        cols = _get_rekanan_columns()
+        has_sumber = 'sumber' in cols
+        has_kategori = 'kategori' in cols
+
         data = request.data
         row = legacy_fetchone('SELECT COALESCE(MAX(id_rekanan), 0) + 1 AS next_id FROM rssams.rekanan')
         vendor_id = row['next_id']
         nama_vendor = _normalize_logistik_name(data.get('nama') or '')
         sumber = data.get('sumber') or 'logistik'
+
+        insert_cols = ['id_rekanan', 'nama', 'alamat', 'telp', 'kc', 'del']
+        val_placeholders = ['%s', '%s', '%s', '%s', '%s', "'N'"]
+        params = [
+            vendor_id,
+            str(nama_vendor).upper(),
+            data.get('alamat') or '',
+            data.get('telp') or '',
+            data.get('kc') or '',
+        ]
+
+        if has_kategori:
+            insert_cols.append('kategori')
+            val_placeholders.append('%s')
+            params.append(data.get('kategori') or '')
+        if has_sumber:
+            insert_cols.append('sumber')
+            val_placeholders.append('%s')
+            params.append(sumber)
+
+        sql = f"""
+            INSERT INTO rssams.rekanan({', '.join(insert_cols)})
+            VALUES({', '.join(val_placeholders)})
+        """
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.rekanan(id_rekanan, nama, alamat, telp, kc, kategori, sumber, del)
-                VALUES(%s, %s, %s, %s, %s, %s, %s, 'N')
-                """,
-                [
-                    vendor_id,
-                    str(nama_vendor).upper(),
-                    data.get('alamat') or '',
-                    data.get('telp') or '',
-                    data.get('kc') or '',
-                    data.get('kategori') or '',
-                    sumber,
-                ],
-            )
+            cursor.execute(sql, params)
         return Response({'id': vendor_id, 'id_rekanan': vendor_id}, status=201)
 
     def partial_update(self, request, pk=None):
+        cols = _get_rekanan_columns()
+        has_sumber = 'sumber' in cols
+        has_kategori = 'kategori' in cols
+
         data = request.data
         nama_vendor = _normalize_logistik_name(data.get('nama') or '')
         updates = ['nama = %s', 'alamat = %s', 'telp = %s', 'kc = %s']
@@ -5752,10 +5824,10 @@ class LogistikVendorViewSet(viewsets.ViewSet):
             data.get('telp') or '',
             data.get('kc') or '',
         ]
-        if 'kategori' in data:
+        if has_kategori and 'kategori' in data:
             updates.append('kategori = %s')
             params.append(data.get('kategori') or '')
-        if 'sumber' in data:
+        if has_sumber and 'sumber' in data:
             updates.append('sumber = %s')
             params.append(data.get('sumber') or 'logistik')
         params.append(pk)
@@ -5777,14 +5849,18 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
+        cols = _get_rekanan_columns()
+        has_sumber = 'sumber' in cols
+
         sumber = request.query_params.get('sumber') or 'all'
         where = "WHERE del = 'N'"
         params = []
-        if sumber != 'all' and sumber != 'semua':
+        if has_sumber and sumber != 'all' and sumber != 'semua':
             where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
             params.extend([sumber, sumber])
         rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama FROM rssams.rekanan {where} ORDER BY nama", params)
         return Response({'results': rows})
+
 
 
 class LogistikPembelianViewSet(viewsets.ViewSet):
