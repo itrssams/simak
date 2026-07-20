@@ -3294,59 +3294,6 @@ def faktur_tanda_terima_print_view(request):
 def build_pembiayaan_name_map(ids):
     from django.db import connection
 
-    ids = [str(item) for item in ids if item]
-    if not ids:
-        return {}
-
-    placeholders = ','.join(['%s'] * len(ids))
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                SELECT id_pembiayaan, pembiayaan
-                FROM rssams.pbiaya
-                WHERE id_pembiayaan IN ({placeholders})
-                """,
-                ids
-            )
-            return {str(row[0]): row[1] for row in cursor.fetchall()}
-    except Exception:
-        return {}
-
-def get_pembiayaan_detail(id_pembiayaan):
-    from django.db import connection
-
-    if not id_pembiayaan:
-        return {}
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id_pembiayaan, pembiayaan, alamat
-                FROM rssams.pbiaya
-                WHERE id_pembiayaan = %s
-                LIMIT 1
-                """,
-                [id_pembiayaan]
-            )
-            row = cursor.fetchone()
-
-        if not row:
-            return {}
-
-        return {
-            'id_pembiayaan': str(row[0] or ''),
-            'pembiayaan': row[1] or '',
-            'alamat': row[2] or '',
-        }
-    except Exception:
-        return {}
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-
 def faktur_rekap_print_view(request):
     """Print rekapitulasi invoice berdasarkan date range"""
     dari = request.GET.get('dari', '')
@@ -3355,11 +3302,11 @@ def faktur_rekap_print_view(request):
     if not dari or not sampai:
         return HttpResponse('<h3>Parameter tanggal (dari/sampai) wajib diisi</h3>', status=400)
     
-    # Query faktur dengan filter date range
+    # Query faktur dengan filter date range (mengabaikan invoice status batal)
     fakturs = Faktur.objects.filter(
         tanggal__gte=dari,
         tanggal__lte=sampai
-    ).select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
+    ).exclude(status='batal').select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
     
     pembiayaan_map = build_pembiayaan_name_map(
         fakturs.values_list('id_pembiayaan', flat=True).distinct()
@@ -3374,7 +3321,7 @@ def faktur_rekap_print_view(request):
         '<title>Rekapitulasi Invoice</title>',
         '<style>',
         'body { font-family: Arial, sans-serif; font-size: 10pt; }',
-        '#wrapper { width: 2000px; margin: 0 auto; padding: 15px; }',
+        '#wrapper { width: 2200px; margin: 0 auto; padding: 15px; }',
         '#isi { border: none; padding: 15px; }',
         'h3 { font-size: 14pt; margin-bottom: 20px; }',
         'table { border-collapse: collapse; margin: 10px 0; width: 100%; }',
@@ -3408,6 +3355,7 @@ def faktur_rekap_print_view(request):
         '<th class="text-right">Ambulan</th>',
         '<th class="text-right">Alat</th>',
         '<th class="text-right">Lain-lain</th>',
+        '<th class="text-right">Total Pendapatan</th>',
         '<th class="text-right">Jml Bayar</th>',
         '<th class="text-right">Total Tagihan</th>',
         '<th>Jatuh Tempo</th>',
@@ -3418,6 +3366,8 @@ def faktur_rekap_print_view(request):
         '<tbody>',
     ]
     
+    total_pendapatan = Decimal('0.00')
+    total_dibayar = Decimal('0.00')
     total_tagihan = Decimal('0.00')
     no = 1
     
@@ -3440,6 +3390,8 @@ def faktur_rekap_print_view(request):
         jml_bayar = Decimal(f.total_dibayar or 0)
         ttl = total_biaya - jml_bayar
         
+        total_pendapatan += total_biaya
+        total_dibayar += jml_bayar
         total_tagihan += ttl
         
         status_label = dict(Faktur._meta.get_field('status').choices).get(f.status, f.status)
@@ -3472,7 +3424,8 @@ def faktur_rekap_print_view(request):
             f'<td class="text-right">{float(f.ambulan or 0):,.2f}</td>'
             f'<td class="text-right">{float(f.alat or 0):,.2f}</td>'
             f'<td class="text-right">{float(f.lainnya or 0):,.2f}</td>'
-            f'<td class="text-right">{float(f.total_dibayar or 0):,.2f}</td>'
+            f'<td class="text-right">{float(total_biaya):,.2f}</td>'
+            f'<td class="text-right">{float(jml_bayar):,.2f}</td>'
             f'<td class="text-right">{float(ttl):,.2f}</td>'
             f'<td class="text-center">{(f.jatuh_tempo.strftime("%d-%m-%Y") if f.jatuh_tempo else "-")}</td>'
             f'<td class="text-center">{(f.tgl_kirim.strftime("%d-%m-%Y") if f.tgl_kirim else "-")}</td>'
@@ -3484,7 +3437,9 @@ def faktur_rekap_print_view(request):
     # Total row
     html_parts.append(
         f'<tr style="font-weight: bold; background-color: #f0f0f0;">'
-        f'<td colspan="17" class="text-right">TOTAL</td>'
+        f'<td colspan="16" class="text-right">TOTAL</td>'
+        f'<td class="text-right">{float(total_pendapatan):,.2f}</td>'
+        f'<td class="text-right">{float(total_dibayar):,.2f}</td>'
         f'<td class="text-right">{float(total_tagihan):,.2f}</td>'
         f'<td colspan="3"></td>'
         f'</tr>'
@@ -3512,12 +3467,13 @@ def faktur_rekap_excel_view(request):
     fakturs = (
         Faktur.objects
         .filter(tanggal__gte=dari, tanggal__lte=sampai)
+        .exclude(status='batal')
         .select_related('pelanggan')
         .order_by('id_pembiayaan', 'tanggal')
     )
     
     pembiayaan_map = build_pembiayaan_name_map(
-    fakturs.values_list('id_pembiayaan', flat=True).distinct()
+        fakturs.values_list('id_pembiayaan', flat=True).distinct()
     )
 
     wb = Workbook()
@@ -3528,16 +3484,18 @@ def faktur_rekap_excel_view(request):
         'NO', 'NO INVOICE', 'TANGGAL FAKTUR', 'PENANGGUNG',
         'ADM', 'JASA', 'FARMASI', 'TINDAKAN', 'FISIO', 'LAB',
         'RAD', 'KAMAR', 'BHP', 'AMBULAN', 'SEWA ALAT', 'LAIN2',
-        'JML BAYAR', 'TOTAL TAGIHAN', 'TGL J.TEMPO', 'TGL KIRIM', 'STATUS'
+        'TOTAL PENDAPATAN', 'JML BAYAR', 'TOTAL TAGIHAN', 'TGL J.TEMPO', 'TGL KIRIM', 'STATUS'
     ]
 
-    ws.merge_cells('A1:U1')
+    ws.merge_cells('A1:V1')
     ws['A1'] = 'REKAP INVOICE'
     ws['A2'] = f'Tanggal : {dari} s/d {sampai}'
 
     ws.append([])
     ws.append(headers)
 
+    total_pendapatan = Decimal('0.00')
+    total_dibayar = Decimal('0.00')
     total_tagihan = Decimal('0.00')
 
     for idx, f in enumerate(fakturs, start=1):
@@ -3558,6 +3516,9 @@ def faktur_rekap_excel_view(request):
 
         jml_bayar = Decimal(f.total_dibayar or 0)
         ttl = total_biaya - jml_bayar
+        
+        total_pendapatan += total_biaya
+        total_dibayar += jml_bayar
         total_tagihan += ttl
 
         status_label = dict(Faktur._meta.get_field('status').choices).get(f.status, f.status)
@@ -3589,6 +3550,7 @@ def faktur_rekap_excel_view(request):
             float(f.ambulan or 0),
             float(f.alat or 0),
             float(f.lainnya or 0),
+            float(total_biaya),
             float(jml_bayar),
             float(ttl),
             f.jatuh_tempo.strftime('%d-%m-%Y') if f.jatuh_tempo else '',
@@ -3603,13 +3565,17 @@ def faktur_rekap_excel_view(request):
         start_row=total_row,
         start_column=1,
         end_row=total_row,
-        end_column=17
+        end_column=16
     )
 
-    ws.cell(row=total_row, column=18, value=float(total_tagihan))
+    ws.cell(row=total_row, column=17, value=float(total_pendapatan))
+    ws.cell(row=total_row, column=17).number_format = '#,##0.00'
+    ws.cell(row=total_row, column=18, value=float(total_dibayar))
     ws.cell(row=total_row, column=18).number_format = '#,##0.00'
+    ws.cell(row=total_row, column=19, value=float(total_tagihan))
+    ws.cell(row=total_row, column=19).number_format = '#,##0.00'
 
-    for row in ws.iter_rows(min_row=5, min_col=5, max_col=18):
+    for row in ws.iter_rows(min_row=5, min_col=5, max_col=19):
         for cell in row:
             cell.number_format = '#,##0.00'
 
