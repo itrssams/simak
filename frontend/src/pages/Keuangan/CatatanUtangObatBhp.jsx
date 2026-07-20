@@ -422,7 +422,7 @@ export default function CatatanUtangObatBhp() {
                 />
 
                 {loading ? (
-                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={6} showHead />
+                    <TableSkeleton text="Memuat catatan utang..." />
                 ) : items.length === 0 ? (
                     <div className="utang-empty">Belum ada data sesuai filter.</div>
                 ) : (

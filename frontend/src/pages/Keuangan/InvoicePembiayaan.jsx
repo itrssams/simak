@@ -961,7 +961,7 @@ export default function InvoicePembiayaan() {
                 </div>
 
                 {loading ? (
-                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={8} showHead />
+                    <TableSkeleton text="Memuat daftar invoice..." />
                 ) : items.length === 0 ? (
                     <div className="inv-empty">Belum ada invoice sesuai filter.</div>
                 ) : (

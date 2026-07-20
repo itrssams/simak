@@ -759,7 +759,7 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
     }[section] || [];
 
     if (loading) {
-        return <TableSkeleton rows={8} cols={headers.length || 5} showHead />;
+        return <TableSkeleton text="Memuat data..." />;
     }
 
     const body = () => {

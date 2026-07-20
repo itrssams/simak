@@ -435,7 +435,7 @@ export default function AlokasiPembiayaan() {
                     </div>
                 </div>
                 {loading ? (
-                    <TableSkeleton rows={6} cols={3} showHead />
+                    <TableSkeleton text="Memuat alokasi pembiayaan..." />
                 ) : visibleGroups.length === 0 ? (
                     <div className="ap-empty">Belum ada alokasi pembiayaan.</div>
                 ) : (

@@ -519,7 +519,7 @@ export default function DaftarKunjunganInvoice() {
                 </div>
 
                 {loading ? (
-                    <TableSkeleton rows={pageSize > 10 ? 10 : pageSize} cols={9} showHead />
+                    <TableSkeleton text="Memuat daftar kunjungan..." />
                 ) : (
                     <div className="dki-table-wrap table-fade-in">
                         <table className="dki-table">
