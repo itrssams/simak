@@ -797,6 +797,8 @@ class KunjunganInvoiceView(APIView):
             faktur = Faktur.objects.get(nomor_faktur=invoice_number)
         except Faktur.DoesNotExist:
             return Response({'error': 'Invoice tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+        if faktur.tgl_kirim:
+            return Response({'error': 'Kunjungan tidak bisa dihapus dari invoice yang sudah dikirim.'}, status=status.HTTP_400_BAD_REQUEST)
         if faktur.pembayaran.exists():
             return Response({'error': 'Kunjungan tidak bisa dihapus dari invoice yang sudah memiliki pembayaran atau pengajuan pembayaran.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1553,6 +1555,8 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='batal')
     def batal(self, request, pk=None):
         faktur = self.get_object()
+        if faktur.tgl_kirim:
+            return Response({'error': 'Invoice yang sudah dikirim tidak bisa dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
         if faktur.status == 'lunas':
             return Response({'error': 'Faktur yang sudah lunas tidak bisa dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
         if faktur.pembayaran.exists():

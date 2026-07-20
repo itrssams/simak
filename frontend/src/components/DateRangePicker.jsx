@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Check } from 'lucide-react';
 import './DateRangePicker.css';
 
@@ -27,11 +28,13 @@ function toYMD(d) {
 
 export default function DateRangePicker({ dari = '', sampai = '', onChange, placeholder = 'Pilih Periode', className = '', disabled = false }) {
     const [open, setOpen] = useState(false);
-    const containerRef = useRef(null);
+    const triggerRef = useRef(null);
+    const popoverRef = useRef(null);
 
     const [tempDari, setTempDari] = useState(dari);
     const [tempSampai, setTempSampai] = useState(sampai);
     const [hoverDate, setHoverDate] = useState('');
+    const [coords, setCoords] = useState({ top: 0, left: 0, placement: 'bottom' });
 
     const initialView = useMemo(() => {
         const d = dari ? new Date(dari) : new Date();
@@ -40,6 +43,43 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
 
     const [viewYear, setViewYear] = useState(initialView.year);
     const [viewMonth, setViewMonth] = useState(initialView.month);
+
+    const updatePosition = useCallback(() => {
+        if (!triggerRef.current) return;
+        const rect = triggerRef.current.getBoundingClientRect();
+        const popoverHeight = 360;
+        const popoverWidth = 340;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        let placement = 'bottom';
+        let top = rect.bottom + 6;
+
+        if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+            placement = 'top';
+            top = Math.max(12, rect.top - popoverHeight - 6);
+        }
+
+        let left = rect.left;
+        if (left + popoverWidth > window.innerWidth - 12) {
+            left = window.innerWidth - popoverWidth - 12;
+        }
+        if (left < 12) left = 12;
+
+        setCoords({ top, left, placement });
+    }, []);
+
+    useEffect(() => {
+        if (open) {
+            updatePosition();
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
+            return () => {
+                window.removeEventListener('scroll', updatePosition, true);
+                window.removeEventListener('resize', updatePosition);
+            };
+        }
+    }, [open, updatePosition]);
 
     useEffect(() => {
         setTempDari(dari);
@@ -56,7 +96,10 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
     useEffect(() => {
         if (!open) return undefined;
         const handleClickOutside = (e) => {
-            if (containerRef.current && !containerRef.current.contains(e.target)) {
+            if (
+                triggerRef.current && !triggerRef.current.contains(e.target) &&
+                popoverRef.current && !popoverRef.current.contains(e.target)
+            ) {
                 setOpen(false);
             }
         };
@@ -178,8 +221,9 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
     }, [dari, sampai, placeholder]);
 
     return (
-        <div className={`drp-container ${className}`.trim()} ref={containerRef}>
+        <div className={`drp-container ${className}`.trim()}>
             <button
+                ref={triggerRef}
                 type="button"
                 className={`drp-trigger ${open ? 'active' : ''} ${(dari || sampai) ? 'has-value' : ''}`}
                 onClick={() => !disabled && setOpen(!open)}
@@ -190,8 +234,19 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
                 <ChevronDown size={14} className={`drp-chevron ${open ? 'open' : ''}`} />
             </button>
 
-            {open && (
-                <div className="drp-popover" role="dialog">
+            {open && createPortal(
+                <div
+                    ref={popoverRef}
+                    className={`drp-popover drp-portal ${coords.placement}`}
+                    style={{
+                        position: 'fixed',
+                        top: `${coords.top}px`,
+                        left: `${coords.left}px`,
+                        zIndex: 999999,
+                    }}
+                    role="dialog"
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
                     <div className="drp-presets">
                         <button type="button" className="drp-preset-btn" onClick={() => applyPreset('today')}>Hari Ini</button>
                         <button type="button" className="drp-preset-btn" onClick={() => applyPreset('7days')}>7 Hari</button>
@@ -259,7 +314,8 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
                             <Check size={14} /> Selesai
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

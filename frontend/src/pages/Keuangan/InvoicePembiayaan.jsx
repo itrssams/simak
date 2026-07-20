@@ -19,6 +19,7 @@ import {
     FlaskConical,
     HeartPulse,
     Eye,
+    FileSpreadsheet,
     FileText,
     MessageSquareText,
     MoreHorizontal,
@@ -579,6 +580,10 @@ export default function InvoicePembiayaan() {
     };
 
     const requestRemoveVisit = (visit) => {
+        if (selected?.tgl_kirim) {
+            toast.error('Invoice yang sudah dikirim tidak bisa diubah kunjungannya.');
+            return;
+        }
         setVisitToRemove(visit);
     };
 
@@ -1043,9 +1048,9 @@ export default function InvoicePembiayaan() {
                                                     <button
                                                         className="inv-action-btn danger"
                                                         type="button"
-                                                        disabled={hasPaymentRequest || item.status === 'batal' || item.status === 'lunas'}
+                                                        disabled={Boolean(item.tgl_kirim) || hasPaymentRequest || item.status === 'batal' || item.status === 'lunas'}
                                                         onClick={(event) => requestCancelInvoice(item, event)}
-                                                        title={hasPaymentRequest ? 'Invoice yang sudah punya pengajuan pembayaran tidak bisa dibatalkan' : item.status === 'batal' ? 'Invoice sudah dibatalkan' : item.status === 'lunas' ? 'Invoice lunas tidak bisa dibatalkan' : 'Batalkan invoice'}
+                                                        title={item.tgl_kirim ? 'Invoice terkirim tidak bisa dibatalkan' : hasPaymentRequest ? 'Invoice yang sudah punya pengajuan pembayaran tidak bisa dibatalkan' : item.status === 'batal' ? 'Invoice sudah dibatalkan' : item.status === 'lunas' ? 'Invoice lunas tidak bisa dibatalkan' : 'Batalkan invoice'}
                                                     >
                                                         <X size={16} />
                                                     </button>
@@ -1212,7 +1217,9 @@ export default function InvoicePembiayaan() {
                                         {selected.pasien_invoice?.length ? (
                                             <div className="inv-visit-list">
                                                 {selected.pasien_invoice.map((visit) => {
-                                                    const locked = (selected.pembayaran || []).length > 0;
+                                                    const isSent = Boolean(selected.tgl_kirim);
+                                                    const hasPayment = (selected.pembayaran || []).length > 0;
+                                                    const locked = isSent || hasPayment || selected.status === 'lunas' || selected.status === 'batal';
                                                     return (
                                                         <div className="inv-visit-row" key={visit.no}>
                                                             <div>
@@ -1231,7 +1238,7 @@ export default function InvoicePembiayaan() {
                                                                 type="button"
                                                                 onClick={() => requestRemoveVisit(visit)}
                                                                 disabled={locked}
-                                                                title={locked ? 'Invoice yang sudah punya pembayaran atau pengajuan pembayaran tidak bisa diubah' : 'Hapus kunjungan dari invoice'}
+                                                                title={isSent ? 'Invoice terkirim tidak bisa diubah kunjungannya' : hasPayment ? 'Invoice yang sudah punya pengajuan pembayaran tidak bisa diubah' : 'Hapus kunjungan dari invoice'}
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -1590,35 +1597,39 @@ export default function InvoicePembiayaan() {
 
             {rekapOpen && createPortal(
                 <div className="inv-modal-backdrop" role="presentation" onMouseDown={closeRekapDialog}>
-                    <div className="inv-modal rekap" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-modal-head">
-                            <span className="inv-modal-head-icon"><BarChart3 size={20} /></span>
-                            <h2>Rekapitulasi Invoice</h2>
+                    <div className="inv-modal rekap-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+                        <div className="inv-modal-head compact">
+                            <div className="rekap-head-left">
+                                <span className="inv-modal-head-icon rekap"><BarChart3 size={20} /></span>
+                                <div>
+                                    <h2>Rekapitulasi Invoice</h2>
+                                </div>
+                            </div>
                         </div>
-                        <div className="inv-modal-body">
+                        <div className="inv-modal-body rekap-body">
                             <form className="inv-modal-form rekap-form" onSubmit={(e) => { e.preventDefault(); printRekap(); }}>
-                                <div className="inv-form-group">
-                                    <label>Tanggal Awal
-                                        <DateInput value={rekapForm.tgl1} onChange={(e) => setRekapForm({ ...rekapForm, tgl1: e.target.value })} />
-                                    </label>
+                                <div className="rekap-picker-card">
+                                    <label className="rekap-field-label">Periode Tanggal</label>
+                                    <DateRangePicker
+                                        dari={rekapForm.tgl1}
+                                        sampai={rekapForm.tgl2}
+                                        onChange={({ dari, sampai }) => setRekapForm({ tgl1: dari, tgl2: sampai })}
+                                        placeholder="Pilih Periode Tanggal"
+                                    />
                                 </div>
-                                <div className="inv-form-group">
-                                    <label>Tanggal Akhir
-                                        <DateInput value={rekapForm.tgl2} onChange={(e) => setRekapForm({ ...rekapForm, tgl2: e.target.value })} />
-                                    </label>
-                                </div>
-                                <div className="inv-modal-actions">
-                                    <button className="inv-btn soft" type="button" onClick={closeRekapDialog}>Batal</button>
+                                <div className="inv-modal-actions rekap-actions">
+                                    <button className="inv-btn soft" type="button" onClick={closeRekapDialog}>
+                                        Batal
+                                    </button>
                                     <button className="inv-btn primary" type="submit">
                                         <Printer size={16} /> Cetak Rekap
                                     </button>
-
                                     <button
-                                        className="inv-btn soft"
+                                        className="inv-btn excel-btn"
                                         type="button"
                                         onClick={exportRekapExcel}
                                     >
-                                        <FileText size={16} /> Export Excel
+                                        <FileSpreadsheet size={16} /> Export Excel
                                     </button>
                                 </div>
                             </form>
