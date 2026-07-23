@@ -3305,6 +3305,56 @@ def faktur_tanda_terima_print_view(request):
 def build_pembiayaan_name_map(ids):
     from django.db import connection
 
+    ids = [str(item) for item in ids if item]
+    if not ids:
+        return {}
+
+    placeholders = ','.join(['%s'] * len(ids))
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id_pembiayaan, pembiayaan
+                FROM rssams.pbiaya
+                WHERE id_pembiayaan IN ({placeholders})
+                """,
+                ids
+            )
+            return {str(row[0]): row[1] for row in cursor.fetchall()}
+    except Exception:
+        return {}
+
+def get_pembiayaan_detail(id_pembiayaan):
+    from django.db import connection
+
+    if not id_pembiayaan:
+        return {}
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id_pembiayaan, pembiayaan, alamat
+                FROM rssams.pbiaya
+                WHERE id_pembiayaan = %s
+                LIMIT 1
+                """,
+                [id_pembiayaan]
+            )
+            row = cursor.fetchone()
+
+        if not row:
+            return {}
+
+        return {
+            'id_pembiayaan': str(row[0] or ''),
+            'pembiayaan': row[1] or '',
+            'alamat': row[2] or '',
+        }
+    except Exception:
+        return {}
+
 def faktur_rekap_print_view(request):
     """Print rekapitulasi invoice berdasarkan date range"""
     dari = request.GET.get('dari', '')
