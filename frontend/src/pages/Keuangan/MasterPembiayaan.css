@@ -629,3 +629,171 @@
   color: #475569;
   line-height: 1.5;
 }
+
+/* =========================================
+   DARK MODE OVERRIDES (.mp-page)
+   ========================================= */
+[data-theme="dark"] .mp-page {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-title h1 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-title p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] :where(.mp-stat-card, .mp-card) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .mp-stat-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mp-stat-value {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-stat-value.emerald {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .mp-stat-value.amber {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .mp-stat-icon.total {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .mp-stat-icon.active {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .mp-stat-icon.inactive {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .mp-toolbar {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] :where(.mp-search, .mp-select) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.mp-search input, select.mp-select) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-search input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .mp-secondary {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-secondary:hover:not(:disabled) {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .mp-table {
+  background: #151c2c !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .mp-table th {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .mp-table td {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .mp-table tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .mp-table tbody tr.inactive td {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+[data-theme="dark"] .mp-name-cell strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-address-cell {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mp-id-badge {
+  background: #1e293b !important;
+  color: #818cf8 !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .mp-badge.active {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .mp-badge.inactive {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .mp-icon-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mp-icon-btn.edit:hover {
+  background: #334155 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .mp-icon-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] :where(.mp-modal, .mp-modal-content) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mp-modal-head {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(21, 28, 44, 0.98)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .mp-modal-actions {
+  background: #1e293b !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}

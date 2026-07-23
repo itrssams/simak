@@ -30,13 +30,13 @@ function MetricCard({ label, value, sub, icon, bg, fg }) {
 function CustomTooltip({ active, payload, label }) {
     if (!active || !payload?.length) return null;
     return (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '9px 11px', boxShadow: '0 12px 32px rgba(15,23,42,.12)' }}>
-            <div style={{ fontSize: 12, fontWeight: 850, color: '#17251d', marginBottom: 6 }}>{label}</div>
+        <div className="db-tooltip">
+            <div className="db-tooltip-title">{label}</div>
             {payload.map((item) => (
-                <div key={item.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                <div key={item.dataKey} className="db-tooltip-item">
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: item.color }} />
                     <span>{item.name}</span>
-                    <strong style={{ color: '#17251d', marginLeft: 'auto' }}>{fmt(item.value)}</strong>
+                    <strong>{fmt(item.value)}</strong>
                 </div>
             ))}
         </div>

@@ -117,3 +117,46 @@
   font-weight: 850;
   text-align: center;
 }
+
+/* Dark Mode Overrides */
+[data-theme="dark"] .pbiaya-select-control {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .pbiaya-select-control.open,
+[data-theme="dark"] .pbiaya-select-control:focus-within {
+  background: #1e293b !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .pbiaya-select-control input {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .pbiaya-select-control input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .pbiaya-options {
+  background: #151c2c !important;
+  border-color: #334155 !important;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .pbiaya-options button {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .pbiaya-options button.active,
+[data-theme="dark"] .pbiaya-options button:hover {
+  background: #334155 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .pbiaya-options button.selected {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #818cf8 !important;
+}

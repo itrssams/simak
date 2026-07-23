@@ -1355,3 +1355,149 @@ select.ap-select-native {
         max-height: none;
     }
 }
+
+/* =========================================
+   DARK MODE OVERRIDES (.ap-page)
+   ========================================= */
+[data-theme="dark"] .ap-page {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.ap-card, .ap-sum, .ap-stat-card) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .ap-stat-card.primary {
+  background: #1e293b !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .ap-stat-value {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-stat-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ap-id-chip {
+  background: #1e293b !important;
+  color: #818cf8 !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .ap-result-head {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(21, 28, 44, 0.98)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .ap-result-head h2 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-result-head p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] :where(.ap-input, .ap-select) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.ap-input input, .ap-select input) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .ap-dropdown {
+  background: #151c2c !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .ap-dropdown-item {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] :where(.ap-dropdown-item:hover, .ap-dropdown-item.highlighted) {
+  background: #334155 !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .ap-table {
+  background: #151c2c !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .ap-table th {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .ap-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .ap-table tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .ap-master-table tbody tr.selected td {
+  background: rgba(99, 102, 241, 0.18) !important;
+}
+
+[data-theme="dark"] :where(.ap-modal, .ap-modal-content) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-modal-head {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(21, 28, 44, 0.98)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .ap-btn.soft {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-btn.soft:hover:not(:disabled) {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .ap-stat-icon.ok {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .ap-stat-icon.in {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+[data-theme="dark"] .ap-stat-icon.warn {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .ap-sum-icon {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #818cf8 !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}

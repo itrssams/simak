@@ -431,3 +431,129 @@
     min-width: 150px;
   }
 }
+
+/* =========================================
+   DARK MODE OVERRIDES (.ivf-page)
+   ========================================= */
+[data-theme="dark"] .ivf-page {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.ivf-summary-card, .ivf-card) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .ivf-summary-card > span {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #818cf8 !important;
+}
+
+[data-theme="dark"] .ivf-summary-card small {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ivf-summary-card strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ivf-card-head {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(21, 28, 44, 0.98)) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .ivf-card-head h2 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ivf-card-head p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ivf-tabs {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .ivf-tabs button {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ivf-tabs button.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #6366f1, #3b82f6, #06b6d4) !important;
+}
+
+[data-theme="dark"] .ivf-filter {
+  background: #151c2c !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] :where(.ivf-search, .ivf-date-range label) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.ivf-search input, .ivf-date-range input) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ivf-search input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .ivf-reset {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] .ivf-reset:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .ivf-table {
+  background: #151c2c !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .ivf-table th {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .ivf-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .ivf-table tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] :where(.ivf-date, .ivf-table td strong) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ivf-note {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ivf-verify-badge.terverifikasi {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+[data-theme="dark"] .ivf-verify-badge.dibatalkan,
+[data-theme="dark"] .ivf-verify-badge.ditolak {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}

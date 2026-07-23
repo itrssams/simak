@@ -713,12 +713,12 @@ export default function DaftarKunjunganInvoice() {
                                     <input value={(newPembiayaanOpen ? newPembiayaan.nama : selectedInvoicePembiayaan?.nama) || '-'} readOnly />
                                 </label>
                             </div>
-                            <div className="dki-modal-actions">
-                                <button className="dki-secondary" type="button" onClick={closeInvoiceDialog} disabled={creating}>Batal</button>
-                                <button className="dki-primary" type="submit" disabled={creating}>
-                                    <FilePlus2 size={16} /> {creating ? 'Membuat...' : 'Buat Invoice'}
-                                </button>
-                            </div>
+                        </div>
+                        <div className="dki-modal-actions">
+                            <button className="dki-secondary" type="button" onClick={closeInvoiceDialog} disabled={creating}>Batal</button>
+                            <button className="dki-primary" type="submit" disabled={creating}>
+                                <FilePlus2 size={16} /> {creating ? 'Membuat...' : 'Buat Invoice'}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -791,12 +791,12 @@ export default function DaftarKunjunganInvoice() {
                                     </span>
                                 </div>
                             )}
-                            <div className="dki-modal-actions">
-                                <button className="dki-secondary" type="button" onClick={closeAppendDialog} disabled={appending}>Batal</button>
-                                <button className="dki-primary" type="button" onClick={appendToInvoice} disabled={!appendTarget || appending}>
-                                    <ReceiptText size={16} /> {appending ? 'Memasukkan...' : 'Konfirmasi'}
-                                </button>
-                            </div>
+                        </div>
+                        <div className="dki-modal-actions">
+                            <button className="dki-secondary" type="button" onClick={closeAppendDialog} disabled={appending}>Batal</button>
+                            <button className="dki-primary" type="button" onClick={appendToInvoice} disabled={!appendTarget || appending}>
+                                <ReceiptText size={16} /> {appending ? 'Memasukkan...' : 'Konfirmasi'}
+                            </button>
                         </div>
                     </div>
                 </div>

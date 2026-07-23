@@ -654,3 +654,157 @@
     width: 100%;
   }
 }
+
+/* =========================================
+   DARK MODE OVERRIDES (.idash-page)
+   ========================================= */
+[data-theme="dark"] .idash-page {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .idash-title h1 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .idash-title p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .idash-metric {
+  background: #151c2c !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .idash-metric--indigo {
+  border-left: 4px solid #6366f1 !important;
+}
+[data-theme="dark"] .idash-metric--indigo .idash-metric-icon {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #818cf8 !important;
+}
+
+[data-theme="dark"] .idash-metric--blue {
+  border-left: 4px solid #06b6d4 !important;
+}
+[data-theme="dark"] .idash-metric--blue .idash-metric-icon {
+  background: rgba(6, 182, 212, 0.2) !important;
+  color: #22d3ee !important;
+}
+
+[data-theme="dark"] .idash-metric--amber {
+  border-left: 4px solid #f59e0b !important;
+}
+[data-theme="dark"] .idash-metric--amber .idash-metric-icon {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .idash-metric--red {
+  border-left: 4px solid #ef4444 !important;
+}
+[data-theme="dark"] .idash-metric--red .idash-metric-icon {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .idash-metric-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .idash-metric-value {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .idash-metric-note {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] :where(.idash-filter-card, .idash-panel, .idash-card) {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] :where(.idash-panel-head h2, .idash-table-head h2, .idash-filter-card strong) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.idash-panel-head p, .idash-table-head p, .idash-filter-card span) {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] :where(.idash-aging-row, .idash-top-item) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.idash-aging-row:hover, .idash-top-item:hover) {
+  background: #334155 !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+[data-theme="dark"] :where(.idash-aging-row strong, .idash-top-item strong) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.idash-aging-row small, .idash-top-item small) {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .idash-top-item b {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .idash-search {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .idash-search input {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .idash-table th {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .idash-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .idash-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .idash-name > span {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .idash-pill {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .idash-progress > div {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .idash-mini-btn {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #818cf8 !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .idash-mini-btn:hover {
+  background: rgba(99, 102, 241, 0.3) !important;
+  color: #ffffff !important;
+}

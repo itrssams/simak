@@ -1086,67 +1086,69 @@ export default function InvoicePembiayaan() {
                                 <p>{editingInvoice ? 'Perbarui informasi invoice sebelum dikirim.' : 'Isi informasi invoice dan rincian tagihan pembiayaan.'}</p>
                             </div>
                         </div>
-                        <form className="inv-modal-body" onSubmit={saveInvoice}>
-                            <div className="inv-form-grid inv-create-grid">
-                                <label>No Invoice
-                                    <input
-                                        className="inv-input"
-                                        value={editingInvoice ? form.nomor_faktur : 'Otomatis saat disimpan'}
-                                        readOnly
-                                    />
-                                </label>
-                                <label className="inv-date-compact">
-                                    <span className="inv-field-label"><CalendarDays size={15} /> Tanggal Faktur</span>
-                                    <DateInput value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
-                                </label>
-                                <label className="span-2">Pembiayaan
-                                    <SearchablePembiayaanSelect
-                                        options={[
-                                            { value: '', label: 'Pilih pembiayaan' },
-                                            ...pembiayaan.map((item) => ({
-                                                value: String(item.id_pembiayaan),
-                                                label: `${item.nama} - ID ${item.id_pembiayaan}`,
-                                            })),
-                                        ]}
-                                        value={form.id_pembiayaan}
-                                        onChange={(value) => setForm({ ...form, id_pembiayaan: value })}
-                                        placeholder="Pilih pembiayaan"
-                                    />
-                                </label>
-                                <label>Jenis
-                                    <textarea
-                                        className="inv-input inv-jenis-textarea"
-                                        rows="2"
-                                        value={form.jenis}
-                                        onChange={(e) => setForm({ ...form, jenis: e.target.value })}
-                                        placeholder="Rawat jalan / lainnya"
-                                    />
-                                </label>
-                                <label>Periode<input className="inv-input" value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} /></label>
-                                <label>Beban<input className="inv-input" value={form.beban} onChange={(e) => setForm({ ...form, beban: e.target.value })} /></label>
-                                <label>Pembulatan
-                                    <select className="inv-input" value={form.xround} onChange={(e) => setForm({ ...form, xround: e.target.value })}>
-                                        <option value="N">Tidak</option>
-                                        <option value="Y">Ya</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div className="inv-section-title inv-create-section"><ClipboardList size={16} /> Rincian Tagihan</div>
-                            <div className="inv-cost-grid inv-create-cost-grid">
-                                {COST_FIELDS.map(([key, label]) => (
-                                    <label key={key} className={`inv-cost-card cost-${key}`}>
-                                        <CostLabel fieldKey={key} label={label} />
-                                        <input className="inv-input inv-input-right" type="text" inputMode="decimal" value={formatMoneyInput(form[key])} onChange={(e) => setCost(key, e.target.value)} />
+                        <form id="inv-create-form" onSubmit={saveInvoice}>
+                            <div className="inv-modal-body">
+                                <div className="inv-form-grid inv-create-grid">
+                                    <label>No Invoice
+                                        <input
+                                            className="inv-input"
+                                            value={editingInvoice ? form.nomor_faktur : 'Otomatis saat disimpan'}
+                                            readOnly
+                                        />
                                     </label>
-                                ))}
+                                    <label className="inv-date-compact">
+                                        <span className="inv-field-label"><CalendarDays size={15} /> Tanggal Faktur</span>
+                                        <DateInput value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} />
+                                    </label>
+                                    <label className="span-2">Pembiayaan
+                                        <SearchablePembiayaanSelect
+                                            options={[
+                                                { value: '', label: 'Pilih pembiayaan' },
+                                                ...pembiayaan.map((item) => ({
+                                                    value: String(item.id_pembiayaan),
+                                                    label: `${item.nama} - ID ${item.id_pembiayaan}`,
+                                                })),
+                                            ]}
+                                            value={form.id_pembiayaan}
+                                            onChange={(value) => setForm({ ...form, id_pembiayaan: value })}
+                                            placeholder="Pilih pembiayaan"
+                                        />
+                                    </label>
+                                    <label>Jenis
+                                        <textarea
+                                            className="inv-input inv-jenis-textarea"
+                                            rows="2"
+                                            value={form.jenis}
+                                            onChange={(e) => setForm({ ...form, jenis: e.target.value })}
+                                            placeholder="Rawat jalan / lainnya"
+                                        />
+                                    </label>
+                                    <label>Periode<input className="inv-input" value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} /></label>
+                                    <label>Beban<input className="inv-input" value={form.beban} onChange={(e) => setForm({ ...form, beban: e.target.value })} /></label>
+                                    <label>Pembulatan
+                                        <select className="inv-input" value={form.xround} onChange={(e) => setForm({ ...form, xround: e.target.value })}>
+                                            <option value="N">Tidak</option>
+                                            <option value="Y">Ya</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div className="inv-section-title inv-create-section"><ClipboardList size={16} /> Rincian Tagihan</div>
+                                <div className="inv-cost-grid inv-create-cost-grid">
+                                    {COST_FIELDS.map(([key, label]) => (
+                                        <label key={key} className={`inv-cost-card cost-${key}`}>
+                                            <CostLabel fieldKey={key} label={label} />
+                                            <input className="inv-input inv-input-right" type="text" inputMode="decimal" value={formatMoneyInput(form[key])} onChange={(e) => setCost(key, e.target.value)} />
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="inv-total-box inv-create-total">
+                                    <span><ReceiptText size={17} /> Total Tagihan</span>
+                                    <strong>{money(totalForm)}</strong>
+                                </div>
+                                <label className="inv-note">Keterangan
+                                    <textarea className="inv-input" rows="3" value={form.keterangan} onChange={(e) => setForm({ ...form, keterangan: e.target.value })} />
+                                </label>
                             </div>
-                            <div className="inv-total-box inv-create-total">
-                                <span><ReceiptText size={17} /> Total Tagihan</span>
-                                <strong>{money(totalForm)}</strong>
-                            </div>
-                            <label className="inv-note">Keterangan
-                                <textarea className="inv-input" rows="3" value={form.keterangan} onChange={(e) => setForm({ ...form, keterangan: e.target.value })} />
-                            </label>
                             <div className="inv-modal-actions">
                                 <button className="inv-btn soft" type="button" onClick={closeCreate}>Batal</button>
                                 <button className="inv-btn primary" type="submit" disabled={saving}>

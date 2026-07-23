@@ -21,6 +21,8 @@ import {
     Package,
     HandCoins,
     ReceiptText,
+    Sun,
+    Moon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -311,8 +313,20 @@ export default function Layout({ children }) {
     const [announcements, setAnnouncements] = useState([]);
     const [announcementUnread, setAnnouncementUnread] = useState(0);
     const [currentTime, setCurrentTime] = useState(() => new Date());
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    });
     const profileRef = useRef(null);
     const announcementRef = useRef(null);
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('simak_theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
 
     const menuItems = getMenuItems(user);
     const featureLabels = [
@@ -1148,6 +1162,14 @@ export default function Layout({ children }) {
                 </div>
 
                 <div className="topbar-right">
+                    <button
+                        className="notify-btn theme-toggle-btn"
+                        onClick={toggleTheme}
+                        title={theme === 'dark' ? 'Ganti ke Mode Terang (Light)' : 'Ganti ke Mode Gelap (Dark)'}
+                        type="button"
+                    >
+                        {theme === 'dark' ? <Sun size={18} strokeWidth={2.4} /> : <Moon size={18} strokeWidth={2.4} />}
+                    </button>
                     <div ref={announcementRef} className="notify-wrap">
                         <button className="notify-btn" onClick={openAnnouncements} title="Pengumuman">
                             <Bell size={18} strokeWidth={2.4} />
