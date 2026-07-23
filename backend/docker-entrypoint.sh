@@ -7,7 +7,7 @@ import socket
 import sys
 import time
 
-host = os.getenv("DB_HOST", "db")
+host = os.getenv("DB_HOST", "mysql")
 port = int(os.getenv("DB_PORT", "3306"))
 deadline = time.time() + int(os.getenv("DB_WAIT_TIMEOUT", "60"))
 

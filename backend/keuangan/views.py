@@ -1872,14 +1872,17 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
     pdf.text(20, 85, f"BEBAN {faktur.beban or ''}")
     pdf.text(20, 90, f"PERIODE : {faktur.periode or ''}")
 
-    def row(y, label, value, x_label=20):
+    def row(y, label, value, x_label=20, is_negative=False):
         pdf.set_font('Times', '', 10)
         pdf.set_xy(x_label, y)
         pdf.cell(90, 5, label, 0, 0, 'L')
         pdf.set_xy(147, y)
         pdf.cell(20, 5, "Rp.", 0, 0, 'R')
         pdf.set_xy(170, y)
-        pdf.cell(30, 5, f"{Decimal(value or 0):,.2f}", 0, 0, 'R')
+        val_str = f"{Decimal(value or 0):,.2f}"
+        if is_negative:
+            val_str = f"({val_str})"
+        pdf.cell(30, 5, val_str, 0, 0, 'R')
 
     y = 96
     row(y, "-  BIAYA JASA", faktur.jasa)
@@ -1926,7 +1929,7 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
         row(y, "-  PPN OBAT", faktur.ppn_farmasi)
 
     y += 5
-    row(y, "-  JUMLAH YANG SUDAH DIBAYAR", jml_bayar)
+    row(y, "-  JUMLAH YANG SUDAH DIBAYAR", jml_bayar, is_negative=True)
 
     y += 5
     pdf.set_font('Times', 'B', 12)
@@ -2427,7 +2430,11 @@ def render_kwitansi_pdf_response(faktur):
         or 'PEMBIAYAAN'
     )
 
-    total_tagihan = Decimal(faktur.total_tagihan or 0).quantize(Decimal('1'))
+    ttl_tagihan, jml_bayar = _invoice_print_amounts(faktur)
+    if faktur.xround == 'Y':
+        total_tagihan = ttl_tagihan.to_integral_value(rounding='ROUND_CEILING')
+    else:
+        total_tagihan = ttl_tagihan.quantize(Decimal('1'))
     terbilang = f"{_legacy_words(total_tagihan).title()} Rupiah"
     terbilang_words = terbilang.split()
     terbilang_line_1 = terbilang
