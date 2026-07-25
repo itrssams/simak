@@ -6,15 +6,19 @@ import {
     CalendarDays,
     CheckCircle2,
     CircleDollarSign,
+    ClipboardList,
     FileClock,
     FilePlus2,
+    FileSpreadsheet,
     FilterX,
     HandCoins,
     History,
     ReceiptText,
     Search,
     ShieldCheck,
+    Trash2,
     Truck,
+    User,
     X,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
@@ -30,7 +34,9 @@ import './CatatanUtangObatBhp.css';
 const STATUS_OPTIONS = [
     { value: '', label: 'Semua Status' },
     { value: 'belum_dibayar', label: 'Belum Dibayar' },
+    { value: 'diajukan', label: 'Diajukan' },
     { value: 'sebagian', label: 'Sebagian' },
+    { value: 'sebagian_diajukan', label: 'Sebagian Diajukan' },
     { value: 'lunas', label: 'Lunas' },
 ];
 
@@ -60,6 +66,7 @@ const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manua
 
 const TABS = [
     { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
+    { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'histori', label: 'Histori Pembayaran', icon: History },
 ];
@@ -74,56 +81,101 @@ const VIEW_META = {
     aktif: {
         icon: ReceiptText,
         title: 'Daftar Utang Aktif',
-        desc: 'Faktur yang sudah diverifikasi dan siap diproses pembayaran bertahap.',
+        desc: 'Faktur yang sudah diverifikasi dan siap diajukan pembayaran bertahap.',
         cardTitle: 'Utang Supplier Aktif',
+    },
+    pengajuan: {
+        icon: ClipboardList,
+        title: 'Pengajuan Pembayaran',
+        desc: 'Daftar pengajuan pembayaran utang supplier yang menunggu persetujuan atasan / realisasi.',
+        cardTitle: 'Daftar Pengajuan Pembayaran Pending',
     },
     histori: {
         icon: History,
         title: 'Histori Pembayaran',
-        desc: 'Riwayat semua pembayaran utang supplier Obat, BHP & Logistik.',
+        desc: 'Riwayat semua realisasi pembayaran utang supplier Obat, BHP & Logistik.',
         cardTitle: 'Histori Pembayaran Utang',
     },
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getRefNo = (item) => item.nomor_spb || `RJ-${item.app_siaga_faktur_id}`;
 const parseMoneyInput = (value) => {
+    if (value === '' || value === null || value === undefined) return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    const raw = String(value || '').replace(/[^\d.,-]/g, '');
-    if (!raw) return 0;
-    const negative = raw.startsWith('-');
-    const unsigned = raw.replace(/-/g, '');
-    const lastComma = unsigned.lastIndexOf(',');
-    const lastDot = unsigned.lastIndexOf('.');
-    let normalized = unsigned;
-    if (lastComma >= 0 && lastDot >= 0) {
-        const decimalSep = lastComma > lastDot ? ',' : '.';
-        const thousandSep = decimalSep === ',' ? '.' : ',';
-        normalized = unsigned.split(thousandSep).join('').replace(decimalSep, '.');
-    } else {
-        const sep = lastComma >= 0 ? ',' : lastDot >= 0 ? '.' : '';
-        if (sep) {
-            const parts = unsigned.split(sep);
-            const fraction = parts[parts.length - 1] || '';
-            normalized = fraction.length > 0 && fraction.length <= 2 ? `${parts.slice(0, -1).join('')}.${fraction}` : parts.join('');
-        }
+    
+    const str = String(value).trim();
+    if (!str) return 0;
+
+    if (/^-?\d+(\.\d+)?$/.test(str)) {
+        const num = Number(str);
+        return Number.isFinite(num) ? num : 0;
     }
-    const parsed = Number(`${negative ? '-' : ''}${normalized}`);
+
+    const cleanStr = str.replace(/^Rp\s*/i, '').trim();
+    const negative = cleanStr.startsWith('-');
+    const unsigned = cleanStr.replace(/-/g, '');
+    const commaIndex = unsigned.lastIndexOf(',');
+    if (commaIndex !== -1) {
+        const integerPart = unsigned.slice(0, commaIndex).replace(/[^\d]/g, '');
+        const decimalPart = unsigned.slice(commaIndex + 1).replace(/[^\d]/g, '').slice(0, 2);
+        const parsed = Number(`${negative ? '-' : ''}${integerPart || '0'}.${decimalPart}`);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    const numOnly = unsigned.replace(/[^\d]/g, '');
+    const parsed = Number(`${negative ? '-' : ''}${numOnly}`);
     return Number.isFinite(parsed) ? parsed : 0;
 };
 const formatMoneyInput = (value) => {
     if (value === '' || value === null || value === undefined) return '';
-    const amount = parseMoneyInput(value);
-    if (!amount) return '';
-    return `Rp ${amount.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+    if (typeof value === 'number') {
+        if (!Number.isFinite(value) || value === 0) return '';
+        return `Rp ${value.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+    }
+    const str = String(value).trim();
+    if (!str) return '';
+
+    if (/^-?\d+(\.\d+)?$/.test(str)) {
+        const num = Number(str);
+        if (!Number.isFinite(num) || num === 0) return '';
+        return `Rp ${num.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+    }
+
+    const raw = str.replace(/[^\d.,]/g, '');
+    if (!raw) return '';
+
+    const commaIndex = raw.lastIndexOf(',');
+    if (commaIndex !== -1) {
+        const integerPart = raw.slice(0, commaIndex).replace(/[^\d]/g, '');
+        const decimalPart = raw.slice(commaIndex + 1).replace(/[^\d]/g, '').slice(0, 2);
+        const num = Number(integerPart || 0);
+        const formattedInteger = num ? num.toLocaleString('id-ID') : '0';
+        if (commaIndex === raw.length - 1) {
+            return `Rp ${formattedInteger},`;
+        }
+        return `Rp ${formattedInteger},${decimalPart}`;
+    }
+
+    const numOnly = raw.replace(/[^\d]/g, '');
+    if (!numOnly) return '';
+    const num = Number(numOnly);
+    if (num === 0) return '';
+    return `Rp ${num.toLocaleString('id-ID')}`;
 };
 const errorMessage = (err, fallback) => err?.response?.data?.detail || err?.response?.data?.error || Object.values(err?.response?.data || {}).flat().join(' ') || fallback;
 
-const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-tanggal_faktur' };
+const getDefaultOrdering = (m) => {
+    if (m === 'menunggu') return '-tanggal_faktur';
+    if (m === 'pengajuan') return '-created_at';
+    if (m === 'histori') return '-tanggal_proses';
+    return '-verified_at';
+};
+
+const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at' };
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
-const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), tanggal_proses: todayISO(), tanggal_app: '', jumlah_bayar: '', keterangan: '' };
+const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: '', keterangan: '' };
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', nominal: '', keterangan: '' };
 
 export default function CatatanUtangObatBhp() {
@@ -138,6 +190,9 @@ export default function CatatanUtangObatBhp() {
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
     const [summary, setSummary] = useState(null);
+    const [pendingSummary, setPendingSummary] = useState({ count: 0, nominal: 0 });
+    const [selectedActive, setSelectedActive] = useState([]);
+    const [selectedPending, setSelectedPending] = useState([]);
     const [pendingCount, setPendingCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -150,6 +205,8 @@ export default function CatatanUtangObatBhp() {
     const [paymentTarget, setPaymentTarget] = useState(null);
     const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
     const [paymentHistory, setPaymentHistory] = useState([]);
+    const [realisasiTarget, setRealisasiTarget] = useState(null);
+    const [realisasiForm, setRealisasiForm] = useState({ tanggal_realisasi: todayISO() });
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
 
@@ -157,6 +214,7 @@ export default function CatatanUtangObatBhp() {
 
     const endpoint = useMemo(() => {
         if (mode === 'menunggu') return '/keuangan/catatan-utang/obat-bhp/menunggu-verifikasi/';
+        if (mode === 'pengajuan') return '/keuangan/pembayaran-utang/';
         if (mode === 'histori') return '/keuangan/pembayaran-utang/';
         return '/keuangan/utang-supplier/';
     }, [mode]);
@@ -175,8 +233,13 @@ export default function CatatanUtangObatBhp() {
         setLoading(true);
         try {
             const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
-            if (mode !== 'aktif') delete activeFilters.status;
-            // Kirim sumber ke semua tab (backend handle via query param)
+            if (mode === 'pengajuan') {
+                activeFilters.status = 'pending';
+            } else if (mode === 'histori') {
+                activeFilters.status = 'realisasi';
+            } else if (mode !== 'aktif') {
+                delete activeFilters.status;
+            }
             const res = await api.get(endpoint, { params: pageParams(page, pageSize, activeFilters) });
             setItems(getResults(res.data));
             setTotal(getCount(res.data));
@@ -189,10 +252,6 @@ export default function CatatanUtangObatBhp() {
 
     const fetchSummary = useCallback(async () => {
         if (!canAccess) return;
-        if (mode === 'menunggu') {
-            setSummary({ count: total, nominal: items.reduce((sum, item) => sum + Number(item.nominal || 0), 0) });
-            return;
-        }
         try {
             const params = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
             const res = await api.get('/keuangan/utang-supplier/summary/', { params });
@@ -200,32 +259,46 @@ export default function CatatanUtangObatBhp() {
         } catch {
             setSummary(null);
         }
-    }, [canAccess, filters, items, mode, total]);
+    }, [canAccess, filters]);
 
-    const fetchPendingCount = useCallback(async () => {
+    const fetchPendingSummary = useCallback(async () => {
         if (!canAccess) return;
         try {
-            const res = await api.get('/keuangan/catatan-utang/obat-bhp/menunggu-verifikasi/', { params: { page: 1, page_size: 1 } });
-            setPendingCount(getCount(res.data));
+            const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+            delete activeFilters.status;
+            const res = await api.get('/keuangan/catatan-utang/obat-bhp/menunggu-verifikasi/', { params: { ...activeFilters, page: 1, page_size: 1 } });
+            setPendingSummary({ count: res.data.count || 0, nominal: res.data.total_nominal || 0 });
+            setPendingCount(res.data.count || 0);
         } catch {
+            setPendingSummary({ count: 0, nominal: 0 });
             setPendingCount(0);
         }
-    }, [canAccess]);
+    }, [canAccess, filters]);
 
     useEffect(() => { fetchVendors(); }, [fetchVendors]);
     useEffect(() => { fetchData(); }, [fetchData]);
     useEffect(() => { fetchSummary(); }, [fetchSummary]);
-    useEffect(() => { fetchPendingCount(); }, [fetchPendingCount, items]);
-    useEffect(() => { setPage(1); }, [filters, pageSize, mode]);
+    useEffect(() => { fetchPendingSummary(); }, [fetchPendingSummary]);
+    useEffect(() => {
+        setPage(1);
+        setFilters(prev => ({
+            ...prev,
+            ordering: getDefaultOrdering(mode)
+        }));
+    }, [mode]);
+    useEffect(() => {
+        setSelectedActive([]);
+        setSelectedPending([]);
+    }, [filters, mode]);
 
     useEffect(() => {
-        if (!verifyTarget && !paymentTarget) return undefined;
+        if (!verifyTarget && !paymentTarget && !realisasiTarget) return undefined;
         const previous = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previous; };
-    }, [verifyTarget, paymentTarget]);
+    }, [verifyTarget, paymentTarget, realisasiTarget]);
 
-    const resetFilters = () => setFilters({ ...initialFilters, ordering: '-tanggal_faktur' });
+    const resetFilters = () => setFilters({ ...initialFilters, ordering: getDefaultOrdering(mode) });
     const setOrdering = (field) => setFilters((prev) => ({
         ...prev,
         ordering: prev.ordering === field ? `-${field}` : prev.ordering === `-${field}` ? '' : field,
@@ -233,7 +306,6 @@ export default function CatatanUtangObatBhp() {
 
     const openVerify = (row) => {
         setVerifyTarget(row);
-        // Pre-fill vendor_id dari vendor_id_hint (auto-match by-nama)
         setVerifyForm({
             ...initialVerifyForm,
             vendor_id: row.vendor_id_hint ? String(row.vendor_id_hint) : '',
@@ -244,7 +316,6 @@ export default function CatatanUtangObatBhp() {
         event.preventDefault();
         if (!verifyTarget) return;
         const sumber = verifyTarget.sumber || 'farmasi';
-        // Validasi frontend: logistik WAJIB vendor_id
         if (sumber === 'logistik' && !verifyForm.vendor_id) {
             toast.error('Pilih vendor untuk pembelian logistik sebelum verifikasi.');
             return;
@@ -274,13 +345,14 @@ export default function CatatanUtangObatBhp() {
         setPaymentForm({
             ...initialPaymentForm,
             jumlah_bayar: formatMoneyInput(row.sisa_utang || row.nominal || ''),
-            keterangan: `Pembayaran faktur ${row.nomor_faktur || ''}`.trim(),
+            keterangan: `Pengajuan pembayaran faktur ${row.nomor_faktur || ''}`.trim(),
         });
         try {
-            const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang__id: row.id, pagination: 'false', limit: 100 } });
+            // Perbaikan bug: gunakan query param `utang` (bukan `utang__id`)
+            const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang: row.id, pagination: 'false', limit: 100 } });
             const hist = Array.isArray(res.data) ? res.data : getResults(res.data) || [];
             setPaymentHistory(hist);
-        } catch (err) {
+        } catch {
             setPaymentHistory([]);
         }
     };
@@ -289,23 +361,84 @@ export default function CatatanUtangObatBhp() {
         event.preventDefault();
         if (!paymentTarget) return;
         const jumlah = parseMoneyInput(paymentForm.jumlah_bayar);
-        if (jumlah <= 0) return toast.error('Jumlah pembayaran wajib lebih dari 0.');
+        if (jumlah <= 0) return toast.error('Jumlah pengajuan pembayaran wajib lebih dari 0.');
         setSaving(true);
         try {
             await api.post(`/keuangan/utang-supplier/${paymentTarget.id}/bayar/`, {
                 tanggal_rencana_bayar: paymentForm.tanggal_rencana_bayar || null,
-                tanggal_proses: paymentForm.tanggal_proses,
-                tanggal_app: paymentForm.tanggal_app || null,
                 jumlah_bayar: jumlah,
                 keterangan: paymentForm.keterangan,
             });
-            toast.success(`Pembayaran ${money(jumlah)} berhasil dicatat.`);
+            toast.success(`Pengajuan pembayaran ${money(jumlah)} berhasil dibuat.`);
             setPaymentTarget(null);
             await fetchData();
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal menyimpan pembayaran.'));
+            toast.error(errorMessage(err, 'Gagal mengajukan pembayaran.'));
         } finally {
             setSaving(false);
+        }
+    };
+
+    const openRealisasi = (row) => {
+        setRealisasiTarget(row);
+        setRealisasiForm({
+            tanggal_realisasi: todayISO(),
+            jumlah_bayar: formatMoneyInput(row.jumlah_bayar || ''),
+        });
+    };
+
+    const confirmRealisasi = async (event) => {
+        event.preventDefault();
+        if (!realisasiTarget) return;
+        const jumlah = parseMoneyInput(realisasiForm.jumlah_bayar);
+        if (jumlah <= 0) return toast.error('Nominal realisasi pembayaran wajib lebih dari 0.');
+        setSaving(true);
+        try {
+            await api.post(`/keuangan/pembayaran-utang/${realisasiTarget.id}/realisasi/`, {
+                tanggal_realisasi: realisasiForm.tanggal_realisasi,
+                jumlah_bayar: jumlah,
+            });
+            toast.success(`Pembayaran ${money(jumlah)} berhasil direalisasikan.`);
+            setRealisasiTarget(null);
+            await fetchData();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal merealisasikan pembayaran.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const cancelPengajuan = async (row) => {
+        if (!window.confirm(`Batalkan pengajuan pembayaran ${money(row.jumlah_bayar)} untuk faktur ${row.nomor_faktur || row.utang}?`)) return;
+        setSaving(true);
+        try {
+            await api.delete(`/keuangan/pembayaran-utang/${row.id}/`);
+            toast.success('Pengajuan pembayaran berhasil dibatalkan.');
+            await fetchData();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal membatalkan pengajuan.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const exportExcel = async () => {
+        try {
+            const res = await api.get('/keuangan/pembayaran-utang/export-excel/', {
+                responseType: 'blob',
+            });
+            const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success('File Excel pengajuan pembayaran berhasil diunduh.');
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal mengunduh Excel pengajuan.'));
         }
     };
 
@@ -354,6 +487,20 @@ export default function CatatanUtangObatBhp() {
         );
     }
 
+    const pendingValue = selectedPending.length > 0
+        ? selectedPending.reduce((sum, item) => sum + Number(item.nominal || 0), 0)
+        : (pendingSummary?.nominal || 0);
+
+    const pendingCountValue = pendingSummary?.count || 0;
+
+    const activeValue = selectedActive.length > 0
+        ? selectedActive.reduce((sum, item) => sum + Number(item.sisa_utang || item.nominal || 0), 0)
+        : (summary?.total_sisa || 0);
+
+    const activeCountValue = summary?.utang_count || 0;
+
+    const isAnySelected = selectedPending.length > 0 || selectedActive.length > 0;
+
     return (
         <div className="utang-page">
             <section className="utang-hero">
@@ -361,7 +508,50 @@ export default function CatatanUtangObatBhp() {
                     <span><Icon size={24} /></span>
                     <div>
                         <h1>Catatan Utang Obat, BHP &amp; Logistik</h1>
-                        <p>Manajemen pembayaran utang supplier obat, bahan habis pakai, dan logistik</p>
+                        <p>Manajemen pengajuan dan pembayaran utang supplier obat, bahan habis pakai, dan logistik</p>
+                    </div>
+                </div>
+            </section>
+
+            <section className="utang-summary-cards">
+                <div className={`utang-summary-card ${selectedPending.length > 0 ? 'selected-mode' : ''}`}>
+                    <div className="card-inner">
+                        <div className="card-info">
+                            <span className="card-label">Hutang Menunggu Verifikasi</span>
+                            <span className="card-value">{money(pendingValue)}</span>
+                            <span className="card-subtext">
+                                {selectedPending.length > 0 ? `${selectedPending.length} Faktur Terpilih` : `${pendingCountValue} Total Faktur`}
+                            </span>
+                        </div>
+                        <span className="card-icon pending"><FileClock size={24} /></span>
+                    </div>
+                </div>
+
+                <div className={`utang-summary-card ${selectedActive.length > 0 ? 'selected-mode' : ''}`}>
+                    <div className="card-inner">
+                        <div className="card-info">
+                            <span className="card-label">Utang Aktif</span>
+                            <span className="card-value">{money(activeValue)}</span>
+                            <span className="card-subtext">
+                                {selectedActive.length > 0 ? `${selectedActive.length} Faktur Terpilih` : `${activeCountValue} Total Faktur`}
+                            </span>
+                        </div>
+                        <span className="card-icon active"><ReceiptText size={24} /></span>
+                    </div>
+                </div>
+
+                <div className={`utang-summary-card total ${isAnySelected ? 'selected-mode' : ''}`}>
+                    <div className="card-inner">
+                        <div className="card-info">
+                            <span className="card-label">Total Utang</span>
+                            <span className="card-value">{money(pendingValue + activeValue)}</span>
+                            <span className="card-subtext">
+                                {isAnySelected 
+                                    ? `${selectedPending.length + selectedActive.length} Faktur Terpilih` 
+                                    : `${pendingCountValue + activeCountValue} Total Faktur`}
+                            </span>
+                        </div>
+                        <span className="card-icon total"><CircleDollarSign size={24} /></span>
                     </div>
                 </div>
             </section>
@@ -373,6 +563,11 @@ export default function CatatanUtangObatBhp() {
                         <p>{total} data tercatat sesuai filter.</p>
                     </div>
                     <div className="utang-card-actions">
+                        {mode === 'pengajuan' && (
+                            <button className="utang-btn primary" type="button" onClick={exportExcel}>
+                                <FileSpreadsheet size={16} /> Export Excel
+                            </button>
+                        )}
                         <button className="utang-btn-manual" type="button" onClick={openManual}>
                             <FilePlus2 size={16} /> Catat Utang Manual
                         </button>
@@ -427,8 +622,9 @@ export default function CatatanUtangObatBhp() {
                     <div className="utang-empty">Belum ada data sesuai filter.</div>
                 ) : (
                     <div className="utang-table-wrap table-fade-in">
-                        {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
-                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onSort={setOrdering} />}
+                        {mode === 'menunggu' && <PendingTable items={items} selectedItems={selectedPending} onSelectionChange={setSelectedPending} onVerify={openVerify} onSort={setOrdering} />}
+                        {mode === 'aktif' && <ActiveTable items={items} selectedItems={selectedActive} onSelectionChange={setSelectedActive} onPayment={openPayment} onSort={setOrdering} />}
+                        {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
                     </div>
                 )}
@@ -548,7 +744,7 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-head">
                             <span className="utang-modal-head-icon"><HandCoins size={20} /></span>
                             <div>
-                                <h2>Input Pembayaran Utang</h2>
+                                <h2>Ajukan Pembayaran Utang</h2>
                                 <p>{paymentTarget.nomor_faktur} - {paymentTarget.vendor_nama} <SumberBadge sumber={paymentTarget.sumber} /></p>
                             </div>
                         </div>
@@ -563,23 +759,21 @@ export default function CatatanUtangObatBhp() {
                             </section>
 
                             <section className="utang-payment-section">
-                                <SectionTitle>Payment Form</SectionTitle>
+                                <SectionTitle>Form Pengajuan Pembayaran</SectionTitle>
                                 <div className="utang-form-grid">
                                     <label>Tgl Rencana Bayar<DateInput value={paymentForm.tanggal_rencana_bayar} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_rencana_bayar: value })} /></label>
-                                    <label>Tgl Proses<DateInput value={paymentForm.tanggal_proses} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_proses: value })} /></label>
-                                    <label>Tgl App<DateInput value={paymentForm.tanggal_app} onChange={(value) => setPaymentForm({ ...paymentForm, tanggal_app: value })} /></label>
-                                    <label className="utang-amount-field">Jumlah Bayar<input className="utang-input utang-input-right" inputMode="decimal" value={paymentForm.jumlah_bayar} onChange={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: e.target.value })} onBlur={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: formatMoneyInput(e.target.value) })} onKeyDown={(e) => e.stopPropagation()} /></label>
-                                    <label className="span-2 utang-note-field">Keterangan<textarea className="utang-input" rows={1} value={paymentForm.keterangan} onChange={(e) => setPaymentForm({ ...paymentForm, keterangan: e.target.value })} /></label>
+                                    <label className="utang-amount-field">Jumlah Bayar (Nominal)<input className="utang-input utang-input-right" inputMode="decimal" value={paymentForm.jumlah_bayar} onChange={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: formatMoneyInput(e.target.value) })} onBlur={(e) => setPaymentForm({ ...paymentForm, jumlah_bayar: formatMoneyInput(e.target.value) })} onKeyDown={(e) => e.stopPropagation()} /></label>
+                                    <label className="span-2 utang-note-field">Keterangan<textarea className="utang-input" rows={2} value={paymentForm.keterangan} onChange={(e) => setPaymentForm({ ...paymentForm, keterangan: e.target.value })} placeholder="Catatan pengajuan pembayaran..." /></label>
                                 </div>
                             </section>
 
                             <section className="utang-payment-section">
-                                <SectionTitle icon={History}>Payment History</SectionTitle>
+                                <SectionTitle icon={History}>Payment History (Realisasi)</SectionTitle>
                                 {paymentHistory.length > 0 ? (
                                     <div className="utang-history-wrap">
                                         <table className="utang-history-table">
-                                            <thead><tr><th>Tgl</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
-                                            <tbody>{paymentHistory.map((item, idx) => <tr key={idx}><td>{dateLabel(item.tanggal_proses)}</td><td className="utang-mono">{money(item.jumlah_bayar)}</td><td>{item.keterangan || '-'}</td></tr>)}</tbody>
+                                            <thead><tr><th>Tgl Realisasi</th><th>Jumlah</th><th>Status</th><th>Keterangan</th></tr></thead>
+                                            <tbody>{paymentHistory.map((item, idx) => <tr key={idx}><td>{dateLabel(item.tanggal_proses)}</td><td className="utang-mono">{money(item.jumlah_bayar)}</td><td><StatusBadge status={item.status} label={item.status_label} /></td><td>{item.keterangan || '-'}</td></tr>)}</tbody>
                                         </table>
                                     </div>
                                 ) : (
@@ -589,7 +783,71 @@ export default function CatatanUtangObatBhp() {
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setPaymentTarget(null)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving}><CircleDollarSign size={16} /> {saving ? 'Menyimpan...' : 'Simpan Pembayaran'}</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving}><CircleDollarSign size={16} /> {saving ? 'Menyimpan...' : 'Ajukan Pembayaran'}</button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
+            {realisasiTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setRealisasiTarget(null)}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={confirmRealisasi} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}><CheckCircle2 size={20} /></span>
+                            <div>
+                                <h2>Realisasi Pembayaran Utang</h2>
+                                <p>Konfirmasi bahwa pengajuan pembayaran ini telah disetujui &amp; dibayarkan.</p>
+                            </div>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-verify-card">
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Vendor</span>
+                                    <span className="val bold">{realisasiTarget.vendor_nama || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono">{realisasiTarget.nomor_faktur || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Tgl Rencana Bayar</span>
+                                    <span className="val">{dateLabel(realisasiTarget.tanggal_rencana_bayar)}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Pengaju (Operator)</span>
+                                    <span className="val">{realisasiTarget.created_by_name || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row total">
+                                    <span className="lbl">Nominal Diajukan</span>
+                                    <span className="val price" style={{ color: '#2563eb' }}>{money(realisasiTarget.jumlah_bayar)}</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div className="utang-field-block">
+                                    <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Realisasi <span className="utang-req">*</span></label>
+                                    <DateInput value={realisasiForm.tanggal_realisasi} onChange={(val) => setRealisasiForm({ ...realisasiForm, tanggal_realisasi: val })} />
+                                </div>
+
+                                <div className="utang-field-block">
+                                    <label className="utang-field-lbl"><CircleDollarSign size={15} /> Nominal Realisasi <span className="utang-req">*</span></label>
+                                    <input
+                                        className="utang-input utang-input-right"
+                                        inputMode="decimal"
+                                        value={realisasiForm.jumlah_bayar}
+                                        onChange={(e) => setRealisasiForm({ ...realisasiForm, jumlah_bayar: formatMoneyInput(e.target.value) })}
+                                        onBlur={(e) => setRealisasiForm({ ...realisasiForm, jumlah_bayar: formatMoneyInput(e.target.value) })}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setRealisasiTarget(null)}>Batal</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                                <CheckCircle2 size={16} /> {saving ? 'Menyimpan...' : 'Simpan Pembayaran'}
+                            </button>
                         </div>
                     </form>
                 </div>,
@@ -646,7 +904,7 @@ export default function CatatanUtangObatBhp() {
                                         required
                                         placeholder="Rp 0"
                                         value={formatMoneyInput(manualForm.nominal)}
-                                        onChange={(e) => setManualForm({ ...manualForm, nominal: e.target.value })}
+                                        onChange={(e) => setManualForm({ ...manualForm, nominal: formatMoneyInput(e.target.value) })}
                                     />
                                 </label>
                                 <label>Tanggal Faktur<DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
@@ -725,13 +983,42 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     );
 }
 
-function PendingTable({ items, onVerify, onSort }) {
+function PendingTable({ items, selectedItems, onSelectionChange, onVerify, onSort }) {
+    const isAllSelected = items.length > 0 && items.every(item => 
+        selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)
+    );
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            onSelectionChange(selectedItems.filter(s => 
+                !items.some(item => item.app_siaga_faktur_id === s.app_siaga_faktur_id && item.sumber === s.sumber)
+            ));
+        } else {
+            const toAdd = items.filter(item => 
+                !selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)
+            );
+            onSelectionChange([...selectedItems, ...toAdd]);
+        }
+    };
+
+    const handleSelectRow = (item) => {
+        const exists = selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber);
+        if (exists) {
+            onSelectionChange(selectedItems.filter(s => !(s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)));
+        } else {
+            onSelectionChange([...selectedItems, item]);
+        }
+    };
+
     return (
         <table className="utang-table">
             <thead>
                 <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} />
+                    </th>
                     <th>Sumber</th>
-                    <SortTh label="Vendor & Ref" field="vendor" onSort={onSort} />
+                    <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
                     <th>Jatuh Tempo</th>
                     <SortTh label="Grand Total" field="nominal" onSort={onSort} right />
@@ -739,75 +1026,191 @@ function PendingTable({ items, onVerify, onSort }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => (
-                    <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`}>
-                        <td><SumberBadge sumber={item.sumber} /></td>
-                        <td className="utang-name-cell">
-                            <strong>{item.vendor_nama || '-'}</strong>
-                            {item.sumber === 'logistik' && !item.vendor_id_hint && (
-                                <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
-                                    <AlertTriangle size={12} /> Pilih vendor
-                                </span>
-                            )}
-                            <small className="utang-subtext">Ref: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
-                        </td>
-                        <td>
-                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
-                            <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
-                        </td>
-                        <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                        <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
-                        <td className="utang-right">
-                            <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
-                                <CheckCircle2 size={15} /> Verifikasi
-                            </button>
-                        </td>
-                    </tr>
-                ))}
+                {items.map((item) => {
+                    const isChecked = selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber);
+                    return (
+                        <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`} className={isChecked ? 'row-selected' : ''}>
+                            <td style={{ textAlign: 'center' }}>
+                                <input type="checkbox" checked={isChecked} onChange={() => handleSelectRow(item)} />
+                            </td>
+                            <td><SumberBadge sumber={item.sumber} /></td>
+                            <td className="utang-name-cell">
+                                <strong>{item.vendor_nama || '-'}</strong>
+                                {item.sumber === 'logistik' && !item.vendor_id_hint && (
+                                    <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
+                                        <AlertTriangle size={12} /> Pilih vendor
+                                    </span>
+                                )}
+                                <small className="utang-subtext">SPB: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
+                            </td>
+                            <td>
+                                <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                                <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
+                            </td>
+                            <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
+                            <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
+                            <td className="utang-right">
+                                <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
+                                    <CheckCircle2 size={15} /> Verifikasi
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                })}
             </tbody>
         </table>
     );
 }
 
-function ActiveTable({ items, onPayment, onSort }) {
+function ActiveTable({ items, selectedItems, onSelectionChange, onPayment, onSort }) {
+    const selectableItems = items.filter(item => item.status !== 'lunas');
+    const isAllSelected = selectableItems.length > 0 && selectableItems.every(item => 
+        selectedItems.some(s => s.id === item.id)
+    );
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            onSelectionChange(selectedItems.filter(s => 
+                !selectableItems.some(item => item.id === s.id)
+            ));
+        } else {
+            const toAdd = selectableItems.filter(item => 
+                !selectedItems.some(s => s.id === item.id)
+            );
+            onSelectionChange([...selectedItems, ...toAdd]);
+        }
+    };
+
+    const handleSelectRow = (item) => {
+        const exists = selectedItems.some(s => s.id === item.id);
+        if (exists) {
+            onSelectionChange(selectedItems.filter(s => s.id !== item.id));
+        } else {
+            onSelectionChange([...selectedItems, item]);
+        }
+    };
+
     return (
         <table className="utang-table">
             <thead>
                 <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} />
+                    </th>
                     <th>Sumber</th>
-                    <SortTh label="Vendor & Ref" field="vendor" onSort={onSort} />
+                    <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur & Tanggal" field="nomor_faktur" onSort={onSort} />
                     <SortTh label="Sisa Utang" field="nominal" onSort={onSort} right />
                     <SortTh label="Status" field="status" onSort={onSort} />
+                    <SortTh label="Verifikator" field="verified_at" onSort={onSort} />
                     <th className="utang-right">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {items.map((item) => {
+                    const isChecked = selectedItems.some(s => s.id === item.id);
+                    const isLunas = item.status === 'lunas';
+                    return (
+                        <tr key={item.id} className={isChecked ? 'row-selected' : ''}>
+                            <td style={{ textAlign: 'center' }}>
+                                {!isLunas && (
+                                    <input type="checkbox" checked={isChecked} onChange={() => handleSelectRow(item)} />
+                                )}
+                            </td>
+                            <td><SumberBadge sumber={item.sumber} /></td>
+                            <td className="utang-name-cell">
+                                <strong>{item.vendor_nama || '-'}</strong>
+                                <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
+                            </td>
+                            <td>
+                                <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                                <small className="utang-subtext">Tgl: {dateLabel(item.tanggal_faktur)}</small>
+                                {item.tanggal_jatuh_tempo && (
+                                    <small className="utang-subtext">Tempo: {dateLabel(item.tanggal_jatuh_tempo)}</small>
+                                )}
+                            </td>
+                            <td className="utang-right">
+                                <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
+                                <small className="utang-subtext utang-mono">Total: {money(item.nominal)}</small>
+                                <small className="utang-subtext utang-mono">Dibayar: {money(item.total_dibayar)}</small>
+                            </td>
+                            <td><StatusBadge status={item.status} label={item.status_label} /></td>
+                            <td className="utang-operator-cell">
+                                {item.verified_by_name ? (
+                                    <span className="utang-operator-badge" title={`Diverifikasi oleh ${item.verified_by_name}`}>
+                                        <User size={13} style={{ opacity: 0.7 }} />
+                                        {item.verified_by_name}
+                                    </span>
+                                ) : '-'}
+                            </td>
+                            <td className="utang-right">
+                                <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
+                                    <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Ajukan Pembayaran'}
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
+    );
+}
+
+function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
+    return (
+        <table className="utang-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+                <col style={{ width: '23%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '8%' }} />
+            </colgroup>
+            <thead>
+                <tr>
+                    <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} align="left" />
+                    <SortTh label="No Faktur & Tgl Rencana" field="nomor_faktur" onSort={onSort} align="left" />
+                    <SortTh label="Nominal Pengajuan" field="jumlah_bayar" onSort={onSort} align="right" />
+                    <th style={{ textAlign: 'left' }}>Keterangan</th>
+                    <th style={{ textAlign: 'center' }}>Pengaju (Operator)</th>
+                    <th style={{ textAlign: 'center' }}>Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 {items.map((item) => (
                     <tr key={item.id}>
-                        <td><SumberBadge sumber={item.sumber} /></td>
-                        <td className="utang-name-cell">
+                        <td className="utang-name-cell" style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong>{item.vendor_nama || '-'}</strong>
-                            <small className="utang-subtext">Ref: {getRefNo(item)} • ID: {item.vendor_id}</small>
-                        </td>
-                        <td>
-                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
                             <small className="utang-subtext">
-                                Tgl: {dateLabel(item.tanggal_faktur)}
-                                {item.tanggal_jatuh_tempo && ` • Tempo: ${dateLabel(item.tanggal_jatuh_tempo)}`}
+                                {item.nomor_spb ? `SPB: ${item.nomor_spb}` : item.app_siaga_faktur_id ? `SPB: RJ-${item.app_siaga_faktur_id}` : ''}
                             </small>
                         </td>
-                        <td className="utang-right">
-                            <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
-                            <small className="utang-subtext utang-mono">
-                                Total: {money(item.nominal)} | Dibayar: {money(item.total_dibayar)}
-                            </small>
+                        <td style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
+                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <small className="utang-subtext">Rencana Bayar: {dateLabel(item.tanggal_rencana_bayar)}</small>
                         </td>
-                        <td><StatusBadge status={item.status} label={item.status_label} /></td>
-                        <td className="utang-right">
-                            <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
-                                <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Bayar'}
-                            </button>
+                        <td className="utang-mono utang-nominal-pending utang-right" style={{ textAlign: 'right' }}>{money(item.jumlah_bayar)}</td>
+                        <td style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
+                            <div className="utang-keterangan-text-truncate" title={item.keterangan || '-'}>
+                                {item.keterangan || '-'}
+                            </div>
+                        </td>
+                        <td className="utang-operator-cell" style={{ textAlign: 'center' }}>
+                            <span className="utang-operator-badge" title={`Diajukan oleh ${item.created_by_name || '-'}`}>
+                                <User size={13} style={{ opacity: 0.7 }} />
+                                {item.created_by_name || '-'}
+                            </span>
+                        </td>
+                        <td className="utang-right" style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'center', width: '100%' }}>
+                                <button className="utang-btn primary mini" onClick={() => onRealisasi(item)} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '6px 8px' }} title="Verifikasi Pembayaran">
+                                    <CheckCircle2 size={16} />
+                                </button>
+                                <button className="utang-btn soft mini danger" onClick={() => onCancel(item)} title="Hapus Pengajuan" style={{ color: '#ef4444', borderColor: '#fca5a5', padding: '6px 8px' }}>
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 ))}
@@ -827,6 +1230,7 @@ function HistoryTable({ items, onSort }) {
                     <SortTh label="Jumlah Bayar" field="jumlah_bayar" onSort={onSort} right />
                     <th className="utang-right">Sisa Utang</th>
                     <th>Keterangan</th>
+                    <th>Operator</th>
                 </tr>
             </thead>
             <tbody>
@@ -841,9 +1245,15 @@ function HistoryTable({ items, onSort }) {
                             <strong>{dateLabel(item.tanggal_proses)}</strong>
                             {item.tanggal_rencana_bayar && <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>}
                         </td>
-                        <td className="utang-right utang-mono ok-money">{money(item.jumlah_bayar)}</td>
+                        <td className={`utang-right utang-mono ${item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`}>{money(item.jumlah_bayar)}</td>
                         <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
                         <td>{item.keterangan || '-'}</td>
+                        <td className="utang-operator-cell">
+                            <span className="utang-operator-badge" title={`Dicatat oleh ${item.created_by_name || '-'}`}>
+                                <User size={13} style={{ opacity: 0.7 }} />
+                                {item.created_by_name || '-'}
+                            </span>
+                        </td>
                     </tr>
                 ))}
             </tbody>
@@ -851,8 +1261,27 @@ function HistoryTable({ items, onSort }) {
     );
 }
 
-function SortTh({ label, field, onSort, right = false }) {
-    return <th className={right ? 'utang-right' : ''}><button className="utang-sort-btn" type="button" onClick={() => onSort(field)}>{label}</button></th>;
+function SortTh({ label, field, onSort, right = false, align = 'left' }) {
+    const finalAlign = right ? 'right' : align;
+    let thClass = '';
+    let btnStyle = { width: '100%' };
+    if (finalAlign === 'right') {
+        thClass = 'utang-right';
+        btnStyle = { justifyContent: 'flex-end', textAlign: 'right' };
+    } else if (finalAlign === 'center') {
+        thClass = 'utang-center';
+        btnStyle = { justifyContent: 'center', textAlign: 'center' };
+    } else {
+        thClass = 'utang-left';
+        btnStyle = { justifyContent: 'flex-start', textAlign: 'left' };
+    }
+    return (
+        <th className={thClass} style={{ textAlign: finalAlign }}>
+            <button className="utang-sort-btn" type="button" onClick={() => onSort(field)} style={btnStyle}>
+                {label}
+            </button>
+        </th>
+    );
 }
 
 function StatusBadge({ status, label }) {

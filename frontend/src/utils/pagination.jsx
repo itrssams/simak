@@ -45,7 +45,7 @@ export function SimplePagination({ page, pageSize, total, onPageChange, onPageSi
                     <button
                         type="button"
                         className="sp-nav-btn"
-                        disabled={page <= 1}
+                        disabled={page <= 1 || total <= pageSize}
                         onClick={() => onPageChange(1)}
                         title="Halaman pertama"
                     >
@@ -54,21 +54,21 @@ export function SimplePagination({ page, pageSize, total, onPageChange, onPageSi
                     <button
                         type="button"
                         className="sp-nav-btn"
-                        disabled={page <= 1}
+                        disabled={page <= 1 || total <= pageSize}
                         onClick={() => onPageChange(Math.max(1, page - 1))}
                         title="Halaman sebelumnya"
                     >
                         <ChevronLeft size={16} />
                     </button>
 
-                    <div className="sp-page-pill">
+                    <div className="sp-page-pill" style={{ opacity: total <= pageSize ? 0.5 : 1 }}>
                         Halaman <strong>{page}</strong> / {totalPages}
                     </div>
 
                     <button
                         type="button"
                         className="sp-nav-btn"
-                        disabled={page >= totalPages}
+                        disabled={page >= totalPages || total <= pageSize}
                         onClick={() => onPageChange(Math.min(totalPages, page + 1))}
                         title="Halaman berikutnya"
                     >
@@ -77,7 +77,7 @@ export function SimplePagination({ page, pageSize, total, onPageChange, onPageSi
                     <button
                         type="button"
                         className="sp-nav-btn"
-                        disabled={page >= totalPages}
+                        disabled={page >= totalPages || total <= pageSize}
                         onClick={() => onPageChange(totalPages)}
                         title="Halaman terakhir"
                     >

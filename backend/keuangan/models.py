@@ -460,11 +460,15 @@ class PembayaranFaktur(models.Model):
 
 class UtangSupplier(models.Model):
     STATUS_BELUM_DIBAYAR = 'belum_dibayar'
+    STATUS_DIAJUKAN = 'diajukan'
     STATUS_SEBAGIAN = 'sebagian'
+    STATUS_SEBAGIAN_DIAJUKAN = 'sebagian_diajukan'
     STATUS_LUNAS = 'lunas'
     STATUS_CHOICES = [
         (STATUS_BELUM_DIBAYAR, 'Belum Dibayar'),
+        (STATUS_DIAJUKAN, 'Diajukan'),
         (STATUS_SEBAGIAN, 'Sebagian'),
+        (STATUS_SEBAGIAN_DIAJUKAN, 'Sebagian Diajukan'),
         (STATUS_LUNAS, 'Lunas'),
     ]
 
@@ -518,7 +522,11 @@ class UtangSupplier(models.Model):
 
     @property
     def total_dibayar(self):
-        return self.pembayaran.aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+        return self.pembayaran.filter(status__in=['realisasi_sebagian', 'realisasi_lunas']).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+
+    @property
+    def total_pending(self):
+        return self.pembayaran.filter(status='pending').aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
 
     @property
     def sisa_utang(self):
@@ -526,25 +534,46 @@ class UtangSupplier(models.Model):
         return max(sisa, Decimal('0'))
 
     def refresh_status(self, commit=True):
-        total = self.total_dibayar if self.pk else Decimal('0')
-        if total == 0:
-            self.status = self.STATUS_BELUM_DIBAYAR
-        elif total < self.nominal:
-            self.status = self.STATUS_SEBAGIAN
-        else:
+        total_realisasi = self.total_dibayar if self.pk else Decimal('0')
+        total_pending = self.total_pending if self.pk else Decimal('0')
+
+        if total_realisasi >= self.nominal:
             self.status = self.STATUS_LUNAS
+        elif total_realisasi > 0:
+            if total_pending > 0:
+                self.status = self.STATUS_SEBAGIAN_DIAJUKAN
+            else:
+                self.status = self.STATUS_SEBAGIAN
+        else:
+            if total_pending > 0:
+                self.status = self.STATUS_DIAJUKAN
+            else:
+                self.status = self.STATUS_BELUM_DIBAYAR
+
         if commit:
             self.save(update_fields=['status', 'updated_at'])
         return self.status
 
 
 class PembayaranUtang(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_REALISASI_SEBAGIAN = 'realisasi_sebagian'
+    STATUS_REALISASI_LUNAS = 'realisasi_lunas'
+    STATUS_DITOLAK = 'ditolak'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Dalam Pengajuan'),
+        (STATUS_REALISASI_SEBAGIAN, 'Realisasi Sebagian'),
+        (STATUS_REALISASI_LUNAS, 'Realisasi Pelunasan'),
+        (STATUS_DITOLAK, 'Ditolak'),
+    ]
+
     utang = models.ForeignKey(UtangSupplier, on_delete=models.PROTECT, related_name='pembayaran')
     tanggal_rencana_bayar = models.DateField(null=True, blank=True)
     tanggal_proses = models.DateField()
     tanggal_app = models.DateField(null=True, blank=True)
     jumlah_bayar = models.DecimalField(max_digits=25, decimal_places=2)
     keterangan = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='pembayaran_utang')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -553,6 +582,7 @@ class PembayaranUtang(models.Model):
         ordering = ['-tanggal_proses', '-created_at']
         indexes = [
             models.Index(fields=['utang', 'tanggal_proses'], name='payutang_utang_tgl_idx'),
+            models.Index(fields=['status'], name='payutang_status_idx'),
             models.Index(fields=['created_at'], name='payutang_created_idx'),
         ]
         verbose_name = 'Pembayaran Utang'

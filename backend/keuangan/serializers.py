@@ -617,27 +617,36 @@ class FakturInputSerializer(serializers.ModelSerializer):
 
 class PembayaranUtangSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
     nomor_faktur = serializers.CharField(source='utang.nomor_faktur', read_only=True)
     vendor_nama = serializers.CharField(source='utang.vendor_nama', read_only=True)
     nominal = serializers.DecimalField(source='utang.nominal', max_digits=25, decimal_places=2, read_only=True)
     sumber = serializers.CharField(source='utang.sumber', read_only=True)
     sumber_label = serializers.CharField(source='utang.get_sumber_display', read_only=True)
+    nomor_spb = serializers.CharField(source='utang.nomor_spb', read_only=True)
+    app_siaga_faktur_id = serializers.IntegerField(source='utang.app_siaga_faktur_id', read_only=True)
 
     class Meta:
         model = PembayaranUtang
         fields = [
             'id', 'utang', 'nomor_faktur', 'vendor_nama', 'nominal',
-            'sumber', 'sumber_label',
+            'sumber', 'sumber_label', 'nomor_spb', 'app_siaga_faktur_id',
             'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
-            'jumlah_bayar', 'keterangan', 'created_by', 'created_by_name', 'created_at',
+            'jumlah_bayar', 'keterangan', 'status', 'status_label',
+            'created_by', 'created_by_name', 'created_at',
         ]
-        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at']
+        read_only_fields = ['id', 'status_label', 'created_by', 'created_by_name', 'created_at']
 
 
 class PembayaranUtangInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = PembayaranUtang
         fields = ['utang', 'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar', 'keterangan']
+        extra_kwargs = {
+            'tanggal_proses': {'required': False, 'allow_null': True},
+            'tanggal_app': {'required': False, 'allow_null': True},
+            'tanggal_rencana_bayar': {'required': False, 'allow_null': True},
+        }
 
     def validate(self, attrs):
         if attrs.get('jumlah_bayar', 0) <= 0:

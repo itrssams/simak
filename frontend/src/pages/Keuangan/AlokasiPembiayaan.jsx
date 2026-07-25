@@ -9,6 +9,7 @@ import {
     Plus,
     Search,
     Trash2,
+    User,
     WalletCards,
     X,
 } from 'lucide-react';
@@ -222,6 +223,7 @@ export default function AlokasiPembiayaan() {
                 masuk: Number(item.jumlah_penerimaan || 0),
                 keluar: 0,
                 item,
+                operator: item.created_by_name || '-',
             });
             (item.pemakaian || []).forEach((pay) => {
                 entries.push({
@@ -235,6 +237,7 @@ export default function AlokasiPembiayaan() {
                     keluar: Number(pay.jumlah || 0),
                     item,
                     pay,
+                    operator: pay.created_by_name || '-',
                 });
             });
         });
@@ -267,6 +270,7 @@ export default function AlokasiPembiayaan() {
                 entry.keterangan,
                 entry.item?.bank,
                 entry.item?.nama_pembiayaan,
+                entry.operator,
             ].some((value) => String(value || '').toLowerCase().includes(q));
         });
     }, [ledgerEntries, ledgerFilters]);
@@ -604,6 +608,7 @@ export default function AlokasiPembiayaan() {
                                             <th>Jenis</th>
                                             <th>Referensi</th>
                                             <th>Keterangan</th>
+                                            <th>Operator</th>
                                             <th className="ap-right">Masuk</th>
                                             <th className="ap-right">Keluar</th>
                                             <th className="ap-right">Saldo</th>
@@ -624,6 +629,12 @@ export default function AlokasiPembiayaan() {
                                                     </td>
                                                     <td className="ap-ref-cell">{entry.ref}</td>
                                                     <td className="ap-note-cell">{entry.keterangan || '-'}</td>
+                                                    <td className="ap-operator-cell">
+                                                        <span className="ap-operator-badge" title={`Operator: ${entry.operator}`}>
+                                                            <User size={13} style={{ opacity: 0.7 }} />
+                                                            {entry.operator}
+                                                        </span>
+                                                    </td>
                                                     <td className={`ap-right ap-mono ${entry.masuk ? 'ap-money-in' : ''}`}>{entry.masuk ? money(entry.masuk) : '—'}</td>
                                                     <td className={`ap-right ap-mono ${entry.keluar ? 'ap-money-out' : ''}`}>{entry.keluar ? money(entry.keluar) : '—'}</td>
                                                     <td className="ap-right ap-mono ap-strong">{money(entry.saldo)}</td>

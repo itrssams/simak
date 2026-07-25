@@ -3826,6 +3826,8 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             qs = qs.filter(tanggal_faktur__lte=sampai)
 
         order = _utang_order_clause(params.get('ordering'), {
+            'verified_at': 'verified_at',
+            '-verified_at': '-verified_at',
             'vendor': 'vendor_nama',
             '-vendor': '-vendor_nama',
             'nomor_faktur': 'nomor_faktur',
@@ -3846,18 +3848,30 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         utang = self.get_object()
         if utang.status == UtangSupplier.STATUS_LUNAS:
             return Response({'error': 'Utang sudah lunas.'}, status=status.HTTP_400_BAD_REQUEST)
-        payload = {**request.data, 'utang': utang.id}
+        tgl_rencana = request.data.get('tanggal_rencana_bayar') or timezone.now().date().isoformat()
+        payload = {
+            **request.data,
+            'utang': utang.id,
+            'tanggal_rencana_bayar': tgl_rencana,
+            'tanggal_proses': request.data.get('tanggal_proses') or tgl_rencana,
+            'tanggal_app': request.data.get('tanggal_app') or tgl_rencana,
+        }
         serializer = PembayaranUtangInputSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
+        
+        tgl_proses = serializer.validated_data.get('tanggal_proses') or tgl_rencana
+
         pembayaran = PembayaranUtang.objects.create(
             utang=utang,
             tanggal_rencana_bayar=serializer.validated_data.get('tanggal_rencana_bayar'),
-            tanggal_proses=serializer.validated_data['tanggal_proses'],
-            tanggal_app=serializer.validated_data.get('tanggal_app'),
+            tanggal_proses=tgl_proses,
+            tanggal_app=serializer.validated_data.get('tanggal_app') or tgl_rencana,
             jumlah_bayar=serializer.validated_data['jumlah_bayar'],
             keterangan=serializer.validated_data.get('keterangan', ''),
+            status=PembayaranUtang.STATUS_PENDING,
             created_by=request.user,
         )
+        utang.refresh_status()
         utang.refresh_from_db()
         return Response({
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
@@ -3868,14 +3882,16 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
     def summary(self, request):
         qs = self.get_queryset()
         total_nominal = qs.aggregate(total=Sum('nominal'))['total'] or Decimal('0')
-        pembayaran = PembayaranUtang.objects.filter(utang__in=qs).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+        pembayaran = PembayaranUtang.objects.filter(utang__in=qs, status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
         return Response({
-            'utang_count': qs.count(),
+            'utang_count': qs.exclude(status=UtangSupplier.STATUS_LUNAS).count(),
             'total_nominal': total_nominal,
             'total_dibayar': pembayaran,
             'total_sisa': max(total_nominal - pembayaran, Decimal('0')),
             'belum_dibayar': qs.filter(status=UtangSupplier.STATUS_BELUM_DIBAYAR).count(),
+            'diajukan': qs.filter(status=UtangSupplier.STATUS_DIAJUKAN).count(),
             'sebagian': qs.filter(status=UtangSupplier.STATUS_SEBAGIAN).count(),
+            'sebagian_diajukan': qs.filter(status=UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN).count(),
             'lunas': qs.filter(status=UtangSupplier.STATUS_LUNAS).count(),
         })
 
@@ -3930,7 +3946,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
 
 
 
-class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
+class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
     serializer_class = PembayaranUtangSerializer
     permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
@@ -3940,7 +3956,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelView
         params = self.request.query_params
         search = (params.get('search') or '').strip()
         vendor_id = params.get('vendor_id')
-        utang_id = params.get('utang')
+        utang_id = params.get('utang') or params.get('utang__id')
+        status_param = (params.get('status') or '').strip()
         sumber_filter = (params.get('sumber') or '').strip()
         dari = params.get('dari')
         sampai = params.get('sampai')
@@ -3956,6 +3973,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelView
             qs = qs.filter(utang__vendor_id=vendor_id)
         if utang_id:
             qs = qs.filter(utang_id=utang_id)
+        if status_param:
+            qs = qs.filter(status=status_param)
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(utang__sumber=sumber_filter)
         if dari:
@@ -3972,7 +3991,148 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelView
             '-tanggal_proses': '-tanggal_proses',
             'jumlah_bayar': 'jumlah_bayar',
             '-jumlah_bayar': '-jumlah_bayar',
+            'status': 'status',
+            '-status': '-status',
         })
+        return qs.order_by(order, '-created_at')
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        utang = instance.utang
+        if instance.status != PembayaranUtang.STATUS_PENDING:
+            return Response({'error': 'Hanya pengajuan pembayaran yang berstatus pending yang dapat dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        utang.refresh_status()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='realisasi')
+    def realisasi(self, request, pk=None):
+        pembayaran = self.get_object()
+        if pembayaran.status != PembayaranUtang.STATUS_PENDING:
+            return Response({'error': 'Pengajuan ini sudah direalisasikan atau tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+        tanggal_realisasi = request.data.get('tanggal_realisasi') or timezone.now().date().isoformat()
+        
+        jumlah_bayar_raw = request.data.get('jumlah_bayar')
+        if jumlah_bayar_raw is not None:
+            try:
+                jumlah_bayar = Decimal(str(jumlah_bayar_raw))
+                if jumlah_bayar <= 0:
+                    return Response({'error': 'Jumlah bayar harus lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
+                pembayaran.jumlah_bayar = jumlah_bayar
+            except (TypeError, ValueError, InvalidOperation):
+                return Response({'error': 'Jumlah bayar tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Hitung sisa utang faktur SEBELUM realisasi ini disimpan
+        total_realisasi_lainnya = pembayaran.utang.pembayaran.filter(
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
+        ).exclude(pk=pembayaran.pk).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+        
+        sisa_sebelumnya = pembayaran.utang.nominal - total_realisasi_lainnya
+        
+        if pembayaran.jumlah_bayar >= sisa_sebelumnya:
+            pembayaran.status = PembayaranUtang.STATUS_REALISASI_LUNAS
+        else:
+            pembayaran.status = PembayaranUtang.STATUS_REALISASI_SEBAGIAN
+
+        pembayaran.tanggal_proses = tanggal_realisasi
+        if not pembayaran.tanggal_app:
+            pembayaran.tanggal_app = tanggal_realisasi
+        pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar'])
+
+        utang = pembayaran.utang
+        utang.refresh_status()
+        return Response({
+            'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
+            'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        qs = self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by')
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Pengajuan Pembayaran"
+
+        ws.merge_cells('A1:J1')
+        ws['A1'] = 'DAFTAR PENGAJUAN PEMBAYARAN UTANG SUPPLIER'
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+
+        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        ws['A2'].font = Font(italic=True, size=10)
+
+        headers = ['No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref', 'Tgl Rencana Bayar', 'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)', 'Tanda Tangan Atasan']
+        ws.append([])
+        ws.append(headers)
+
+        header_row = 4
+        header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=header_row, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        total_nominal = Decimal('0')
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        for idx, item in enumerate(qs, start=1):
+            jumlah = item.jumlah_bayar or Decimal('0')
+            total_nominal += jumlah
+            tgl_rencana = item.tanggal_rencana_bayar.strftime('%d-%m-%Y') if item.tanggal_rencana_bayar else '-'
+            sumber_label = item.utang.get_sumber_display() if item.utang else '-'
+            operator = item.created_by.username if item.created_by else '-'
+
+            ws.append([
+                idx,
+                sumber_label,
+                item.utang.vendor_nama if item.utang else '-',
+                item.utang.nomor_faktur if item.utang else '-',
+                item.utang.nomor_spb if item.utang else '-',
+                tgl_rencana,
+                float(jumlah),
+                item.keterangan or '',
+                operator,
+                '',
+            ])
+
+            row_num = ws.max_row
+            for col in range(1, 11):
+                c = ws.cell(row=row_num, column=col)
+                c.border = thin_border
+                if col in [1, 2, 6]:
+                    c.alignment = Alignment(horizontal='center')
+                elif col == 7:
+                    c.number_format = '#,##0.00'
+                    c.alignment = Alignment(horizontal='right')
+
+        total_row = ws.max_row + 1
+        ws.cell(row=total_row, column=1, value='TOTAL PENGAJUAN')
+        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=6)
+        ws.cell(row=total_row, column=1).font = Font(bold=True)
+        ws.cell(row=total_row, column=1).alignment = Alignment(horizontal='right')
+
+        total_cell = ws.cell(row=total_row, column=7, value=float(total_nominal))
+        total_cell.font = Font(bold=True)
+        total_cell.number_format = '#,##0.00'
+
+        for col in range(1, 11):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+        ws.column_dimensions['C'].width = 30
+        ws.column_dimensions['D'].width = 22
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="Daftar_Pengajuan_Utang_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        wb.save(response)
+        return response
         return qs.order_by(order, '-created_at')
 
     def list(self, request, *args, **kwargs):
@@ -4064,7 +4224,9 @@ class UtangMenungguVerifikasiView(APIView):
         with connection.cursor() as cursor:
             if sumber_filter == 'farmasi':
                 count_sql = f'SELECT COUNT(*) {_pending_base_sql()} WHERE {where_f}'
+                sum_sql = f'SELECT SUM(t.gtotal) {_pending_base_sql()} WHERE {where_f}'
                 count_vals = vals_f
+                sum_vals = vals_f
                 data_sql = f"""
                     SELECT * FROM (
                         {farmasi_select}
@@ -4078,7 +4240,9 @@ class UtangMenungguVerifikasiView(APIView):
 
             elif sumber_filter == 'logistik':
                 count_sql = f'SELECT COUNT(*) {_pending_base_sql_logistik()} WHERE {where_l}'
+                sum_sql = f'SELECT SUM(t.nilai) {_pending_base_sql_logistik()} WHERE {where_l}'
                 count_vals = vals_l
+                sum_vals = vals_l
                 data_sql = f"""
                     SELECT * FROM (
                         {logistik_select}
@@ -4098,7 +4262,15 @@ class UtangMenungguVerifikasiView(APIView):
                         SELECT 1 {_pending_base_sql_logistik()} WHERE {where_l}
                     ) AS combined
                 """
+                sum_sql = f"""
+                    SELECT SUM(nominal) FROM (
+                        SELECT t.gtotal AS nominal {_pending_base_sql()} WHERE {where_f}
+                        UNION ALL
+                        SELECT t.nilai AS nominal {_pending_base_sql_logistik()} WHERE {where_l}
+                    ) AS combined
+                """
                 count_vals = vals_f + vals_l
+                sum_vals = vals_f + vals_l
                 data_sql = f"""
                     SELECT * FROM (
                         {farmasi_select}
@@ -4116,12 +4288,15 @@ class UtangMenungguVerifikasiView(APIView):
 
             cursor.execute(count_sql, count_vals)
             total = cursor.fetchone()[0]
+            cursor.execute(sum_sql, sum_vals)
+            total_nominal = cursor.fetchone()[0] or 0
             cursor.execute(data_sql, data_vals)
             columns = [col[0] for col in cursor.description]
             rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
         return Response({
             'count': total,
+            'total_nominal': float(total_nominal),
             'next': None,
             'previous': None,
             'results': rows,
