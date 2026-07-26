@@ -599,31 +599,31 @@ export default function PettyCash() {
                             </div>
                         </div>
                         {/* Card Total Masuk */}
-                        <div style={{ borderRadius: 20, background: '#fff', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,.06)', padding: '24px', animation: 'fadeInUp .35s .08s ease both', position: 'relative', overflow: 'hidden' }}>
+                        <div className="pc-money-card pc-money-masuk">
                             <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(34,197,94,.06)', pointerEvents: 'none' }} />
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#bbf7d0,#dcfce7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#166534' }}><ArrowRight size={18} style={{ transform: 'rotate(-45deg)' }} /></div>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 6, padding: '3px 8px' }}>MASUK</span>
+                                <div className="pc-card-icon pc-icon-masuk"><ArrowRight size={18} style={{ transform: 'rotate(-45deg)' }} /></div>
+                                <span className="pc-card-badge pc-badge-masuk">MASUK</span>
                             </div>
                             <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penambahan</p>
-                            <p style={{ fontSize: 24, fontWeight: 700, color: '#166534', letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalMasuk)}</p>
+                            <p className="pc-masuk-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalMasuk)}</p>
                             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'penambahan').length} kali penambahan</p>
-                            <div style={{ height: 3, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginTop: 14 }}>
+                            <div className="pc-progress-track">
                                 <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#86efac,#22c55e)', width: `${Math.min((totalMasuk / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
                             </div>
                         </div>
 
                         {/* Card Total Keluar */}
-                        <div style={{ borderRadius: 20, background: '#fff', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,.06)', padding: '24px', animation: 'fadeInUp .35s .16s ease both', position: 'relative', overflow: 'hidden' }}>
+                        <div className="pc-money-card pc-money-keluar">
                             <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(239,68,68,.06)', pointerEvents: 'none' }} />
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#fecaca,#fee2e2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}><ArrowRight size={18} style={{ transform: 'rotate(45deg)' }} /></div>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', background: '#fee2e2', borderRadius: 6, padding: '3px 8px' }}>KELUAR</span>
+                                <div className="pc-card-icon pc-icon-keluar"><ArrowRight size={18} style={{ transform: 'rotate(45deg)' }} /></div>
+                                <span className="pc-card-badge pc-badge-keluar">KELUAR</span>
                             </div>
                             <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penggunaan</p>
-                            <p style={{ fontSize: 24, fontWeight: 700, color: '#dc2626', letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalKeluar)}</p>
+                            <p className="pc-keluar-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalKeluar)}</p>
                             <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'pengurangan').length} kali penggunaan</p>
-                            <div style={{ height: 3, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginTop: 14 }}>
+                            <div className="pc-progress-track">
                                 <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#fca5a5,#ef4444)', width: `${Math.min((totalKeluar / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
                             </div>
                         </div>
@@ -635,15 +635,15 @@ export default function PettyCash() {
             {/* Stats mini */}
             <div className="pc-stats-mini" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 24 }}>
                 {[
-                    { Icon: Clock, label: 'Pending Approval', val: pendingPC + pendingRB, color: '#c2410c', bg: '#fff7ed' },
-                    { Icon: Wallet, label: 'Sedang Berjalan', val: berjalanPC, color: '#1d4ed8', bg: '#eff6ff' },
-                    { Icon: Check, label: 'Selesai', val: selesaiPC, color: '#166534', bg: '#f0fdf4' },
+                    { Icon: Clock, label: 'Pending Approval', val: pendingPC + pendingRB, iconClass: 'pc-stat-icon-pending', valClass: 'pc-stat-val-pending' },
+                    { Icon: Wallet, label: 'Sedang Berjalan', val: berjalanPC, iconClass: 'pc-stat-icon-berjalan', valClass: 'pc-stat-val-berjalan' },
+                    { Icon: Check, label: 'Selesai', val: selesaiPC, iconClass: 'pc-stat-icon-selesai', valClass: 'pc-stat-val-selesai' },
                 ].map((s, i) => (
-                    <div className="pc-stat-mini" key={i} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,.05)', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 14, animation: `fadeInUp .3s ${i * .06}s ease both` }}>
-                        <div className="pc-stat-icon" style={{ width: 38, height: 38, borderRadius: 10, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}><s.Icon size={18} color={s.color} strokeWidth={1.5} /></div>
+                    <div className="pc-stat-mini" key={i}>
+                        <div className={`pc-stat-icon ${s.iconClass}`}><s.Icon size={18} strokeWidth={1.5} /></div>
                         <div style={{ minWidth: 0 }}>
-                            <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>{s.label}</p>
-                            <p style={{ fontSize: 20, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.val}</p>
+                            <p className="pc-stat-mini-label">{s.label}</p>
+                            <p className={`pc-stat-mini-val ${s.valClass}`}>{s.val}</p>
                         </div>
                     </div>
                 ))}

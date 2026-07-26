@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useToastState } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -80,12 +80,14 @@ export default function Login() {
             <section className="login-right">
                 <div className={`login-card ${shake ? 'shake' : ''}`}>
                     <div className="login-header">
-                        <img
-                            src="/logo.png"
-                            alt="RS Siaga"
-                            className="login-logo"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
+                        <div className="login-logo-wrap">
+                            <img
+                                src="/logo.png"
+                                alt="RS Siaga"
+                                className="login-logo"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                        </div>
 
                         <h2 className="login-title">Masuk ke Sistem</h2>
                         <p className="login-subtitle">Gunakan akun yang sudah terdaftar untuk melanjutkan.</p>

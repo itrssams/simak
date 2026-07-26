@@ -225,3 +225,123 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ==========================================================================
+   DARK MODE STYLES FOR DATEFIELD & POPOVER
+   ========================================================================== */
+
+[data-theme="dark"] .df-input {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .df-input:hover:not(:disabled) {
+    background: #1e293b !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-theme="dark"] .df-input:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+[data-theme="dark"] .df-input:disabled {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #64748b !important;
+}
+
+/* Dark Mode Popover */
+[data-theme="dark"] .df-popover {
+    background: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker {
+    background: #1e293b !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__header {
+    background: #1e293b !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__month-select,
+[data-theme="dark"] .df-popover .react-datepicker__year-select {
+    background: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__month-select option,
+[data-theme="dark"] .df-popover .react-datepicker__year-select option {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__month-select:hover,
+[data-theme="dark"] .df-popover .react-datepicker__year-select:hover {
+    background: #334155 !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day-name {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day {
+    color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day--outside-month {
+    color: #475569 !important;
+    opacity: 0.5 !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day--outside-month:hover {
+    background: transparent !important;
+    color: #475569 !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day--selected {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45) !important;
+}
+
+[data-theme="dark"] .df-popover .react-datepicker__day--today:not(.react-datepicker__day--selected) {
+    border: 1.5px solid #60a5fa !important;
+    color: #60a5fa !important;
+}
+
+[data-theme="dark"] .df-actions {
+    background: #1e293b !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .df-btn.soft {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .df-btn.soft:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .df-btn.ok {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+}
+
+[data-theme="dark"] .df-btn.ok:hover {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
+}
