@@ -1837,3 +1837,366 @@ textarea.utang-input {
     gap: 12px;
   }
 }
+
+
+/* ==========================================================================
+   DARK MODE OVERRIDES FOR CATATAN UTANG MODALS & PAYMENT FORMS
+   ========================================================================== */
+
+[data-theme="dark"] .utang-modal-backdrop,
+[data-theme="dark"] .utang-confirm-backdrop {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .utang-modal,
+[data-theme="dark"] .utang-confirm-modal {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .utang-modal-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .utang-modal-head h2 {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .utang-modal-head p {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .utang-close {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .utang-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .utang-payment-section {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+[data-theme="dark"] .utang-section-title {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .utang-pay-summary {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .utang-info-item {
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .utang-info-item span {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .utang-info-item strong {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .utang-amount-field {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+[data-theme="dark"] .utang-amount-field .utang-input {
+  background: #0f172a;
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .utang-form-grid label {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .utang-input,
+[data-theme="dark"] textarea.utang-input {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .utang-input:focus,
+[data-theme="dark"] textarea.utang-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="dark"] .utang-modal.payment .df-input,
+[data-theme="dark"] .utang-confirm-modal .df-input {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .utang-history-wrap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+}
+
+[data-theme="dark"] .utang-history-table th {
+  color: #94a3b8;
+  background: #1e293b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .utang-history-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .utang-history-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .utang-history-table tbody tr:hover td {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+[data-theme="dark"] .utang-history-empty {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .utang-modal-actions,
+[data-theme="dark"] .utang-confirm-actions {
+  background: #1e293b !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .utang-btn.soft {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .utang-btn.soft:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .utang-verify-info {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+[data-theme="dark"] .utang-verify-info .utang-info-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #0f172a;
+}
+
+[data-theme="dark"] .utang-confirm-detail {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.12));
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+[data-theme="dark"] .utang-confirm-detail strong {
+  color: #38bdf8;
+}
+
+
+/* ==========================================================================
+   REALISASI MODAL STYLING & DARK MODE OVERRIDES
+   ========================================================================== */
+
+.utang-verify-card {
+  background: rgba(248, 250, 252, 0.75);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.utang-verify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.utang-verify-row .lbl {
+  color: #64748b;
+  font-weight: 750;
+}
+
+.utang-verify-row .val {
+  color: #1e293b;
+  font-weight: 800;
+}
+
+.utang-verify-row .val.bold {
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.utang-verify-row .val.mono {
+  font-family: monospace;
+  font-size: 12px;
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.utang-verify-row.total {
+  border-top: 1px dashed rgba(203, 213, 225, 0.8);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.utang-verify-row.total .lbl {
+  font-weight: 850;
+  color: #334155;
+}
+
+.utang-verify-row.total .val.price {
+  font-size: 16px;
+  font-weight: 950;
+  color: #2563eb !important;
+}
+
+.utang-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.utang-field-lbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 850;
+  color: #475569;
+}
+
+.utang-req {
+  color: #ef4444;
+}
+
+/* DARK MODE OVERRIDES FOR REALISASI MODAL */
+[data-theme="dark"] .utang-verify-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .utang-verify-row .lbl {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .utang-verify-row .val {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .utang-verify-row .val.bold {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .utang-verify-row .val.mono {
+  background: rgba(255, 255, 255, 0.1);
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .utang-verify-row.total {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .utang-verify-row.total .lbl {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .utang-verify-row.total .val.price {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .utang-field-lbl {
+  color: #cbd5e1;
+}
+
+
+/* Vendor Warning Box & Confirm Modal Styling */
+.utang-vendor-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+.utang-vendor-warning svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #d97706;
+}
+.utang-vendor-warning strong {
+  font-weight: 850;
+  color: #78350f;
+}
+
+[data-theme="dark"] .utang-vendor-warning {
+  background: rgba(217, 119, 6, 0.15);
+  border-color: rgba(217, 119, 6, 0.3);
+  color: #fde68a;
+}
+[data-theme="dark"] .utang-vendor-warning svg {
+  color: #fbbf24;
+}
+[data-theme="dark"] .utang-vendor-warning strong {
+  color: #fef08a;
+}
+
+[data-theme="dark"] .utang-confirm-head {
+  background: #1e293b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .utang-confirm-head-copy h2 {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .utang-confirm-head-copy p {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .utang-confirm-close {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] .utang-confirm-close:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .utang-verify-card {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .utang-verify-row .lbl {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .utang-verify-row .val {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .utang-verify-row .val.bold {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .utang-field-lbl {
+  color: #cbd5e1 !important;
+}

@@ -625,12 +625,14 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
     sumber_label = serializers.CharField(source='utang.get_sumber_display', read_only=True)
     nomor_spb = serializers.CharField(source='utang.nomor_spb', read_only=True)
     app_siaga_faktur_id = serializers.IntegerField(source='utang.app_siaga_faktur_id', read_only=True)
+    tanggal_titip = serializers.DateField(source='utang.tanggal_titip', read_only=True)
 
     class Meta:
         model = PembayaranUtang
         fields = [
             'id', 'utang', 'nomor_faktur', 'vendor_nama', 'nominal',
             'sumber', 'sumber_label', 'nomor_spb', 'app_siaga_faktur_id',
+            'tanggal_titip',
             'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
             'jumlah_bayar', 'keterangan', 'status', 'status_label',
             'created_by', 'created_by_name', 'created_at',
@@ -1491,7 +1493,7 @@ class LogistikBatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LogistikBatch
-        fields = ['id', 'pembelian', 'barang', 'barang_nama', 'satuan', 'qty', 'isi', 'harga', 'jml_mutasi', 'stok_batch', 'created_at']
+        fields = ['id', 'pembelian', 'barang', 'barang_nama', 'satuan', 'qty_pesan', 'qty', 'isi', 'harga', 'jml_mutasi', 'stok_batch', 'created_at']
         read_only_fields = ['id', 'jml_mutasi', 'stok_batch', 'created_at']
 
 

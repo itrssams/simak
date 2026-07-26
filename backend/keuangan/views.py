@@ -3685,7 +3685,7 @@ def _build_pending_where(params):
 
 def _build_pending_where_logistik(params):
     """WHERE builder untuk tabel logistik (tran_beli_brg_log)."""
-    where = ['t.done = \'Y\'', 'u.app_siaga_faktur_id IS NULL']
+    where = ['t.done = \'Y\'', 'u.app_siaga_faktur_id IS NULL', "COALESCE(t.rekanan, '') != 'STOCK OPNAME'", "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"]
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
@@ -3722,6 +3722,7 @@ def _pending_base_sql_logistik():
     """FROM clause untuk logistik — LEFT JOIN rekanan by-nama (best-effort), JOIN ke utang_supplier filter sumber=logistik."""
     return """
         FROM rssams.tran_beli_brg_log t
+        LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
         LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
         LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci AND u.sumber = 'logistik'
     """
@@ -3763,16 +3764,18 @@ def _fetch_logistik_pembelian(pembelian_id):
             """
             SELECT
                 CAST(t.id AS CHAR) AS app_siaga_faktur_id,
-                CAST(t.id AS CHAR) AS nomor_spb,
+                CAST(COALESCE(NULLIF(s.no_spb, ''), NULLIF(t.id_spb, ''), t.id) AS CHAR) AS nomor_spb,
                 t.tgl_spk AS tanggal_spb,
-                COALESCE(NULLIF(t.no_spk, ''), CAST(t.id AS CHAR)) AS nomor_faktur,
+                CAST(COALESCE(NULLIF(NULLIF(t.no_spk, ''), '-'), '-') AS CHAR) AS nomor_faktur,
                 r.id_rekanan AS vendor_id_hint,
                 t.rekanan AS rekanan_text,
                 COALESCE(r.nama, t.rekanan) AS vendor_nama_hint,
                 t.tgl_spk AS tanggal_faktur,
                 NULL AS tanggal_jatuh_tempo,
-                t.nilai AS nominal
+                t.nilai AS nominal,
+                t.metode_pembayaran
             FROM rssams.tran_beli_brg_log t
+            LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
             LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
             WHERE t.id = %s AND t.done = 'Y'
             LIMIT 1
@@ -3836,12 +3839,130 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             '-tanggal_faktur': '-tanggal_faktur',
             'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
             '-tanggal_jatuh_tempo': '-tanggal_jatuh_tempo',
+            'tanggal_titip': 'tanggal_titip',
+            '-tanggal_titip': '-tanggal_titip',
             'nominal': 'nominal',
             '-nominal': '-nominal',
             'status': 'status',
             '-status': '-status',
         })
         return qs.order_by(order, '-created_at')
+
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        qs = self.get_queryset().select_related('verified_by')
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Daftar Utang Supplier"
+
+        ws.merge_cells('A1:N1')
+        ws['A1'] = 'DAFTAR UTANG SUPPLIER (OBAT, BHP & LOGISTIK)'
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+
+        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        ws['A2'].font = Font(italic=True, size=10)
+
+        headers = [
+            'No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref',
+            'Tgl Faktur', 'Tgl Titip Faktur', 'Umur Utang', 'Tgl Jatuh Tempo',
+            'Nominal Utang (Rp)', 'Total Dibayar (Rp)', 'Sisa Utang (Rp)', 'Status', 'Verifikator'
+        ]
+        ws.append([])
+        ws.append(headers)
+
+        header_row = 4
+        header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=header_row, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        total_nominal = Decimal('0')
+        total_dibayar = Decimal('0')
+        total_sisa = Decimal('0')
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        today_date = timezone.localdate()
+
+        for idx, item in enumerate(qs, start=1):
+            nom = item.nominal or Decimal('0')
+            dibayar = item.total_dibayar or Decimal('0')
+            sisa = item.sisa_utang or Decimal('0')
+
+            total_nominal += nom
+            total_dibayar += dibayar
+            total_sisa += sisa
+
+            tgl_faktur = item.tanggal_faktur.strftime('%d-%m-%Y') if item.tanggal_faktur else '-'
+            tgl_titip = item.tanggal_titip.strftime('%d-%m-%Y') if item.tanggal_titip else '-'
+            
+            if item.tanggal_titip:
+                days = (today_date - item.tanggal_titip).days
+                umur_utang_str = f"{max(0, days)} Hari"
+            else:
+                umur_utang_str = '-'
+
+            tgl_tempo = item.tanggal_jatuh_tempo.strftime('%d-%m-%Y') if item.tanggal_jatuh_tempo else '-'
+            sumber_label = item.get_sumber_display()
+            verifier = item.verified_by.username if item.verified_by else '-'
+
+            ws.append([
+                idx,
+                sumber_label,
+                item.vendor_nama or '-',
+                item.nomor_faktur or '-',
+                item.nomor_spb or '-',
+                tgl_faktur,
+                tgl_titip,
+                umur_utang_str,
+                tgl_tempo,
+                float(nom),
+                float(dibayar),
+                float(sisa),
+                item.get_status_display(),
+                verifier,
+            ])
+
+            row_num = ws.max_row
+            for col in range(1, 15):
+                c = ws.cell(row=row_num, column=col)
+                c.border = thin_border
+                if col in [1, 2, 6, 7, 8, 9, 13]:
+                    c.alignment = Alignment(horizontal='center')
+                elif col in [10, 11, 12]:
+                    c.number_format = '#,##0.00'
+                    c.alignment = Alignment(horizontal='right')
+
+        total_row = ws.max_row + 1
+        ws.cell(row=total_row, column=1, value='TOTAL')
+        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=9)
+        ws.cell(row=total_row, column=1).font = Font(bold=True)
+        ws.cell(row=total_row, column=1).alignment = Alignment(horizontal='right')
+
+        for col_idx, val in [(10, total_nominal), (11, total_dibayar), (12, total_sisa)]:
+            cell = ws.cell(row=total_row, column=col_idx, value=float(val))
+            cell.font = Font(bold=True)
+            cell.number_format = '#,##0.00'
+
+        for col in range(1, 15):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+        ws.column_dimensions['C'].width = 30
+        ws.column_dimensions['D'].width = 22
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="Daftar_Utang_Supplier_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        wb.save(response)
+        return response
 
     @action(detail=True, methods=['post'], url_path='bayar')
     def bayar(self, request, pk=None):
@@ -3936,6 +4057,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             vendor_nama=vendor_row['nama'],
             tanggal_faktur=data.get('tanggal_faktur') or None,
             tanggal_jatuh_tempo=data.get('tanggal_jatuh_tempo') or None,
+            tanggal_titip=data.get('tanggal_titip') or timezone.localdate(),
             nominal=nominal,
             keterangan_titip=data.get('keterangan') or '',
             status=UtangSupplier.STATUS_BELUM_DIBAYAR,
@@ -4054,7 +4176,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws = wb.active
         ws.title = "Pengajuan Pembayaran"
 
-        ws.merge_cells('A1:J1')
+        ws.merge_cells('A1:M1')
         ws['A1'] = 'DAFTAR PENGAJUAN PEMBAYARAN UTANG SUPPLIER'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
@@ -4062,7 +4184,11 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
         ws['A2'].font = Font(italic=True, size=10)
 
-        headers = ['No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref', 'Tgl Rencana Bayar', 'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)', 'Tanda Tangan Atasan']
+        headers = [
+            'No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref',
+            'Tgl Faktur', 'Tgl Titip Faktur', 'Umur Utang', 'Tgl Rencana Bayar',
+            'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)', 'Tanda Tangan Atasan'
+        ]
         ws.append([])
         ws.append(headers)
 
@@ -4084,19 +4210,35 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             bottom=Side(style='thin', color='CBD5E1')
         )
 
+        today_date = timezone.localdate()
+
         for idx, item in enumerate(qs, start=1):
             jumlah = item.jumlah_bayar or Decimal('0')
             total_nominal += jumlah
+
+            utang = item.utang
+            tgl_faktur = utang.tanggal_faktur.strftime('%d-%m-%Y') if (utang and utang.tanggal_faktur) else '-'
+            tgl_titip = utang.tanggal_titip.strftime('%d-%m-%Y') if (utang and utang.tanggal_titip) else '-'
+
+            if utang and utang.tanggal_titip:
+                days = (today_date - utang.tanggal_titip).days
+                umur_utang_str = f"{max(0, days)} Hari"
+            else:
+                umur_utang_str = '-'
+
             tgl_rencana = item.tanggal_rencana_bayar.strftime('%d-%m-%Y') if item.tanggal_rencana_bayar else '-'
-            sumber_label = item.utang.get_sumber_display() if item.utang else '-'
+            sumber_label = utang.get_sumber_display() if utang else '-'
             operator = item.created_by.username if item.created_by else '-'
 
             ws.append([
                 idx,
                 sumber_label,
-                item.utang.vendor_nama if item.utang else '-',
-                item.utang.nomor_faktur if item.utang else '-',
-                item.utang.nomor_spb if item.utang else '-',
+                utang.vendor_nama if utang else '-',
+                utang.nomor_faktur if utang else '-',
+                utang.nomor_spb if utang else '-',
+                tgl_faktur,
+                tgl_titip,
+                umur_utang_str,
                 tgl_rencana,
                 float(jumlah),
                 item.keterangan or '',
@@ -4105,26 +4247,26 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             ])
 
             row_num = ws.max_row
-            for col in range(1, 11):
+            for col in range(1, 14):
                 c = ws.cell(row=row_num, column=col)
                 c.border = thin_border
-                if col in [1, 2, 6]:
+                if col in [1, 2, 6, 7, 8, 9]:
                     c.alignment = Alignment(horizontal='center')
-                elif col == 7:
+                elif col == 10:
                     c.number_format = '#,##0.00'
                     c.alignment = Alignment(horizontal='right')
 
         total_row = ws.max_row + 1
         ws.cell(row=total_row, column=1, value='TOTAL PENGAJUAN')
-        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=6)
+        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=9)
         ws.cell(row=total_row, column=1).font = Font(bold=True)
         ws.cell(row=total_row, column=1).alignment = Alignment(horizontal='right')
 
-        total_cell = ws.cell(row=total_row, column=7, value=float(total_nominal))
+        total_cell = ws.cell(row=total_row, column=10, value=float(total_nominal))
         total_cell.font = Font(bold=True)
         total_cell.number_format = '#,##0.00'
 
-        for col in range(1, 11):
+        for col in range(1, 14):
             ws.column_dimensions[get_column_letter(col)].width = 18
         ws.column_dimensions['C'].width = 30
         ws.column_dimensions['D'].width = 22
@@ -4190,9 +4332,9 @@ class UtangMenungguVerifikasiView(APIView):
         logistik_select = """
             SELECT
                 CONVERT(t.id USING utf8mb4)             AS app_siaga_faktur_id,
-                CONVERT(t.id USING utf8mb4)             AS nomor_spb,
+                CONVERT(COALESCE(NULLIF(s.no_spb, ''), NULLIF(t.id_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
                 t.tgl_spk                               AS tanggal_spb,
-                CONVERT(COALESCE(NULLIF(t.no_spk, ''), t.id) USING utf8mb4) AS nomor_faktur,
+                CONVERT(COALESCE(NULLIF(NULLIF(t.no_spk, ''), '-'), '-') USING utf8mb4) AS nomor_faktur,
                 r.id_rekanan                            AS vendor_id,
                 r.id_rekanan                            AS vendor_id_hint,
                 CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
@@ -4207,14 +4349,20 @@ class UtangMenungguVerifikasiView(APIView):
 
         # Order mapping berlaku di wrapper query (alias kolom output)
         order = _utang_order_clause(params.get('ordering'), {
+            '-tanggal_faktur': 'tanggal_faktur DESC',
+            'tanggal_faktur': 'tanggal_faktur',
             'vendor': 'vendor_nama',
             '-vendor': 'vendor_nama DESC',
             'nomor_spb': 'nomor_spb',
             '-nomor_spb': 'nomor_spb DESC',
             'nomor_faktur': 'nomor_faktur',
             '-nomor_faktur': 'nomor_faktur DESC',
-            'tanggal_faktur': 'tanggal_faktur',
-            '-tanggal_faktur': 'tanggal_faktur DESC',
+            'tanggal_spb': 'tanggal_spb',
+            '-tanggal_spb': 'tanggal_spb DESC',
+            'created_at': 'tanggal_faktur',
+            '-created_at': 'tanggal_faktur DESC',
+            'verified_at': 'tanggal_faktur',
+            '-verified_at': 'tanggal_faktur DESC',
             'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
             '-tanggal_jatuh_tempo': 'tanggal_jatuh_tempo DESC',
             'nominal': 'nominal',
@@ -4362,6 +4510,9 @@ class UtangMenungguVerifikasiView(APIView):
             if not faktur:
                 return Response({'error': 'Data logistik tidak ditemukan atau belum selesai (done != Y).'}, status=status.HTTP_404_NOT_FOUND)
 
+            is_cash = str(faktur.get('metode_pembayaran') or '').upper() == 'CASH'
+            initial_status = UtangSupplier.STATUS_LUNAS if is_cash else UtangSupplier.STATUS_BELUM_DIBAYAR
+
             utang = UtangSupplier.objects.create(
                 app_siaga_faktur_id=str(faktur['app_siaga_faktur_id']),
                 sumber=UtangSupplier.SUMBER_LOGISTIK,
@@ -4375,6 +4526,7 @@ class UtangMenungguVerifikasiView(APIView):
                 nominal=faktur.get('nominal') or 0,
                 tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
                 keterangan_titip=request.data.get('keterangan_titip') or '',
+                status=initial_status,
                 verified_by=request.user,
                 verified_at=timezone.now(),
             )
@@ -5806,6 +5958,19 @@ def legacy_stock(id_brg):
     return stock
 
 
+def legacy_next_logistik_id(width=4, where_prefix=True):
+    prefix = timezone.localdate().strftime('%y')
+    where = 'WHERE LEFT(id,2) = %s' if where_prefix else ''
+    q1 = f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) AS max_id FROM rssams.tran_beli_brg_log {where}"
+    q2 = f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) AS max_id FROM rssams.logistik_spb {where}"
+    
+    r1 = legacy_fetchone(q1, [prefix] if where_prefix else [])
+    r2 = legacy_fetchone(q2, [prefix] if where_prefix else [])
+    
+    max_id = max(int(r1['max_id'] if r1 else 0), int(r2['max_id'] if r2 else 0)) + 1
+    return f"{prefix}{max_id:0{width}d}"
+
+
 def legacy_next_year_id(table, width=4, where_prefix=True):
     prefix = timezone.localdate().strftime('%y')
     where = 'WHERE LEFT(id,2) = %s' if where_prefix else ''
@@ -5911,13 +6076,13 @@ class LogistikBarangViewSet(viewsets.ViewSet):
                    i.qty * i.isi AS masuk, 0 AS keluar, i.harga AS harga
             FROM rssams.item_logistik i
             LEFT JOIN rssams.tran_beli_brg_log t ON t.id = i.id
-            WHERE i.id_brg = %s
+            WHERE i.id_brg = %s AND (i.qty * i.isi > 0 OR COALESCE(t.rekanan, '') != 'STOCK OPNAME')
             """,
             [pk],
         )
         keluar = legacy_fetchall(
             """
-            SELECT DATE(o.tgl) AS tanggal, 'Keluar' AS jenis, o.id AS nomor, r.ruangan AS ruang,
+            SELECT DATE(o.tgl) AS tanggal, 'Keluar' AS jenis, o.id AS nomor, COALESCE(r.ruangan, 'STOCK OPNAME') AS ruang,
                    0 AS masuk, o.qty AS keluar, o.harga AS harga
             FROM rssams.item_out_log o
             LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
@@ -5925,7 +6090,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
             """,
             [pk],
         )
-        rows = sorted(masuk + keluar, key=lambda x: (x['tanggal'], x['jenis']))
+        rows = sorted(masuk + keluar, key=lambda x: (str(x['tanggal']), str(x['nomor'])))
         saldo = 0
         for row in rows:
             saldo += float(row['masuk'] or 0) - float(row['keluar'] or 0)
@@ -6074,21 +6239,32 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
         where = ''
         params = []
         if search:
-            where = 'WHERE rekanan LIKE %s OR no_spk LIKE %s OR id LIKE %s'
+            where_sql = "WHERE (t.rekanan LIKE %s OR t.no_spk LIKE %s OR t.id LIKE %s) AND COALESCE(t.rekanan, '') != 'STOCK OPNAME' AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"
             params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        else:
+            where_sql = "WHERE COALESCE(t.rekanan, '') != 'STOCK OPNAME' AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'" 
         base = f"""
-            SELECT id, id AS nomor, tgl_spk AS tanggal, rekanan AS pemasok,
-                   no_spk AS no_faktur, nilai, done AS status, tgl_entri AS created_at
-            FROM rssams.tran_beli_brg_log {where}
-            ORDER BY tgl_spk DESC, id DESC
+            SELECT t.id, t.id AS nomor, t.tgl_spk AS tanggal, t.rekanan AS pemasok,
+                   t.no_spk AS no_faktur, t.nilai, t.done AS status, t.tgl_entri AS created_at, t.id_spb, t.metode_pembayaran,
+                   CASE
+                     WHEN t.id_spb IS NULL OR t.id_spb = '' THEN 'Tanpa SPB'
+                     WHEN s.id IS NOT NULL THEN 'Ada SPB'
+                     ELSE 'SPB Terhapus'
+                   END AS spb_status_label,
+                   CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END AS has_spb
+            FROM rssams.tran_beli_brg_log t
+            LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
+            {where_sql}
+            ORDER BY t.tgl_spk DESC, t.id DESC
         """
-        count = f"SELECT COUNT(*) AS total FROM rssams.tran_beli_brg_log {where}"
+        count = f"SELECT COUNT(*) AS total FROM rssams.tran_beli_brg_log t {where_sql}" 
+        
         res = legacy_paginated(request, base, count, params)
         for item in res.data['results']:
             item['items'] = legacy_fetchall(
                 """
                 SELECT i.id, i.id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
-                       b.satuan, i.qty, i.isi, i.harga, i.jml_mutasi,
+                       b.satuan, i.qty_pesan, i.qty, i.isi, i.harga, i.jml_mutasi,
                        i.qty * i.isi - i.jml_mutasi AS stok_batch
                 FROM rssams.item_logistik i
                 INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
@@ -6101,7 +6277,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
     def create(self, request):
         data = request.data
-        xid = legacy_next_year_id('tran_beli_brg_log')
+        xid = data.get('id_spb') or legacy_next_logistik_id()
         vendor_name = data.get('pemasok') or ''
         if data.get('id_rekanan'):
             vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
@@ -6109,12 +6285,62 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.tran_beli_brg_log(id, rekanan, tgl_spk, no_spk, nilai)
-                VALUES(%s, %s, %s, %s, %s)
+                INSERT INTO rssams.tran_beli_brg_log(id, rekanan, tgl_spk, no_spk, nilai, id_spb, metode_pembayaran)
+                VALUES(%s, %s, %s, %s, %s, %s, %s)
                 """,
-                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_faktur') or data.get('no_spb') or '', 0],
+                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_faktur') or data.get('no_spb') or '', 0, data.get('id_spb'), data.get('metode_pembayaran') or 'Kredit']
             )
+            
+            if data.get('id_spb'):
+                # Copy items from SPB to Penerimaan
+                cursor.execute(
+                    """
+                    INSERT INTO rssams.item_logistik(id, id_brg, qty, qty_pesan, isi, harga, jml_mutasi)
+                    SELECT %s, id_brg, qty, qty, isi, harga, 0
+                    FROM rssams.logistik_spb_item
+                    WHERE spb_id = %s
+                    """,
+                    [xid, data.get('id_spb')]
+                )
+                _refresh_pembelian_total(xid)
+                # Update SPB status
+                cursor.execute("UPDATE rssams.logistik_spb SET status = 'Selesai' WHERE id = %s", [data.get('id_spb')])
+
         return Response({'id': xid, 'nomor': xid}, status=201)
+
+    def retrieve(self, request, pk=None):
+        item = legacy_fetchone(
+            """
+            SELECT t.id, t.id AS nomor, t.tgl_spk AS tanggal, t.rekanan AS pemasok,
+                   t.no_spk AS no_faktur, t.nilai, t.done AS status, t.tgl_entri AS created_at, t.id_spb, t.metode_pembayaran,
+                   CASE
+                     WHEN t.id_spb IS NULL OR t.id_spb = '' THEN 'Tanpa SPB'
+                     WHEN s.id IS NOT NULL THEN 'Ada SPB'
+                     ELSE 'SPB Terhapus'
+                   END AS spb_status_label,
+                   CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END AS has_spb
+            FROM rssams.tran_beli_brg_log t
+            LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
+            WHERE t.id = %s
+            """,
+            [pk]
+        )
+        if not item:
+            return Response({'detail': 'Not found.'}, status=404)
+        
+        item['items'] = legacy_fetchall(
+            """
+            SELECT i.id, i.id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
+                   b.satuan, i.qty_pesan, i.qty, i.isi, i.harga, i.jml_mutasi,
+                   i.qty * i.isi - i.jml_mutasi AS stok_batch
+            FROM rssams.item_logistik i
+            INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
+            WHERE i.id = %s
+            ORDER BY b.nama_barang
+            """,
+            [pk]
+        )
+        return Response(item)
 
     def partial_update(self, request, pk=None):
         data = request.data
@@ -6133,6 +6359,9 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
         if 'no_faktur' in data or 'no_spb' in data:
             updates.append('no_spk = %s')
             values.append(data.get('no_faktur') or data.get('no_spb') or '')
+        if 'metode_pembayaran' in data:
+            updates.append('metode_pembayaran = %s')
+            values.append(data.get('metode_pembayaran') or 'Kredit')
         if not updates:
             return Response({'detail': 'Tidak ada data yang diubah.'}, status=400)
         values.append(pk)
@@ -6151,6 +6380,21 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
         with connection.cursor() as cursor:
             cursor.execute("UPDATE rssams.tran_beli_brg_log SET done = 'Y' WHERE id = %s", [pk])
         return Response({'detail': 'Penerimaan berhasil dikirim ke Keuangan.'})
+
+    def destroy(self, request, pk=None):
+        existing = legacy_fetchone("SELECT id, done, id_spb FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
+        if not existing:
+            return Response({'detail': 'Penerimaan tidak ditemukan.'}, status=404)
+        if str(existing.get('done') or '').upper() == 'Y':
+            return Response({'detail': 'Penerimaan ini telah dikirim ke Keuangan dan statusnya Terkunci. Data tidak dapat dihapus.'}, status=400)
+        
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM rssams.item_logistik WHERE id = %s", [pk])
+            cursor.execute("DELETE FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
+            spb_target_id = existing.get('id_spb') or pk
+            cursor.execute("UPDATE rssams.logistik_spb SET status = 'Draft' WHERE id = %s", [spb_target_id])
+        return Response(status=204)
+
 
 
 class LogistikBatchViewSet(viewsets.ViewSet):
@@ -6186,17 +6430,18 @@ class LogistikBatchViewSet(viewsets.ViewSet):
         if not barang:
             return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
         qty = data.get('qty') or 0
+        qty_pesan = data.get('qty_pesan') or 0
         harga = data.get('harga') or 0
         isi = data.get('isi') or barang['isi'] or 1
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.item_logistik(id, id_brg, qty, harga, isi)
-                VALUES(%s, %s, %s, %s, %s)
+                INSERT INTO rssams.item_logistik(id, id_brg, qty, qty_pesan, harga, isi)
+                VALUES(%s, %s, %s, %s, %s, %s)
                 """,
-                [pembelian_id, data.get('barang'), qty, harga, isi],
+                [pembelian_id, data.get('barang'), qty, qty_pesan, harga, isi],
             )
-        self._refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
+        _refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
         legacy_stock(data.get('barang'))
         return Response({'detail': 'OK'}, status=201)
 
@@ -6225,18 +6470,19 @@ class LogistikBatchViewSet(viewsets.ViewSet):
             if duplicate:
                 return Response({'detail': 'Barang tersebut sudah ada di invoice/SPB ini.'}, status=400)
         qty = data.get('qty') or 0
+        qty_pesan = data.get('qty_pesan') or 0
         harga = data.get('harga') or 0
         isi = data.get('isi') or barang['isi'] or 1
         with connection.cursor() as cursor:
             cursor.execute(
                 """
                 UPDATE rssams.item_logistik
-                SET id_brg = %s, qty = %s, harga = %s, isi = %s
+                SET id_brg = %s, qty = %s, qty_pesan = %s, harga = %s, isi = %s
                 WHERE id = %s AND id_brg = %s
                 """,
-                [next_barang, qty, harga, isi, pembelian_id, original_barang],
+                [next_barang, qty, qty_pesan, harga, isi, pembelian_id, original_barang],
             )
-        self._refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
+        _refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
         legacy_stock(original_barang)
         if str(original_barang) != str(next_barang):
             legacy_stock(next_barang)
@@ -6265,7 +6511,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
                 [pembelian_id, barang_id],
             )
         
-        self._refresh_pembelian_total(pembelian_id)
+        _refresh_pembelian_total(pembelian_id)
         legacy_stock(barang_id)
         return Response(status=204)
 
@@ -6367,6 +6613,10 @@ class LogistikPermintaanViewSet(viewsets.ViewSet):
         params = []
         if status_param == 'menunggu':
             where += " AND o.status = 'Belum Ditanggapi'"
+        elif status_param == 'disetujui':
+            where += " AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan','Sudah Diterima'))"
+        elif status_param == 'ditolak':
+            where += " AND o.status NOT IN ('Belum Ditanggapi', 'Sudah Diberikan', 'Sudah Diterima') AND o.status NOT LIKE 'Disetujui%%'" 
         if search:
             where += ' AND (b.nama_barang LIKE %s OR r.ruangan LIKE %s OR o.id LIKE %s)'
             params = [f'%{search}%', f'%{search}%', f'%{search}%']
@@ -6474,7 +6724,7 @@ class LogistikOpnameViewSet(viewsets.ViewSet):
 
         # 2. Terapkan penyesuaian stok jika ada selisih
         if abs(selisih) >= 0.01:
-            opname_spb_id = legacy_next_year_id('tran_beli_brg_log')
+            opname_spb_id = legacy_next_logistik_id()
             tgl_dt = f"{tanggal} {timezone.localtime().strftime('%H:%M:%S')}"
 
             # Buat SPB OPNAME sebagai referensi
@@ -6595,3 +6845,193 @@ class RekapDriverView(APIView):
             'log_maintenance': LogMaintenanceSerializer(qs_maintenance.select_related('kendaraan','dilaporkan_oleh'), many=True).data,
         })
 
+
+
+def _refresh_pembelian_total(pembelian_id, no_invoice=None):
+    from django.db import connection
+    with connection.cursor() as cursor:
+        if no_invoice is not None:
+            cursor.execute(
+                "UPDATE rssams.tran_beli_brg_log SET no_spk = %s WHERE id = %s",
+                [no_invoice or '', pembelian_id],
+            )
+        cursor.execute(
+            """
+            UPDATE rssams.tran_beli_brg_log
+            SET nilai = COALESCE((SELECT SUM(qty * harga) FROM rssams.item_logistik WHERE id = %s), 0)
+            WHERE id = %s
+            """,
+            [pembelian_id, pembelian_id],
+        )
+
+
+def _refresh_spb_total(spb_id):
+    from django.db import connection
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE rssams.logistik_spb s
+            SET nilai = COALESCE((
+                SELECT SUM(qty * harga) FROM rssams.logistik_spb_item WHERE spb_id = s.id
+            ), 0)
+            WHERE id = %s
+            """,
+            [spb_id]
+        )
+
+class LogistikSpbViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def retrieve(self, request, pk=None):
+        item = legacy_fetchone(
+            """
+            SELECT id, id AS nomor, tanggal, rekanan AS pemasok,
+                   no_spb, nilai, status, tgl_entri AS created_at, metode_pembayaran
+            FROM rssams.logistik_spb
+            WHERE id = %s
+            """,
+            [pk]
+        )
+        if not item:
+            return Response({'detail': 'SPB tidak ditemukan.'}, status=404)
+        item['items'] = legacy_fetchall(
+            """
+            SELECT i.id, i.spb_id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
+                   b.satuan, i.qty AS qty_pesan, 0 AS qty, i.isi, i.harga, 0 AS jml_mutasi,
+                   i.qty * i.isi AS stok_batch
+            FROM rssams.logistik_spb_item i
+            INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
+            WHERE i.spb_id = %s
+            ORDER BY b.nama_barang
+            """,
+            [pk]
+        )
+        return Response(item)
+
+    def list(self, request):
+        search = request.query_params.get('search') or ''
+        where = ''
+        params = []
+        if search:
+            where = 'WHERE rekanan LIKE %s OR no_spb LIKE %s OR id LIKE %s'
+            params = [f'%{search}%', f'%{search}%', f'%{search}%']
+        base = f"""
+            SELECT id, id AS nomor, tanggal, rekanan AS pemasok,
+                   no_spb, nilai, status, tgl_entri AS created_at, metode_pembayaran
+            FROM rssams.logistik_spb {where}
+            ORDER BY tanggal DESC, id DESC
+        """
+        count = f"SELECT COUNT(*) AS total FROM rssams.logistik_spb {where}"
+        res = legacy_paginated(request, base, count, params)
+        for item in res.data['results']:
+            item['items'] = legacy_fetchall(
+                """
+                SELECT i.id, i.spb_id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
+                       b.satuan, i.qty AS qty_pesan, 0 AS qty, i.isi, i.harga, 0 AS jml_mutasi,
+                       i.qty * i.isi AS stok_batch
+                FROM rssams.logistik_spb_item i
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
+                WHERE i.spb_id = %s
+                ORDER BY b.nama_barang
+                """,
+                [item['id']],
+            )
+        return res
+
+    def create(self, request):
+        data = request.data
+        xid = data.get('id_spb') or legacy_next_logistik_id() # Keep same numbering sequence as pembelian
+        vendor_name = data.get('pemasok') or ''
+        if data.get('id_rekanan'):
+            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
+            vendor_name = vendor['nama'] if vendor else vendor_name
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.logistik_spb(id, rekanan, tanggal, no_spb, nilai, metode_pembayaran)
+                VALUES(%s, %s, %s, %s, %s, %s)
+                """,
+                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_spb') or '', 0, data.get('metode_pembayaran') or 'Kredit'],
+            )
+        return self.retrieve(request, pk=xid)
+
+    def partial_update(self, request, pk=None):
+        data = request.data
+        vendor_name = data.get('pemasok') or ''
+        if data.get('id_rekanan'):
+            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
+            vendor_name = vendor['nama'] if vendor else vendor_name
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE rssams.logistik_spb
+                SET rekanan = %s, tanggal = %s, no_spb = %s, metode_pembayaran = %s
+                WHERE id = %s
+                """,
+                [str(vendor_name or '').upper(), data.get('tanggal'), data.get('no_spb') or '', data.get('metode_pembayaran') or 'Kredit', pk]
+            )
+        return Response({'status': 'ok'})
+
+    def destroy(self, request, pk=None):
+        penerimaan = legacy_fetchone(
+            "SELECT id FROM rssams.tran_beli_brg_log WHERE id = %s OR id_spb = %s LIMIT 1",
+            [pk, pk]
+        )
+        if penerimaan:
+            return Response(
+                {'detail': 'SPB ini sudah diproses menjadi Penerimaan Gudang dan tidak dapat dihapus.'},
+                status=400
+            )
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE spb_id = %s", [pk])
+            cursor.execute("DELETE FROM rssams.logistik_spb WHERE id = %s", [pk])
+        return Response(status=204)
+
+class LogistikSpbItemViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsLogistikPermission]
+
+    def create(self, request):
+        data = request.data
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO rssams.logistik_spb_item(spb_id, id_brg, qty, isi, harga)
+                VALUES(%s, %s, %s, %s, %s)
+                """,
+                [data.get('pembelian'), data.get('barang'), data.get('qty_pesan') or data.get('qty') or 0, data.get('isi', 1), data.get('harga', 0)]
+            )
+        _refresh_spb_total(data.get('pembelian'))
+        return Response({'status': 'created'}, status=201)
+
+    def partial_update(self, request, pk=None):
+        data = request.data
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE rssams.logistik_spb_item
+                SET qty = %s, isi = %s, harga = %s
+                WHERE id = %s
+                """,
+                [data.get('qty_pesan') or data.get('qty') or 0, data.get('isi', 1), data.get('harga', 0), pk]
+            )
+            # Fetch spb_id
+            cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
+            row = cursor.fetchone()
+        if row:
+            _refresh_spb_total(row[0])
+        return Response({'status': 'updated'})
+
+    def destroy(self, request, pk=None):
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
+            row = cursor.fetchone()
+            cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE id = %s", [pk])
+        if row:
+            _refresh_spb_total(row[0])
+        return Response(status=204)

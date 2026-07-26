@@ -102,6 +102,17 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const getRefNo = (item) => item.nomor_spb || `RJ-${item.app_siaga_faktur_id}`;
+const calcUmurUtang = (tanggal_titip) => {
+    if (!tanggal_titip) return '-';
+    const tglTitip = new Date(tanggal_titip);
+    if (isNaN(tglTitip.getTime())) return '-';
+    const now = new Date();
+    const tgl1 = new Date(tglTitip.getFullYear(), tglTitip.getMonth(), tglTitip.getDate());
+    const tgl2 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.floor((tgl2.getTime() - tgl1.getTime()) / (1000 * 60 * 60 * 24));
+    const days = diffDays < 0 ? 0 : diffDays;
+    return `${days} Hari`;
+};
 const parseMoneyInput = (value) => {
     if (value === '' || value === null || value === undefined) return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -176,7 +187,7 @@ const getDefaultOrdering = (m) => {
 const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at' };
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: '', keterangan: '' };
-const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', nominal: '', keterangan: '' };
+const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan: '' };
 
 export default function CatatanUtangObatBhp() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -189,14 +200,19 @@ export default function CatatanUtangObatBhp() {
 
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
+    const masterVendorOptions = useMemo(() => [
+        { value: '', label: '-- Pilih Vendor Master --' },
+        ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
+    ], [vendors]);
     const [summary, setSummary] = useState(null);
     const [pendingSummary, setPendingSummary] = useState({ count: 0, nominal: 0 });
-    const [selectedActive, setSelectedActive] = useState([]);
-    const [selectedPending, setSelectedPending] = useState([]);
     const [pendingCount, setPendingCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [filters, setFilters] = useState(initialFilters);
+    const [filters, setFilters] = useState(() => ({
+        ...initialFilters,
+        ordering: getDefaultOrdering(mode)
+    }));
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
@@ -286,10 +302,6 @@ export default function CatatanUtangObatBhp() {
             ordering: getDefaultOrdering(mode)
         }));
     }, [mode]);
-    useEffect(() => {
-        setSelectedActive([]);
-        setSelectedPending([]);
-    }, [filters, mode]);
 
     useEffect(() => {
         if (!verifyTarget && !paymentTarget && !realisasiTarget) return undefined;
@@ -424,21 +436,30 @@ export default function CatatanUtangObatBhp() {
 
     const exportExcel = async () => {
         try {
-            const res = await api.get('/keuangan/pembayaran-utang/export-excel/', {
+            const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+            const exportEndpoint = mode === 'pengajuan'
+                ? '/keuangan/pembayaran-utang/export-excel/'
+                : '/keuangan/utang-supplier/export-excel/';
+            const fileName = mode === 'pengajuan'
+                ? `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`
+                : `Daftar_Utang_Supplier_${todayISO()}.xlsx`;
+
+            const res = await api.get(exportEndpoint, {
+                params: activeFilters,
                 responseType: 'blob',
             });
             const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`);
+            link.setAttribute('download', fileName);
             document.body.appendChild(link);
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-            toast.success('File Excel pengajuan pembayaran berhasil diunduh.');
+            toast.success('File Excel berhasil diunduh.');
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal mengunduh Excel pengajuan.'));
+            toast.error(errorMessage(err, 'Gagal mengunduh file Excel.'));
         }
     };
 
@@ -461,6 +482,7 @@ export default function CatatanUtangObatBhp() {
                 nomor_spb: manualForm.nomor_spb.trim(),
                 tanggal_faktur: manualForm.tanggal_faktur || null,
                 tanggal_jatuh_tempo: manualForm.tanggal_jatuh_tempo || null,
+                tanggal_titip: manualForm.tanggal_titip || null,
                 nominal,
                 keterangan: manualForm.keterangan,
             });
@@ -487,19 +509,11 @@ export default function CatatanUtangObatBhp() {
         );
     }
 
-    const pendingValue = selectedPending.length > 0
-        ? selectedPending.reduce((sum, item) => sum + Number(item.nominal || 0), 0)
-        : (pendingSummary?.nominal || 0);
-
+    const pendingValue = pendingSummary?.nominal || 0;
     const pendingCountValue = pendingSummary?.count || 0;
 
-    const activeValue = selectedActive.length > 0
-        ? selectedActive.reduce((sum, item) => sum + Number(item.sisa_utang || item.nominal || 0), 0)
-        : (summary?.total_sisa || 0);
-
+    const activeValue = summary?.total_sisa || 0;
     const activeCountValue = summary?.utang_count || 0;
-
-    const isAnySelected = selectedPending.length > 0 || selectedActive.length > 0;
 
     return (
         <div className="utang-page">
@@ -514,42 +528,34 @@ export default function CatatanUtangObatBhp() {
             </section>
 
             <section className="utang-summary-cards">
-                <div className={`utang-summary-card ${selectedPending.length > 0 ? 'selected-mode' : ''}`}>
+                <div className="utang-summary-card">
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Hutang Menunggu Verifikasi</span>
                             <span className="card-value">{money(pendingValue)}</span>
-                            <span className="card-subtext">
-                                {selectedPending.length > 0 ? `${selectedPending.length} Faktur Terpilih` : `${pendingCountValue} Total Faktur`}
-                            </span>
+                            <span className="card-subtext">{pendingCountValue} Total Faktur</span>
                         </div>
                         <span className="card-icon pending"><FileClock size={24} /></span>
                     </div>
                 </div>
 
-                <div className={`utang-summary-card ${selectedActive.length > 0 ? 'selected-mode' : ''}`}>
+                <div className="utang-summary-card">
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Utang Aktif</span>
                             <span className="card-value">{money(activeValue)}</span>
-                            <span className="card-subtext">
-                                {selectedActive.length > 0 ? `${selectedActive.length} Faktur Terpilih` : `${activeCountValue} Total Faktur`}
-                            </span>
+                            <span className="card-subtext">{activeCountValue} Total Faktur</span>
                         </div>
                         <span className="card-icon active"><ReceiptText size={24} /></span>
                     </div>
                 </div>
 
-                <div className={`utang-summary-card total ${isAnySelected ? 'selected-mode' : ''}`}>
+                <div className="utang-summary-card total">
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Total Utang</span>
                             <span className="card-value">{money(pendingValue + activeValue)}</span>
-                            <span className="card-subtext">
-                                {isAnySelected 
-                                    ? `${selectedPending.length + selectedActive.length} Faktur Terpilih` 
-                                    : `${pendingCountValue + activeCountValue} Total Faktur`}
-                            </span>
+                            <span className="card-subtext">{pendingCountValue + activeCountValue} Total Faktur</span>
                         </div>
                         <span className="card-icon total"><CircleDollarSign size={24} /></span>
                     </div>
@@ -563,7 +569,7 @@ export default function CatatanUtangObatBhp() {
                         <p>{total} data tercatat sesuai filter.</p>
                     </div>
                     <div className="utang-card-actions">
-                        {mode === 'pengajuan' && (
+                        {(mode === 'pengajuan' || mode === 'aktif') && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
@@ -622,8 +628,8 @@ export default function CatatanUtangObatBhp() {
                     <div className="utang-empty">Belum ada data sesuai filter.</div>
                 ) : (
                     <div className="utang-table-wrap table-fade-in">
-                        {mode === 'menunggu' && <PendingTable items={items} selectedItems={selectedPending} onSelectionChange={setSelectedPending} onVerify={openVerify} onSort={setOrdering} />}
-                        {mode === 'aktif' && <ActiveTable items={items} selectedItems={selectedActive} onSelectionChange={setSelectedActive} onPayment={openPayment} onSort={setOrdering} />}
+                        {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
+                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
                     </div>
@@ -696,17 +702,13 @@ export default function CatatanUtangObatBhp() {
                             {verifyTarget.sumber === 'logistik' && (
                                 <div className="utang-field-block">
                                     <label className="utang-field-lbl"><ShieldCheck size={15} /> Vendor Master <span className="utang-req">*</span></label>
-                                    <select
-                                        className="utang-input utang-select"
+                                    <SearchablePembiayaanSelect
+                                        options={masterVendorOptions}
                                         value={verifyForm.vendor_id}
-                                        onChange={(e) => setVerifyForm({ ...verifyForm, vendor_id: e.target.value })}
-                                        required
-                                    >
-                                        <option value="">-- Pilih Vendor --</option>
-                                        {vendors.map((v) => (
-                                            <option key={v.id} value={v.id}>{v.nama}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setVerifyForm({ ...verifyForm, vendor_id: val })}
+                                        placeholder="-- Pilih Vendor Master --"
+                                        className="utang-vendor-select"
+                                    />
                                 </div>
                             )}
 
@@ -820,7 +822,7 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                                 <div className="utang-verify-row total">
                                     <span className="lbl">Nominal Diajukan</span>
-                                    <span className="val price" style={{ color: '#2563eb' }}>{money(realisasiTarget.jumlah_bayar)}</span>
+                                    <span className="val price">{money(realisasiTarget.jumlah_bayar)}</span>
                                 </div>
                             </div>
 
@@ -868,15 +870,12 @@ export default function CatatanUtangObatBhp() {
                             <div className="utang-manual-grid">
                                 <label>
                                     Vendor / Rekanan
-                                    <select
-                                        className="utang-input"
-                                        required
+                                    <SearchablePembiayaanSelect
+                                        options={masterVendorOptions}
                                         value={manualForm.vendor_id}
-                                        onChange={(e) => setManualForm({ ...manualForm, vendor_id: e.target.value })}
-                                    >
-                                        <option value="">-- Pilih Vendor --</option>
-                                        {vendors.map((v) => <option key={v.id} value={v.id}>{v.nama}</option>)}
-                                    </select>
+                                        onChange={(val) => setManualForm({ ...manualForm, vendor_id: val })}
+                                        placeholder="-- Pilih Vendor --"
+                                    />
                                 </label>
                                 <label>
                                     Nomor Faktur
@@ -908,6 +907,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>Tanggal Faktur<DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
+                                <label>Tanggal Titip Faktur<DateInput value={manualForm.tanggal_titip} onChange={(v) => setManualForm({ ...manualForm, tanggal_titip: v })} /></label>
                                 <label>Tanggal Jatuh Tempo<DateInput value={manualForm.tanggal_jatuh_tempo} onChange={(v) => setManualForm({ ...manualForm, tanggal_jatuh_tempo: v })} /></label>
                                 <label className="utang-span-full">
                                     Keterangan
@@ -983,40 +983,11 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     );
 }
 
-function PendingTable({ items, selectedItems, onSelectionChange, onVerify, onSort }) {
-    const isAllSelected = items.length > 0 && items.every(item => 
-        selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)
-    );
-
-    const handleSelectAll = () => {
-        if (isAllSelected) {
-            onSelectionChange(selectedItems.filter(s => 
-                !items.some(item => item.app_siaga_faktur_id === s.app_siaga_faktur_id && item.sumber === s.sumber)
-            ));
-        } else {
-            const toAdd = items.filter(item => 
-                !selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)
-            );
-            onSelectionChange([...selectedItems, ...toAdd]);
-        }
-    };
-
-    const handleSelectRow = (item) => {
-        const exists = selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber);
-        if (exists) {
-            onSelectionChange(selectedItems.filter(s => !(s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber)));
-        } else {
-            onSelectionChange([...selectedItems, item]);
-        }
-    };
-
+function PendingTable({ items, onVerify, onSort }) {
     return (
         <table className="utang-table">
             <thead>
                 <tr>
-                    <th style={{ width: '40px', textAlign: 'center' }}>
-                        <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} />
-                    </th>
                     <th>Sumber</th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
@@ -1026,80 +997,45 @@ function PendingTable({ items, selectedItems, onSelectionChange, onVerify, onSor
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => {
-                    const isChecked = selectedItems.some(s => s.app_siaga_faktur_id === item.app_siaga_faktur_id && s.sumber === item.sumber);
-                    return (
-                        <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`} className={isChecked ? 'row-selected' : ''}>
-                            <td style={{ textAlign: 'center' }}>
-                                <input type="checkbox" checked={isChecked} onChange={() => handleSelectRow(item)} />
-                            </td>
-                            <td><SumberBadge sumber={item.sumber} /></td>
-                            <td className="utang-name-cell">
-                                <strong>{item.vendor_nama || '-'}</strong>
-                                {item.sumber === 'logistik' && !item.vendor_id_hint && (
-                                    <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
-                                        <AlertTriangle size={12} /> Pilih vendor
-                                    </span>
-                                )}
-                                <small className="utang-subtext">SPB: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
-                            </td>
-                            <td>
-                                <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
-                                <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
-                            </td>
-                            <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                            <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
-                            <td className="utang-right">
-                                <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
-                                    <CheckCircle2 size={15} /> Verifikasi
-                                </button>
-                            </td>
-                        </tr>
-                    );
-                })}
+                {items.map((item) => (
+                    <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`}>
+                        <td><SumberBadge sumber={item.sumber} /></td>
+                        <td className="utang-name-cell">
+                            <strong>{item.vendor_nama || '-'}</strong>
+                            {item.sumber === 'logistik' && !item.vendor_id_hint && (
+                                <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
+                                    <AlertTriangle size={12} /> Pilih vendor
+                                </span>
+                            )}
+                            <small className="utang-subtext">SPB: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
+                        </td>
+                        <td>
+                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
+                        </td>
+                        <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
+                        <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
+                        <td className="utang-right">
+                            <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
+                                <CheckCircle2 size={15} /> Verifikasi
+                            </button>
+                        </td>
+                    </tr>
+                ))}
             </tbody>
         </table>
     );
 }
 
-function ActiveTable({ items, selectedItems, onSelectionChange, onPayment, onSort }) {
-    const selectableItems = items.filter(item => item.status !== 'lunas');
-    const isAllSelected = selectableItems.length > 0 && selectableItems.every(item => 
-        selectedItems.some(s => s.id === item.id)
-    );
-
-    const handleSelectAll = () => {
-        if (isAllSelected) {
-            onSelectionChange(selectedItems.filter(s => 
-                !selectableItems.some(item => item.id === s.id)
-            ));
-        } else {
-            const toAdd = selectableItems.filter(item => 
-                !selectedItems.some(s => s.id === item.id)
-            );
-            onSelectionChange([...selectedItems, ...toAdd]);
-        }
-    };
-
-    const handleSelectRow = (item) => {
-        const exists = selectedItems.some(s => s.id === item.id);
-        if (exists) {
-            onSelectionChange(selectedItems.filter(s => s.id !== item.id));
-        } else {
-            onSelectionChange([...selectedItems, item]);
-        }
-    };
-
+function ActiveTable({ items, onPayment, onSort }) {
     return (
         <table className="utang-table">
             <thead>
                 <tr>
-                    <th style={{ width: '40px', textAlign: 'center' }}>
-                        <input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} />
-                    </th>
                     <th>Sumber</th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur & Tanggal" field="nomor_faktur" onSort={onSort} />
+                    <SortTh label="Umur Utang" field="tanggal_titip" onSort={onSort} />
                     <SortTh label="Sisa Utang" field="nominal" onSort={onSort} right />
                     <SortTh label="Status" field="status" onSort={onSort} />
                     <SortTh label="Verifikator" field="verified_at" onSort={onSort} />
@@ -1107,50 +1043,49 @@ function ActiveTable({ items, selectedItems, onSelectionChange, onPayment, onSor
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => {
-                    const isChecked = selectedItems.some(s => s.id === item.id);
-                    const isLunas = item.status === 'lunas';
-                    return (
-                        <tr key={item.id} className={isChecked ? 'row-selected' : ''}>
-                            <td style={{ textAlign: 'center' }}>
-                                {!isLunas && (
-                                    <input type="checkbox" checked={isChecked} onChange={() => handleSelectRow(item)} />
-                                )}
-                            </td>
-                            <td><SumberBadge sumber={item.sumber} /></td>
-                            <td className="utang-name-cell">
-                                <strong>{item.vendor_nama || '-'}</strong>
-                                <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
-                            </td>
-                            <td>
-                                <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
-                                <small className="utang-subtext">Tgl: {dateLabel(item.tanggal_faktur)}</small>
-                                {item.tanggal_jatuh_tempo && (
-                                    <small className="utang-subtext">Tempo: {dateLabel(item.tanggal_jatuh_tempo)}</small>
-                                )}
-                            </td>
-                            <td className="utang-right">
-                                <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
-                                <small className="utang-subtext utang-mono">Total: {money(item.nominal)}</small>
-                                <small className="utang-subtext utang-mono">Dibayar: {money(item.total_dibayar)}</small>
-                            </td>
-                            <td><StatusBadge status={item.status} label={item.status_label} /></td>
-                            <td className="utang-operator-cell">
-                                {item.verified_by_name ? (
-                                    <span className="utang-operator-badge" title={`Diverifikasi oleh ${item.verified_by_name}`}>
-                                        <User size={13} style={{ opacity: 0.7 }} />
-                                        {item.verified_by_name}
-                                    </span>
-                                ) : '-'}
-                            </td>
-                            <td className="utang-right">
-                                <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
-                                    <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Ajukan Pembayaran'}
-                                </button>
-                            </td>
-                        </tr>
-                    );
-                })}
+                {items.map((item) => (
+                    <tr key={item.id}>
+                        <td><SumberBadge sumber={item.sumber} /></td>
+                        <td className="utang-name-cell">
+                            <strong>{item.vendor_nama || '-'}</strong>
+                            <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
+                        </td>
+                        <td>
+                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <small className="utang-subtext">Tgl: {dateLabel(item.tanggal_faktur)}</small>
+                            {item.tanggal_jatuh_tempo && (
+                                <small className="utang-subtext">Tempo: {dateLabel(item.tanggal_jatuh_tempo)}</small>
+                            )}
+                        </td>
+                        <td>
+                            <strong className="utang-mono">{calcUmurUtang(item.tanggal_titip)}</strong>
+                            {item.tanggal_titip ? (
+                                <small className="utang-subtext">Titip: {dateLabel(item.tanggal_titip)}</small>
+                            ) : (
+                                <small className="utang-subtext" style={{ opacity: 0.6 }}>-</small>
+                            )}
+                        </td>
+                        <td className="utang-right">
+                            <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
+                            <small className="utang-subtext utang-mono">Total: {money(item.nominal)}</small>
+                            <small className="utang-subtext utang-mono">Dibayar: {money(item.total_dibayar)}</small>
+                        </td>
+                        <td><StatusBadge status={item.status} label={item.status_label} /></td>
+                        <td className="utang-operator-cell">
+                            {item.verified_by_name ? (
+                                <span className="utang-operator-badge" title={`Diverifikasi oleh ${item.verified_by_name}`}>
+                                    <User size={13} style={{ opacity: 0.7 }} />
+                                    {item.verified_by_name}
+                                </span>
+                            ) : '-'}
+                        </td>
+                        <td className="utang-right">
+                            <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
+                                <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Ajukan Pembayaran'}
+                            </button>
+                        </td>
+                    </tr>
+                ))}
             </tbody>
         </table>
     );
@@ -1160,11 +1095,11 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
     return (
         <table className="utang-table" style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '15%' }} />
                 <col style={{ width: '23%' }} />
-                <col style={{ width: '16%' }} />
-                <col style={{ width: '16%' }} />
-                <col style={{ width: '25%' }} />
-                <col style={{ width: '12%' }} />
+                <col style={{ width: '14%' }} />
                 <col style={{ width: '8%' }} />
             </colgroup>
             <thead>
@@ -1178,8 +1113,8 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => (
-                    <tr key={item.id}>
+                {items.map((item, idx) => (
+                    <tr key={item.id || item.app_siaga_faktur_id || idx}>
                         <td className="utang-name-cell" style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong>{item.vendor_nama || '-'}</strong>
                             <small className="utang-subtext">
@@ -1188,6 +1123,9 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
                         </td>
                         <td style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            {item.tanggal_titip && (
+                                <small className="utang-subtext">Tgl Titip: {dateLabel(item.tanggal_titip)} ({calcUmurUtang(item.tanggal_titip)})</small>
+                            )}
                             <small className="utang-subtext">Rencana Bayar: {dateLabel(item.tanggal_rencana_bayar)}</small>
                         </td>
                         <td className="utang-mono utang-nominal-pending utang-right" style={{ textAlign: 'right' }}>{money(item.jumlah_bayar)}</td>
