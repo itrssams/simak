@@ -14,6 +14,7 @@ from .views import (
     InventoryOptionViewSet, InventoryAssetViewSet,
     LogistikBarangViewSet, LogistikPembelianViewSet, LogistikBatchViewSet,
     LogistikMutasiViewSet, LogistikPermintaanViewSet, LogistikOpnameViewSet, LogistikVendorViewSet,
+    LogistikSpbViewSet, LogistikSpbItemViewSet,
     UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView,
     faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
 )
@@ -42,6 +43,8 @@ router.register(r'inventory/options', InventoryOptionViewSet, basename='inventor
 router.register(r'inventory/assets',  InventoryAssetViewSet,  basename='inventory-assets')
 router.register(r'logistik/barang', LogistikBarangViewSet, basename='logistik-barang')
 router.register(r'logistik/vendor', LogistikVendorViewSet, basename='logistik-vendor')
+router.register(r'logistik/spb', LogistikSpbViewSet, basename='logistik-spb')
+router.register(r'logistik/spb-item', LogistikSpbItemViewSet, basename='logistik-spb-item')
 router.register(r'logistik/pembelian', LogistikPembelianViewSet, basename='logistik-pembelian')
 router.register(r'logistik/batch', LogistikBatchViewSet, basename='logistik-batch')
 router.register(r'logistik/mutasi', LogistikMutasiViewSet, basename='logistik-mutasi')

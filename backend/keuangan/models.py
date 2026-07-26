@@ -1669,7 +1669,8 @@ class LogistikPembelian(models.Model):
 class LogistikBatch(models.Model):
     pembelian = models.ForeignKey(LogistikPembelian, on_delete=models.CASCADE, related_name='items')
     barang = models.ForeignKey(LogistikBarang, on_delete=models.PROTECT, related_name='batch_logistik')
-    qty = models.PositiveIntegerField()
+    qty_pesan = models.PositiveIntegerField(default=0)
+    qty = models.PositiveIntegerField(default=0)
     isi = models.PositiveIntegerField(default=1)
     harga = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     jml_mutasi = models.PositiveIntegerField(default=0)

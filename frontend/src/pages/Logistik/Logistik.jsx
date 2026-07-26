@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { Archive, BadgeDollarSign, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Tag, Trash2, Warehouse, X } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Archive, BadgeDollarSign, Printer, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileSpreadsheet, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
@@ -10,6 +10,8 @@ import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSel
 import TableSkeleton from '../../components/TableSkeleton';
 import '../Keuangan/InvoicePembiayaan.css';
 import './Logistik.css';
+import * as XLSX from 'xlsx';
+import { generateSpbPdf } from '../../utils/printSpbPdf';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (value) => Number(value || 0).toLocaleString('id-ID');
@@ -48,8 +50,8 @@ const getError = (err, fallback) => {
     if (data.detail || data.error) return data.detail || data.error;
     return Object.entries(data).map(([key, value]) => `${key}: ${Array.isArray(value) ? value[0] : value}`).join(' | ') || fallback;
 };
-const itemTotal = (items = []) => items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.harga || 0), 0);
-const purchaseTotal = (row) => Number(row?.nilai || 0) || itemTotal(row?.items || []);
+const itemTotal = (items = [], mode = 'penerimaan') => items.reduce((sum, item) => sum + Number((mode === 'spb' ? item.qty_pesan : item.qty) || 0) * Number(item.harga || 0), 0);
+const purchaseTotal = (row, mode = 'penerimaan') => Number(row?.nilai || 0) || itemTotal(row?.items || [], mode);
 const parseMoneyInput = (value) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     const raw = String(value || '').replace(/[^\d.,-]/g, '');
@@ -110,9 +112,8 @@ const TITLES = {
     vendor: ['Master Vendor', 'Kelola rekanan/vendor untuk SPB dan penerimaan gudang logistik.'],
     spb: ['SPB', 'Surat Pesanan Barang gudang logistik.'],
     penerimaan: ['Penerimaan', 'Daftar barang masuk dari invoice rekanan.'],
-    'barang-keluar': ['Barang Keluar', 'Mutasi barang keluar dari gudang logistik.'],
-    permintaan: ['Permintaan', 'Permintaan barang dari unit.'],
-    verifikasi: ['Verifikasi Permintaan', 'Persetujuan permintaan barang unit.'],
+    permintaan: ['Permintaan & Barang Keluar', 'Kelola permintaan barang dari unit ruangan serta mutasi pengeluaran stok.'],
+    verifikasi: ['Permintaan & Barang Keluar', 'Kelola permintaan barang dari unit ruangan serta mutasi pengeluaran stok.'],
     'stok-minimum': ['Stok Minimum', 'Barang yang stoknya berada di bawah batas minimum.'],
     'kartu-stok': ['Kartu Stok', 'Riwayat masuk dan keluar per barang.'],
     opname: ['Opname', 'Catatan stock opname gudang logistik.'],
@@ -135,7 +136,7 @@ const VENDOR_CATEGORIES = [
 ];
 const emptyVendor = { nama: '', alamat: '', telp: '', kc: '', kategori: '' };
 const emptySpb = { tanggal: today(), id_rekanan: '', no_spb: '', metode_pembayaran: 'Kredit' };
-const emptyItem = { barang: '', original_barang: '', qty: 1, isi: 1, harga: '', no_invoice: '', editing: false };
+const emptyItem = { barang: '', original_barang: '', qty_pesan: 1, qty: 0, isi: 1, harga: '', no_invoice: '', editing: false };
 const UNIT_OPTIONS = ['PCS', 'BOX', 'BTL', 'KALENG', 'PAK', 'STRIP', 'SET', 'LITER', 'GRAM', 'METER'];
 const emptyMutasi = { barang: '', tanggal: today(), ruang: '', qty: 1, keterangan: '' };
 const emptyPermintaan = { barang: '', tanggal: today(), ruang: '', qty_minta: 1, catatan: '' };
@@ -143,7 +144,9 @@ const emptyOpname = { barang: '', tanggal: today(), real_stock: 0, keterangan: '
 
 export default function Logistik() {
     const toast = useToast();
+    const navigate = useNavigate();
     const { section = 'barang' } = useParams();
+    const setSection = useCallback((sec) => navigate(`/logistik/${sec}`), [navigate]);
     const title = TITLES[section] || TITLES.barang;
     const [rows, setRows] = useState([]);
     const [barangOptions, setBarangOptions] = useState([]);
@@ -158,11 +161,13 @@ export default function Logistik() {
     const [modal, setModal] = useState(null);
     const [showAllBarang, setShowAllBarang] = useState(false);
     const [penerimaanFilter, setPenerimaanFilter] = useState('all');
+    const [permintaanStatusFilter, setPermintaanStatusFilter] = useState('all');
     const [vendorSumberFilter, setVendorSumberFilter] = useState('all');
     const [vendorKategoriFilter, setVendorKategoriFilter] = useState('');
     const [detail, setDetail] = useState(null);
     const [confirmSubmitTarget, setConfirmSubmitTarget] = useState(null);
     const [activePurchase, setActivePurchase] = useState(null);
+    const [confirmState, setConfirmState] = useState(null);
     const [kartuBarang, setKartuBarang] = useState('');
     const [kartuRows, setKartuRows] = useState([]);
     const [kartuSearch, setKartuSearch] = useState('');
@@ -213,7 +218,8 @@ export default function Logistik() {
 
     const endpointFor = useCallback(() => {
         if (section === 'vendor') return '/keuangan/logistik/vendor/';
-        if (section === 'spb' || section === 'penerimaan') return '/keuangan/logistik/pembelian/';
+        if (section === 'spb') return '/keuangan/logistik/spb/';
+        if (section === 'penerimaan') return '/keuangan/logistik/pembelian/';
         if (section === 'barang-keluar') return '/keuangan/logistik/mutasi/';
         if (section === 'permintaan' || section === 'verifikasi') return '/keuangan/logistik/permintaan/';
         if (section === 'opname') return '/keuangan/logistik/opname/';
@@ -227,6 +233,9 @@ export default function Logistik() {
             const params = pageParams(page, pageSize, { search });
             if (section === 'stok-minimum') params.minimum = true;
             if (section === 'verifikasi') params.status = 'menunggu';
+            if (section === 'permintaan') {
+                if (permintaanStatusFilter !== 'all') params.status = permintaanStatusFilter;
+            }
             if (section === 'barang') params.show_all = showAllBarang ? 'true' : 'false';
             if (section === 'vendor') {
                 if (vendorSumberFilter !== 'all') params.sumber = vendorSumberFilter;
@@ -240,7 +249,7 @@ export default function Logistik() {
         } finally {
             setLoading(false);
         }
-    }, [endpointFor, page, pageSize, search, section, showAllBarang, vendorSumberFilter, vendorKategoriFilter, toast]);
+    }, [endpointFor, page, pageSize, search, section, showAllBarang, vendorSumberFilter, vendorKategoriFilter, permintaanStatusFilter, toast]);
 
     const [searchParams] = useSearchParams();
     const urlSumber = searchParams.get('sumber');
@@ -262,6 +271,7 @@ export default function Logistik() {
     useEffect(() => { fetchRows(); }, [fetchRows]);
 
     const openCreate = () => {
+        setActivePurchase(null);
         const target = section === 'stok-minimum' ? 'barang' : section;
         if (target === 'barang') setForms((v) => ({ ...v, barang: emptyBarang }));
         if (target === 'vendor') setForms((v) => ({ ...v, vendor: emptyVendor }));
@@ -347,10 +357,15 @@ export default function Logistik() {
             }
             if (payload.id) {
                 await api.patch(`/keuangan/logistik/pembelian/${payload.id}/`, payload);
-                toast.success('Penerimaan berhasil diperbarui.');
+                toast.success('SPB/Penerimaan berhasil diperbarui.');
             } else {
-                await api.post('/keuangan/logistik/pembelian/', payload);
+                const res = await api.post(section === 'spb' ? '/keuangan/logistik/spb/' : '/keuangan/logistik/pembelian/', payload);
                 toast.success(section === 'penerimaan' ? 'Penerimaan berhasil dibuat.' : 'SPB berhasil dibuat.');
+                if (section === 'spb') {
+                    setForms((v) => ({ ...v, spb: res.data }));
+                    setActivePurchase(res.data);
+                    return;
+                }
             }
             setModal(null);
             await fetchRows();
@@ -359,6 +374,35 @@ export default function Logistik() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const onProsesPenerimaan = async (spb) => {
+        if (spb.status === 'Selesai') {
+            toast.error('SPB ini sudah diproses ke penerimaan.');
+            return;
+        }
+        setConfirmState({
+            title: 'Proses SPB ke Penerimaan?',
+            description: `SPB nomor "${spb.nomor || spb.id}" akan diproses menjadi faktur Penerimaan Gudang.`,
+            warning: 'Status SPB akan diperbarui menjadi Selesai.',
+            icon: <CheckCircle2 size={24} />,
+            confirmLabel: 'Ya, Proses Penerimaan',
+            variant: 'success',
+            action: async () => {
+                setSaving(true);
+                try {
+                    const payload = { ...spb, id_spb: spb.id };
+                    delete payload.id;
+                    await api.post('/keuangan/logistik/pembelian/', payload);
+                    toast.success('Penerimaan berhasil dibuat dari SPB.');
+                    setSection('penerimaan');
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal membuat penerimaan.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
     };
 
     const saveItem = async (e) => {
@@ -370,14 +414,20 @@ export default function Logistik() {
         setSaving(true);
         try {
             const payload = { ...forms.item, harga: parseMoneyInput(forms.item.harga), pembelian: activePurchase.id };
+            const isSPB = section === 'spb';
+            const itemEndpoint = isSPB ? '/keuangan/logistik/spb-item/' : '/keuangan/logistik/batch/';
             if (forms.item.editing) {
-                await api.patch(`/keuangan/logistik/batch/${activePurchase.id}/`, payload);
+                await api.patch(`${itemEndpoint}${forms.item.id || activePurchase.id}/`, payload);
                 toast.success('Barang masuk berhasil diperbarui.');
             } else {
-                await api.post('/keuangan/logistik/batch/', payload);
+                await api.post(itemEndpoint, payload);
                 toast.success('Barang masuk berhasil ditambahkan.');
             }
-            setModal(null);
+            const purchaseEndpoint = isSPB ? `/keuangan/logistik/spb/${activePurchase.id}/` : `/keuangan/logistik/pembelian/${activePurchase.id}/`;
+            const res = await api.get(purchaseEndpoint);
+            setActivePurchase(res.data);
+            setForms((v) => ({ ...v, spb: { ...v.spb, ...res.data } }));
+            setModal('spb');
             await fetchRows();
         } catch (e) {
             toast.error(e.response?.data?.message || 'Gagal menyimpan barang masuk.');
@@ -387,21 +437,32 @@ export default function Logistik() {
         }
     };
 
-    const deleteItem = async (item) => {
-        if (!window.confirm(`Hapus barang ${item.barang_nama} dari penerimaan ini?`)) return;
-        setSaving(true);
-        try {
-            await api.delete(`/keuangan/logistik/batch/${item.id}/?barang=${item.barang}`);
-            toast.success('Barang berhasil dihapus.');
-            const res = await api.get(`/keuangan/logistik/pembelian/${activePurchase.id}/`);
-            setActivePurchase(res.data);
-            fetchRows();
-        } catch (e) {
-            toast.error('Gagal menghapus barang.');
-            console.error(e);
-        } finally {
-            setSaving(false);
-        }
+    const onDeleteItem = async (item) => {
+        setConfirmState({
+            title: 'Hapus Barang Ini?',
+            description: `Apakah Anda yakin ingin menghapus "${item.barang_nama || 'barang ini'}" dari daftar pesanan?`,
+            icon: <Trash2 size={24} />,
+            confirmLabel: 'Ya, Hapus Barang',
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    const isSPB = section === 'spb';
+                    await api.delete(isSPB ? `/keuangan/logistik/spb-item/${item.id}/` : `/keuangan/logistik/batch/${item.id}/?barang=${item.barang}`);
+                    toast.success('Barang berhasil dihapus.');
+                    const purchaseEndpoint = isSPB ? `/keuangan/logistik/spb/${activePurchase.id}/` : `/keuangan/logistik/pembelian/${activePurchase.id}/`;
+                    const res = await api.get(purchaseEndpoint);
+                    setActivePurchase(res.data);
+                    setForms((v) => ({ ...v, spb: { ...v.spb, ...res.data } }));
+                    fetchRows();
+                } catch (e) {
+                    toast.error('Gagal menghapus barang.');
+                    console.error(e);
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
     };
 
     const submitToFinance = async (id) => {
@@ -465,13 +526,49 @@ export default function Logistik() {
     };
 
     const verify = async (row, status) => {
-        const qty = status === 'disetujui' ? Number(window.prompt('Qty disetujui', row.qty_minta) || 0) : 0;
-        try {
-            await api.post(`/keuangan/logistik/permintaan/${row.id}/verifikasi/`, { status, qty_setuju: qty });
-            toast.success('Permintaan berhasil diverifikasi.');
-            await fetchRows();
-        } catch (err) {
-            toast.error(getError(err, 'Gagal verifikasi permintaan.'));
+        if (status === 'disetujui') {
+            setConfirmState({
+                title: 'Setujui Permintaan Barang',
+                description: `Setujui permintaan "${row.barang_nama}" dari unit ${row.ruang}?`,
+                icon: <CheckCircle2 size={24} />,
+                confirmLabel: 'Setujui Permintaan',
+                variant: 'success',
+                hasInput: true,
+                inputLabel: 'Qty Disetujui',
+                inputValue: row.qty_minta || 1,
+                action: async (qtyVal) => {
+                    setSaving(true);
+                    try {
+                        await api.post(`/keuangan/logistik/permintaan/${row.id}/verifikasi/`, { status: 'disetujui', qty_setuju: Number(qtyVal) || 0 });
+                        toast.success('Permintaan berhasil disetujui.');
+                        await fetchRows();
+                    } catch (err) {
+                        toast.error(getError(err, 'Gagal verifikasi permintaan.'));
+                    } finally {
+                        setSaving(false);
+                    }
+                }
+            });
+        } else {
+            setConfirmState({
+                title: 'Tolak Permintaan Barang?',
+                description: `Apakah Anda yakin ingin menolak permintaan "${row.barang_nama}" dari unit ${row.ruang}?`,
+                icon: <X size={24} />,
+                confirmLabel: 'Ya, Tolak Permintaan',
+                variant: 'danger',
+                action: async () => {
+                    setSaving(true);
+                    try {
+                        await api.post(`/keuangan/logistik/permintaan/${row.id}/verifikasi/`, { status: 'ditolak', qty_setuju: 0 });
+                        toast.success('Permintaan ditolak.');
+                        await fetchRows();
+                    } catch (err) {
+                        toast.error(getError(err, 'Gagal verifikasi permintaan.'));
+                    } finally {
+                        setSaving(false);
+                    }
+                }
+            });
         }
     };
 
@@ -486,28 +583,144 @@ export default function Logistik() {
     };
 
     const deleteBarang = async (row) => {
-        if (!window.confirm(`Hapus ${row.nama_barang}?`)) return;
-        try {
-            await api.delete(`/keuangan/logistik/barang/${row.id}/`);
-            toast.success('Barang dihapus.');
-            await Promise.all([fetchRows(), fetchOptions()]);
-        } catch (err) {
-            toast.error(getError(err, 'Gagal menghapus barang.'));
-        }
+        setConfirmState({
+            title: 'Hapus Master Barang?',
+            description: `Apakah Anda yakin ingin menghapus "${row.nama_barang}" dari daftar master barang?`,
+            icon: <Trash2 size={24} />,
+            confirmLabel: 'Ya, Hapus Barang',
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    await api.delete(`/keuangan/logistik/barang/${row.id}/`);
+                    toast.success('Barang dihapus.');
+                    await Promise.all([fetchRows(), fetchOptions()]);
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal menghapus barang.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
     };
 
     const deleteVendor = async (row) => {
-        if (!window.confirm(`Hapus vendor ${row.nama}?`)) return;
-        try {
-            await api.delete(`/keuangan/logistik/vendor/${row.id}/`);
-            toast.success('Vendor dihapus.');
-            await Promise.all([fetchRows(), fetchOptions()]);
-        } catch (err) {
-            toast.error(getError(err, 'Gagal menghapus vendor.'));
+        setConfirmState({
+            title: 'Hapus Vendor / Rekanan?',
+            description: `Apakah Anda yakin ingin menghapus vendor "${row.nama}"?`,
+            icon: <Trash2 size={24} />,
+            confirmLabel: 'Ya, Hapus Vendor',
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    await api.delete(`/keuangan/logistik/vendor/${row.id}/`);
+                    toast.success('Vendor dihapus.');
+                    await Promise.all([fetchRows(), fetchOptions()]);
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal menghapus vendor.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
+    };
+
+    const deleteSpb = async (row) => {
+        if (row.status === 'Selesai') {
+            toast.error('SPB ini sudah diproses menjadi Penerimaan Gudang dan tidak dapat dihapus. Hapus Penerimaan terlebih dahulu.');
+            return;
         }
+        setConfirmState({
+            title: 'Hapus Document SPB?',
+            description: `Apakah Anda yakin ingin menghapus SPB nomor "${row.nomor || row.id}"?`,
+            warning: 'Seluruh daftar barang pesanan di dalam SPB ini akan terhapus.',
+            icon: <Trash2 size={24} />,
+            confirmLabel: 'Ya, Hapus SPB',
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    await api.delete(`/keuangan/logistik/spb/${row.id}/`);
+                    toast.success('SPB berhasil dihapus.');
+                    await fetchRows();
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal menghapus SPB.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
+    };
+
+    const deletePenerimaan = async (row) => {
+        if (row.status === 'Y') {
+            toast.error('Penerimaan ini telah dikirim ke Keuangan dan statusnya Terkunci. Data tidak dapat dihapus.');
+            return;
+        }
+        setConfirmState({
+            title: 'Hapus Penerimaan Gudang?',
+            description: `Apakah Anda yakin ingin menghapus transaksi Penerimaan nomor "${row.nomor || row.id}"?`,
+            warning: row.id_spb || row.id ? 'Status SPB terkait akan dikembalikan menjadi Draft.' : 'Seluruh data barang masuk pada penerimaan ini akan terhapus.',
+            icon: <Trash2 size={24} />,
+            confirmLabel: 'Ya, Hapus Penerimaan',
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    await api.delete(`/keuangan/logistik/pembelian/${row.id}/`);
+                    toast.success('Penerimaan berhasil dihapus.');
+                    await fetchRows();
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal menghapus penerimaan.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
     };
 
     const canCreate = !['verifikasi', 'stok-minimum', 'kartu-stok', 'penerimaan'].includes(section);
+
+    const exportExcel = async () => {
+        if (section !== 'barang') return;
+        setSaving(true);
+        try {
+            toast.success('Menyiapkan file Excel...');
+            const params = { page_size: 5000, show_all: showAllBarang ? 'true' : 'false' };
+            const res = await api.get('/keuangan/logistik/barang/', { params });
+            const data = getResults(res.data);
+            const formatGolongan = (gol) => {
+                const id = String(gol || '').trim();
+                if (id === '1' || id === '2') return `${id} - ATK / Cetakan`;
+                if (id === '3') return `${id} - Elektronik / Alkes`;
+                if (id === '4') return `${id} - BHP Umum / Rumah Tangga`;
+                return id ? `${id} - Lainnya` : '-';
+            };
+            
+            const wsData = data.map((b, i) => ({
+                'No': i + 1,
+                'ID': b.id,
+                'Nama Barang': b.nama_barang,
+                'Kemasan': b.kemasan,
+                'Satuan': b.satuan,
+                'Isi per Kemasan': b.isi,
+                'Merk': b.merk,
+                'Golongan': formatGolongan(b.golongan),
+                'Stok': b.stok,
+                'Stok Minimum': b.stok_minimum
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Barang Logistik');
+            XLSX.writeFile(wb, `Daftar_Barang_Logistik_${today()}.xlsx`);
+        } catch (err) {
+            toast.error(getError(err, 'Gagal export ke Excel.'));
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const filteredRows = useMemo(() => {
         if (section !== 'penerimaan') return rows;
@@ -541,8 +754,23 @@ export default function Logistik() {
                             <p>Total {fmt(total)} data</p>
                         </div>
                         <div className="inv-card-actions">
+                            {section === 'barang' && (
+                                <button className="inv-btn excel-btn" onClick={exportExcel} type="button" disabled={saving}>
+                                    <FileSpreadsheet size={16} /> Export Excel
+                                </button>
+                            )}
                             <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={16} /> Refresh</button>
-                            {canCreate && <button className="inv-btn primary" onClick={openCreate} type="button"><FilePlus2 size={16} /> Tambah</button>}
+                            {['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
+                                <>
+                                    <button className="inv-btn soft" onClick={() => setModal('barang-keluar')} type="button">
+                                        <Send size={16} /> Pengeluaran Langsung
+                                    </button>
+                                    <button className="inv-btn primary" onClick={() => setModal('permintaan')} type="button">
+                                        <FilePlus2 size={16} /> Permintaan Ruangan
+                                    </button>
+                                </>
+                            )}
+                            {canCreate && !['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && <button className="inv-btn primary" onClick={openCreate} type="button"><FilePlus2 size={16} /> Tambah</button>}
                         </div>
                     </div>
                     <div className="dki-filter">
@@ -574,11 +802,12 @@ export default function Logistik() {
                                     </div>
                                 </>
                             )}
-                            {section === 'penerimaan' && (
-                                <div className="log-filter-segment" role="group" aria-label="Filter penerimaan">
-                                    <button className={penerimaanFilter === 'all' ? 'active' : ''} type="button" onClick={() => setPenerimaanFilter('all')}>Semua</button>
-                                    <button className={penerimaanFilter === 'with_items' ? 'active' : ''} type="button" onClick={() => setPenerimaanFilter('with_items')}>Ada barang</button>
-                                    <button className={penerimaanFilter === 'empty' ? 'active' : ''} type="button" onClick={() => setPenerimaanFilter('empty')}>Kosong</button>
+                            {['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
+                                <div className="log-filter-segment" role="group" aria-label="Filter permintaan">
+                                    <button className={permintaanStatusFilter === 'all' ? 'active' : ''} type="button" onClick={() => { setPage(1); setPermintaanStatusFilter('all'); }}>Semua Status</button>
+                                    <button className={permintaanStatusFilter === 'menunggu' ? 'active' : ''} type="button" onClick={() => { setPage(1); setPermintaanStatusFilter('menunggu'); }}>Menunggu Verifikasi</button>
+                                    <button className={permintaanStatusFilter === 'disetujui' ? 'active' : ''} type="button" onClick={() => { setPage(1); setPermintaanStatusFilter('disetujui'); }}>Disetujui / Keluar</button>
+                                    <button className={permintaanStatusFilter === 'ditolak' ? 'active' : ''} type="button" onClick={() => { setPage(1); setPermintaanStatusFilter('ditolak'); }}>Ditolak</button>
                                 </div>
                             )}
                         </div>
@@ -618,7 +847,10 @@ export default function Logistik() {
                         }}
                         onDeleteBarang={deleteBarang}
                         onDeleteVendor={deleteVendor}
+                        onDeleteSpb={deleteSpb}
+                        onDeletePenerimaan={deletePenerimaan}
                         onVerify={verify}
+                        onProsesPenerimaan={onProsesPenerimaan}
                     />
                     <SimplePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} buttonClassName="inv-page-btn" selectClassName="inv-page-select" />
                 </section>
@@ -628,12 +860,17 @@ export default function Logistik() {
                 <section className="inv-card table">
                     <div className="inv-card-head">
                         <div className="inv-card-title"><h2>Kartu Stok</h2><p>Pilih barang untuk melihat riwayat.</p></div>
-                        <div className="inv-card-actions">
-                            <select className="dki-select" value={kartuBarang} onChange={(e) => { setKartuBarang(e.target.value); loadKartu(e.target.value); }}>
-                                <option value="">Pilih barang</option>
-                                {barangOptions.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}
-                            </select>
-                            <button className="inv-btn soft" onClick={() => loadKartu()} type="button"><Eye size={16} /> Tampilkan</button>
+                        <div className="inv-card-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', minWidth: '280px' }}>
+                            <div style={{ minWidth: '280px' }}>
+                                <SearchableBarangSelect
+                                    options={barangOptions}
+                                    value={kartuBarang}
+                                    onChange={(id) => {
+                                        setKartuBarang(id);
+                                        loadKartu(id);
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
                     {kartuBarang && (
@@ -673,7 +910,7 @@ export default function Logistik() {
             {detail && (
                 <Modal title={`Detail ${detail.nomor || detail.id}`} description="Informasi lengkap dan daftar barang." variant="detail" icon={<Eye size={20} />} onClose={() => setDetail(null)}>
                     <DetailInfo row={detail} section={section} />
-                    <MiniItems items={detail.items || []} />
+                    <MiniItems mode={section} items={detail.items || []} />
                 </Modal>
             )}
 
@@ -697,6 +934,7 @@ export default function Logistik() {
                                 barang: item.barang,
                                 original_barang: item.barang,
                                 qty: item.qty,
+                                qty_pesan: item.qty_pesan,
                                 isi: item.isi,
                                 harga: item.harga,
                                 no_invoice: activePurchase?.no_faktur || '',
@@ -704,20 +942,59 @@ export default function Logistik() {
                         }));
                         setModal('item');
                     }}
-                    onDeleteItem={deleteItem}
+                    onDeleteItem={onDeleteItem}
                     onSubmitToFinance={() => setConfirmSubmitTarget(forms.spb)}
                     onSubmit={saveSpb}
                     onClose={() => setModal(null)}
-                    onAddItem={() => {
+                    onAddItem={async () => {
+                        let purchase = activePurchase;
+                        if (!purchase?.id) {
+                            setSaving(true);
+                            try {
+                                const payload = { ...forms.spb };
+                                const selectedVendorName = String(payload.id_rekanan || '').trim().toUpperCase();
+                                const matchedVendorObj = vendorOptions.find(
+                                    (v) => String(v.nama || '').trim().toUpperCase() === selectedVendorName
+                                );
+                                if (matchedVendorObj) {
+                                    payload.id_rekanan = String(matchedVendorObj.id);
+                                    payload.pemasok = matchedVendorObj.nama;
+                                } else {
+                                    payload.pemasok = payload.id_rekanan;
+                                    delete payload.id_rekanan;
+                                }
+                                const res = await api.post(section === 'spb' ? '/keuangan/logistik/spb/' : '/keuangan/logistik/pembelian/', payload);
+                                purchase = res.data;
+                                setActivePurchase(res.data);
+                                setForms((v) => ({ ...v, spb: { ...v.spb, ...res.data } }));
+                            } catch (err) {
+                                toast.error('Gagal menyimpan SPB: ' + err.message);
+                                setSaving(false);
+                                return;
+                            }
+                            setSaving(false);
+                        }
                         setForms((v) => ({
                             ...v,
                             item: {
                                 ...emptyItem,
                                 editing: false,
-                                no_invoice: forms.spb.no_spb || activePurchase?.no_faktur || '',
+                                no_invoice: purchase?.no_faktur || '',
                             },
                         }));
                         setModal('item');
+                    }}
+                />
+            )}
+            {confirmState && (
+                <ActionConfirmModal
+                    {...confirmState}
+                    saving={saving}
+                    onClose={() => setConfirmState(null)}
+                    onConfirm={async (val) => {
+                        const action = confirmState.action;
+                        setConfirmState(null);
+                        if (action) await action(val);
                     }}
                 />
             )}
@@ -733,7 +1010,7 @@ export default function Logistik() {
                     saving={saving}
                 />
             )}
-            {modal === 'item' && <ItemModal form={forms.item} setForm={(p) => setForm('item', p)} barang={barangOptions} onSubmit={saveItem} onClose={() => setModal(null)} purchase={activePurchase} saving={saving} />}
+            {modal === 'item' && <ItemModal mode={section} form={forms.item} setForm={(p) => setForm('item', p)} barang={barangOptions} onSubmit={saveItem} onClose={() => setModal(null)} purchase={activePurchase} saving={saving} />}
             {modal === 'barang-keluar' && <MutasiModal form={forms.mutasi} setForm={(p) => setForm('mutasi', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={saveMutasi} onClose={() => setModal(null)} saving={saving} />}
             {modal === 'permintaan' && <PermintaanModal form={forms.permintaan} setForm={(p) => setForm('permintaan', p)} barang={barangOptions} ruang={ruangOptions} onSubmit={savePermintaan} onClose={() => setModal(null)} saving={saving} />}
             {modal === 'opname' && <OpnameModal form={forms.opname} setForm={(p) => setForm('opname', p)} barang={barangOptions} onSubmit={saveOpname} onClose={() => setModal(null)} saving={saving} />}
@@ -745,11 +1022,11 @@ function payload_error_fallback(section) {
     return section === 'penerimaan' ? 'Gagal menyimpan penerimaan.' : 'Gagal menyimpan SPB.';
 }
 
-function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onVerify }) {
+function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan }) {
     const headers = {
         barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         vendor: ['Vendor & Kategori', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
-        spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Aksi'],
+        spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Status', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
         permintaan: ['Tanggal', 'Barang', 'Ruang', 'Minta', 'Setuju', 'Status', 'Aksi'],
@@ -774,8 +1051,8 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 <td>{fmt(r.stok_minimum)}</td>
                 <td>
                     <div className="inv-row-actions">
-                        <button onClick={() => onEditBarang(r)} title="Edit barang"><Pencil size={15} /></button>
-                        <button onClick={() => onDeleteBarang(r)} title="Hapus barang"><Trash2 size={15} /></button>
+                        <button className="btn-edit" onClick={() => onEditBarang(r)} title="Edit barang"><Pencil size={15} /></button>
+                        <button className="btn-delete" onClick={() => onDeleteBarang(r)} title="Hapus barang"><Trash2 size={15} /></button>
                     </div>
                 </td>
             </tr>
@@ -802,17 +1079,17 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 </td>
                 <td>
                     <div className="inv-row-actions">
-                        <button onClick={() => onEditVendor(r)} title="Edit vendor"><Pencil size={15} /></button>
-                        <button onClick={() => onDeleteVendor(r)} title="Hapus vendor"><Trash2 size={15} /></button>
+                        <button className="btn-edit" onClick={() => onEditVendor(r)} title="Edit vendor"><Pencil size={15} /></button>
+                        <button className="btn-delete" onClick={() => onDeleteVendor(r)} title="Hapus vendor"><Trash2 size={15} /></button>
                     </div>
                 </td>
             </tr>
         ));
-        if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r))}</td><td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button></div></td></tr>);
+        if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r, 'spb'))}</td><td><Badge success={r.status==='Selesai'} warning={r.status==='Draft'}>{r.status}</Badge></td><td><div className="inv-row-actions"><button className="btn-view" onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button><button className="btn-edit" onClick={() => onEditPenerimaan(r)} title="Edit SPB"><Pencil size={15} /></button><button className="btn-print" onClick={() => generateSpbPdf(r)} title="Print SPB"><Printer size={15} /></button>{r.status !== 'Selesai' && <button className="btn-process" onClick={() => onProsesPenerimaan(r)} title="Proses ke Penerimaan"><CheckCircle2 size={15} /></button>}<button className="btn-delete" onClick={() => onDeleteSpb(r)} title={r.status === 'Selesai' ? "SPB Selesai (Terkunci)" : "Hapus SPB"}><Trash2 size={15} /></button></div></td></tr>);
         if (section === 'penerimaan') return rows.map((r) => {
             const items = r.items || [];
             const qtyMasuk = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.isi || 0), 0);
-            const grandTotal = purchaseTotal(r);
+            const grandTotal = purchaseTotal(r, 'penerimaan');
             const isCash = r.metode_pembayaran === 'Cash';
             const isSubmitted = r.status === 'Y';
             return (
@@ -823,20 +1100,59 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                     <td>{items.length ? fmt(qtyMasuk) : '-'}</td>
                     <td>{money(grandTotal)}</td>
                     <td>
-                        {isCash ? (
-                            <Badge info>Tunai (Selesai)</Badge>
-                        ) : isSubmitted ? (
-                            <Badge success>Dikirim ke Keuangan</Badge>
+                        {isSubmitted ? (
+                            <Badge info>Dikirim ke Keuangan ({r.metode_pembayaran === 'Cash' ? 'Cash' : 'Kredit'})</Badge>
                         ) : (
                             <Badge warning>Draft (Belum Kirim)</Badge>
                         )}
                     </td>
-                    <td><div className="inv-row-actions"><button onClick={() => onDetail(r)} title="Lihat penerimaan"><Eye size={15} /></button><button onClick={() => onEditPenerimaan(r)} title={isSubmitted ? "Lihat invoice penerimaan (terkunci)" : "Edit invoice penerimaan"}><Pencil size={15} /></button></div></td>
+                    <td><div className="inv-row-actions"><button className="btn-view" onClick={() => onDetail(r)} title="Lihat penerimaan"><Eye size={15} /></button><button className="btn-edit" onClick={() => onEditPenerimaan(r)} title={isSubmitted ? "Lihat invoice penerimaan (terkunci)" : "Edit invoice penerimaan"}><Pencil size={15} /></button><button className="btn-delete" onClick={() => onDeletePenerimaan(r)} title={isSubmitted ? "Penerimaan Terkunci" : "Hapus Penerimaan"}><Trash2 size={15} /></button></div></td>
                 </tr>
             );
         });
-        if (section === 'barang-keluar') return rows.map((r) => <tr key={r.id}><td>{r.nomor}</td><td>{r.tanggal}</td><td>{r.barang_nama}</td><td>{r.ruang}</td><td>{fmt(r.qty)} {r.satuan}</td><td>{money(r.harga)}</td><td><Badge>{r.status}</Badge></td></tr>);
-        if (['permintaan', 'verifikasi'].includes(section)) return rows.map((r) => <tr key={r.id}><td>{r.tanggal}</td><td>{r.barang_nama}</td><td>{r.ruang}</td><td>{fmt(r.qty_minta)} {r.satuan}</td><td>{fmt(r.qty_setuju)}</td><td><Badge>{r.status_label || r.status}</Badge></td><td>{section === 'verifikasi' ? <div className="inv-row-actions"><button onClick={() => onVerify(r, 'disetujui')}><CheckCircle2 size={15} /></button><button onClick={() => onVerify(r, 'ditolak')}><X size={15} /></button></div> : '-'}</td></tr>);
+        if (['permintaan', 'verifikasi', 'barang-keluar'].includes(section)) return rows.map((r) => {
+            const isMenunggu = r.status === 'menunggu' || r.status_label === 'Belum Ditanggapi';
+            const isDitolak = r.status === 'ditolak' || r.status_label === 'Ditolak';
+            const isDisetujui = r.status === 'disetujui' || String(r.status_label || '').includes('Disetujui');
+            const isDiberikan = r.status_label === 'Sudah Diberikan' || r.status_label === 'Sudah Diterima';
+
+            return (
+                <tr key={r.id}>
+                    <td>{formatDate(r.tanggal) || r.tanggal}</td>
+                    <td><strong>{r.barang_nama}</strong></td>
+                    <td>{r.ruang}</td>
+                    <td>{fmt(r.qty_minta || r.qty)} {r.satuan}</td>
+                    <td>{fmt(r.qty_setuju || r.qty)} {r.satuan}</td>
+                    <td>
+                        {isMenunggu ? (
+                            <Badge warning>Menunggu Verifikasi</Badge>
+                        ) : isDitolak ? (
+                            <Badge danger>Ditolak</Badge>
+                        ) : isDisetujui ? (
+                            <Badge success>Disetujui</Badge>
+                        ) : isDiberikan ? (
+                            <Badge info>Sudah Diberikan (Keluar)</Badge>
+                        ) : (
+                            <Badge neutral>{r.status_label || r.status}</Badge>
+                        )}
+                    </td>
+                    <td>
+                        {isMenunggu ? (
+                            <div className="inv-row-actions">
+                                <button className="btn-process" onClick={() => onVerify(r, 'disetujui')} title="Setujui & Keluarkan Stok">
+                                    <CheckCircle2 size={15} />
+                                </button>
+                                <button className="btn-delete" onClick={() => onVerify(r, 'ditolak')} title="Tolak Permintaan">
+                                    <X size={15} />
+                                </button>
+                            </div>
+                        ) : (
+                            <small style={{ color: '#94a3b8' }}>-</small>
+                        )}
+                    </td>
+                </tr>
+            );
+        });
         if (section === 'opname') return rows.map((r) => <tr key={r.id}><td>{r.tanggal}</td><td>{r.barang_nama}</td><td>{fmt(r.stok_sistem)}</td><td>{fmt(r.real_stock)}</td><td>{fmt(r.selisih)}</td><td>{r.keterangan || '-'}</td></tr>);
         return null;
     };
@@ -844,8 +1160,25 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
     return <div className="inv-table-wrap table-fade-in"><table className="inv-table log-table"><thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{body()}</tbody></table></div>;
 }
 
-function Badge({ children, danger }) {
-    return <span className={`inv-status ${danger ? 'danger' : 'success'}`}>{children}</span>;
+function Badge({ children, type, variant, danger, warning, success, info, neutral, purple }) {
+    const text = String(children || '').toLowerCase().trim();
+    
+    let resolvedVariant = 'neutral';
+    if (danger || variant === 'danger' || type === 'danger' || ['ditolak', 'batal', 'stok minimum', 'kosong', 'terhapus'].some(k => text.includes(k))) {
+        resolvedVariant = 'danger';
+    } else if (warning || variant === 'warning' || type === 'warning' || ['draft', 'menunggu', 'proses', 'belum kirim'].some(k => text.includes(k))) {
+        resolvedVariant = 'warning';
+    } else if (success || variant === 'success' || type === 'success' || ['selesai', 'disetujui', 'diterima', 'tersedia'].some(k => text.includes(k))) {
+        resolvedVariant = 'success';
+    } else if (info || variant === 'info' || type === 'info' || ['tunai', 'dikirim ke keuangan', 'kredit', 'logistik'].some(k => text.includes(k))) {
+        resolvedVariant = 'info';
+    } else if (purple || variant === 'purple' || type === 'purple' || ['farmasi', 'mutasi'].some(k => text.includes(k))) {
+        resolvedVariant = 'purple';
+    } else if (neutral || variant === 'neutral' || type === 'neutral') {
+        resolvedVariant = 'neutral';
+    }
+
+    return <span className={`inv-status ${resolvedVariant}`}>{children}</span>;
 }
 
 function DetailInfo({ row, section }) {
@@ -935,6 +1268,93 @@ function Modal({ title, description = 'Lengkapi data lalu simpan.', children, on
     );
 }
 
+function ActionConfirmModal({
+    title = 'Konfirmasi',
+    description,
+    warning,
+    icon = <ShieldAlert size={24} />,
+    confirmLabel = 'Ya, Lanjutkan',
+    variant = 'danger',
+    hasInput = false,
+    inputLabel = '',
+    inputValue = '',
+    onClose,
+    onConfirm,
+    saving = false,
+}) {
+    const [val, setVal] = useState(inputValue);
+
+    useEffect(() => {
+        const originalStyle = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onConfirm(hasInput ? val : true);
+    };
+
+    return (
+        <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
+            <div className="log-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+                <button className="log-confirm-close" type="button" onClick={onClose} aria-label="Tutup">
+                    <X size={18} />
+                </button>
+
+                <div className="log-confirm-icon-wrapper">
+                    <div className={`log-confirm-icon-circle ${variant}`}>
+                        {icon}
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+                    <div className="log-confirm-body">
+                        <h3>{title}</h3>
+                        {description && <p className="log-confirm-sub">{description}</p>}
+
+                        {hasInput && (
+                            <div className="inv-field" style={{ marginTop: 12, textAlign: 'left', width: '100%' }}>
+                                {inputLabel && <span className="inv-field-label">{inputLabel}</span>}
+                                <input
+                                    className="inv-input"
+                                    type="number"
+                                    min="0"
+                                    required
+                                    autoFocus
+                                    value={val}
+                                    onChange={(e) => setVal(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {warning && (
+                            <div className="log-confirm-warning-card">
+                                <div className="log-confirm-warning-header">
+                                    <Lock size={14} />
+                                    <span>Peringatan</span>
+                                </div>
+                                <p>{warning}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="log-confirm-actions" style={{ marginTop: 20 }}>
+                        <button className="inv-btn soft" type="button" onClick={onClose} disabled={saving}>
+                            Batal
+                        </button>
+                        <button className={`inv-btn ${variant}`} type="submit" disabled={saving}>
+                            {saving ? 'Memproses...' : confirmLabel}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 function ConfirmSubmitModal({ target, onClose, onConfirm, saving }) {
     useEffect(() => {
         const originalStyle = document.body.style.overflow;
@@ -989,7 +1409,7 @@ function Field({ label, children, className = '' }) {
     return <label className={`inv-field ${className}`.trim()}>{label}{children}</label>;
 }
 
-function SearchableBarangSelect({ options = [], value = '', onChange }) {
+function SearchableBarangSelect({ options = [], value = '', onChange, disabled = false }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
@@ -1014,13 +1434,14 @@ function SearchableBarangSelect({ options = [], value = '', onChange }) {
     useEffect(() => { setActiveIndex(0); }, [query, open]);
 
     const selectItem = (item) => {
-        if (!item) return;
+        if (!item || disabled) return;
         onChange?.(item.id);
         setOpen(false);
         setQuery('');
     };
 
     const handleKeyDown = (event) => {
+        if (disabled) return;
         if (!open && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
             setOpen(true);
             event.preventDefault();
@@ -1045,21 +1466,29 @@ function SearchableBarangSelect({ options = [], value = '', onChange }) {
 
     return (
         <div className="log-search-select" onClick={(event) => event.stopPropagation()} onKeyDown={handleKeyDown}>
-            <div className={`log-search-control${open ? ' open' : ''}`} onClick={() => setOpen(true)}>
+            <div
+                className={`log-search-control${open ? ' open' : ''}${disabled ? ' disabled' : ''}`}
+                onClick={() => !disabled && setOpen(true)}
+                style={disabled ? { opacity: 0.7, cursor: 'not-allowed', background: '#f8fafc' } : {}}
+            >
                 <Search size={15} />
                 <input
                     value={open ? query : selected?.nama_barang || ''}
                     placeholder="Cari / pilih barang"
-                    onFocus={() => setOpen(true)}
+                    onFocus={() => !disabled && setOpen(true)}
                     onChange={(event) => {
+                        if (disabled) return;
                         setQuery(event.target.value);
                         setOpen(true);
                     }}
-                    required
+                    disabled={disabled}
+                    readOnly={disabled}
+                    required={!disabled}
+                    style={disabled ? { cursor: 'not-allowed', color: '#64748b' } : {}}
                 />
                 <ChevronDown size={16} className={open ? 'open' : ''} />
             </div>
-            {open && (
+            {open && !disabled && (
                 <div className="log-search-options" role="listbox">
                     {filtered.length === 0 ? <div className="log-search-empty">Barang tidak ditemukan</div> : filtered.map((item, index) => {
                         const isSelected = String(item.id) === String(value);
@@ -1111,6 +1540,16 @@ function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
                     </div>
                     <div className="log-form-grid-2">
                         <label>
+                            <span className="inv-field-label"><Layers size={15} /> Golongan</span>
+                            <select className="inv-input" required value={form.golongan || ''} onChange={(e) => setForm({ golongan: e.target.value })}>
+                                <option value="">-- Pilih Golongan --</option>
+                                <option value="1">1 - ATK / Cetakan</option>
+                                <option value="2">2 - ATK / Cetakan</option>
+                                <option value="3">3 - Elektronik / Alkes</option>
+                                <option value="4">4 - BHP Umum / Rumah Tangga</option>
+                            </select>
+                        </label>
+                        <label>
                             <span className="inv-field-label"><Layers size={15} /> Satuan</span>
                             <select className="inv-input" required value={form.satuan} onChange={(e) => setForm({ satuan: e.target.value })}>
                                 {UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
@@ -1160,10 +1599,10 @@ function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
 
 function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, onDeleteItem, onSubmitToFinance, onAddItem, onSubmit, onClose, saving }) {
     const isPenerimaan = mode === 'penerimaan';
-    const isLocked = isPenerimaan && form.metode_pembayaran !== 'Cash' && (form.status === 'Y' || purchase?.status === 'Y');
+    const isLocked = isPenerimaan && (form.status === 'Y' || purchase?.status === 'Y');
     const items = purchase?.items || [];
     const hasItems = items.length > 0;
-    const canSubmitToFinance = isPenerimaan && !isLocked && form.metode_pembayaran !== 'Cash' && hasItems;
+    const canSubmitToFinance = isPenerimaan && !isLocked && hasItems;
 
     // For penerimaan mode: the existing record only stores vendor name (pemasok), not numeric ID.
     // So we use the normalized uppercase vendor name as the select value for reliable matching.
@@ -1186,81 +1625,58 @@ function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, 
             title={isPenerimaan ? (isLocked ? 'Detail Penerimaan (Terkunci)' : 'Edit Penerimaan') : 'Tambah SPB'}
             description={isPenerimaan ? (isLocked ? 'Faktur ini telah dikirim ke Keuangan dan tidak dapat diubah.' : 'Perbarui invoice dan daftar barang penerimaan.') : 'Isi informasi SPB baru untuk dasar penerimaan gudang.'}
             onClose={onClose}
-            variant={isPenerimaan ? 'create' : 'spb-compact'}
+            variant="create"
             icon={isPenerimaan ? (isLocked ? <Lock size={20} /> : <Pencil size={20} />) : <FilePlus2 size={20} />}
         >
             <form onSubmit={onSubmit}>
-                {isPenerimaan ? (
-                    <div className="log-edit-penerimaan-vertical">
-                        {isLocked && (
-                            <div className="log-locked-banner">
-                                <Lock size={18} />
-                                <span>Penerimaan ini telah dikirim ke Keuangan dan statusnya <strong>Terkunci</strong>. Data tidak dapat diubah lagi.</span>
-                            </div>
-                        )}
-                        <div className="log-edit-header-panel">
-                            <label>
-                                <span className="inv-field-label"><CalendarDays size={15} /> Tanggal</span>
-                                <DateField value={form.tanggal} onChange={(value) => setForm({ tanggal: value })} disabled={isLocked} />
-                            </label>
-                            <label>
-                                <span className="inv-field-label"><CreditCard size={15} /> Pembayaran</span>
-                                <select className="inv-input" value={form.metode_pembayaran || 'Kredit'} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} disabled={isLocked}>
-                                    <option value="Kredit">Kredit</option>
-                                    <option value="Cash">Cash</option>
-                                </select>
-                            </label>
-                            <label className="log-edit-vendor-full">
-                                <span className="inv-field-label"><Building2 size={15} /> Vendor / Rekanan</span>
-                                <SearchablePembiayaanSelect
-                                    options={vendorOptions}
-                                    value={normalizedVendorValue}
-                                    onChange={(value) => setForm({ id_rekanan: value })}
-                                    placeholder="Pilih vendor"
-                                    disabled={isLocked}
-                                />
-                            </label>
-                            <label className="log-edit-invoice-full">
-                                <span className="inv-field-label"><FileText size={15} /> No Invoice / Faktur</span>
-                                <input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} placeholder="Masukkan no invoice" title={form.no_spb || ''} disabled={isLocked} />
-                            </label>
+                <div className="log-edit-penerimaan-vertical">
+                    {isLocked && (
+                        <div className="log-locked-banner">
+                            <Lock size={18} />
+                            <span>Penerimaan ini telah dikirim ke Keuangan dan statusnya <strong>Terkunci</strong>. Data tidak dapat diubah lagi.</span>
                         </div>
-                        <div className="log-edit-table-container">
-                            <ItemsTable
-                                items={items}
-                                editable={!isLocked}
-                                onEdit={onEditItem}
-                                onDelete={onDeleteItem}
-                                onAddItem={onAddItem}
-                            />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="log-spb-form">
-                        <div className="log-spb-row">
-                            <label className="inv-date-compact">
-                                <span className="inv-field-label"><CalendarDays size={15} /> Tanggal SPB</span>
-                                <DateField value={form.tanggal} onChange={(value) => setForm({ tanggal: value })} />
-                            </label>
-                            <label>
-                                <span className="inv-field-label"><CreditCard size={15} /> Metode Pembayaran</span>
-                                <select className="inv-input" value={form.metode_pembayaran || 'Kredit'} onChange={(e) => setForm({ metode_pembayaran: e.target.value })}>
-                                    <option value="Kredit">Kredit</option>
-                                    <option value="Cash">Cash</option>
-                                </select>
-                            </label>
-                        </div>
-                        <label className="log-spb-vendor">
+                    )}
+                    <div className="log-edit-header-panel">
+                        <label>
+                            <span className="inv-field-label"><CalendarDays size={15} /> Tanggal</span>
+                            <DateField value={form.tanggal} onChange={(value) => setForm({ tanggal: value })} disabled={isLocked} />
+                        </label>
+                        <label>
+                            <span className="inv-field-label"><CreditCard size={15} /> Pembayaran</span>
+                            <select className="inv-input" value={form.metode_pembayaran || 'Kredit'} onChange={(e) => setForm({ metode_pembayaran: e.target.value })} disabled={isLocked || isPenerimaan}>
+                                <option value="Kredit">Kredit</option>
+                                <option value="Cash">Cash</option>
+                            </select>
+                        </label>
+                        <label className="log-edit-vendor-full">
                             <span className="inv-field-label"><Building2 size={15} /> Vendor / Rekanan</span>
                             <SearchablePembiayaanSelect
                                 options={vendorOptions}
-                                value={form.id_rekanan}
+                                value={normalizedVendorValue}
                                 onChange={(value) => setForm({ id_rekanan: value })}
                                 placeholder="Pilih vendor"
+                                disabled={isLocked || isPenerimaan}
                             />
                         </label>
+                        {isPenerimaan && (
+                            <label className="log-edit-invoice-full">
+                                <span className="inv-field-label"><FileText size={15} /> No Invoice / Faktur</span>
+                                <input className="inv-input" value={form.no_spb} onChange={(e) => setForm({ no_spb: e.target.value })} placeholder="Kosongkan jika auto" title={form.no_spb || ''} disabled={isLocked} />
+                            </label>
+                        )}
                     </div>
-                )}
+                    <div className="log-edit-table-container">
+                        <ItemsTable
+                            mode={mode}
+                            items={items}
+                            editable={!isLocked}
+                            onEdit={onEditItem}
+                            onDelete={isPenerimaan ? null : onDeleteItem}
+                            onAddItem={isPenerimaan ? null : onAddItem}
+                            isSaved={!!purchase?.id}
+                        />
+                    </div>
+                </div>
                 <div className="inv-modal-actions">
                     <button className="inv-btn soft" type="button" onClick={onClose} disabled={saving}>Tutup</button>
                     {canSubmitToFinance && (
@@ -1270,7 +1686,7 @@ function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, 
                     )}
                     {!isLocked && (
                         <button className="inv-btn primary" type="submit" disabled={saving}>
-                            <FilePlus2 size={16} /> {saving ? 'Menyimpan...' : 'Simpan Penerimaan'}
+                            <FilePlus2 size={16} /> {saving ? 'Menyimpan...' : (isPenerimaan ? 'Simpan Penerimaan' : 'Simpan SPB')}
                         </button>
                     )}
                 </div>
@@ -1279,11 +1695,13 @@ function SpbModal({ mode = 'spb', form, setForm, vendors, purchase, onEditItem, 
     );
 }
 
-function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase, saving }) {
-    const qtyMasuk = Number(form.qty || 0) * Number(form.isi || 0);
+function ItemModal({ mode, form, setForm, barang, onSubmit, onClose, purchase, saving }) {
+    const isSPB = mode === 'spb';
+    const activeQty = isSPB ? form.qty_pesan : form.qty;
+    const qtyMasuk = Number(activeQty || 0) * Number(form.isi || 0);
     const harga = parseMoneyInput(form.harga);
-    const grandTotal = Number(form.qty || 0) * harga;
-    const isCalculated = Boolean(form.barang && Number(form.qty || 0) > 0 && harga > 0);
+    const grandTotal = Number(activeQty || 0) * harga;
+    const isCalculated = Boolean(form.barang && Number(activeQty || 0) > 0 && harga > 0);
 
     return (
         <Modal title={form.editing ? 'Edit Barang Masuk' : 'Tambah Barang Masuk'} description="Isi rincian barang yang masuk pada invoice ini." onClose={onClose} icon={form.editing ? <Pencil size={20} /> : <Plus size={20} />}>
@@ -1324,15 +1742,29 @@ function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase, saving 
                                             isi: selected?.isi || 1
                                         });
                                     }} 
+                                    disabled={!isSPB}
                                 />
                             </label>
-                            <label>
-                                <span className="inv-field-label"><Hash size={15} /> Qty Kemasan</span>
-                                <input className="inv-input inv-input-left" type="number" min="1" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} placeholder="1" />
-                            </label>
+                            {isSPB ? (
+                                <label>
+                                    <span className="inv-field-label"><Hash size={15} /> Qty Pesan</span>
+                                    <input className="inv-input inv-input-left" type="number" min="1" required value={form.qty_pesan} onChange={(e) => setForm({ qty_pesan: e.target.value })} placeholder="1" />
+                                </label>
+                            ) : (
+                                <>
+                                    <label>
+                                        <span className="inv-field-label"><Hash size={15} /> Qty Pesan</span>
+                                        <input className="inv-input inv-input-left" type="number" readOnly value={form.qty_pesan || 0} />
+                                    </label>
+                                    <label>
+                                        <span className="inv-field-label"><Hash size={15} /> Qty Diterima</span>
+                                        <input className="inv-input inv-input-left" type="number" min="0" required value={form.qty} onChange={(e) => setForm({ qty: e.target.value })} placeholder="0" />
+                                    </label>
+                                </>
+                            )}
                             <label>
                                 <span className="inv-field-label"><Archive size={15} /> Isi per Kemasan</span>
-                                <input className="inv-input inv-input-left" type="number" readOnly value={form.isi} placeholder="1" title="Sesuai data master barang" style={{ background: '#f8fafc', color: '#64748b', cursor: 'not-allowed', borderColor: '#e2e8f0' }} />
+                                <input className="inv-input inv-input-left" type="number" readOnly value={form.isi} placeholder="1" title="Sesuai data master barang" />
                             </label>
                             <label className="log-item-form-full">
                                 <span className="inv-field-label"><BadgeDollarSign size={15} /> Harga Satuan</span>
@@ -1345,8 +1777,8 @@ function ItemModal({ form, setForm, barang, onSubmit, onClose, purchase, saving 
                                 <strong>{fmt(qtyMasuk)}</strong>
                             </div>
                             <div>
-                                <span>Qty Kemasan</span>
-                                <strong>{fmt(form.qty || 0)}</strong>
+                                <span>Qty {isSPB ? 'Pesan' : 'Datang'}</span>
+                                <strong>{fmt(activeQty || 0)}</strong>
                             </div>
                             <div>
                                 <span>Harga Satuan</span>
@@ -1372,10 +1804,11 @@ function MutasiModal({ form, setForm, barang, ruang, onSubmit, onClose, saving }
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Barang">
-                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
-                            <option value="">Pilih barang</option>
-                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang} - stok {fmt(b.stok)}</option>)}
-                        </select>
+                        <SearchableBarangSelect
+                            options={barang}
+                            value={form.barang}
+                            onChange={(val) => setForm({ barang: val })}
+                        />
                     </Field>
                     <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
                     <Field label="Ruang">
@@ -1399,10 +1832,11 @@ function PermintaanModal({ form, setForm, barang, ruang, onSubmit, onClose, savi
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Barang">
-                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
-                            <option value="">Pilih barang</option>
-                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}
-                        </select>
+                        <SearchableBarangSelect
+                            options={barang}
+                            value={form.barang}
+                            onChange={(val) => setForm({ barang: val })}
+                        />
                     </Field>
                     <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
                     <Field label="Ruang">
@@ -1426,10 +1860,11 @@ function OpnameModal({ form, setForm, barang, onSubmit, onClose, saving }) {
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Barang">
-                        <select className="inv-input" required value={form.barang} onChange={(e) => setForm({ barang: e.target.value })}>
-                            <option value="">Pilih barang</option>
-                            {barang.map((b) => <option key={b.id} value={b.id}>{b.nama_barang}</option>)}
-                        </select>
+                        <SearchableBarangSelect
+                            options={barang}
+                            value={form.barang}
+                            onChange={(val) => setForm({ barang: val })}
+                        />
                     </Field>
                     <Field label="Tanggal"><input className="inv-input" type="date" value={form.tanggal} onChange={(e) => setForm({ tanggal: e.target.value })} /></Field>
                     <Field label="Real Stock"><input className="inv-input" type="number" value={form.real_stock} onChange={(e) => setForm({ real_stock: e.target.value })} /></Field>
@@ -1452,17 +1887,18 @@ function ModalFoot({ onClose, submitLabel = 'Simpan', saving = false }) {
     );
 }
 
-function MiniItems({ items }) {
-    return <ItemsTable items={items} />;
+function MiniItems({ mode, items }) {
+    return <ItemsTable mode={mode} items={items} />;
 }
 
-function ItemsTable({ items = [], editable = false, onEdit, onDelete, onAddItem }) {
+function ItemsTable({ mode, items = [], editable = false, onEdit, onDelete, onAddItem, isSaved = true }) {
+    const isSPB = mode === 'spb';
     const grandTotal = useMemo(() => {
-        return items.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.harga || 0)), 0);
-    }, [items]);
+        return items.reduce((sum, item) => sum + (Number(isSPB ? item.qty_pesan : item.qty || 0) * Number(item.harga || 0)), 0);
+    }, [items, isSPB]);
     const totalQtyMasuk = useMemo(() => {
-        return items.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.isi || 0)), 0);
-    }, [items]);
+        return items.reduce((sum, item) => sum + (Number(isSPB ? item.qty_pesan : item.qty || 0) * Number(item.isi || 0)), 0);
+    }, [items, isSPB]);
 
     if (editable) {
         return (
@@ -1470,7 +1906,7 @@ function ItemsTable({ items = [], editable = false, onEdit, onDelete, onAddItem 
                 <div className="log-items-head">
                     <div>
                         <h3>Daftar Barang</h3>
-                        <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang masuk.'}</p>
+                        <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang.'}</p>
                     </div>
                     {onAddItem && (
                         <button className="inv-btn primary compact" style={{ padding: '8px 14px' }} type="button" onClick={onAddItem}>
@@ -1479,19 +1915,20 @@ function ItemsTable({ items = [], editable = false, onEdit, onDelete, onAddItem 
                     )}
                 </div>
                 <div className="log-edit-items">
-                    {items.map((item) => {
-                        const qtyMasuk = Number(item.qty || 0) * Number(item.isi || 0);
-                        const total = Number(item.qty || 0) * Number(item.harga || 0);
+                    {items.map((item, index) => {
+                        const activeQty = isSPB ? item.qty_pesan : item.qty;
+                        const qtyMasuk = Number(activeQty || 0) * Number(item.isi || 0);
+                        const total = Number(activeQty || 0) * Number(item.harga || 0);
                         return (
-                            <div className="log-edit-item" key={`${item.id}-${item.barang}`}>
+                            <div className="log-edit-item" key={`${item.id || 'new'}-${item.barang || index}-${index}`}>
                                 <div className="name"><strong>{item.barang_nama}</strong><span>{fmt(qtyMasuk)} {item.satuan || ''}</span></div>
-                                <div><span>Qty</span><strong>{fmt(item.qty)}</strong></div>
+                                <div><span>{isSPB ? 'Qty Pesan' : 'Qty'}</span><strong>{fmt(activeQty)}</strong></div>
                                 <div><span>Isi</span><strong>{fmt(item.isi)}</strong></div>
                                 <div><span>Harga</span><strong>{money(item.harga)}</strong></div>
                                 <div><span>Total</span><strong>{money(total)}</strong></div>
                                 <div className="inv-row-actions">
-                                    <button className="inv-row-btn" type="button" onClick={() => onEdit(item)} title="Edit barang"><Pencil size={15} /></button>
-                                    {onDelete && <button className="inv-row-btn" type="button" onClick={() => onDelete(item)} title="Hapus barang"><Trash2 size={15} /></button>}
+                                    <button className="inv-row-btn btn-edit" type="button" onClick={() => onEdit(item)} title="Edit barang"><Pencil size={15} /></button>
+                                    {onDelete && <button className="inv-row-btn btn-delete" type="button" onClick={() => onDelete(item)} title="Hapus barang"><Trash2 size={15} /></button>}
                                 </div>
                             </div>
                         );
@@ -1514,20 +1951,21 @@ function ItemsTable({ items = [], editable = false, onEdit, onDelete, onAddItem 
             <div className="log-items-head">
                 <div>
                     <h3>Daftar Barang</h3>
-                    <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang masuk.'}</p>
+                    <p>{items.length ? `${items.length} item barang tercatat (${fmt(totalQtyMasuk)} total qty masuk)` : 'Belum ada barang.'}</p>
                 </div>
             </div>
             <div className="inv-table-wrap log-items-wrap">
                 <table className="inv-table log-items-table">
-                    <thead><tr><th>Barang</th><th>Qty</th><th>Isi</th><th>Qty Masuk</th><th>Harga</th><th>Total</th>{editable && <th>Aksi</th>}</tr></thead>
+                    <thead><tr><th>Barang</th><th>{isSPB ? 'Qty Pesan' : 'Qty'}</th><th>Isi</th><th>Qty Masuk</th><th>Harga</th><th>Total</th>{editable && <th>Aksi</th>}</tr></thead>
                     <tbody>
-                        {items.map((item) => {
-                            const qtyMasuk = Number(item.qty || 0) * Number(item.isi || 0);
-                            const total = Number(item.qty || 0) * Number(item.harga || 0);
+                        {items.map((item, index) => {
+                            const activeQty = isSPB ? item.qty_pesan : item.qty;
+                            const qtyMasuk = Number(activeQty || 0) * Number(item.isi || 0);
+                            const total = Number(activeQty || 0) * Number(item.harga || 0);
                             return (
-                                <tr key={`${item.id}-${item.barang}`}>
+                                <tr key={`${item.id || 'new'}-${item.barang || index}-${index}`}>
                                     <td><strong>{item.barang_nama}</strong><small>{item.satuan || '-'}</small></td>
-                                    <td>{fmt(item.qty)}</td>
+                                    <td>{fmt(activeQty)}</td>
                                     <td>{fmt(item.isi)}</td>
                                     <td>{fmt(qtyMasuk)} {item.satuan || ''}</td>
                                     <td>{money(item.harga)}</td>

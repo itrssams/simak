@@ -6,8 +6,49 @@
 .inv-row-actions { display: inline-flex; align-items: center; gap: 7px; }
 .inv-row-actions button, .inv-row-btn {
   width: 34px; height: 34px; border: 1px solid rgba(226,232,240,.9); border-radius: 10px;
-  background: rgba(255,255,255,.86); color: #4f46e5; display: inline-flex; align-items: center;
-  justify-content: center; cursor: pointer;
+  background: rgba(255,255,255,.9); color: #4f46e5; display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Vibrant Action Button Color Variants */
+.inv-row-actions button.btn-view {
+  color: #0284c7; background: #f0f9ff; border-color: #bae6fd;
+}
+.inv-row-actions button.btn-view:hover {
+  color: #ffffff; background: #0284c7; border-color: #0284c7;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); transform: translateY(-2px);
+}
+
+.inv-row-actions button.btn-edit {
+  color: #d97706; background: #fffbeb; border-color: #fde68a;
+}
+.inv-row-actions button.btn-edit:hover {
+  color: #ffffff; background: #d97706; border-color: #d97706;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35); transform: translateY(-2px);
+}
+
+.inv-row-actions button.btn-print {
+  color: #7c3aed; background: #f5f3ff; border-color: #ddd6fe;
+}
+.inv-row-actions button.btn-print:hover {
+  color: #ffffff; background: #7c3aed; border-color: #7c3aed;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); transform: translateY(-2px);
+}
+
+.inv-row-actions button.btn-process {
+  color: #059669; background: #ecfdf5; border-color: #a7f3d0;
+}
+.inv-row-actions button.btn-process:hover {
+  color: #ffffff; background: #059669; border-color: #059669;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35); transform: translateY(-2px);
+}
+
+.inv-row-actions button.btn-delete {
+  color: #e11d48; background: #fff1f2; border-color: #fecdd3;
+}
+.inv-row-actions button.btn-delete:hover {
+  color: #ffffff; background: #e11d48; border-color: #e11d48;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35); transform: translateY(-2px);
 }
 .log-modal .inv-close {
   width: auto; min-width: 86px; height: 40px; padding: 0 13px; border-radius: 14px;
@@ -25,9 +66,16 @@
 .log-filter-segment button.active {
   color: #4f46e5; background: white; box-shadow: 0 8px 20px rgba(15,23,42,.08);
 }
-.inv-status { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 900; }
-.inv-status.success { color: #047857; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.22); }
-.inv-status.danger { color: #b91c1c; background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.22); }
+.inv-status {
+  display: inline-flex; align-items: center; min-height: 24px; padding: 3px 10px;
+  border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0.2px; transition: all 0.2s ease;
+}
+.inv-status.success { color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; }
+.inv-status.warning { color: #b45309; background: #fffbeb; border: 1px solid #fde68a; }
+.inv-status.danger { color: #b91c1c; background: #fff1f2; border: 1px solid #fecdd3; }
+.inv-status.info { color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; }
+.inv-status.purple { color: #6d28d9; background: #f5f3ff; border: 1px solid #ddd6fe; }
+.inv-status.neutral { color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; }
 .log-modal.inv-modal.create { width: min(1050px, calc(100vw - 32px)); }
 .log-modal.inv-modal.spb-compact { width: min(480px, calc(100vw - 32px)); }
 .log-modal.inv-modal.barang-compact { width: min(560px, calc(100vw - 32px)); }
@@ -114,6 +162,8 @@
 .log-summary-item strong { display: block; color: #0f172a; font-size: 13px; }
 .log-summary-item.total { background: linear-gradient(135deg, rgba(99,102,241,.12), rgba(6,182,212,.10)); border-color: rgba(99,102,241,.2); }
 .log-search-select { position: relative; width: 100%; }
+.log-search-select:focus-within { z-index: 1200; }
+.inv-field:has(.log-search-select) { position: relative; z-index: 100; }
 .log-search-control {
   min-height: 40px; border: 1px solid rgba(226,232,240,.95); border-radius: 12px;
   padding: 0 10px; display: flex; align-items: center; gap: 8px;
@@ -127,10 +177,19 @@
 .log-search-control svg:last-child { transition: transform .18s ease; }
 .log-search-control svg:last-child.open { transform: rotate(180deg); }
 .log-search-options {
-  position: absolute; z-index: 1300; top: calc(100% + 8px); left: 0; right: 0;
-  max-height: 280px; overflow-y: auto; padding: 8px; border-radius: 16px;
-  border: 1px solid rgba(226,232,240,.86); background: rgba(255,255,255,.96);
-  box-shadow: 0 22px 45px rgba(15,23,42,.18); backdrop-filter: blur(18px);
+  position: absolute; z-index: 9999; top: calc(100% + 6px); left: 0; right: 0;
+  max-height: 200px; overflow-y: auto; padding: 8px; border-radius: 14px;
+  border: 1px solid rgba(99,102,241,.3); background: #ffffff;
+  box-shadow: 0 22px 50px rgba(15,23,42,.25); backdrop-filter: blur(18px);
+}
+.log-modal.inv-modal {
+  overflow: hidden !important;
+  border-radius: 20px !important;
+}
+.log-modal .inv-modal-body {
+  overflow-y: auto !important;
+  max-height: calc(88vh - 80px);
+  min-height: 280px;
 }
 .log-search-options button {
   width: 100%; border: 0; background: transparent; border-radius: 12px; padding: 10px;
@@ -319,11 +378,12 @@
 }
 
 .log-edit-table-container {
-    background: #ffffff;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgba(226, 232, 240, 0.2);
-    overflow: hidden;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
 }
 
 @media (max-width: 1024px) {
@@ -384,7 +444,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 20px 20px;
     box-shadow: 0 -4px 12px rgba(255, 255, 255, 0.9);
 }
 
@@ -472,6 +532,38 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 8px 16px rgba(16, 185, 129, 0.12);
+}
+.log-confirm-icon-circle.danger {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #e11d48;
+    box-shadow: 0 8px 16px rgba(225, 29, 72, 0.12);
+}
+.log-confirm-icon-circle.warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #d97706;
+    box-shadow: 0 8px 16px rgba(217, 119, 6, 0.12);
+}
+.log-confirm-icon-circle.primary {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #2563eb;
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.12);
+}
+
+.inv-btn.danger {
+  background: #e11d48; color: #ffffff; border: 1px solid #e11d48; font-weight: 700;
+}
+.inv-btn.danger:hover {
+  background: #be123c; border-color: #be123c; box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+}
+
+.inv-btn.warning {
+  background: #d97706; color: #ffffff; border: 1px solid #d97706; font-weight: 700;
+}
+.inv-btn.warning:hover {
+  background: #b45309; border-color: #b45309; box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
 }
 
 .log-confirm-body h3 {
@@ -570,4 +662,643 @@
     font-size: 11.5px;
     color: #64748b;
     font-weight: 600;
+}
+
+/* ==========================================================================
+   DARK MODE OVERRIDES FOR LOGISTIK & MASTER VENDOR MODALS
+   ========================================================================== */
+
+[data-theme="dark"] .inv-modal-backdrop {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+[data-theme="dark"] .inv-modal {
+  background: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .inv-modal-head {
+  background: #1e293b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .log-modal-title h2,
+[data-theme="dark"] .inv-detail-title h2,
+[data-theme="dark"] .inv-modal-head h2 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-modal-title p,
+[data-theme="dark"] .inv-detail-title p,
+[data-theme="dark"] .inv-modal-head p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .inv-close {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .inv-close:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .inv-field {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .inv-field-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .inv-input,
+[data-theme="dark"] .inv-field input,
+[data-theme="dark"] .inv-field select,
+[data-theme="dark"] .inv-field textarea {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .inv-input:focus,
+[data-theme="dark"] .inv-field input:focus,
+[data-theme="dark"] .inv-field select:focus,
+[data-theme="dark"] .inv-field textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+  outline: none !important;
+}
+
+[data-theme="dark"] .inv-input::placeholder,
+[data-theme="dark"] .inv-field input::placeholder {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .inv-field select option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .inv-modal-actions,
+[data-theme="dark"] .inv-modal-foot {
+  background: #0f172a !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+  border-radius: 0 0 20px 20px !important;
+}
+
+[data-theme="dark"] .log-modal.inv-modal {
+  border-radius: 20px !important;
+}
+
+[data-theme="dark"] .inv-modal-head {
+  border-radius: 20px 20px 0 0 !important;
+}
+
+[data-theme="dark"] .inv-btn.soft {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .inv-btn.soft:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .log-vendor-name-cell strong,
+[data-theme="dark"] .log-vendor-contact-cell {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-vendor-address-cell {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .log-vendor-cat,
+[data-theme="dark"] .log-vendor-pic {
+  color: #94a3b8 !important;
+}
+
+
+/* Dark mode for Logistik Detail Modals & Summary Cards */
+[data-theme="dark"] .inv-detail-body {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-split-panel,
+[data-theme="dark"] .log-form-panel {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-split-panel h3,
+[data-theme="dark"] .log-calc-header {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .log-summary-item {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .log-summary-item span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-summary-item strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-summary-item.total {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.20)) !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+[data-theme="dark"] .log-summary-item.total strong {
+  color: #ffffff !important;
+}
+
+/* Items Table inside Detail Modal */
+[data-theme="dark"] .log-items-section table,
+[data-theme="dark"] .inv-table-wrap table {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .log-items-section th,
+[data-theme="dark"] .inv-table-wrap th {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .log-items-section td,
+[data-theme="dark"] .inv-table-wrap td {
+  color: #f8fafc !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .log-items-section td.empty,
+[data-theme="dark"] .inv-table-wrap td.empty {
+  color: #94a3b8 !important;
+  background: #0f172a !important;
+}
+
+
+/* ==========================================================================
+   SPB & PENERIMAN LOGISTIK MODAL DARK MODE OVERRIDES
+   ========================================================================== */
+
+[data-theme="dark"] :where(
+  .log-edit-header-panel,
+  .log-edit-table-container,
+  .log-detail-wrapper,
+  .log-detail-grid,
+  .inv-info-grid,
+  .inv-info-item,
+  .log-info-item,
+  .log-edit-penerimaan-vertical
+) {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] :where(.inv-info-item, .log-detail-grid > div) {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+}
+
+[data-theme="dark"] :where(.inv-info-item span, .log-detail-grid span) {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] :where(.inv-info-item strong, .log-detail-grid strong) {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] :where(.log-edit-header-panel label, .log-edit-header-panel .inv-field-label) {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] :where(.log-edit-table-container, .log-items-section) {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] :where(.log-edit-table-container table, .log-items-section table) {
+  background: transparent !important;
+}
+
+[data-theme="dark"] :where(.log-edit-table-container th, .log-items-section th) {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] :where(.log-edit-table-container td, .log-items-section td) {
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] :where(.log-edit-table-container td.empty, .log-items-section td.empty, .inv-table td.empty) {
+  background: #0f172a !important;
+  color: #94a3b8 !important;
+}
+
+
+/* Clip all modal children to 20px rounded corners */
+:where(.inv-modal, .log-modal) {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+:where(.inv-modal-head, .inv-detail-head, .log-modal-title) {
+  border-radius: 20px 20px 0 0 !important;
+}
+
+:where(.inv-detail-body, .inv-modal-body:last-child) {
+  border-radius: 0 0 20px 20px !important;
+}
+
+:where(.inv-modal-actions, .inv-modal-foot, .log-page .inv-modal-actions) {
+  border-radius: 0 0 20px 20px !important;
+}
+
+
+/* Dark mode override for log-locked-banner */
+[data-theme="dark"] .log-locked-banner {
+  background: rgba(153, 27, 27, 0.25) !important;
+  border: 1px solid rgba(248, 113, 113, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .log-locked-banner strong {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .log-locked-banner svg {
+  color: #fca5a5 !important;
+}
+
+
+/* Dark mode overrides for log-edit-item (Editable items in SPB and Penerimaan) */
+[data-theme="dark"] .log-edit-item {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-edit-item .name strong,
+[data-theme="dark"] .log-edit-item > div > strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-edit-item .name span,
+[data-theme="dark"] .log-edit-item > div > span {
+  color: #94a3b8 !important;
+}
+
+
+/* ==========================================================================
+   ELEGANT LAYOUT SPACING & PADDING FOR LOGISTIK MODALS
+   ========================================================================== */
+
+.log-modal .inv-modal-body,
+.log-modal .inv-detail-body {
+  padding: 24px !important;
+}
+
+.log-edit-header-panel {
+  padding: 22px 24px !important;
+  gap: 20px !important;
+  border-radius: 16px !important;
+}
+
+.log-edit-table-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.log-items-section {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 22px 24px !important;
+  box-shadow: 0 4px 12px rgba(226, 232, 240, 0.25) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.log-items-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
+}
+
+.log-edit-items {
+  padding: 4px 0 !important;
+  gap: 12px !important;
+}
+
+.log-edit-item {
+  padding: 14px 18px !important;
+  gap: 14px !important;
+  border-radius: 14px !important;
+}
+
+.log-page .inv-modal-actions,
+.inv-modal-actions {
+  padding: 16px 24px !important;
+  margin: 20px -24px -24px -24px !important;
+  gap: 12px !important;
+}
+
+
+/* ==========================================================================
+   PERFECT MODAL FOOTER & BUTTON SPACING (TUTUP, KIRIM, SIMPAN)
+   ========================================================================== */
+
+.log-page .inv-modal-actions,
+.inv-modal-actions,
+.inv-modal-foot {
+  position: sticky !important;
+  bottom: -24px !important;
+  margin: 24px -24px -24px -24px !important;
+  padding: 20px 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 14px !important;
+  border-radius: 0 0 20px 20px !important;
+}
+
+[data-theme="dark"] :where(.inv-modal-actions, .inv-modal-foot, .log-page .inv-modal-actions) {
+  background: #0f172a !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Modal Action Buttons (Tutup, Kirim ke Keuangan, Simpan, Batal) */
+.inv-btn {
+  min-height: 42px !important;
+  padding: 10px 22px !important;
+  border-radius: 12px !important;
+  font-size: 13.5px !important;
+  font-weight: 750 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease-in-out !important;
+}
+
+.inv-btn:active {
+  transform: scale(0.97) !important;
+}
+
+[data-theme="dark"] .inv-btn.soft {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .inv-btn.soft:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+.inv-btn.primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+}
+
+.inv-btn.primary:hover {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45) !important;
+}
+
+.inv-btn.success {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+}
+
+.inv-btn.success:hover {
+  background: linear-gradient(135deg, #34d399, #10b981) !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45) !important;
+}
+
+
+/* ==========================================================================
+   FIX MODAL FOOTER BOTTOM GAP & CONTENT OVERLAP
+   ========================================================================== */
+
+/* Prevent modal content from being covered by sticky footer */
+.log-edit-penerimaan-vertical {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 0 36px 0 !important;
+}
+
+.log-edit-table-container {
+  margin-bottom: 12px !important;
+}
+
+.log-items-footer {
+  padding-bottom: 8px !important;
+}
+
+/* Modal footer positioning and generous bottom padding */
+.log-page .inv-modal-actions,
+.inv-modal-actions,
+.inv-modal-foot {
+  position: sticky !important;
+  bottom: -24px !important;
+  margin: 24px -24px -24px -24px !important;
+  padding: 18px 28px 24px 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 14px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-radius: 0 0 20px 20px !important;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06) !important;
+  z-index: 50 !important;
+}
+
+.inv-modal-actions > .inv-btn.soft:first-child,
+.inv-modal-actions > button.soft:first-child {
+  margin-right: auto !important;
+}
+
+[data-theme="dark"] .log-page .inv-modal-actions,
+[data-theme="dark"] .inv-modal-actions,
+[data-theme="dark"] .inv-modal-foot {
+  background: #151c2c !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .inv-btn.soft {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .inv-btn.soft:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   ITEM MODAL (EDIT BARANG MASUK) DARK MODE OVERRIDES
+   ========================================================================== */
+
+[data-theme="dark"] .log-item-entry-layout {
+    background: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: none !important;
+}
+
+[data-theme="dark"] .log-item-sidebar {
+    background: #0f172a !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .log-item-sidebar h3 {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .log-item-meta span {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-item-meta strong {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-item-form-area {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-item-form-area .inv-field-label {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .log-item-calc-box {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.85)) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .log-item-calc-box span {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-item-calc-box strong {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-item-calc-box .total {
+    border-left: 2px solid rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-theme="dark"] .log-item-calc-box .total.ready strong {
+    color: #818cf8 !important;
+}
+
+[data-theme="dark"] .log-item-calc-box .total.muted strong {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-item-calc-box .total small {
+    color: #64748b !important;
+}
+
+/* ==========================================================================
+   SEARCHABLE BARANG SELECT DARK MODE OVERRIDES
+   ========================================================================== */
+
+[data-theme="dark"] .log-search-control {
+    background: #0f172a !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-search-control.open {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .log-search-control.disabled {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    opacity: 0.75 !important;
+}
+
+[data-theme="dark"] .log-search-control input {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-search-control input::placeholder {
+    color: #64748b !important;
+}
+
+[data-theme="dark"] .log-search-options {
+    background: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65) !important;
+}
+
+[data-theme="dark"] .log-search-options button {
+    color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .log-search-options button strong {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .log-search-options button small {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .log-search-options button.active,
+[data-theme="dark"] .log-search-options button:hover {
+    background: rgba(99, 102, 241, 0.22) !important;
+}
+
+[data-theme="dark"] .log-search-options button.selected {
+    color: #818cf8 !important;
+    background: rgba(99, 102, 241, 0.16) !important;
+}
+
+[data-theme="dark"] .log-search-options button.selected strong {
+    color: #818cf8 !important;
+}
+
+[data-theme="dark"] .log-search-empty {
+    color: #94a3b8 !important;
 }
