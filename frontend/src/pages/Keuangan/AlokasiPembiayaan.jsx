@@ -217,6 +217,7 @@ export default function AlokasiPembiayaan() {
                 key: `in-${item.id}`,
                 type: 'in',
                 tanggal: item.tanggal_penerimaan,
+                created_at: item.created_at || item.tanggal_penerimaan,
                 label: 'Dana Masuk',
                 ref: BANK_OPTIONS.find((b) => b.value === item.bank)?.label || item.bank,
                 keterangan: item.keterangan || 'Pembayaran diterima',
@@ -230,6 +231,7 @@ export default function AlokasiPembiayaan() {
                     key: `out-${pay.id}`,
                     type: 'out',
                     tanggal: pay.tanggal,
+                    created_at: pay.created_at || pay.tanggal,
                     label: 'Dana Keluar',
                     ref: pay.nomor_faktur || '-',
                     keterangan: pay.keterangan || `Alokasi ke invoice ${pay.nomor_faktur || ''}`.trim(),
@@ -244,7 +246,7 @@ export default function AlokasiPembiayaan() {
         let saldo = 0;
         return entries
             .sort((a, b) => {
-                const diff = new Date(a.tanggal) - new Date(b.tanggal);
+                const diff = new Date(a.created_at) - new Date(b.created_at);
                 if (diff !== 0) return diff;
                 if (a.type !== b.type) return a.type === 'in' ? -1 : 1;
                 return a.key.localeCompare(b.key);

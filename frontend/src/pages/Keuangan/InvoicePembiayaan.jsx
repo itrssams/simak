@@ -1017,7 +1017,14 @@ export default function InvoicePembiayaan() {
                                             </td>
                                             <td className="inv-right inv-mono">{money(item.total_tagihan)}</td>
                                             <td className="inv-right inv-mono">{money(item.total_piutang ?? item.total_tagihan)}</td>
-                                            <td><StatusBadge status={item.status} label={item.status_label} /></td>
+                                            <td>
+                                                <StatusBadge status={item.status} label={item.status_label} />
+                                                {item.status === 'bayar_sebagian' && (
+                                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', fontWeight: '600' }}>
+                                                        Sisa: {money(item.sisa_tagihan)}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <div className="inv-action-group">
                                                     <button
