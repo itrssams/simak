@@ -563,6 +563,15 @@ select.dki-select {
   transform: none;
 }
 
+.inv-action-btn.return {
+  color: #d97706;
+  background: rgba(245, 158, 11, .14);
+}
+
+.inv-action-btn.return:hover {
+  background: rgba(245, 158, 11, .22);
+}
+
 /* =========================
    INPUT
 ========================= */
@@ -1376,6 +1385,70 @@ textarea.inv-input {
   gap: 8px;
   font-weight: 900;
   cursor: pointer;
+}
+
+/* =========================
+   KEMBALIKAN INVOICE MODAL
+========================= */
+.inv-confirm-icon.return {
+  background: rgba(217, 119, 6, .12);
+  color: #d97706;
+}
+
+.inv-return-modal {
+  max-width: 460px;
+}
+
+.inv-return-alasan {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.inv-return-alasan label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--inv-text);
+}
+
+.inv-required {
+  color: var(--inv-danger);
+  margin-left: 2px;
+}
+
+.inv-return-textarea {
+  min-height: 80px;
+  padding: 10px 13px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inv-return-btn {
+  height: 40px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 15px;
+  color: white;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.inv-return-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b45309, #d97706);
+  transform: translateY(-1px);
+}
+
+.inv-return-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .inv-send-fields,

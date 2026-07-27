@@ -33,6 +33,7 @@ import {
     ScanLine,
     Stethoscope,
     Trash2,
+    UndoDot,
     Wrench,
     X,
 } from 'lucide-react';
@@ -231,6 +232,9 @@ export default function InvoicePembiayaan() {
     const [paymentDateTouched, setPaymentDateTouched] = useState(false);
     const [invoiceToCancel, setInvoiceToCancel] = useState(null);
     const [cancelingInvoiceId, setCancelingInvoiceId] = useState(null);
+    const [invoiceToReturn, setInvoiceToReturn] = useState(null);
+    const [returningInvoiceId, setReturningInvoiceId] = useState(null);
+    const [alasanKembalikan, setAlasanKembalikan] = useState('');
     const [sendTarget, setSendTarget] = useState(null);
     const [sentInfoTarget, setSentInfoTarget] = useState(null);
     const [sendForm, setSendForm] = useState({ tgl_kirim: '', jatuh_tempo: '' });
@@ -633,6 +637,38 @@ export default function InvoicePembiayaan() {
             toast.error(errorMessage(err, 'Gagal membatalkan invoice.'));
         } finally {
             setCancelingInvoiceId(null);
+        }
+    };
+
+    const requestReturnInvoice = (invoice, event) => {
+        event?.stopPropagation();
+        setAlasanKembalikan('');
+        setInvoiceToReturn(invoice);
+    };
+
+    const closeReturnInvoice = () => {
+        if (returningInvoiceId) return;
+        setInvoiceToReturn(null);
+        setAlasanKembalikan('');
+    };
+
+    const confirmReturnInvoice = async () => {
+        if (!invoiceToReturn) return;
+        if (!alasanKembalikan.trim()) return;
+        setReturningInvoiceId(invoiceToReturn.id);
+        try {
+            const res = await api.post(`/keuangan/faktur/${invoiceToReturn.id}/kembalikan/`, {
+                alasan_batal: alasanKembalikan.trim(),
+            });
+            toast.success('Invoice berhasil dikembalikan. Kunjungan sudah dilepas dan bisa di-invoice ulang.');
+            setInvoiceToReturn(null);
+            setAlasanKembalikan('');
+            if (selected?.id === invoiceToReturn.id) setSelected(res.data);
+            await fetchInvoices();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal mengembalikan invoice.'));
+        } finally {
+            setReturningInvoiceId(null);
         }
     };
 
@@ -1052,15 +1088,25 @@ export default function InvoicePembiayaan() {
                                                     >
                                                         <Pencil size={16} />
                                                     </button>
-                                                    <button
+                                                     <button
                                                         className="inv-action-btn danger"
                                                         type="button"
                                                         disabled={Boolean(item.tgl_kirim) || hasPaymentRequest || item.status === 'batal' || item.status === 'lunas'}
                                                         onClick={(event) => requestCancelInvoice(item, event)}
-                                                        title={item.tgl_kirim ? 'Invoice terkirim tidak bisa dibatalkan' : hasPaymentRequest ? 'Invoice yang sudah punya pengajuan pembayaran tidak bisa dibatalkan' : item.status === 'batal' ? 'Invoice sudah dibatalkan' : item.status === 'lunas' ? 'Invoice lunas tidak bisa dibatalkan' : 'Batalkan invoice'}
+                                                        title={item.tgl_kirim ? 'Invoice terkirim tidak bisa dibatalkan. Gunakan Kembalikan.' : hasPaymentRequest ? 'Invoice yang sudah punya pengajuan pembayaran tidak bisa dibatalkan' : item.status === 'batal' ? 'Invoice sudah dibatalkan' : item.status === 'lunas' ? 'Invoice lunas tidak bisa dibatalkan' : 'Batalkan invoice'}
                                                     >
                                                         <X size={16} />
                                                     </button>
+                                                    {item.tgl_kirim && item.status !== 'batal' && item.status !== 'lunas' && (
+                                                        <button
+                                                            className="inv-action-btn return"
+                                                            type="button"
+                                                            onClick={(event) => requestReturnInvoice(item, event)}
+                                                            title="Kembalikan invoice yang ditolak/dikembalikan asuransi"
+                                                        >
+                                                            <UndoDot size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -1494,6 +1540,53 @@ export default function InvoicePembiayaan() {
                             <button className="inv-btn soft" type="button" onClick={closeCancelInvoice} disabled={Boolean(cancelingInvoiceId)}>Kembali</button>
                             <button className="inv-danger-btn" type="button" onClick={confirmCancelInvoice} disabled={Boolean(cancelingInvoiceId)}>
                                 <X size={16} /> {cancelingInvoiceId ? 'Membatalkan...' : 'Batalkan Invoice'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body,
+            )}
+
+            {invoiceToReturn && createPortal(
+                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeReturnInvoice}>
+                    <div className="inv-confirm-modal inv-return-modal" role="dialog" aria-modal="true" aria-labelledby="inv-return-invoice-title" onMouseDown={(event) => event.stopPropagation()}>
+                        <div className="inv-confirm-icon return">
+                            <UndoDot size={22} />
+                        </div>
+                        <div className="inv-confirm-copy">
+                            <h2 id="inv-return-invoice-title">Kembalikan Invoice?</h2>
+                            <p>
+                                Invoice <strong>{invoiceToReturn.nomor_faktur}</strong> atas nama {resolvePembiayaanName(invoiceToReturn)} akan dibatalkan
+                                karena dikembalikan oleh asuransi. Semua kunjungan yang terikat akan <strong>dilepas otomatis</strong> dan bisa di-invoice ulang.
+                            </p>
+                        </div>
+                        <div className="inv-confirm-detail">
+                            <span>Tanggal Kirim</span>
+                            <strong>{invoiceToReturn.tgl_kirim || '-'}</strong>
+                        </div>
+                        <div className="inv-return-alasan">
+                            <label htmlFor="inv-alasan-kembalikan">
+                                Alasan pengembalian <span className="inv-required">*</span>
+                            </label>
+                            <textarea
+                                id="inv-alasan-kembalikan"
+                                className="inv-input inv-return-textarea"
+                                rows={3}
+                                placeholder="Contoh: Kesalahan input pembiayaan, data pasien tidak sesuai, dll."
+                                value={alasanKembalikan}
+                                onChange={(e) => setAlasanKembalikan(e.target.value)}
+                                disabled={Boolean(returningInvoiceId)}
+                            />
+                        </div>
+                        <div className="inv-confirm-actions">
+                            <button className="inv-btn soft" type="button" onClick={closeReturnInvoice} disabled={Boolean(returningInvoiceId)}>Kembali</button>
+                            <button
+                                className="inv-return-btn"
+                                type="button"
+                                onClick={confirmReturnInvoice}
+                                disabled={Boolean(returningInvoiceId) || !alasanKembalikan.trim()}
+                            >
+                                <UndoDot size={16} /> {returningInvoiceId ? 'Memproses...' : 'Kembalikan Invoice'}
                             </button>
                         </div>
                     </div>

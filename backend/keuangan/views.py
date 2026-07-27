@@ -1571,6 +1571,44 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 )
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='kembalikan')
+    def kembalikan(self, request, pk=None):
+        """
+        Batalkan invoice yang sudah dikirim ke asuransi karena dikembalikan/ditolak.
+        Berbeda dari /batal/ biasa — endpoint ini khusus untuk invoice yang tgl_kirim sudah terisi.
+        Wajib menyertakan alasan_batal di request body.
+        Kunjungan yang terikat akan otomatis dilepas sehingga bisa di-assign ke invoice baru.
+        """
+        faktur = self.get_object()
+
+        if faktur.status == 'batal':
+            return Response({'error': 'Invoice ini sudah dibatalkan sebelumnya.'}, status=status.HTTP_400_BAD_REQUEST)
+        if faktur.status == 'lunas':
+            return Response({'error': 'Invoice yang sudah lunas tidak bisa dikembalikan.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not faktur.tgl_kirim:
+            return Response(
+                {'error': 'Invoice belum dikirim. Gunakan tombol Batalkan biasa untuk membatalkan invoice ini.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        alasan = str(request.data.get('alasan_batal') or '').strip()
+        if not alasan:
+            return Response({'alasan_batal': 'Alasan pengembalian wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            faktur.status = 'batal'
+            faktur.alasan_batal = alasan
+            faktur.dibatalkan_oleh = request.user
+            faktur.dibatalkan_at = timezone.now()
+            faktur.save()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
+                    [faktur.nomor_faktur],
+                )
+
+        return Response(FakturSerializer(faktur, context={'view': self}).data, status=status.HTTP_200_OK)
+
 
 # ══════════════════════════════════════════════════════════════
 _ROMAN_MONTHS = {

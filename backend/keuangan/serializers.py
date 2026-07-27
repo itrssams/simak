@@ -384,6 +384,12 @@ class FakturSerializer(serializers.ModelSerializer):
     status           = serializers.SerializerMethodField()
     status_label     = serializers.SerializerMethodField()
     pasien_invoice   = serializers.SerializerMethodField()
+    dibatalkan_oleh_nama = serializers.SerializerMethodField()
+
+    def get_dibatalkan_oleh_nama(self, obj):
+        if obj.dibatalkan_oleh:
+            return obj.dibatalkan_oleh.get_full_name() or obj.dibatalkan_oleh.username
+        return None
 
     def get_total_dibayar(self, obj):
         return obj._get_verified_total_dibayar() if hasattr(obj, '_get_verified_total_dibayar') else obj.total_dibayar
@@ -519,6 +525,7 @@ class FakturSerializer(serializers.ModelSerializer):
             'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
             'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'total_piutang', 'status', 'status_label',
             'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan', 'pasien_invoice',
+            'alasan_batal', 'dibatalkan_oleh', 'dibatalkan_oleh_nama', 'dibatalkan_at',
             'created_by', 'created_by_name', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'total_tagihan', 'total_dibayar', 'sisa_tagihan']
