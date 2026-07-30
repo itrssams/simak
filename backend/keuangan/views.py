@@ -3645,13 +3645,8 @@ def faktur_rekap_excel_view(request):
     ws = wb.active
     ws.title = "Rekap Invoice"
 
-    # Hitung jumlah pembayaran maksimal pada periode ini (minimal 2 pasang kolom bayar)
-    max_pay = 0
-    for f in fakturs:
-        pay_count = len(f.pembayaran.all())
-        if pay_count > max_pay:
-            max_pay = pay_count
-    max_pay = max(2, max_pay)
+    # Template kolom pembayaran dibatasi tepat sampai 4 pasang (Bayar 1 s/d Bayar 4)
+    max_pay = 4
 
     headers = [
         'NO', 'NO INVOICE', 'TANGGAL FAKTUR', 'PENANGGUNG',
