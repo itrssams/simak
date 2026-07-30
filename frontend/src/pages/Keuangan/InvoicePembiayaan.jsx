@@ -1705,8 +1705,12 @@ export default function InvoicePembiayaan() {
                                 <span className="inv-modal-head-icon rekap"><BarChart3 size={20} /></span>
                                 <div>
                                     <h2>Rekapitulasi Invoice</h2>
+                                    <p className="rekap-head-sub">Pilih periode tanggal untuk cetak atau export rekap</p>
                                 </div>
                             </div>
+                            <button className="inv-close" type="button" onClick={closeRekapDialog} title="Tutup">
+                                <X size={18} />
+                            </button>
                         </div>
                         <div className="inv-modal-body rekap-body">
                             <form className="inv-modal-form rekap-form" onSubmit={(e) => { e.preventDefault(); printRekap(); }}>
@@ -1719,20 +1723,22 @@ export default function InvoicePembiayaan() {
                                         placeholder="Pilih Periode Tanggal"
                                     />
                                 </div>
-                                <div className="inv-modal-actions rekap-actions">
+                                <div className="rekap-actions">
                                     <button className="inv-btn soft" type="button" onClick={closeRekapDialog}>
                                         Batal
                                     </button>
-                                    <button className="inv-btn primary" type="submit">
-                                        <Printer size={16} /> Cetak Rekap
-                                    </button>
-                                    <button
-                                        className="inv-btn excel-btn"
-                                        type="button"
-                                        onClick={exportRekapExcel}
-                                    >
-                                        <FileSpreadsheet size={16} /> Export Excel
-                                    </button>
+                                    <div className="rekap-actions-right">
+                                        <button className="inv-btn primary" type="submit">
+                                            <Printer size={16} /> Cetak Rekap
+                                        </button>
+                                        <button
+                                            className="inv-btn excel-btn"
+                                            type="button"
+                                            onClick={exportRekapExcel}
+                                        >
+                                            <FileSpreadsheet size={16} /> Export Excel
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>

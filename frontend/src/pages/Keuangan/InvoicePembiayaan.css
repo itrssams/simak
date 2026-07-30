@@ -1632,8 +1632,8 @@ textarea.inv-input {
 
 /* Rekapitulasi Modal Redesign */
 .inv-modal.rekap-modal {
-  width: 440px;
-  max-width: 92vw;
+  width: 480px;
+  max-width: 95vw;
   border-radius: 24px;
   overflow: visible !important;
   background: #ffffff;
@@ -1658,6 +1658,13 @@ textarea.inv-input {
   font-size: 18px;
   font-weight: 850;
   color: #0f172a;
+}
+
+.rekap-head-sub {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
 }
 
 .inv-modal-head-icon.rekap {
@@ -1710,11 +1717,17 @@ textarea.inv-input {
 .rekap-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.rekap-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .inv-btn.excel-btn {
@@ -1745,6 +1758,10 @@ textarea.inv-input {
 
 [data-theme="dark"] .rekap-head-left h2 {
   color: #f8fafc !important;
+}
+
+[data-theme="dark"] .rekap-head-sub {
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .rekap-picker-card {

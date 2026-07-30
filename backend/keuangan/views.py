@@ -3432,6 +3432,7 @@ def faktur_rekap_print_view(request):
         '</style>',
         '</head>',
         '<body>',
+        '<body>',
         '<div id="wrapper">',
         '<div id="isi">',
         f'<h3>REKAPITULASI INVOICE<br>Periode: {dari} s/d {sampai}</h3>',
@@ -3455,8 +3456,10 @@ def faktur_rekap_print_view(request):
         '<th class="text-right">Alat</th>',
         '<th class="text-right">Lain-lain</th>',
         '<th class="text-right">Total Pendapatan</th>',
+        '<th class="text-right">Piutang P3</th>',
+        '<th class="text-right">Dibayar Pasien</th>',
         '<th class="text-right">Jml Bayar</th>',
-        '<th class="text-right">Total Tagihan</th>',
+        '<th class="text-right">Sisa Tagihan</th>',
         '<th>Jatuh Tempo</th>',
         '<th>Tgl Kirim</th>',
         '<th>Status</th>',
@@ -3465,7 +3468,34 @@ def faktur_rekap_print_view(request):
         '<tbody>',
     ]
     
+    # Query dp3 & jmlbyr per no_invoice
+    nomor_fakturs = [f.nomor_faktur for f in fakturs if f.nomor_faktur]
+    kunjung_map = {}
+    if nomor_fakturs:
+        try:
+            with connection.cursor() as cursor:
+                placeholders = ','.join(['%s'] * len(nomor_fakturs))
+                cursor.execute(f"""
+                    SELECT 
+                        c.no_invoice,
+                        COALESCE(SUM(COALESCE(a.dp3, 0)), 0) AS total_dp3,
+                        COALESCE(SUM(COALESCE(a.jmlbyr, 0)), 0) AS total_jmlbyr
+                    FROM rssams.kunjung a
+                    INNER JOIN rssams.verif_kunjung c ON a.no = c.no
+                    WHERE c.no_invoice IN ({placeholders})
+                    GROUP BY c.no_invoice
+                """, nomor_fakturs)
+                for r_row in cursor.fetchall():
+                    kunjung_map[str(r_row[0])] = {
+                        'dp3': Decimal(str(r_row[1] or 0)),
+                        'jmlbyr': Decimal(str(r_row[2] or 0)),
+                    }
+        except Exception:
+            pass
+
     total_pendapatan = Decimal('0.00')
+    total_dp3 = Decimal('0.00')
+    total_dibayar_pasien = Decimal('0.00')
     total_dibayar = Decimal('0.00')
     total_tagihan = Decimal('0.00')
     no = 1
@@ -3486,10 +3516,16 @@ def faktur_rekap_print_view(request):
             Decimal(f.alat or 0)
         )
 
+        k_info = kunjung_map.get(str(f.nomor_faktur or ''), {'dp3': Decimal('0'), 'jmlbyr': Decimal('0')})
+        dp3_val = k_info['dp3']
+        dibayar_pasien_val = k_info['jmlbyr']
+
         jml_bayar = Decimal(f.total_dibayar or 0)
         ttl = total_biaya - jml_bayar
         
         total_pendapatan += total_biaya
+        total_dp3 += dp3_val
+        total_dibayar_pasien += dibayar_pasien_val
         total_dibayar += jml_bayar
         total_tagihan += ttl
         
@@ -3524,6 +3560,8 @@ def faktur_rekap_print_view(request):
             f'<td class="text-right">{float(f.alat or 0):,.2f}</td>'
             f'<td class="text-right">{float(f.lainnya or 0):,.2f}</td>'
             f'<td class="text-right">{float(total_biaya):,.2f}</td>'
+            f'<td class="text-right">{float(dp3_val):,.2f}</td>'
+            f'<td class="text-right">{float(dibayar_pasien_val):,.2f}</td>'
             f'<td class="text-right">{float(jml_bayar):,.2f}</td>'
             f'<td class="text-right">{float(ttl):,.2f}</td>'
             f'<td class="text-center">{(f.jatuh_tempo.strftime("%d-%m-%Y") if f.jatuh_tempo else "-")}</td>'
@@ -3538,6 +3576,8 @@ def faktur_rekap_print_view(request):
         f'<tr style="font-weight: bold; background-color: #f0f0f0;">'
         f'<td colspan="16" class="text-right">TOTAL</td>'
         f'<td class="text-right">{float(total_pendapatan):,.2f}</td>'
+        f'<td class="text-right">{float(total_dp3):,.2f}</td>'
+        f'<td class="text-right">{float(total_dibayar_pasien):,.2f}</td>'
         f'<td class="text-right">{float(total_dibayar):,.2f}</td>'
         f'<td class="text-right">{float(total_tagihan):,.2f}</td>'
         f'<td colspan="3"></td>'
@@ -3568,6 +3608,7 @@ def faktur_rekap_excel_view(request):
         .filter(tanggal__gte=dari, tanggal__lte=sampai)
         .exclude(status='batal')
         .select_related('pelanggan')
+        .prefetch_related('pembayaran')
         .order_by('id_pembiayaan', 'tanggal')
     )
     
@@ -3575,25 +3616,127 @@ def faktur_rekap_excel_view(request):
         fakturs.values_list('id_pembiayaan', flat=True).distinct()
     )
 
+    # Query dp3 & jmlbyr per no_invoice
+    nomor_fakturs = [f.nomor_faktur for f in fakturs if f.nomor_faktur]
+    kunjung_map = {}
+    if nomor_fakturs:
+        try:
+            with connection.cursor() as cursor:
+                placeholders = ','.join(['%s'] * len(nomor_fakturs))
+                cursor.execute(f"""
+                    SELECT 
+                        c.no_invoice,
+                        COALESCE(SUM(COALESCE(a.dp3, 0)), 0) AS total_dp3,
+                        COALESCE(SUM(COALESCE(a.jmlbyr, 0)), 0) AS total_jmlbyr
+                    FROM rssams.kunjung a
+                    INNER JOIN rssams.verif_kunjung c ON a.no = c.no
+                    WHERE c.no_invoice IN ({placeholders})
+                    GROUP BY c.no_invoice
+                """, nomor_fakturs)
+                for r_row in cursor.fetchall():
+                    kunjung_map[str(r_row[0])] = {
+                        'dp3': Decimal(str(r_row[1] or 0)),
+                        'jmlbyr': Decimal(str(r_row[2] or 0)),
+                    }
+        except Exception:
+            pass
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Rekap Invoice"
+
+    # Hitung jumlah pembayaran maksimal pada periode ini (minimal 2 pasang kolom bayar)
+    max_pay = 0
+    for f in fakturs:
+        pay_count = len(f.pembayaran.all())
+        if pay_count > max_pay:
+            max_pay = pay_count
+    max_pay = max(2, max_pay)
 
     headers = [
         'NO', 'NO INVOICE', 'TANGGAL FAKTUR', 'PENANGGUNG',
         'ADM', 'JASA', 'FARMASI', 'TINDAKAN', 'FISIO', 'LAB',
         'RAD', 'KAMAR', 'BHP', 'AMBULAN', 'SEWA ALAT', 'LAIN2',
-        'TOTAL PENDAPATAN', 'JML BAYAR', 'TOTAL TAGIHAN', 'TGL J.TEMPO', 'TGL KIRIM', 'STATUS'
+        'TOTAL PENDAPATAN', 'PIUTANG P3', 'DIBAYAR PASIEN', 'JML BAYAR', 'SISA TAGIHAN', 'TGL J.TEMPO', 'TGL KIRIM', 'STATUS'
     ]
 
-    ws.merge_cells('A1:V1')
+    for i in range(1, max_pay + 1):
+        headers.append(f'TGL BAYAR {i}')
+        headers.append(f'JML BAYAR {i}')
+
+    end_col_letter = get_column_letter(len(headers))
+    ws.merge_cells(f'A1:{end_col_letter}1')
     ws['A1'] = 'REKAP INVOICE'
+    ws['A1'].font = Font(name='Calibri', size=16, bold=True, color='1E293B')
+    
     ws['A2'] = f'Tanggal : {dari} s/d {sampai}'
+    ws['A2'].font = Font(name='Calibri', size=11, italic=True, color='64748B')
 
     ws.append([])
     ws.append(headers)
 
+    # ── Styling Definitions ───────────────────────────────────
+    thin_black_border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    total_black_border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='double', color='000000')
+    )
+
+    # Warna Header Kelompok Kolom
+    fill_info = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')      # Dark Slate
+    fill_costs = PatternFill(start_color='334155', end_color='334155', fill_type='solid')     # Slate
+    fill_tot_pend = PatternFill(start_color='1D4ED8', end_color='1D4ED8', fill_type='solid')  # Blue
+    fill_dp3 = PatternFill(start_color='D97706', end_color='D97706', fill_type='solid')       # Amber
+    fill_pasien = PatternFill(start_color='7C3AED', end_color='7C3AED', fill_type='solid')    # Purple
+    fill_tot_byr = PatternFill(start_color='047857', end_color='047857', fill_type='solid')   # Emerald
+    fill_tot_tag = PatternFill(start_color='4338CA', end_color='4338CA', fill_type='solid')   # Indigo
+    fill_meta = PatternFill(start_color='475569', end_color='475569', fill_type='solid')      # Dark Gray
+    fill_pay_tgl_hdr = PatternFill(start_color='0E7490', end_color='0E7490', fill_type='solid') # Dark Cyan Hdr
+    fill_pay_jml_hdr = PatternFill(start_color='0D9488', end_color='0D9488', fill_type='solid') # Dark Teal Hdr
+
+    # Warna Sel Data Pembayaran (Persis seperti screenshot contoh)
+    fill_tgl_bayar = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid') # Kuning
+    fill_jml_bayar = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid') # Biru Muda
+
+    font_header = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+
+    # Apply Header Styles (Row 4)
+    for col_idx, cell in enumerate(ws[4], start=1):
+        cell.font = font_header
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = thin_black_border
+
+        if 1 <= col_idx <= 4:
+            cell.fill = fill_info
+        elif 5 <= col_idx <= 16:
+            cell.fill = fill_costs
+        elif col_idx == 17:
+            cell.fill = fill_tot_pend
+        elif col_idx == 18:
+            cell.fill = fill_dp3
+        elif col_idx == 19:
+            cell.fill = fill_pasien
+        elif col_idx == 20:
+            cell.fill = fill_tot_byr
+        elif col_idx == 21:
+            cell.fill = fill_tot_tag
+        elif 22 <= col_idx <= 24:
+            cell.fill = fill_meta
+        else: # Column >= 25 (TGL BAYAR / JML BAYAR pairs)
+            cell.fill = fill_pay_tgl_hdr if (col_idx - 24) % 2 != 0 else fill_pay_jml_hdr
+
+    ws.row_dimensions[4].height = 28
+
     total_pendapatan = Decimal('0.00')
+    total_dp3 = Decimal('0.00')
+    total_dibayar_pasien = Decimal('0.00')
     total_dibayar = Decimal('0.00')
     total_tagihan = Decimal('0.00')
 
@@ -3613,10 +3756,16 @@ def faktur_rekap_excel_view(request):
             Decimal(f.alat or 0)
         )
 
+        k_info = kunjung_map.get(str(f.nomor_faktur or ''), {'dp3': Decimal('0'), 'jmlbyr': Decimal('0')})
+        dp3_val = k_info['dp3']
+        dibayar_pasien_val = k_info['jmlbyr']
+
         jml_bayar = Decimal(f.total_dibayar or 0)
         ttl = total_biaya - jml_bayar
         
         total_pendapatan += total_biaya
+        total_dp3 += dp3_val
+        total_dibayar_pasien += dibayar_pasien_val
         total_dibayar += jml_bayar
         total_tagihan += ttl
 
@@ -3632,7 +3781,7 @@ def faktur_rekap_excel_view(request):
             else stored_name
         )
 
-        ws.append([
+        row_data = [
             idx,
             f.nomor_faktur or '',
             f.tanggal.strftime('%d-%m-%Y') if f.tanggal else '',
@@ -3650,12 +3799,50 @@ def faktur_rekap_excel_view(request):
             float(f.alat or 0),
             float(f.lainnya or 0),
             float(total_biaya),
+            float(dp3_val),
+            float(dibayar_pasien_val),
             float(jml_bayar),
             float(ttl),
             f.jatuh_tempo.strftime('%d-%m-%Y') if f.jatuh_tempo else '',
             f.tgl_kirim.strftime('%d-%m-%Y') if f.tgl_kirim else '',
             status_label,
-        ])
+        ]
+
+        pembayaran_list = list(f.pembayaran.all())
+        for i in range(max_pay):
+            if i < len(pembayaran_list):
+                p = pembayaran_list[i]
+                tgl_p = p.tanggal.strftime('%d-%m-%Y') if p.tanggal else ''
+                jml_p = float(p.jumlah or 0)
+            else:
+                tgl_p = ''
+                jml_p = 0.0
+            row_data.append(tgl_p)
+            row_data.append(jml_p)
+
+        ws.append(row_data)
+        curr_row = ws.max_row
+
+        # Apply borders, alignment, and fills to data row
+        for c_idx, cell in enumerate(ws[curr_row], start=1):
+            cell.border = thin_black_border
+
+            if c_idx > 24:
+                # Kolom pembayaran: Kuning untuk TGL BAYAR N, Biru Muda untuk JML BAYAR N
+                if (c_idx - 24) % 2 != 0:
+                    cell.fill = fill_tgl_bayar
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                else:
+                    cell.fill = fill_jml_bayar
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
+            else:
+                # Alignment kolom utama 1-24
+                if c_idx in (1, 2, 3, 22, 23, 24):
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                elif c_idx == 4:
+                    cell.alignment = Alignment(horizontal='left', vertical='center')
+                else:
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
 
     total_row = ws.max_row + 1
 
@@ -3668,15 +3855,64 @@ def faktur_rekap_excel_view(request):
     )
 
     ws.cell(row=total_row, column=17, value=float(total_pendapatan))
-    ws.cell(row=total_row, column=17).number_format = '#,##0.00'
-    ws.cell(row=total_row, column=18, value=float(total_dibayar))
-    ws.cell(row=total_row, column=18).number_format = '#,##0.00'
-    ws.cell(row=total_row, column=19, value=float(total_tagihan))
-    ws.cell(row=total_row, column=19).number_format = '#,##0.00'
+    ws.cell(row=total_row, column=18, value=float(total_dp3))
+    ws.cell(row=total_row, column=19, value=float(total_dibayar_pasien))
+    ws.cell(row=total_row, column=20, value=float(total_dibayar))
+    ws.cell(row=total_row, column=21, value=float(total_tagihan))
 
-    for row in ws.iter_rows(min_row=5, min_col=5, max_col=19):
-        for cell in row:
-            cell.number_format = '#,##0.00'
+    # Total per kolom JML BAYAR N
+    for i in range(max_pay):
+        col_idx = 24 + (i * 2) + 2
+        sum_pay_i = sum(
+            float(list(f.pembayaran.all())[i].jumlah or 0)
+            for f in fakturs if len(f.pembayaran.all()) > i
+        )
+        ws.cell(row=total_row, column=col_idx, value=sum_pay_i)
+
+    fill_total = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+    font_total = Font(name='Calibri', size=11, bold=True, color='0F172A')
+
+    for c_idx, cell in enumerate(ws[total_row], start=1):
+        cell.border = total_black_border
+        cell.font = font_total
+        if c_idx > 24:
+            if (c_idx - 24) % 2 != 0:
+                cell.fill = fill_tgl_bayar
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            else:
+                cell.fill = fill_jml_bayar
+                cell.alignment = Alignment(horizontal='right', vertical='center')
+        else:
+            cell.fill = fill_total
+            if c_idx <= 16:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            else:
+                cell.alignment = Alignment(horizontal='right', vertical='center')
+
+    # Apply currency format
+    for r in range(5, ws.max_row + 1):
+        for col_idx in range(5, len(headers) + 1):
+            if (5 <= col_idx <= 21) or (col_idx > 24 and (col_idx - 24) % 2 == 0):
+                ws.cell(row=r, column=col_idx).number_format = '#,##0.00'
+
+    # Auto-adjust column widths so numbers/dates never display as '####'
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row in (1, 2, 3):
+                continue
+            val = cell.value
+            if val is not None:
+                if isinstance(val, (int, float, Decimal)):
+                    val_str = f"{val:,.2f}"
+                else:
+                    val_str = str(val)
+                lines = val_str.split('\n')
+                for line in lines:
+                    if len(line) > max_len:
+                        max_len = len(line)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
