@@ -1795,7 +1795,7 @@ export default function InvoicePembiayaan() {
                                 <div className="rekap-picker-card" style={{ marginTop: 14 }}>
                                     <label className="rekap-field-label" style={{ marginBottom: 6 }}>Pembiayaan / Penjamin</label>
                                     <SearchablePembiayaanSelect
-                                        options={pembiayaan}
+                                        options={pembiayaanOptions}
                                         value={rekapForm.id_pembiayaan}
                                         onChange={(value) => setRekapForm((prev) => ({ ...prev, id_pembiayaan: value }))}
                                         placeholder="Semua Pembiayaan"
