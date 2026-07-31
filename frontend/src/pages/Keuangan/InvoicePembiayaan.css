@@ -1794,19 +1794,23 @@ textarea.inv-input {
 
 #inv-create-form .inv-modal-actions {
   flex-shrink: 0;
-  padding: 14px 22px;
+  padding: 16px 24px;
   background: var(--inv-white, #ffffff);
   border-top: 1px solid var(--inv-border, rgba(226, 232, 240, 0.85));
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
+}
+
+#inv-create-form .inv-modal-actions > * {
+  margin-right: 0 !important;
 }
 
 [data-theme="dark"] #inv-create-form .inv-modal-actions {
-  background: #151c2c !important;
-  border-top-color: rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3) !important;
+  background: #1e293b !important;
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 [data-theme="dark"] .inv-modal-head {

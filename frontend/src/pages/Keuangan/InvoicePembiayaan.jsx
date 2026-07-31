@@ -1200,8 +1200,8 @@ export default function InvoicePembiayaan() {
                                         </label>
                                     ))}
                                 </div>
-                                <div style={{ marginTop: 14, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.06)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.18)' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                                <div style={{ marginTop: 14, padding: '14px 16px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 14, border: '1px solid rgba(99, 102, 241, 0.22)' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700 }}>
                                         <input
                                             type="checkbox"
                                             checked={Boolean(form.is_cob)}
@@ -1211,9 +1211,9 @@ export default function InvoicePembiayaan() {
                                         <span>Invoice COB (BPJS + Asuransi Tambahan)</span>
                                     </label>
                                     {form.is_cob && (
-                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                                        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
                                             <label style={{ display: 'grid', gap: 4 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sub, #475467)' }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
+                                                <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
                                                 <input
                                                     className="inv-input"
                                                     type="text"
@@ -1224,16 +1224,16 @@ export default function InvoicePembiayaan() {
                                                     style={{ fontWeight: 700 }}
                                                 />
                                             </label>
-                                            <div style={{ padding: '8px 12px', background: 'rgba(15, 23, 42, 0.04)', borderRadius: 8, fontSize: 13, display: 'grid', gap: 4 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                            <div style={{ padding: '10px 14px', background: 'rgba(0, 0, 0, 0.06)', borderRadius: 10, fontSize: 13, display: 'grid', gap: 6, border: '1px solid rgba(0, 0, 0, 0.08)' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85 }}>
                                                     <span>Total Biaya Riil RS:</span>
                                                     <strong>{money(totalForm)}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
                                                     <span>Ditanggung BPJS (INA-CBGs):</span>
                                                     <strong>- {money(parseMoneyInput(form.tanggungan_bpjs))}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: 4, marginTop: 2, color: '#166534', fontWeight: 800 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(148, 163, 184, 0.3)', paddingTop: 6, marginTop: 2, color: '#10b981', fontWeight: 800 }}>
                                                     <span>Total Ditagihkan ke Asuransi:</span>
                                                     <span>{money(Math.max(0, totalForm - parseMoneyInput(form.tanggungan_bpjs)))}</span>
                                                 </div>
