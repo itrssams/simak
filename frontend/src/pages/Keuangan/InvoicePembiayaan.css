@@ -1796,7 +1796,7 @@ textarea.inv-input {
 #inv-create-form .inv-modal-actions,
 .inv-modal-actions {
   flex-shrink: 0;
-  padding: 20px 36px 24px 36px !important;
+  padding: 22px 36px 28px 36px !important;
   background: var(--inv-white, #ffffff);
   border-top: 1px solid var(--inv-border, rgba(226, 232, 240, 0.85));
   display: flex;

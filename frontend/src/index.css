@@ -884,17 +884,15 @@ textarea {
 .log-page .inv-modal-actions,
 .inv-modal-actions,
 .inv-modal-foot {
-  position: sticky !important;
-  bottom: -24px !important;
-  margin: 24px -24px -24px -24px !important;
-  padding: 18px 28px 24px 28px !important;
+  padding: 22px 32px 28px 32px !important;
+  margin: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 14px !important;
   background: #ffffff !important;
   border-top: 1px solid #e2e8f0 !important;
-  border-radius: 0 0 20px 20px !important;
+  border-radius: 0 0 24px 24px !important;
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06) !important;
   z-index: 50 !important;
 }
