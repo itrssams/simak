@@ -778,7 +778,6 @@ textarea {
 .log-page .inv-modal-actions,
 .inv-modal-actions {
   padding: 16px 24px !important;
-  margin: 20px -24px -24px -24px !important;
   gap: 12px !important;
 }
 
@@ -790,21 +789,16 @@ textarea {
 .log-page .inv-modal-actions,
 .inv-modal-actions,
 .inv-modal-foot {
-  position: sticky !important;
-  bottom: -24px !important;
-  margin: 24px -24px -24px -24px !important;
-  padding: 20px 28px !important;
+  padding: 18px 28px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 14px !important;
-  border-radius: 0 0 20px 20px !important;
+  border-radius: 0 0 24px 24px !important;
 }
 
 [data-theme="dark"] :where(.inv-modal-actions, .inv-modal-foot, .log-page .inv-modal-actions) {
   background: #0f172a !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Modal Action Buttons (Tutup, Kirim ke Keuangan, Simpan, Batal) */
