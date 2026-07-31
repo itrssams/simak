@@ -429,6 +429,8 @@ class FakturSerializer(serializers.ModelSerializer):
                     )
                     total_piutang, total_rows = cursor.fetchone()
                 if total_rows:
+                    if obj.is_cob and obj.tanggungan_bpjs:
+                        return max(Decimal('0'), Decimal(str(total_piutang)) - Decimal(str(obj.tanggungan_bpjs)))
                     return total_piutang
             except Exception:
                 pass
@@ -462,57 +464,32 @@ class FakturSerializer(serializers.ModelSerializer):
         view = self.context.get('view')
         if getattr(view, 'action', None) == 'list' or not obj.nomor_faktur:
             return []
-
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """
-                    SELECT DISTINCT
-                        a.no,
-                        a.noreg,
-                        b.nama,
-                        (
-                            COALESCE(a.adm,0) +
-                            COALESCE(a.jasa,0) +
-                            COALESCE(a.farmasi,0) +
-                            COALESCE(a.tindakan,0) +
-                            COALESCE(a.fisio,0) +
-                            COALESCE(a.lab,0) +
-                            COALESCE(a.lab_pa,0) +
-                            COALESCE(a.kamar,0) +
-                            COALESCE(a.rad,0) +
-                            COALESCE(a.bhp,0) +
-                            COALESCE(a.lainnya,0) +
-                            COALESCE(a.ambulan,0) +
-                            COALESCE(a.alat,0)
-                        ) AS total_tagihan,
-                        COALESCE(a.jmlbyr,0) AS total_dibayar_pasien,
-                        (
-                            COALESCE(a.adm,0) +
-                            COALESCE(a.jasa,0) +
-                            COALESCE(a.farmasi,0) +
-                            COALESCE(a.tindakan,0) +
-                            COALESCE(a.fisio,0) +
-                            COALESCE(a.lab,0) +
-                            COALESCE(a.lab_pa,0) +
-                            COALESCE(a.kamar,0) +
-                            COALESCE(a.rad,0) +
-                            COALESCE(a.bhp,0) +
-                            COALESCE(a.lainnya,0) +
-                            COALESCE(a.ambulan,0) +
-                            COALESCE(a.alat,0) -
-                            COALESCE(a.jmlbyr,0)
-                        ) AS total_piutang
+                    f"""
+                    SELECT
+                        a.no, a.noreg, b.nama, b.sex, DATE(a.tgl_masuk) AS tgl_masuk,
+                        DATE(a.tgl_keluar) AS tgl_keluar, a.id_pembiayaan,
+                        c.pembiayaan AS nama_pembiayaan, a.cek, a.j_lay,
+                        IFNULL(e.no_invoice, '') AS no_invoice,
+                        ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya,
+                        a.dp3, a.jmlbyr
                     FROM rssams.kunjung a
                     INNER JOIN rssams.regpasien b ON a.noreg = b.noreg
-                    INNER JOIN rssams.verif_kunjung c ON a.no = c.no
-                    WHERE c.no_invoice = %s
-                    ORDER BY a.no
+                    LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
+                    INNER JOIN rssams.verif_kunjung e ON a.no = e.no
+                    WHERE e.no_invoice = %s
+                    ORDER BY a.tgl_masuk DESC, a.no DESC
                     """,
                     [obj.nomor_faktur]
                 )
-                columns = [col[0] for col in cursor.description]
-                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+                rows = _dict_fetchall(cursor)
+                for row in rows:
+                    row['jenis_label'] = _detect_type_from_j_lay(row.get('j_lay'))
+                    row['status_done'] = bool(row.get('cek'))
+                    row['status_invoice'] = 'sudah' if row.get('no_invoice') else 'belum'
+                return rows
         except Exception:
             return []
 
@@ -523,6 +500,7 @@ class FakturSerializer(serializers.ModelSerializer):
             'id_pembiayaan', 'nama_pembiayaan', 'jenis', 'periode', 'beban',
             'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
             'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
+            'is_cob', 'tanggungan_bpjs', 'total_real_rs',
             'total_tagihan', 'total_dibayar', 'sisa_tagihan', 'total_piutang', 'status', 'status_label',
             'tgl_kirim', 'xround', 'items', 'pembayaran', 'keterangan', 'pasien_invoice',
             'alasan_batal', 'dibatalkan_oleh', 'dibatalkan_oleh_nama', 'dibatalkan_at',
@@ -541,6 +519,7 @@ class FakturInputSerializer(serializers.ModelSerializer):
             'id_pembiayaan', 'nama_pembiayaan', 'jenis', 'periode', 'beban',
             'adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar',
             'bhp', 'lainnya', 'ambulan', 'alat', 'ppn_farmasi',
+            'is_cob', 'tanggungan_bpjs', 'total_real_rs',
             'tgl_kirim', 'xround', 'keterangan', 'status', 'items'
         ]
         extra_kwargs = {
@@ -581,7 +560,11 @@ class FakturInputSerializer(serializers.ModelSerializer):
                 validated_data.get('alat', 0),
                 validated_data.get('ppn_farmasi', 0),
             ])
-        faktur.total_tagihan = total
+        faktur.total_real_rs = total
+        if faktur.is_cob and faktur.tanggungan_bpjs:
+            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total)) - Decimal(str(faktur.tanggungan_bpjs)))
+        else:
+            faktur.total_tagihan = total
         faktur.save()
         return faktur
 
@@ -597,9 +580,9 @@ class FakturInputSerializer(serializers.ModelSerializer):
                 item.pop('subtotal', None)
                 FakturItem.objects.create(faktur=instance, subtotal=subtotal, **item)
                 total += subtotal
-            instance.total_tagihan = total
+            total_real = total
         else:
-            instance.total_tagihan = sum([
+            total_real = sum([
                 instance.adm or 0,
                 instance.jasa or 0,
                 instance.farmasi or 0,
@@ -614,6 +597,11 @@ class FakturInputSerializer(serializers.ModelSerializer):
                 instance.alat or 0,
                 instance.ppn_farmasi or 0,
             ])
+        instance.total_real_rs = total_real
+        if instance.is_cob and instance.tanggungan_bpjs:
+            instance.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(instance.tanggungan_bpjs)))
+        else:
+            instance.total_tagihan = total_real
         instance.save()
         return instance
 
@@ -631,7 +619,7 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
     sumber = serializers.CharField(source='utang.sumber', read_only=True)
     sumber_label = serializers.CharField(source='utang.get_sumber_display', read_only=True)
     nomor_spb = serializers.CharField(source='utang.nomor_spb', read_only=True)
-    app_siaga_faktur_id = serializers.IntegerField(source='utang.app_siaga_faktur_id', read_only=True)
+    app_siaga_faktur_id = serializers.CharField(source='utang.app_siaga_faktur_id', read_only=True)
     tanggal_titip = serializers.DateField(source='utang.tanggal_titip', read_only=True)
 
     class Meta:
@@ -664,6 +652,7 @@ class PembayaranUtangInputSerializer(serializers.ModelSerializer):
 
 
 class UtangSupplierSerializer(serializers.ModelSerializer):
+    vendor_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     verified_by_name = serializers.CharField(source='verified_by.username', read_only=True)
     status_label = serializers.CharField(source='get_status_display', read_only=True)
     sumber_label = serializers.CharField(source='get_sumber_display', read_only=True)

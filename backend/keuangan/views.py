@@ -580,6 +580,12 @@ class KunjunganInvoiceView(APIView):
         totals = self._sum_kunjungan_totals(rows)
         for field, value in totals.items():
             setattr(faktur, field, value)
+        total_real = sum(totals.values())
+        faktur.total_real_rs = total_real
+        if faktur.is_cob and faktur.tanggungan_bpjs:
+            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
+        else:
+            faktur.total_tagihan = total_real
         faktur.save()
 
     def get(self, request):
@@ -763,6 +769,18 @@ class KunjunganInvoiceView(APIView):
                 default_keterangan += f". Pembiayaan asal kunjungan: {', '.join(visit_pembiayaan)}."
             keterangan = request.data.get('keterangan') or default_keterangan
 
+            is_cob = bool(request.data.get('is_cob'))
+            try:
+                tanggungan_bpjs = Decimal(str(request.data.get('tanggungan_bpjs') or '0'))
+            except Exception:
+                tanggungan_bpjs = Decimal('0')
+
+            total_real_rs = sum(totals.values())
+            if is_cob and tanggungan_bpjs > 0:
+                total_tagihan = max(Decimal('0'), total_real_rs - tanggungan_bpjs)
+            else:
+                total_tagihan = total_real_rs
+
             with transaction.atomic():
                 faktur = Faktur.objects.create(
                     nomor_faktur=nomor_faktur,
@@ -774,6 +792,10 @@ class KunjunganInvoiceView(APIView):
                     periode=periode,
                     beban=beban,
                     keterangan=keterangan,
+                    is_cob=is_cob,
+                    tanggungan_bpjs=tanggungan_bpjs,
+                    total_real_rs=total_real_rs,
+                    total_tagihan=total_tagihan,
                     created_by=request.user,
                     **totals,
                 )
@@ -1350,10 +1372,35 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tanggal = serializer.validated_data.get('tanggal') or timezone.localdate()
 
-        serializer.save(
+        faktur = serializer.save(
             created_by=self.request.user,
             nomor_faktur=generate_nomor_faktur(tanggal)
         )
+        total_real = (
+            faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
+            faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
+            faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
+        )
+        faktur.total_real_rs = total_real
+        if faktur.is_cob and faktur.tanggungan_bpjs:
+            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
+        else:
+            faktur.total_tagihan = total_real
+        faktur.save()
+
+    def perform_update(self, serializer):
+        faktur = serializer.save()
+        total_real = (
+            faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
+            faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
+            faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
+        )
+        faktur.total_real_rs = total_real
+        if faktur.is_cob and faktur.tanggungan_bpjs:
+            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
+        else:
+            faktur.total_tagihan = total_real
+        faktur.save()
         
     def generate_nomor_faktur(self, tanggal):
         prefix = f"{tanggal:%y}"
@@ -1640,6 +1687,9 @@ def _legacy_invoice_number(faktur):
 
 
 def _invoice_total_tagihan(faktur):
+    if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+        total_real = Decimal(faktur.total_real_rs or 0) or Decimal(faktur.total_tagihan or 0)
+        return max(Decimal('0'), total_real - Decimal(str(faktur.tanggungan_bpjs)))
     return Decimal(faktur.total_tagihan or 0)
 
 
@@ -1647,7 +1697,11 @@ def _invoice_print_amounts(faktur):
     rows = get_invoice_kunjungan_rows(faktur)
     if rows:
         jumlah_bayar = sum((Decimal(row.get('jmlbyr') or 0) for row in rows), Decimal('0'))
-        total = sum((Decimal(row.get('ttl') or 0) for row in rows), Decimal('0'))
+        total_real = sum((Decimal(row.get('ttl') or 0) for row in rows), Decimal('0'))
+        if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+            total = max(Decimal('0'), total_real - Decimal(str(faktur.tanggungan_bpjs)))
+        else:
+            total = total_real
         return total, jumlah_bayar
     return _invoice_total_tagihan(faktur), Decimal('0')
 
@@ -1966,6 +2020,10 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
         y += 5
         row(y, "-  PPN OBAT", faktur.ppn_farmasi)
 
+    if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+        y += 5
+        row(y, "-  DITANGGUNG BPJS (INA-CBGs)", faktur.tanggungan_bpjs, is_negative=True)
+
     y += 5
     row(y, "-  JUMLAH YANG SUDAH DIBAYAR", jml_bayar, is_negative=True)
 
@@ -2212,6 +2270,30 @@ def render_rincian_pdf_response(faktur, mode='rincian'):
     pdf.ln(4)
     pdf.set_x(10)
     pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
+
+    if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+        total_real = totals['ttl']
+        tanggungan = Decimal(faktur.tanggungan_bpjs)
+        net_tagihan = max(Decimal('0'), total_real - tanggungan)
+
+        pdf.set_font('Times', 'B', 9)
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'TOTAL BIAYA RIIL RS:', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"Rp. {fmt(total_real, 2)}", 0, 1, 'R')
+
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'DITANGGUNG BPJS (INA-CBGs):', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"- Rp. {fmt(tanggungan, 2)}", 0, 1, 'R')
+
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'NET TAGIHAN ASURANSI:', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"Rp. {fmt(net_tagihan, 2)}", 0, 1, 'R')
+
+        pdf.set_x(10)
+        pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
 
     pdf_bytes = bytes(pdf.output(dest='S'))
 
@@ -2663,6 +2745,9 @@ def _render_legacy_invoice(faktur, mode):
     # PPN OBAT (jika ppn=False dan ppn_farmasi > 0)
     if mode != 'invoice_ppn' and faktur.ppn_farmasi and faktur.ppn_farmasi > 0:
         cost_rows_html.append((f"-  PPN OBAT", faktur.ppn_farmasi))
+
+    if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+        cost_rows_html.append((f"-  DITANGGUNG BPJS (INA-CBGs)", -Decimal(faktur.tanggungan_bpjs)))
 
     cost_rows_html.append(("-  JUMLAH PEMBAYARAN", jml_bayar))
     
@@ -6265,20 +6350,25 @@ class LogistikBarangViewSet(viewsets.ViewSet):
     def list(self, request):
         search = request.query_params.get('search') or ''
         minimum = request.query_params.get('minimum')
+        golongan_filter = request.query_params.get('golongan') or ''
         show_all = str(request.query_params.get('show_all') or '').lower() in ('1', 'true', 'yes')
         where = ["del = 'N'"]
         params = []
         if search:
-            where.append('(nama_barang LIKE %s OR merk LIKE %s)')
-            params.extend([f'%{search}%', f'%{search}%'])
+            where.append('(nama_barang LIKE %s OR merk LIKE %s OR kode_material LIKE %s)')
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        if golongan_filter:
+            where.append('(gol_baru = %s OR id_gol = %s)')
+            params.extend([golongan_filter, golongan_filter])
         if minimum == 'true':
             where.append('stock_buffer > 0 AND stock < stock_buffer')
         elif not show_all:
             where.append('stock > 0')
         where_sql = ' AND '.join(where)
         base = f"""
-            SELECT id_brg AS id, id_brg, nama_barang, kemasan, satuan, isi, merk,
-                id_gol AS golongan, stock AS stok, stock_buffer AS stok_minimum,
+            SELECT id_brg AS id, id_brg, kode_material, nama_barang, kemasan, satuan, isi, merk,
+                COALESCE(NULLIF(gol_baru, ''), CAST(id_gol AS CHAR)) AS golongan, gol_baru,
+                stock AS stok, stock_buffer AS stok_minimum,
                 del = 'N' AS is_active,
                 stock_buffer > 0 AND stock < stock_buffer AS stok_minimum_alert
             FROM rssams.dafbrg_log
@@ -6288,30 +6378,112 @@ class LogistikBarangViewSet(viewsets.ViewSet):
         count = f"SELECT COUNT(*) AS total FROM rssams.dafbrg_log WHERE {where_sql}"
         return legacy_paginated(request, base, count, params)
 
+    @action(detail=False, methods=['get'], url_path='generate-kode')
+    def generate_kode(self, request):
+        golongan = (request.query_params.get('golongan') or '').strip()
+        prefix = 'B8'
+        match = re.search(r'([A-Za-z]\d+)', golongan)
+        if match:
+            prefix = match.group(1).upper()
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT kode_material FROM rssams.dafbrg_log WHERE kode_material LIKE %s",
+                [f'{prefix}%']
+            )
+            rows = cursor.fetchall()
+        
+        max_num = 0
+        for r in rows:
+            code = r[0] or ''
+            num_part = re.sub(r'[^\d]', '', code[len(prefix):]) if code.startswith(prefix) else ''
+            if num_part and num_part.isdigit():
+                max_num = max(max_num, int(num_part))
+
+        next_code = f"{prefix}{max_num + 1:03d}"
+        return Response({'kode_material': next_code, 'prefix': prefix, 'next_num': max_num + 1})
+
     def create(self, request):
         data = request.data
         row = legacy_fetchone('SELECT COALESCE(MAX(id_brg), 0) + 1 AS next_id FROM rssams.dafbrg_log')
         id_brg = row['next_id']
         nama_barang = _normalize_logistik_name(data.get('nama_barang', ''))
         merk = _normalize_logistik_name(data.get('merk'))
+        golongan = (data.get('golongan') or '').strip()
+        kode_material = (data.get('kode_material') or '').strip()
+
+        if not kode_material and golongan:
+            match = re.search(r'([A-Za-z]\d+)', golongan)
+            prefix = match.group(1).upper() if match else 'B8'
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT kode_material FROM rssams.dafbrg_log WHERE kode_material LIKE %s", [f'{prefix}%'])
+                rows = cursor.fetchall()
+            max_num = 0
+            for r in rows:
+                c = r[0] or ''
+                num_part = re.sub(r'[^\d]', '', c[len(prefix):]) if c.startswith(prefix) else ''
+                if num_part and num_part.isdigit():
+                    max_num = max(max_num, int(num_part))
+            kode_material = f"{prefix}{max_num + 1:03d}"
+
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO rssams.dafbrg_log(id_brg, nama_barang, kemasan, satuan, isi, merk, id_gol, stock_buffer)
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO rssams.dafbrg_log(id_brg, kode_material, nama_barang, kemasan, satuan, isi, merk, id_gol, gol_baru, stock_buffer)
+                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 [
                     id_brg,
+                    kode_material or None,
                     str(nama_barang).upper(),
                     data.get('kemasan') or '',
                     data.get('satuan') or '',
                     data.get('isi') or 1,
                     str(merk).upper(),
-                    data.get('golongan') or None,
+                    None,
+                    golongan or None,
                     data.get('stok_minimum') or 0,
                 ],
             )
-        return Response({'id': id_brg}, status=201)
+        return Response({'id': id_brg, 'kode_material': kode_material}, status=201)
+
+    def update(self, request, pk=None):
+        data = request.data
+        nama_barang = _normalize_logistik_name(data.get('nama_barang', ''))
+        merk = _normalize_logistik_name(data.get('merk'))
+        golongan = (data.get('golongan') or '').strip()
+        kode_material = (data.get('kode_material') or '').strip()
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE rssams.dafbrg_log
+                SET kode_material = %s,
+                    nama_barang = %s,
+                    kemasan = %s,
+                    satuan = %s,
+                    isi = %s,
+                    merk = %s,
+                    gol_baru = %s,
+                    stock_buffer = %s
+                WHERE id_brg = %s
+                """,
+                [
+                    kode_material or None,
+                    str(nama_barang).upper(),
+                    data.get('kemasan') or '',
+                    data.get('satuan') or '',
+                    data.get('isi') or 1,
+                    str(merk).upper(),
+                    golongan or None,
+                    data.get('stok_minimum') or 0,
+                    pk,
+                ],
+            )
+        return Response({'id': pk, 'kode_material': kode_material}, status=200)
+
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk)
 
     def destroy(self, request, pk=None):
         with connection.cursor() as cursor:

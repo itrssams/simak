@@ -458,3 +458,183 @@ h3{font-size:15px!important;margin-bottom:16px!important}
     font-size:22px!important;
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES FOR DRIVER MODULE ([data-theme="dark"])
+   ========================================================= */
+
+[data-theme="dark"] .dr-page,
+[data-theme="dark"] .lp-page {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+/* Titles & Subtitles */
+[data-theme="dark"] .dr-title,
+[data-theme="dark"] .dr-panel-title,
+[data-theme="dark"] .lp-header-title,
+[data-theme="dark"] .lp-title,
+[data-theme="dark"] .dr-stat-value,
+[data-theme="dark"] .dr-modal-head-title,
+[data-theme="dark"] .dr-detail-value,
+[data-theme="dark"] .dr-modal-summary-value {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .dr-subtitle,
+[data-theme="dark"] .dr-panel-subtitle,
+[data-theme="dark"] .lp-header-subtitle,
+[data-theme="dark"] .dr-stat-label,
+[data-theme="dark"] .dr-modal-head-subtitle,
+[data-theme="dark"] .dr-detail-label,
+[data-theme="dark"] .dr-modal-summary-label,
+[data-theme="dark"] .lp-page-info {
+  color: #94a3b8 !important;
+}
+
+/* Stat Cards & Main Panels */
+[data-theme="dark"] .dr-stat,
+[data-theme="dark"] .dr-panel,
+[data-theme="dark"] .dr-kendaraan-card,
+[data-theme="dark"] .lp-stat-card,
+[data-theme="dark"] .lp-panel,
+[data-theme="dark"] .dr-modal-section,
+[data-theme="dark"] .dr-modal-summary {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .dr-plate-box {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Header & Tabs */
+[data-theme="dark"] .lp-header {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .dr-tabs {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .dr-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .dr-panel-head,
+[data-theme="dark"] .dr-filter-bar,
+[data-theme="dark"] .lp-filter-bar {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Inputs, Selects, & Controls */
+[data-theme="dark"] .dr-input,
+[data-theme="dark"] .dr-select,
+[data-theme="dark"] .dr-textarea,
+[data-theme="dark"] .lp-input,
+[data-theme="dark"] .lp-select,
+[data-theme="dark"] .lp-textarea,
+[data-theme="dark"] .dr-filter-input,
+[data-theme="dark"] .dr-filter-select,
+[data-theme="dark"] .lp-filter-input,
+[data-theme="dark"] .lp-filter-select,
+[data-theme="dark"] .dr-date-range,
+[data-theme="dark"] .lp-date-range,
+[data-theme="dark"] .react-datepicker__input-container input {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .dr-select option,
+[data-theme="dark"] .dr-filter-select option,
+[data-theme="dark"] .lp-select option,
+[data-theme="dark"] .lp-filter-select option {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .dr-date-range-label,
+[data-theme="dark"] .lp-date-range-label {
+  color: #94a3b8 !important;
+}
+
+/* Table Styling */
+[data-theme="dark"] .dr-table thead th,
+[data-theme="dark"] .lp-table thead th {
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #94a3b8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .dr-table tbody td,
+[data-theme="dark"] .lp-table tbody td {
+  background: transparent !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .dr-table tbody tr:hover td,
+[data-theme="dark"] .lp-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .dr-empty {
+  color: #64748b !important;
+}
+
+/* Modals & Overlays */
+[data-theme="dark"] .dr-modal,
+[data-theme="dark"] .lp-modal {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .dr-modal-footer,
+[data-theme="dark"] .lp-modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .dr-btn-ghost,
+[data-theme="dark"] .lp-btn-ghost {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .dr-btn-ghost:hover,
+[data-theme="dark"] .lp-btn-ghost:hover {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+/* Datepicker Modal */
+[data-theme="dark"] .react-datepicker {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .react-datepicker__header {
+  background: #1e293b !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .react-datepicker__current-month,
+[data-theme="dark"] .react-datepicker__day-name,
+[data-theme="dark"] .react-datepicker__day {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .react-datepicker__day:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}

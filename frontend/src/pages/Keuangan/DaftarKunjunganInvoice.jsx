@@ -246,7 +246,18 @@ export default function DaftarKunjunganInvoice() {
     const openInvoiceDialog = () => {
         if (!validateInvoiceSelection()) return;
         const uniquePembiayaan = [...new Set(selectedRows.map((row) => String(row.id_pembiayaan || '')))];
-        setInvoiceForm({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: uniquePembiayaan.length === 1 ? uniquePembiayaan[0] : '' });
+        const isCobDetected = selectedRows.some((row) => {
+            const name = String(row.nama_pembiayaan || '').toUpperCase();
+            return name.includes('COB') || name.includes('BPJS');
+        });
+        setInvoiceForm({
+            tanggal: today(),
+            jenis: '',
+            periode: '',
+            id_pembiayaan: uniquePembiayaan.length === 1 ? uniquePembiayaan[0] : '',
+            is_cob: isCobDetected,
+            tanggungan_bpjs: '',
+        });
         setNewPembiayaanOpen(false);
         setNewPembiayaan({ nama: '', alamat: '' });
         setInvoiceDialogOpen(true);
@@ -255,7 +266,7 @@ export default function DaftarKunjunganInvoice() {
     const closeInvoiceDialog = () => {
         if (creating) return;
         setInvoiceDialogOpen(false);
-        setInvoiceForm({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: '' });
+        setInvoiceForm({ tanggal: today(), jenis: '', periode: '', id_pembiayaan: '', is_cob: false, tanggungan_bpjs: '' });
         setNewPembiayaanOpen(false);
         setNewPembiayaan({ nama: '', alamat: '' });
     };
@@ -376,6 +387,8 @@ export default function DaftarKunjunganInvoice() {
                 jenis: invoiceForm.jenis.trim(),
                 periode: invoiceForm.periode.trim(),
                 beban: invoicePembiayaan?.nama || 'PEMBIAYAAN',
+                is_cob: Boolean(invoiceForm.is_cob),
+                tanggungan_bpjs: invoiceForm.is_cob ? Number(invoiceForm.tanggungan_bpjs || 0) : 0,
             });
 
             toast.success(`Invoice ${res.data.nomor_faktur} berhasil dibuat.`);
@@ -712,6 +725,46 @@ export default function DaftarKunjunganInvoice() {
                                     <span>Beban</span>
                                     <input value={(newPembiayaanOpen ? newPembiayaan.nama : selectedInvoicePembiayaan?.nama) || '-'} readOnly />
                                 </label>
+
+                                <div className="dki-field span-2" style={{ marginTop: 6, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.16)' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(invoiceForm.is_cob)}
+                                            onChange={(e) => setInvoiceForm((prev) => ({ ...prev, is_cob: e.target.checked }))}
+                                            style={{ width: 18, height: 18, accentColor: '#4f46e5' }}
+                                        />
+                                        <span>Invoice COB (BPJS + Asuransi Tambahan)</span>
+                                    </label>
+                                    {invoiceForm.is_cob && (
+                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                                            <label className="dki-field">
+                                                <span style={{ fontWeight: 600 }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
+                                                <input
+                                                    type="number"
+                                                    value={invoiceForm.tanggungan_bpjs}
+                                                    onChange={(e) => setInvoiceForm((prev) => ({ ...prev, tanggungan_bpjs: e.target.value }))}
+                                                    placeholder="Contoh: 3173800"
+                                                    style={{ background: '#fff', color: '#0f172a', fontWeight: 700 }}
+                                                />
+                                            </label>
+                                            <div style={{ padding: '8px 12px', background: 'rgba(15, 23, 42, 0.04)', borderRadius: 8, fontSize: 13, display: 'grid', gap: 4 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                                    <span>Total Biaya Riil RS:</span>
+                                                    <strong>{money(selectedTotal)}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
+                                                    <span>Ditanggung BPJS (INA-CBGs):</span>
+                                                    <strong>- {money(Number(invoiceForm.tanggungan_bpjs || 0))}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: 4, marginTop: 2, color: '#166534', fontWeight: 800 }}>
+                                                    <span>Total Ditagihkan ke Asuransi:</span>
+                                                    <span>{money(Math.max(0, selectedTotal - Number(invoiceForm.tanggungan_bpjs || 0)))}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="dki-modal-actions">

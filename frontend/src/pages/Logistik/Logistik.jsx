@@ -119,7 +119,7 @@ const TITLES = {
     opname: ['Opname', 'Catatan stock opname gudang logistik.'],
 };
 
-const emptyBarang = { nama_barang: '', kemasan: '', satuan: 'PCS', isi: 1, merk: '', golongan: '', stok_minimum: 0 };
+const emptyBarang = { kode_material: '', nama_barang: '', kemasan: '', satuan: 'PCS', isi: 1, merk: '', golongan: '', stok_minimum: 0 };
 const VENDOR_CATEGORIES = [
     'OBAT & BHP',
     'ALAT KESEHATAN',
@@ -287,16 +287,37 @@ export default function Logistik() {
             ...v,
             barang: {
                 id: row.id,
+                kode_material: row.kode_material || '',
                 nama_barang: row.nama_barang || '',
                 kemasan: row.kemasan || '',
                 satuan: row.satuan || 'PCS',
                 isi: row.isi || 1,
                 merk: row.merk || '',
-                golongan: row.golongan || '',
+                golongan: row.gol_baru || row.golongan || '',
                 stok_minimum: row.stok_minimum || 0,
             },
         }));
         setModal('barang');
+    };
+
+    const handleGenerateKode = async () => {
+        const gol = forms.barang.golongan;
+        if (!gol) {
+            toast.error('Pilih Golongan terlebih dahulu!');
+            return;
+        }
+        try {
+            const res = await api.get(`/keuangan/logistik/barang/generate-kode/?golongan=${encodeURIComponent(gol)}`);
+            if (res.data && res.data.kode_material) {
+                setForms((v) => ({
+                    ...v,
+                    barang: { ...v.barang, kode_material: res.data.kode_material }
+                }));
+                toast.success(`Kode ter-generate: ${res.data.kode_material}`);
+            }
+        } catch (err) {
+            toast.error('Gagal generate kode material.');
+        }
     };
 
     const saveBarang = async (e) => {
@@ -914,7 +935,7 @@ export default function Logistik() {
                 </Modal>
             )}
 
-            {modal === 'barang' && <BarangModal form={forms.barang} setForm={(p) => setForm('barang', p)} onSubmit={saveBarang} onClose={() => setModal(null)} saving={saving} />}
+            {modal === 'barang' && <BarangModal form={forms.barang} setForm={(p) => setForm('barang', p)} onSubmit={saveBarang} onClose={() => setModal(null)} saving={saving} onGenerateKode={handleGenerateKode} />}
             {modal === 'vendor' && <VendorModal form={forms.vendor} setForm={(p) => setForm('vendor', p)} onSubmit={saveVendor} onClose={() => setModal(null)} saving={saving} />}
             {modal === 'spb' && (
                 <SpbModal
@@ -1024,14 +1045,14 @@ function payload_error_fallback(section) {
 
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan }) {
     const headers = {
-        barang: ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
+        barang: ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         vendor: ['Vendor & Kategori', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Status', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
         permintaan: ['Tanggal', 'Barang', 'Ruang', 'Minta', 'Setuju', 'Status', 'Aksi'],
         verifikasi: ['Tanggal', 'Barang', 'Ruang', 'Minta', 'Setuju', 'Status', 'Aksi'],
-        'stok-minimum': ['Barang', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
+        'stok-minimum': ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         opname: ['Tanggal', 'Barang', 'Stok Sistem', 'Real', 'Selisih', 'Keterangan'],
     }[section] || [];
 
@@ -1043,7 +1064,17 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
         if (!rows.length) return <tr><td colSpan={headers.length} className="inv-empty">Belum ada data.</td></tr>;
         if (['barang', 'stok-minimum'].includes(section)) return rows.map((r) => (
             <tr key={r.id}>
-                <td><strong>{r.nama_barang}</strong></td>
+                <td>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.84rem', color: '#0284c7', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
+                        {r.kode_material || '-'}
+                    </span>
+                </td>
+                <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong>{r.nama_barang}</strong>
+                        {r.golongan && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{r.golongan}</span>}
+                    </div>
+                </td>
                 <td>{r.kemasan || '-'} x {fmt(r.isi)}</td>
                 <td>{r.satuan}</td>
                 <td>{r.merk || '-'}</td>
@@ -1404,10 +1435,28 @@ function ConfirmSubmitModal({ target, onClose, onConfirm, saving }) {
         </div>
     );
 }
-
 function Field({ label, children, className = '' }) {
     return <label className={`inv-field ${className}`.trim()}>{label}{children}</label>;
 }
+
+const GOLONGAN_OPTIONS = [
+    'A1 - Alkes Medis',
+    'A2 - Peralatan Penunjang',
+    'A3 - Furnitur Medis',
+    'A4 - Furnitur Umum',
+    'A5 - Perangkat Elektronik',
+    'A6 - Perlengkapan',
+    'A7 - IT',
+    'A8 - Kendaraan',
+    'B1 - ATK',
+    'B2 - BHP Kantor & Cetakan',
+    'B3 - Alat Rumah Tangga',
+    'B4 - BHP Housekeeping',
+    'B5 - Komponen Suku Cadang',
+    'B6 - Bangunan & Fasilitas',
+    'B7 - Tekstil',
+    'B8 - Lainnya',
+];
 
 function SearchableBarangSelect({ options = [], value = '', onChange, disabled = false }) {
     const [open, setOpen] = useState(false);
@@ -1417,8 +1466,9 @@ function SearchableBarangSelect({ options = [], value = '', onChange, disabled =
     const filtered = useMemo(() => {
         const needle = query.toLowerCase().trim();
         if (!needle) return options;
-        return options.filter((item) => [item.nama_barang, item.merk, item.kemasan, item.satuan, item.id]
-            .some((part) => String(part || '').toLowerCase().includes(needle)));
+        return options.filter((item) => [item.kode_material, item.nama_barang, item.merk, item.kemasan, item.satuan, item.id]
+            .some((field) => String(field || '').toLowerCase().includes(needle))
+        );
     }, [options, query]);
 
     useEffect(() => {
@@ -1473,7 +1523,7 @@ function SearchableBarangSelect({ options = [], value = '', onChange, disabled =
             >
                 <Search size={15} />
                 <input
-                    value={open ? query : selected?.nama_barang || ''}
+                    value={open ? query : (selected ? (selected.kode_material ? `[${selected.kode_material}] ${selected.nama_barang}` : selected.nama_barang) : '')}
                     placeholder="Cari / pilih barang"
                     onFocus={() => !disabled && setOpen(true)}
                     onChange={(event) => {
@@ -1505,7 +1555,7 @@ function SearchableBarangSelect({ options = [], value = '', onChange, disabled =
                                 role="option"
                                 aria-selected={isSelected}
                             >
-                                <span><strong>{item.nama_barang}</strong><small>{item.kemasan || '-'} x {fmt(item.isi)} | stok {fmt(item.stok)} {item.satuan || ''}</small></span>
+                                <span><strong>{item.kode_material ? `[${item.kode_material}] ` : ''}{item.nama_barang}</strong><small>{item.kemasan || '-'} x {fmt(item.isi)} | stok {fmt(item.stok)} {item.satuan || ''}</small></span>
                                 {isSelected && <Check size={15} />}
                             </button>
                         );
@@ -1516,7 +1566,7 @@ function SearchableBarangSelect({ options = [], value = '', onChange, disabled =
     );
 }
 
-function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
+function BarangModal({ form, setForm, onSubmit, onClose, saving, onGenerateKode }) {
     const isEdit = Boolean(form.id);
     return (
         <Modal
@@ -1539,15 +1589,33 @@ function BarangModal({ form, setForm, onSubmit, onClose, saving }) {
                         </label>
                     </div>
                     <div className="log-form-grid-2">
-                        <label>
+                        <label style={{ gridColumn: 'span 2' }}>
                             <span className="inv-field-label"><Layers size={15} /> Golongan</span>
                             <select className="inv-input" required value={form.golongan || ''} onChange={(e) => setForm({ golongan: e.target.value })}>
-                                <option value="">-- Pilih Golongan --</option>
-                                <option value="1">1 - ATK / Cetakan</option>
-                                <option value="2">2 - ATK / Cetakan</option>
-                                <option value="3">3 - Elektronik / Alkes</option>
-                                <option value="4">4 - BHP Umum / Rumah Tangga</option>
+                                <option value="">-- Pilih Golongan Baru --</option>
+                                {GOLONGAN_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
                             </select>
+                        </label>
+                        <label style={{ gridColumn: 'span 2' }}>
+                            <span className="inv-field-label"><Hash size={15} /> Kode Material / No. Barang</span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    className="inv-input"
+                                    style={{ fontFamily: 'monospace', fontWeight: 600, flex: 1 }}
+                                    value={form.kode_material || ''}
+                                    onChange={(e) => setForm({ kode_material: e.target.value })}
+                                    placeholder="Contoh: A5001 / B1001"
+                                />
+                                <button
+                                    type="button"
+                                    className="inv-btn soft"
+                                    style={{ height: '38px', padding: '0 12px', whiteSpace: 'nowrap' }}
+                                    onClick={onGenerateKode}
+                                    title="Auto-generate kode material sesuai Golongan"
+                                >
+                                    ⚡ Auto Kode
+                                </button>
+                            </div>
                         </label>
                         <label>
                             <span className="inv-field-label"><Layers size={15} /> Satuan</span>

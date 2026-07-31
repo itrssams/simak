@@ -328,3 +328,69 @@ button.al-field {
     flex: 1 1 100%;
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES FOR AUDIT LOG ([data-theme="dark"])
+   ========================================================= */
+
+[data-theme="dark"] .al-page {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .al-title,
+[data-theme="dark"] .al-stat-value,
+[data-theme="dark"] .al-desc {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .al-sub,
+[data-theme="dark"] .al-stat-label,
+[data-theme="dark"] .al-meta,
+[data-theme="dark"] .al-empty {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .al-stat,
+[data-theme="dark"] .al-panel {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .al-toolbar {
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .al-search,
+[data-theme="dark"] select.al-field,
+[data-theme="dark"] input.al-field,
+[data-theme="dark"] .al-page-btn,
+[data-theme="dark"] .al-page-size {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] select.al-field option,
+[data-theme="dark"] .al-page-size option {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .al-table th {
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #94a3b8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .al-table td {
+  background: transparent !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="dark"] .al-table tr:hover td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}

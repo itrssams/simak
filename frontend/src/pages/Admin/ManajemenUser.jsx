@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useToastState } from '../../context/ToastContext';
 import {
@@ -742,73 +742,105 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
         <div className="mu-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="mu-modal user-form">
                 <ModalHead title={title} subtitle={subtitle} onClose={onClose} />
-                <div className="mu-modal-body">
-                    {error && <Alert type="err" message={error} />}
-                    <div className="mu-user-form-layout">
-                        <div className="mu-account-panel">
-                            {showUsername && (
-                                <div className="mu-field">
-                                    <label>Username *</label>
-                                    <input className="mu-input" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="username" />
-                                </div>
-                            )}
-                            <div className="mu-grid2">
-                                <div className="mu-field">
-                                    <label>Nama Depan</label>
-                                    <input className="mu-input" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} placeholder="Nama depan" />
-                                </div>
-                                <div className="mu-field">
-                                    <label>Nama Belakang</label>
-                                    <input className="mu-input" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} placeholder="Nama belakang" />
-                                </div>
-                            </div>
-                            <div className="mu-field">
-                                <label>Email</label>
-                                <input className="mu-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@contoh.com" />
-                            </div>
-                            <div className="mu-grid2">
-                                <div className="mu-field">
-                                    <label>Role *</label>
-                                    <select className="mu-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, unit: '' })}>
-                                        {ROLE_CHOICES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                    </select>
-                                </div>
-                                <div className="mu-field">
-                                    <label>Unit {['karyawan', 'kepala_seksi'].includes(form.role) ? '*' : ''}</label>
-                                    <select className="mu-select" value={form.unit} disabled={!['karyawan', 'kepala_seksi'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
-                                        <option value="">Tidak ada unit</option>
-                                        {units.map((u) => <option key={u.id} value={u.id}>{u.nama}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            {showPassword && (
-                                <div className="mu-field">
-                                    <label>Password *</label>
-                                    <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} show={showPwd} setShow={setShowPwd} placeholder="Minimal 6 karakter" />
-                                </div>
-                            )}
-                        </div>
+                <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+                    {/* Fake hidden inputs to trick browser autofill */}
+                    <input type="text" name="fake_username_remember" style={{ display: 'none' }} tabIndex={-1} readOnly />
+                    <input type="password" name="fake_password_remember" style={{ display: 'none' }} tabIndex={-1} readOnly />
 
-                        <aside className="mu-permission-panel">
-                            <div className="mu-permission-head">
-                                <strong>Permissions</strong>
-                                <span>Atur akses fitur tambahan.</span>
+                    <div className="mu-modal-body">
+                        {error && <Alert type="err" message={error} />}
+                        <div className="mu-user-form-layout">
+                            <div className="mu-account-panel">
+                                {showUsername && (
+                                    <div className="mu-field">
+                                        <label>Username *</label>
+                                        <input
+                                            className="mu-input"
+                                            value={form.username}
+                                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                                            placeholder="username"
+                                            autoComplete="off"
+                                            name="user_new_username_field"
+                                        />
+                                    </div>
+                                )}
+                                <div className="mu-grid2">
+                                    <div className="mu-field">
+                                        <label>Nama Depan</label>
+                                        <input
+                                            className="mu-input"
+                                            value={form.first_name}
+                                            onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                                            placeholder="Nama depan"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                    <div className="mu-field">
+                                        <label>Nama Belakang</label>
+                                        <input
+                                            className="mu-input"
+                                            value={form.last_name}
+                                            onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                                            placeholder="Nama belakang"
+                                            autoComplete="off"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mu-field">
+                                    <label>Email</label>
+                                    <input
+                                        className="mu-input"
+                                        type="email"
+                                        value={form.email}
+                                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                        placeholder="nama@contoh.com"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                                <div className="mu-grid2">
+                                    <div className="mu-field">
+                                        <label>Role *</label>
+                                        <select className="mu-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, unit: '' })}>
+                                            {ROLE_CHOICES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="mu-field">
+                                        <label>Unit {['karyawan', 'kepala_seksi'].includes(form.role) ? '*' : ''}</label>
+                                        <select className="mu-select" value={form.unit} disabled={!['karyawan', 'kepala_seksi'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+                                            <option value="">Tidak ada unit</option>
+                                            {units.map((u) => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                {showPassword && (
+                                    <div className="mu-field">
+                                        <label>Password *</label>
+                                        <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} show={showPwd} setShow={setShowPwd} placeholder="Minimal 6 karakter" />
+                                    </div>
+                                )}
                             </div>
-                            <div className="mu-permission-list">
-                                <PermissionToggle label="Driver" description="Akses fitur Driver" checked={form.is_driver} onChange={(checked) => setForm({ ...form, is_driver: checked })} />
-                                <PermissionToggle label="IT" description="Akses fitur IT" checked={form.is_it} onChange={(checked) => setForm({ ...form, is_it: checked })} />
-                                <PermissionToggle label="Keuangan" description="Akses fitur Keuangan" checked={form.is_keuangan} onChange={(checked) => setForm({ ...form, is_keuangan: checked })} />
-                                <PermissionToggle label="Kas Petty Cash" description="Petugas kas petty cash" checked={form.is_petty_cash_cashier} onChange={(checked) => setForm({ ...form, is_petty_cash_cashier: checked })} />
-                                <PermissionToggle label="Catatan Utang" description="Akses seluruh modul Catatan Utang" checked={form.akses_catatan_utang} onChange={(checked) => setForm({ ...form, akses_catatan_utang: checked })} />
-                                <PermissionToggle label="Logistik" description="Akses fitur Gudang Logistik" checked={form.is_logistik} onChange={(checked) => setForm({ ...form, is_logistik: checked })} />
-                            </div>
-                        </aside>
+
+                            <aside className="mu-permission-panel">
+                                <div className="mu-permission-head">
+                                    <strong>Akses Fitur Tambahan</strong>
+                                    <span>Pilih hak akses fitur untuk user ini.</span>
+                                </div>
+                                <div className="mu-permission-list">
+                                    <PermissionToggle label="Driver" description="Akses fitur Driver" checked={form.is_driver} onChange={(checked) => setForm({ ...form, is_driver: checked })} />
+                                    <PermissionToggle label="IT" description="Akses fitur IT" checked={form.is_it} onChange={(checked) => setForm({ ...form, is_it: checked })} />
+                                    <PermissionToggle label="Keuangan" description="Akses fitur Keuangan" checked={form.is_keuangan} onChange={(checked) => setForm({ ...form, is_keuangan: checked })} />
+                                    <PermissionToggle label="Kas Petty Cash" description="Petugas kas petty cash" checked={form.is_petty_cash_cashier} onChange={(checked) => setForm({ ...form, is_petty_cash_cashier: checked })} />
+                                    <PermissionToggle label="Catatan Utang" description="Akses seluruh modul Catatan Utang" checked={form.akses_catatan_utang} onChange={(checked) => setForm({ ...form, akses_catatan_utang: checked })} />
+                                    <PermissionToggle label="Logistik" description="Akses fitur Gudang Logistik" checked={form.is_logistik} onChange={(checked) => setForm({ ...form, is_logistik: checked })} />
+                                </div>
+                            </aside>
+                        </div>
                     </div>
-                </div>
-                <div className="mu-modal-foot">
-                    <button className="mu-btn soft" onClick={onClose}>Batal</button>
-                    <button className="mu-btn primary" onClick={onSubmit} disabled={saving}>{saving ? 'Menyimpan...' : submitText}</button>
-                </div>
+                    <div className="mu-modal-foot">
+                        <button type="button" className="mu-btn soft" onClick={onClose}>Batal</button>
+                        <button type="submit" className="mu-btn primary" disabled={saving}>{saving ? 'Menyimpan...' : submitText}</button>
+                    </div>
+                </form>
             </div>
         </div>,
         document.body
@@ -833,22 +865,25 @@ function PasswordModal({ user, form, setForm, error, saving, showPwd, setShowPwd
         <div className="mu-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="mu-modal sm">
                 <ModalHead title="Reset Password" subtitle={`@${user.username}`} onClose={onClose} />
-                <div className="mu-modal-body">
-                    {error && <Alert type="err" message={error} />}
-                    <div className="mu-note">Gunakan password sementara yang aman, lalu minta user menggantinya setelah login.</div>
-                    <div className="mu-field">
-                        <label>Password Baru *</label>
-                        <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} show={showPwd} setShow={setShowPwd} placeholder="Minimal 6 karakter" />
+                <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+                    <input type="password" name="fake_password_remember" style={{ display: 'none' }} tabIndex={-1} readOnly />
+                    <div className="mu-modal-body">
+                        {error && <Alert type="err" message={error} />}
+                        <div className="mu-note">Gunakan password sementara yang aman, lalu minta user menggantinya setelah login.</div>
+                        <div className="mu-field">
+                            <label>Password Baru *</label>
+                            <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} show={showPwd} setShow={setShowPwd} placeholder="Minimal 6 karakter" />
+                        </div>
+                        <div className="mu-field">
+                            <label>Konfirmasi Password *</label>
+                            <PasswordInput value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} show={showPwd} setShow={setShowPwd} placeholder="Ulangi password" />
+                        </div>
                     </div>
-                    <div className="mu-field">
-                        <label>Konfirmasi Password *</label>
-                        <PasswordInput value={form.confirm} onChange={(v) => setForm({ ...form, confirm: v })} show={showPwd} setShow={setShowPwd} placeholder="Ulangi password" />
+                    <div className="mu-modal-foot">
+                        <button type="button" className="mu-btn soft" onClick={onClose}>Batal</button>
+                        <button type="submit" className="mu-btn primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Reset Password'}</button>
                     </div>
-                </div>
-                <div className="mu-modal-foot">
-                    <button className="mu-btn soft" onClick={onClose}>Batal</button>
-                    <button className="mu-btn primary" onClick={onSubmit} disabled={saving}>{saving ? 'Menyimpan...' : 'Reset Password'}</button>
-                </div>
+                </form>
             </div>
         </div>,
         document.body
@@ -877,8 +912,8 @@ function UnitFormModal({ title, form, setForm, error, saving, onClose, onSubmit,
                     )}
                 </div>
                 <div className="mu-modal-foot">
-                    <button className="mu-btn soft" onClick={onClose}>Batal</button>
-                    <button className="mu-btn primary" onClick={onSubmit} disabled={saving}>{saving ? 'Menyimpan...' : submitText}</button>
+                    <button type="button" className="mu-btn soft" onClick={onClose}>Batal</button>
+                    <button type="button" className="mu-btn primary" onClick={onSubmit} disabled={saving}>{saving ? 'Menyimpan...' : submitText}</button>
                 </div>
             </div>
         </div>,
@@ -897,8 +932,8 @@ function ConfirmModal({ title, body, note, error, saving, confirmText, danger = 
                     {error && <Alert type="err" message={error} />}
                 </div>
                 <div className="mu-modal-foot">
-                    <button className="mu-btn soft" onClick={onClose}>Batal</button>
-                    <button className={`mu-btn ${danger ? 'danger' : 'primary'}`} onClick={onConfirm} disabled={saving}>{saving ? 'Memproses...' : confirmText}</button>
+                    <button type="button" className="mu-btn soft" onClick={onClose}>Batal</button>
+                    <button type="button" className={`mu-btn ${danger ? 'danger' : 'primary'}`} onClick={onConfirm} disabled={saving}>{saving ? 'Memproses...' : confirmText}</button>
                 </div>
             </div>
         </div>,
@@ -906,13 +941,18 @@ function ConfirmModal({ title, body, note, error, saving, confirmText, danger = 
     );
 }
 
-function ModalHead({ title, subtitle }) {
+function ModalHead({ title, subtitle, onClose }) {
     return (
         <div className="mu-modal-head">
             <div>
                 <h2>{title}</h2>
                 {subtitle && <p>{subtitle}</p>}
             </div>
+            {onClose && (
+                <button type="button" className="mu-close" onClick={onClose} aria-label="Tutup modal">
+                    <X size={18} />
+                </button>
+            )}
         </div>
     );
 }
@@ -920,7 +960,14 @@ function ModalHead({ title, subtitle }) {
 function PasswordInput({ value, onChange, show, setShow, placeholder }) {
     return (
         <div className="mu-password">
-            <input className="mu-input" type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+            <input
+                className="mu-input"
+                type={show ? 'text' : 'password'}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                autoComplete="new-password"
+            />
             <button className="mu-btn icon" type="button" onClick={() => setShow((v) => !v)} title={show ? 'Sembunyikan password' : 'Lihat password'}>
                 {show ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
@@ -942,4 +989,3 @@ function initials(u) {
         .join('')
         .toUpperCase();
 }
-

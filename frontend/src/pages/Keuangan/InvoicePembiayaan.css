@@ -1813,3 +1813,42 @@ textarea.inv-input {
   background: transparent !important;
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Dark Mode Overrides for Invoice Detail Modal Cards & Form Elements */
+[data-theme="dark"] .inv-visit-row {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .inv-visit-row strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .inv-visit-row span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .inv-check {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .inv-check strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .inv-check small {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .inv-balance-strip span {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .inv-pay-summary > div {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .inv-pay-footer {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}

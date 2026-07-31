@@ -286,6 +286,11 @@ class Faktur(models.Model):
     alat      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     ppn_farmasi = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
+    # COB (Coordination of Benefits / Penjaminan Ganda)
+    is_cob          = models.BooleanField(default=False, help_text='Penjaminan ganda COB (BPJS + Asuransi)')
+    tanggungan_bpjs = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Nominal INA-CBGs / Tanggungan BPJS')
+    total_real_rs   = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Total biaya riil RS sebelum dipotong BPJS')
+
     keterangan    = models.TextField(blank=True)
     status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default='belum_bayar')
     total_tagihan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
@@ -347,6 +352,8 @@ class Faktur(models.Model):
                     )
                     total_piutang, total_rows = cursor.fetchone()
                 if total_rows:
+                    if self.is_cob and self.tanggungan_bpjs:
+                        return max(Decimal('0'), Decimal(str(total_piutang)) - Decimal(str(self.tanggungan_bpjs)))
                     return total_piutang
             except Exception:
                 pass
@@ -363,11 +370,17 @@ class Faktur(models.Model):
         )['total'] or Decimal('0')
 
     def save(self, *args, **kwargs):
-        # Calculate total_tagihan from cost breakdown
-        self.total_tagihan = (
+        # Calculate total_tagihan from cost breakdown & COB deduction
+        total_real = (
             self.adm + self.jasa + self.farmasi + self.tindakan + self.fisio +
             self.lab + self.rad + self.kamar + self.bhp + self.lainnya + self.ambulan + self.alat
         )
+        self.total_real_rs = total_real
+        if self.is_cob and self.tanggungan_bpjs:
+            self.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(self.tanggungan_bpjs)))
+        else:
+            self.total_tagihan = total_real
+
         if self.status == 'batal':
             super().save(*args, **kwargs)
             return

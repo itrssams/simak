@@ -65,6 +65,7 @@ function Select-Database {
     Write-Host "Pilih Target Database:" -ForegroundColor Cyan
     Write-Host "[1] simak_dev (Development)"
     Write-Host "[2] simak     (Production)"
+    Write-Host "[3] rssams    (Legacy SIMRS)"
     Write-Host "[0] Batal"
     Write-Host ""
     $pilihan = Read-Host "Pilih"
@@ -72,6 +73,7 @@ function Select-Database {
     switch ($pilihan) {
         "1" { return @{ db = "simak_dev"; env = "development" } }
         "2" { return @{ db = "simak";     env = "production"  } }
+        "3" { return @{ db = "rssams";    env = "production"  } }
         "0" { return $null }
         default {
             Write-Host "Pilihan tidak valid." -ForegroundColor Red
@@ -226,7 +228,8 @@ function Setup-Database {
     Write-Host "Pilih database yang akan dibuat:"
     Write-Host "[1] simak_dev (Development)"
     Write-Host "[2] simak     (Production)"
-    Write-Host "[3] Keduanya"
+    Write-Host "[3] rssams    (Legacy SIMRS)"
+    Write-Host "[4] Semua (simak_dev, simak, rssams)"
     Write-Host "[0] Batal"
     Write-Host ""
     $pilihan = Read-Host "Pilih"
@@ -235,7 +238,8 @@ function Setup-Database {
     switch ($pilihan) {
         "1" { $dbList = @("simak_dev") }
         "2" { $dbList = @("simak") }
-        "3" { $dbList = @("simak_dev", "simak") }
+        "3" { $dbList = @("rssams") }
+        "4" { $dbList = @("simak_dev", "simak", "rssams") }
         "0" { return }
         default {
             Write-Host "Pilihan tidak valid." -ForegroundColor Red
@@ -305,24 +309,57 @@ function Run-Migrate {
 
     if ($selected.db -eq "simak") {
         Write-Host ""
-        Write-Host "  PERINGATAN: Migrasi ke database PRODUCTION!" -ForegroundColor Red
+        Write-Host "  PERINGATAN: Akses ke database PRODUCTION ($($selected.db))!" -ForegroundColor Red
         Write-Host ""
         $konfirmasi = Read-Host "Ketik Y untuk lanjut"
         if ($konfirmasi -ine "Y") { return }
     }
 
     Write-Host ""
-    Write-Host "Migrate ke $($selected.db)..." -ForegroundColor Yellow
+    Write-Host "Pilih Mode Migrasi untuk $($selected.db):"
+    Write-Host "[1] Makemigrations + Migrate (Buat migrasi baru & terapkan)"
+    Write-Host "[2] Migrate saja (Terapkan migrasi yang sudah ada)"
+    Write-Host "[3] Makemigrations saja (Hanya buat file migrasi)"
+    Write-Host "[0] Batal"
     Write-Host ""
+    $mode = Read-Host "Pilih"
 
     $env:DJANGO_ENV = $selected.env
-    & $python "$PSScriptRoot\backend\manage.py" migrate
+
+    switch ($mode) {
+        "1" {
+            Write-Host ""
+            Write-Host "Menjalankan makemigrations..." -ForegroundColor Yellow
+            & $python "$PSScriptRoot\backend\manage.py" makemigrations
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host ""
+                Write-Host "Menjalankan migrate ke $($selected.db)..." -ForegroundColor Yellow
+                & $python "$PSScriptRoot\backend\manage.py" migrate
+            }
+        }
+        "2" {
+            Write-Host ""
+            Write-Host "Menjalankan migrate ke $($selected.db)..." -ForegroundColor Yellow
+            & $python "$PSScriptRoot\backend\manage.py" migrate
+        }
+        "3" {
+            Write-Host ""
+            Write-Host "Menjalankan makemigrations..." -ForegroundColor Yellow
+            & $python "$PSScriptRoot\backend\manage.py" makemigrations
+        }
+        "0" { return }
+        default {
+            Write-Host "Pilihan tidak valid." -ForegroundColor Red
+            Start-Sleep -Seconds 2
+            return
+        }
+    }
 
     Write-Host ""
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "Migrate berhasil." -ForegroundColor Green
+        Write-Host "Proses migrasi selesai." -ForegroundColor Green
     } else {
-        Write-Host "Migrate gagal. Cek output di atas." -ForegroundColor Red
+        Write-Host "Proses migrasi gagal. Cek output di atas." -ForegroundColor Red
     }
 
     Pause
@@ -1019,6 +1056,76 @@ function Setup-Awal {
     Pause
 }
 
+function Sync-RemoteDatabase {
+    Show-Header
+    Write-Host "  SYNC DATABASE DARI SERVER (192.168.44.116)" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Menyalin data terbaru dari server 192.168.44.116..." -ForegroundColor Yellow
+    Write-Host ""
+
+    Write-Host "Pilih Database yang akan di-sync:"
+    Write-Host "[1] rssams (Legacy SIMRS)"
+    Write-Host "[2] simak  (Production SIMAK)"
+    Write-Host "[3] Keduanya (rssams & simak)"
+    Write-Host "[0] Batal"
+    Write-Host ""
+    $pilihan = Read-Host "Pilih"
+
+    $dbList = @()
+    switch ($pilihan) {
+        "1" { $dbList = @("rssams") }
+        "2" { $dbList = @("simak") }
+        "3" { $dbList = @("rssams", "simak") }
+        "0" { return }
+        default {
+            Write-Host "Pilihan tidak valid." -ForegroundColor Red
+            Start-Sleep -Seconds 2
+            return
+        }
+    }
+
+    $remoteHost = "192.168.44.116"
+    $remoteUser = "itrssams"
+    $remotePass = "IT@rssams2025"
+
+    Write-Host ""
+    Write-Host "Pilih Target Tujuan Sinkronisasi:"
+    Write-Host "[1] Container Docker (shared-mysql-rssams)"
+    Write-Host "[2] MySQL Local (XAMPP / Service Local)"
+    Write-Host "[0] Batal"
+    Write-Host ""
+    $targetDest = Read-Host "Pilih"
+    if ($targetDest -eq "0" -or ($targetDest -ne "1" -and $targetDest -ne "2")) { return }
+
+    $mysqldump = Get-MySQLBinPath "mysqldump.exe"
+    if (!$mysqldump) {
+        $mysqldump = "mysqldump"
+    }
+
+    foreach ($db in $dbList) {
+        Write-Host ""
+        Write-Host "Sync database '$db' dari $remoteHost..." -ForegroundColor Yellow
+        
+        if ($targetDest -eq "1") {
+            Write-Host "Streaming ke container Docker shared-mysql-rssams..." -ForegroundColor DarkGray
+            $cmd = "& '$mysqldump' -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick $db 2>`$null | docker exec -i shared-mysql-rssams mysql -u root -proot --force $db 2>`$null"
+            Invoke-Expression $cmd
+        } else {
+            Write-Host "Streaming ke MySQL Local..." -ForegroundColor DarkGray
+            $creds = Get-DbCredentials
+            $mysqlLocal = Get-MySQLBinPath "mysql.exe"
+            $passArg = if ($creds.password) { "-p$($creds.password)" } else { "" }
+            $cmd = "& '$mysqldump' -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick $db 2>`$null | & '$mysqlLocal' -h $($creds.host) -u $($creds.user) $passArg --force $db 2>`$null"
+            Invoke-Expression $cmd
+        }
+
+        Write-Host "OK Database $db selesai disinkronkan." -ForegroundColor Green
+    }
+
+    Write-Host ""
+    Pause
+}
+
 # ==========================
 # MAIN MENU
 # ==========================
@@ -1045,12 +1152,13 @@ while ($true) {
     Write-Host "[12] Buat Superuser (Admin Panel)"
     Write-Host "[13] Buat User Aplikasi"
     Write-Host ""
-    Write-Host "--- Maintenance ---" -ForegroundColor DarkGray
+    Write-Host "--- Maintenance & Sync ---" -ForegroundColor DarkGray
     Write-Host "[14] Update Aplikasi"
     Write-Host "[15] Backup Database"
     Write-Host "[16] Cek Status Server"
     Write-Host "[17] Export Project (ZIP untuk pindah server)"
     Write-Host "[18] Setup Awal (venv + requirements + npm)"
+    Write-Host "[19] Sync Data Terbaru dari Server Remote (192.168.44.116)"
     Write-Host ""
     Write-Host "[0]  Keluar"
     Write-Host ""
@@ -1076,6 +1184,7 @@ while ($true) {
         "16" { Show-Status }
         "17" { Export-Project }
         "18" { Setup-Awal }
+        "19" { Sync-RemoteDatabase }
         "0"  { exit }
         default {
             Write-Host ""

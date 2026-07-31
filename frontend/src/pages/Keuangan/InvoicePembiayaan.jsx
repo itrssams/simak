@@ -107,6 +107,8 @@ const emptyInvoice = {
     ambulan: '',
     alat: '',
     lainnya: '',
+    is_cob: false,
+    tanggungan_bpjs: '',
 };
 
 const emptyPayment = {
@@ -501,6 +503,8 @@ export default function InvoicePembiayaan() {
             beban: invoice.beban || '',
             keterangan: invoice.keterangan || '',
             xround: invoice.xround || 'N',
+            is_cob: Boolean(invoice.is_cob),
+            tanggungan_bpjs: invoice.tanggungan_bpjs ? String(invoice.tanggungan_bpjs) : '',
             adm: String(invoice.adm || ''),
             jasa: String(invoice.jasa || ''),
             farmasi: String(invoice.farmasi || ''),
@@ -538,6 +542,8 @@ export default function InvoicePembiayaan() {
                 nama_pembiayaan: selectedPembiayaan?.nama || '',
                 pelanggan: null,
                 status: 'belum_bayar',
+                is_cob: Boolean(form.is_cob),
+                tanggungan_bpjs: form.is_cob ? parseMoneyInput(form.tanggungan_bpjs) : 0,
             };
             COST_FIELDS.forEach(([key]) => {
                 payload[key] = parseMoneyInput(form[key]);
@@ -1051,7 +1057,7 @@ export default function InvoicePembiayaan() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="inv-right inv-mono">{money(item.total_tagihan)}</td>
+                                            <td className="inv-right inv-mono">{money(item.total_real_rs || (Number(item.total_tagihan || 0) + Number(item.tanggungan_bpjs || 0)))}</td>
                                             <td className="inv-right inv-mono">{money(item.total_piutang ?? item.total_tagihan)}</td>
                                             <td>
                                                 <StatusBadge status={item.status} label={item.status_label} />
@@ -1194,9 +1200,50 @@ export default function InvoicePembiayaan() {
                                         </label>
                                     ))}
                                 </div>
+                                <div style={{ marginTop: 14, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.06)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.18)' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(form.is_cob)}
+                                            onChange={(e) => setForm({ ...form, is_cob: e.target.checked })}
+                                            style={{ width: 18, height: 18, accentColor: '#4f46e5' }}
+                                        />
+                                        <span>Invoice COB (BPJS + Asuransi Tambahan)</span>
+                                    </label>
+                                    {form.is_cob && (
+                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                                            <label style={{ display: 'grid', gap: 4 }}>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sub, #475467)' }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
+                                                <input
+                                                    className="inv-input"
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={formatMoneyInput(form.tanggungan_bpjs)}
+                                                    onChange={(e) => setForm({ ...form, tanggungan_bpjs: normalizeMoneyDraft(e.target.value) })}
+                                                    placeholder="Contoh: 3.173.800"
+                                                    style={{ fontWeight: 700 }}
+                                                />
+                                            </label>
+                                            <div style={{ padding: '8px 12px', background: 'rgba(15, 23, 42, 0.04)', borderRadius: 8, fontSize: 13, display: 'grid', gap: 4 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                                    <span>Total Biaya Riil RS:</span>
+                                                    <strong>{money(totalForm)}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
+                                                    <span>Ditanggung BPJS (INA-CBGs):</span>
+                                                    <strong>- {money(parseMoneyInput(form.tanggungan_bpjs))}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: 4, marginTop: 2, color: '#166534', fontWeight: 800 }}>
+                                                    <span>Total Ditagihkan ke Asuransi:</span>
+                                                    <span>{money(Math.max(0, totalForm - parseMoneyInput(form.tanggungan_bpjs)))}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="inv-total-box inv-create-total">
-                                    <span><ReceiptText size={17} /> Total Tagihan</span>
-                                    <strong>{money(totalForm)}</strong>
+                                    <span><ReceiptText size={17} /> Total Tagihan Asuransi</span>
+                                    <strong>{money(form.is_cob ? Math.max(0, totalForm - parseMoneyInput(form.tanggungan_bpjs)) : totalForm)}</strong>
                                 </div>
                                 <label className="inv-note">Keterangan
                                     <textarea className="inv-input" rows="3" value={form.keterangan} onChange={(e) => setForm({ ...form, keterangan: e.target.value })} />
@@ -1310,8 +1357,24 @@ export default function InvoicePembiayaan() {
                                         <div className="inv-breakdown-grid">
                                             {COST_FIELDS.map(([key, label]) => <Info key={key} label={<CostLabel fieldKey={key} label={label} />} value={money(selected[key])} mono />)}
                                         </div>
+                                        {(selected.is_cob || Number(selected.tanggungan_bpjs || 0) > 0) && (
+                                            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.2)', display: 'grid', gap: 6 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                                                    <span>Total Biaya Riil RS:</span>
+                                                    <strong>{money(selected.total_real_rs || (selectedDisplayAmounts.total + Number(selected.tanggungan_bpjs || 0)))}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#e11d48' }}>
+                                                    <span>Ditanggung BPJS (INA-CBGs):</span>
+                                                    <strong>- {money(selected.tanggungan_bpjs)}</strong>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: '#16a34a', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 6 }}>
+                                                    <span>Net Tagihan Asuransi:</span>
+                                                    <span>{money(selectedDisplayAmounts.total)}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="inv-balance-strip">
-                                            <span>Total: <strong>{money(selectedDisplayAmounts.total)}</strong></span>
+                                            <span>Total Tagihan: <strong>{money(selectedDisplayAmounts.total)}</strong></span>
                                             <span>Dibayar: <strong>{money(selectedDisplayAmounts.dibayar)}</strong></span>
                                             <span>Sisa: <strong>{money(selectedDisplayAmounts.sisa)}</strong></span>
                                         </div>

@@ -220,3 +220,151 @@
     font-size: 22px !important;
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES FOR LAPORAN PETTY CASH ([data-theme="dark"])
+   ========================================================= */
+
+[data-theme="dark"] .lpc-page {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-title,
+[data-theme="dark"] .lpc-kpi-value,
+[data-theme="dark"] .lpc-summary-box strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-muted,
+[data-theme="dark"] .lpc-label,
+[data-theme="dark"] .lpc-kpi-label,
+[data-theme="dark"] .lpc-summary-box span,
+[data-theme="dark"] .lpc-filter-note {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lpc-panel,
+[data-theme="dark"] .lpc-kpi,
+[data-theme="dark"] .lpc-report,
+[data-theme="dark"] .lpc-chart-card {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .lpc-input,
+[data-theme="dark"] .lpc-select {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-select option {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-btn.ghost {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lpc-btn.ghost:hover {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-shortcut,
+[data-theme="dark"] .lpc-btn.gold {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+[data-theme="dark"] .lpc-shortcut:hover {
+  background: rgba(245, 158, 11, 0.24) !important;
+}
+
+[data-theme="dark"] .lpc-tabs {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .lpc-tab {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lpc-tab.active {
+  background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .lpc-paper {
+  background: #151c2c !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-doc-title h2,
+[data-theme="dark"] .lpc-org {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-doc-title p,
+[data-theme="dark"] .lpc-org-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .lpc-summary-box {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .lpc-table-wrap {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: #151c2c !important;
+}
+
+[data-theme="dark"] .lpc-table th {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-right-color: rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .lpc-table td {
+  border-right-color: rgba(255, 255, 255, 0.06) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .lpc-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+[data-theme="dark"] .lpc-table .total-row td {
+  background: rgba(30, 41, 59, 0.7) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .lpc-empty {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .lpc-modal {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .lpc-modal-head {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .lpc-check {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
