@@ -1793,20 +1793,13 @@ export default function InvoicePembiayaan() {
                                     />
                                 </div>
                                 <div className="rekap-picker-card" style={{ marginTop: 14 }}>
-                                    <label className="rekap-field-label">Pembiayaan / Penjamin</label>
-                                    <select
-                                        className="inv-input"
-                                        value={rekapForm.id_pembiayaan || ''}
-                                        onChange={(e) => setRekapForm((prev) => ({ ...prev, id_pembiayaan: e.target.value }))}
-                                        style={{ fontWeight: 700 }}
-                                    >
-                                        <option value="">-- Semua Pembiayaan --</option>
-                                        {pembiayaan.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.nama || p.perusahaan || p.penjamin}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <label className="rekap-field-label" style={{ marginBottom: 6 }}>Pembiayaan / Penjamin</label>
+                                    <SearchablePembiayaanSelect
+                                        options={pembiayaan}
+                                        value={rekapForm.id_pembiayaan}
+                                        onChange={(value) => setRekapForm((prev) => ({ ...prev, id_pembiayaan: value }))}
+                                        placeholder="Semua Pembiayaan"
+                                    />
                                 </div>
                                 <div className="rekap-actions">
                                     <button className="inv-btn soft" type="button" onClick={closeRekapDialog}>
