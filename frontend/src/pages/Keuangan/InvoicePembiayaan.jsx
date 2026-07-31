@@ -244,7 +244,7 @@ export default function InvoicePembiayaan() {
     const [editingInvoice, setEditingInvoice] = useState(null);
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
     const [rekapOpen, setRekapOpen] = useState(false);
-    const [rekapForm, setRekapForm] = useState({ tgl1: '', tgl2: '' });
+    const [rekapForm, setRekapForm] = useState({ tgl1: '', tgl2: '', id_pembiayaan: '' });
     const [receiptOpen, setReceiptOpen] = useState(false);
     const [receiptSelection, setReceiptSelection] = useState(() => new Set());
     const [receiptSelectionDetails, setReceiptSelectionDetails] = useState(() => new Map());
@@ -818,7 +818,7 @@ export default function InvoicePembiayaan() {
 
     const closeRekapDialog = () => {
         setRekapOpen(false);
-        setRekapForm({ tgl1: '', tgl2: '' });
+        setRekapForm({ tgl1: '', tgl2: '', id_pembiayaan: '' });
     };
 
     const printRekap = () => {
@@ -834,14 +834,18 @@ export default function InvoicePembiayaan() {
 
         const baseURL = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
 
-        const rekapUrl =
+        let rekapUrl =
             `${baseURL}/keuangan/faktur/rekap/?dari=${rekapForm.tgl1}&sampai=${rekapForm.tgl2}`;
+        if (rekapForm.id_pembiayaan) {
+            rekapUrl += `&id_pembiayaan=${encodeURIComponent(rekapForm.id_pembiayaan)}`;
+        }
 
         console.log('================================');
         console.log('REKAP URL :', rekapUrl);
         console.log('BASE URL  :', baseURL);
         console.log('TGL AWAL  :', rekapForm.tgl1);
         console.log('TGL AKHIR :', rekapForm.tgl2);
+        console.log('PEMBIAYAAN:', rekapForm.id_pembiayaan || 'SEMUA');
         console.log('================================');
 
         const printWindow = window.open(rekapUrl, '_blank');
@@ -867,10 +871,12 @@ export default function InvoicePembiayaan() {
 
         const baseURL = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
 
-        window.open(
-            `${baseURL}/keuangan/faktur/rekap/excel/?dari=${rekapForm.tgl1}&sampai=${rekapForm.tgl2}`,
-            '_blank'
-        );
+        let excelUrl = `${baseURL}/keuangan/faktur/rekap/excel/?dari=${rekapForm.tgl1}&sampai=${rekapForm.tgl2}`;
+        if (rekapForm.id_pembiayaan) {
+            excelUrl += `&id_pembiayaan=${encodeURIComponent(rekapForm.id_pembiayaan)}`;
+        }
+
+        window.open(excelUrl, '_blank');
     };
 
     const printReceipt = (event) => {
@@ -1782,9 +1788,25 @@ export default function InvoicePembiayaan() {
                                     <DateRangePicker
                                         dari={rekapForm.tgl1}
                                         sampai={rekapForm.tgl2}
-                                        onChange={({ dari, sampai }) => setRekapForm({ tgl1: dari, tgl2: sampai })}
+                                        onChange={({ dari, sampai }) => setRekapForm((prev) => ({ ...prev, tgl1: dari, tgl2: sampai }))}
                                         placeholder="Pilih Periode Tanggal"
                                     />
+                                </div>
+                                <div className="rekap-picker-card" style={{ marginTop: 14 }}>
+                                    <label className="rekap-field-label">Pembiayaan / Penjamin</label>
+                                    <select
+                                        className="inv-input"
+                                        value={rekapForm.id_pembiayaan || ''}
+                                        onChange={(e) => setRekapForm((prev) => ({ ...prev, id_pembiayaan: e.target.value }))}
+                                        style={{ fontWeight: 700 }}
+                                    >
+                                        <option value="">-- Semua Pembiayaan --</option>
+                                        {pembiayaan.map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.nama || p.perusahaan || p.penjamin}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="rekap-actions">
                                     <button className="inv-btn soft" type="button" onClick={closeRekapDialog}>

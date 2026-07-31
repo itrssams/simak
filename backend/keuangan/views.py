@@ -3479,22 +3479,38 @@ def get_pembiayaan_detail(id_pembiayaan):
         return {}
 
 def faktur_rekap_print_view(request):
-    """Print rekapitulasi invoice berdasarkan date range"""
+    """Print rekapitulasi invoice berdasarkan date range dan pembiayaan (optional)"""
     dari = request.GET.get('dari', '')
     sampai = request.GET.get('sampai', '')
+    id_pembiayaan = request.GET.get('id_pembiayaan', '').strip()
     
     if not dari or not sampai:
         return HttpResponse('<h3>Parameter tanggal (dari/sampai) wajib diisi</h3>', status=400)
     
     # Query faktur dengan filter date range (mengabaikan invoice status batal)
-    fakturs = Faktur.objects.filter(
+    fakturs_qs = Faktur.objects.filter(
         tanggal__gte=dari,
         tanggal__lte=sampai
-    ).exclude(status='batal').select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
+    ).exclude(status='batal')
+
+    if id_pembiayaan:
+        try:
+            fakturs_qs = fakturs_qs.filter(id_pembiayaan=int(id_pembiayaan))
+        except (ValueError, TypeError):
+            fakturs_qs = fakturs_qs.filter(id_pembiayaan=id_pembiayaan)
+
+    fakturs = fakturs_qs.select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
     
     pembiayaan_map = build_pembiayaan_name_map(
         fakturs.values_list('id_pembiayaan', flat=True).distinct()
     )
+
+    header_title = 'REKAPITULASI INVOICE'
+    if id_pembiayaan:
+        p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
+        p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
+        if p_name:
+            header_title = f'REKAPITULASI INVOICE - {escape(p_name.upper())}'
     
     # Build HTML
     html_parts = [
@@ -3520,7 +3536,7 @@ def faktur_rekap_print_view(request):
         '<body>',
         '<div id="wrapper">',
         '<div id="isi">',
-        f'<h3>REKAPITULASI INVOICE<br>Periode: {dari} s/d {sampai}</h3>',
+        f'<h3>{header_title}<br>Periode: {dari} s/d {sampai}</h3>',
         '<table>',
         '<thead>',
         '<tr>',
@@ -3684,14 +3700,25 @@ def faktur_rekap_print_view(request):
 def faktur_rekap_excel_view(request):
     dari = request.GET.get('dari', '')
     sampai = request.GET.get('sampai', '')
+    id_pembiayaan = request.GET.get('id_pembiayaan', '').strip()
 
     if not dari or not sampai:
         return HttpResponse('Parameter tanggal dari/sampai wajib diisi.', status=400)
 
-    fakturs = (
+    fakturs_qs = (
         Faktur.objects
         .filter(tanggal__gte=dari, tanggal__lte=sampai)
         .exclude(status='batal')
+    )
+
+    if id_pembiayaan:
+        try:
+            fakturs_qs = fakturs_qs.filter(id_pembiayaan=int(id_pembiayaan))
+        except (ValueError, TypeError):
+            fakturs_qs = fakturs_qs.filter(id_pembiayaan=id_pembiayaan)
+
+    fakturs = (
+        fakturs_qs
         .select_related('pelanggan')
         .prefetch_related('pembayaran')
         .order_by('id_pembiayaan', 'tanggal')
