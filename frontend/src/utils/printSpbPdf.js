@@ -102,6 +102,7 @@ export async function generateSpbPdf(row) {
 
     // ---------- INFO SURAT ----------
     doc.setFont('times', 'normal');
+    doc.setFontSize(10);
     const thn = getYear(row.tanggal);
     const bln = romanMonth(row.tanggal);
     const rawNo = row.no_spb || row.nomor || '___';
