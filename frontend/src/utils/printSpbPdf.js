@@ -1,15 +1,15 @@
 import { jsPDF } from "jspdf";
 
+const ROMAN_MONTH = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
 function romanMonth(dateStr) {
     if (!dateStr) return '';
     const m = parseInt(dateStr.split('-')[1], 10);
-    const map = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
-    return map[m - 1] || '';
+    return ROMAN_MONTH[m - 1] || '';
 }
 
 function getYear(dateStr) {
-    if (!dateStr) return '';
-    return dateStr.split('-')[0];
+    return dateStr ? dateStr.split('-')[0] : '';
 }
 
 function formatDateToIndo(dateStr) {
@@ -23,150 +23,195 @@ function fmtMoney(num) {
     return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export async function generateSpbPdf(row) {
-    const doc = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: [215, 279]
+async function loadImageWithDimensions(path) {
+    const res = await fetch(path);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const dataUrl = reader.result;
+            const img = new Image();
+            img.onload = () => resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight });
+            img.onerror = () => resolve({ dataUrl, width: 1, height: 1 });
+            img.src = dataUrl;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
     });
+}
 
+// Definisi kolom tabel: satu sumber kebenaran dipakai bareng
+// buat header maupun isi baris, supaya selalu sejajar.
+const COLUMNS = [
+    { key: 'no', label: 'NO', x: 15, width: 8, align: 'left' },
+    { key: 'kode', label: 'KODE', x: 23, width: 15, align: 'left' },
+    { key: 'nama', label: 'NAMA BARANG', x: 39, width: 55, align: 'left' },
+    { key: 'qty', label: 'QTY', x: 96, width: 12, align: 'right' },
+    { key: 'satuan', label: '', x: 110, width: 14, align: 'left' },
+    { key: 'disc', label: 'DISC', x: 126, width: 12, align: 'right' },
+    { key: 'harga', label: 'HARGA', x: 140, width: 20, align: 'right' },
+    { key: 'total', label: 'TOTAL', x: 162, width: 22, align: 'right' },
+    { key: 'ket', label: 'KET', x: 186, width: 19, align: 'left' },
+];
+const TABLE_LEFT = 15;
+const TABLE_RIGHT = 205;
+
+function drawColumnText(doc, col, text, y) {
+    if (text === '' || text === null || text === undefined) return;
+    const align = col.align === 'right' ? 'right' : (col.align === 'center' ? 'center' : 'left');
+    const tx = align === 'right' ? col.x + col.width : (align === 'center' ? col.x + col.width / 2 : col.x);
+    doc.text(String(text), tx, y, { align });
+}
+
+export async function generateSpbPdf(row) {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 279] });
     const items = row.items || [];
-    
-    const imgData = await fetch('/logo1.jpg')
-        .then(res => res.blob())
-        .then(blob => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        }));
 
-    doc.addImage(imgData, 'JPEG', 15, 7, 24, 24); 
-
-    const cell = (x, y, w, h, text, align = 'left', fontStyle = 'normal') => {
-        if (!text && text !== 0) return;
-        doc.setFont('times', fontStyle);
-        let tx = x;
-        let alignPdf = 'left';
-        if (align === 'C' || align === 'center') {
-            tx = x + (w / 2);
-            alignPdf = 'center';
-        } else if (align === 'R' || align === 'right') {
-            tx = x + w;
-            alignPdf = 'right';
-        }
-        doc.text(String(text), tx, y + (h / 2), { align: alignPdf, baseline: 'middle' });
-    };
+    // ---------- KOP SURAT ----------
+    try {
+        const { dataUrl, width: naturalWidth, height: naturalHeight } = await loadImageWithDimensions('/Logo Vertikal.png');
+        const maxH = 18; // mm (dari y=8 sampai y=26, berada di atas garis header y=27)
+        const aspectRatio = (naturalWidth && naturalHeight) ? (naturalWidth / naturalHeight) : 1;
+        const logoH = maxH;
+        const logoW = maxH * aspectRatio;
+        doc.addImage(dataUrl, 'PNG', 15, 8, logoW, logoH);
+    } catch (e) {
+        console.warn('Logo gagal dimuat, lanjut tanpa logo:', e);
+    }
 
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
-    cell(10, 10, 195, 5, 'RS. SIAGA AL MUNAWWARAH SAMARINDA', 'C', 'bold');
-    
-    doc.setFontSize(10);
-    doc.setFont('times', 'normal');
-    cell(10, 15, 195, 5, 'Jl. Ramania No. 3 Kel. Sidodadi Kec. Samarinda Ulu, Kota Samarinda', 'C', 'normal');
-    cell(10, 19, 195, 5, 'Telp. 0541-739722, Fax. 0541-7272700', 'C', 'normal');
-    
-    doc.setLineWidth(0.5);
-    doc.line(15, 25, 205, 25);
-    
-    doc.setFont('times', 'bold'); 
-    doc.setFontSize(14);
-    cell(10, 32, 195, 5, 'SURAT PESANAN BARANG', 'C', 'bold');
-    doc.setLineWidth(0.3);
-    doc.line(75, 35, 140, 35); 
+    doc.text('RS. SIAGA AL MUNAWWARAH SAMARINDA', 107.5, 14, { align: 'center' });
 
-    doc.setFontSize(10);
     doc.setFont('times', 'normal');
-    
+    doc.setFontSize(10);
+    doc.text('Jl. Ramania No. 3 Kel. Sidodadi Kec. Samarinda Ulu, Kota Samarinda', 107.5, 19, { align: 'center' });
+    doc.text('Telp. 0541-739722, Fax. 0541-7272700', 107.5, 23, { align: 'center' });
+
+    doc.setLineWidth(0.6);
+    doc.line(15, 27, 205, 27);
+
+    // ---------- JUDUL ----------
+    doc.setFont('times', 'bold');
+    doc.setFontSize(13);
+    const judul = 'SURAT PESANAN BARANG';
+    doc.text(judul, 107.5, 35, { align: 'center' });
+    const judulWidth = doc.getTextWidth(judul);
+    doc.setLineWidth(0.3);
+    doc.line(107.5 - judulWidth / 2, 36.5, 107.5 + judulWidth / 2, 36.5);
+
+    // ---------- INFO SURAT ----------
+    doc.setFont('times', 'normal');
+    doc.setFontSize(10);
     const thn = getYear(row.tanggal);
     const bln = romanMonth(row.tanggal);
-    const no_faktur = row.nomor || '___';
-    
-    doc.text("Nomor", 15, 39);
-    doc.text(` : ${no_faktur}/FARMASI-RSSAMS/${bln}/${thn}`, 30, 39);
-    doc.text("Tanggal", 15, 43);
-    doc.text(` : ${formatDateToIndo(row.tanggal)}`, 30, 43);
-    doc.text("Kepada", 15, 47);
-    doc.text(` : ${row.pemasok || '-'}`, 30, 47);
-    doc.text("Mohon pesanan untuk pengadaan barang-barang tersebut di bawah ini :", 15, 53);
+    const noSurat = row.nomor || '___';
 
-    doc.text("-".repeat(110), 15, 56);
-    doc.text("-".repeat(110), 15, 63);
+    let infoY = 43;
+    doc.text('Nomor', 15, infoY);
+    doc.text(`: ${noSurat}/FARMASI-RSSAMS/${bln}/${thn}`, 33, infoY);
+    infoY += 5;
+    doc.text('Tanggal', 15, infoY);
+    doc.text(`: ${formatDateToIndo(row.tanggal)}`, 33, infoY);
+    infoY += 5;
+    doc.text('Kepada', 15, infoY);
+    doc.text(`: ${row.pemasok || '-'}`, 33, infoY);
+    infoY += 6;
+    doc.text('Mohon pesanan untuk pengadaan barang-barang tersebut di bawah ini :', 15, infoY);
 
+    // ---------- HEADER TABEL ----------
+    let tableY = infoY + 5;
+    doc.setLineWidth(0.3);
+    doc.line(TABLE_LEFT, tableY, TABLE_RIGHT, tableY);
+    tableY += 4.5;
+
+    doc.setFont('times', 'bold');
     doc.setFontSize(9);
-    doc.text("NO", 15, 60);
-    doc.text("KODE", 23, 60);
-    doc.text("NAMA BARANG", 39, 60);
-    doc.text("QTY", 108, 60, { align: 'right' }); 
-    doc.text("DISC", 129, 60);
-    doc.text("HARGA", 140, 60);
-    doc.text("TOTAL", 171, 60);
-    doc.text("KET", 184, 60);
+    COLUMNS.forEach(col => drawColumnText(doc, col, col.label, tableY));
+    tableY += 2;
+    doc.setLineWidth(0.3);
+    doc.line(TABLE_LEFT, tableY, TABLE_RIGHT, tableY);
 
-    let y = 64;
+    // ---------- ISI TABEL ----------
+    const ROW_HEIGHT = 5.5;
+    let y = tableY + ROW_HEIGHT;
     let yno = 1;
     let mgtotal = 0;
-    
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9);
+
     items.forEach((item) => {
-        const mqty = item.qty_pesan || item.qty || 0; 
+        const mqty = item.qty_pesan || item.qty || 0;
         const mharga = Number(item.harga || 0);
         const mtotal = mqty * mharga;
         mgtotal += mtotal;
+
         const mkem = item.kemasan || item.satuan || '';
-        const mket = `${item.isi || 1} ${item.satuan || ''}/${item.kemasan || ''}`; 
+        const mket = `${item.isi || 1} ${item.satuan || ''}/${item.kemasan || ''}`;
 
-        let namaBarang = item.barang_nama;
-        if (namaBarang && namaBarang.length > 25) {
-            namaBarang = namaBarang.substring(0, 25) + '...';
-        }
+        let namaBarang = item.barang_nama || '';
+        if (namaBarang.length > 30) namaBarang = namaBarang.substring(0, 30) + '...';
 
-        cell(15, y, 7, 4, yno, 'L');
-        cell(23, y, 16, 4, '', 'L'); 
-        cell(39, y, 69, 4, namaBarang, 'L');
-        cell(108, y, 10, 4, fmtMoney(mqty).replace('.00', ''), 'R');
-        cell(118, y, 13, 4, mkem, 'L');
-        cell(129, y, 11, 4, '', 'R'); 
-        cell(140, y, 20, 4, fmtMoney(mharga), 'R');
-        cell(160, y, 22, 4, fmtMoney(mtotal), 'R');
-        cell(183, y, 20, 4, mket, 'L');
-        
-        y += 4;
+        const rowData = {
+            no: yno,
+            kode: '',           // logic tetap: kode belum diisi di konteks ini
+            nama: namaBarang,
+            qty: fmtMoney(mqty).replace('.00', ''),
+            satuan: mkem,
+            disc: '',           // logic tetap: disc belum dihitung di konteks ini
+            harga: fmtMoney(mharga),
+            total: fmtMoney(mtotal),
+            ket: mket,
+        };
+
+        COLUMNS.forEach(col => drawColumnText(doc, col, rowData[col.key], y));
+
+        y += ROW_HEIGHT;
         yno++;
     });
 
-    y += 2;
-    doc.text("-".repeat(110), 14, y);
-    y += 4;
+    y += 1;
+    doc.setLineWidth(0.3);
+    doc.line(TABLE_LEFT, y, TABLE_RIGHT, y);
+    y += 6;
 
+    // ---------- RINGKASAN TOTAL ----------
     const mgtotalx = fmtMoney(mgtotal);
-    const mdisc = "0.00";
-    const mppn = "0.00";
+    const mdisc = '0.00';
+    const mppn = '0.00';
     const mttl = fmtMoney(mgtotal);
 
-    cell(145, y, 15, 4, 'TOTAL :', 'R');
-    cell(160, y, 22, 4, mgtotalx, 'R');
-    y += 4;
-    cell(145, y, 15, 4, 'DISCOUNT :', 'R');
-    cell(160, y, 22, 4, mdisc, 'R');
-    y += 4;
-    cell(145, y, 15, 4, 'PPN :', 'R');
-    cell(160, y, 22, 4, mppn, 'R');
-    y += 4;
-    cell(145, y, 15, 4, 'TOTAL NETTO :', 'R');
-    cell(160, y, 22, 4, mttl, 'R');
-    
-    y += 8;
-    doc.setFontSize(10);
-    cell(145, y, 38, 4, `Samarinda, ${formatDateToIndo(row.tanggal)}`, 'L');
-    y += 4;
-    cell(145, y, 38, 4, 'Dipesan Oleh', 'L');
-    
-    y += 15;
-    doc.setFont('times', 'bold');
-    doc.text('Ardianti Guspari S. Si., Apt.', 145, y);
-    doc.line(145, y + 1, 195, y + 1); 
+    const summaryLabelX = 205 - 45;
+    const summaryValueRight = 205;
+    const summaryLine = (label, value) => {
+        doc.text(label, summaryLabelX, y);
+        doc.text(value, summaryValueRight, y, { align: 'right' });
+        y += 5;
+    };
 
+    doc.setFontSize(10);
+    summaryLine('TOTAL', mgtotalx);
+    summaryLine('DISCOUNT', mdisc);
+    summaryLine('PPN', mppn);
+    doc.setFont('times', 'bold');
+    summaryLine('TOTAL NETTO', mttl);
+    doc.setFont('times', 'normal');
+
+    // ---------- TANDA TANGAN ----------
+    y += 6;
+    doc.text(`Samarinda, ${formatDateToIndo(row.tanggal)}`, summaryLabelX, y);
+    y += 5;
+    doc.text('Dipesan Oleh', summaryLabelX, y);
+
+    y += 18;
+    const namaTtd = 'Ardianti Guspari S. Si., Apt.';
+    doc.setFont('times', 'bold');
+    doc.text(namaTtd, summaryLabelX, y);
+    doc.setLineWidth(0.2);
+    doc.line(summaryLabelX, y + 1, summaryLabelX + doc.getTextWidth(namaTtd), y + 1);
+
+    // ---------- OUTPUT ----------
     const pdfBlobUrl = doc.output('bloburl');
     window.open(pdfBlobUrl, '_blank');
 }
