@@ -4477,7 +4477,10 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if utang_id:
             qs = qs.filter(utang_id=utang_id)
         if status_param:
-            qs = qs.filter(status=status_param)
+            if status_param == 'realisasi':
+                qs = qs.filter(Q(status__startswith='realisasi') | Q(status='realisasi'))
+            else:
+                qs = qs.filter(status=status_param)
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(utang__sumber=sumber_filter)
         if dari:
