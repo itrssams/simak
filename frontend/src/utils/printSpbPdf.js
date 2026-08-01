@@ -24,20 +24,26 @@ function fmtMoney(num) {
 }
 
 async function loadImageWithDimensions(path) {
-    const res = await fetch(encodeURI(path));
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const dataUrl = reader.result;
-            const img = new Image();
-            img.onload = () => resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight });
-            img.onerror = () => resolve({ dataUrl, width: 1, height: 1 });
-            img.src = dataUrl;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
+    try {
+        const res = await fetch(encodeURI(path));
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const blob = await res.blob();
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result;
+                const img = new Image();
+                img.onload = () => resolve({ dataUrl, width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
+                img.onerror = () => resolve({ dataUrl: null, width: 1, height: 1 });
+                img.src = dataUrl;
+            };
+            reader.onerror = () => resolve({ dataUrl: null, width: 1, height: 1 });
+            reader.readAsDataURL(blob);
+        });
+    } catch (err) {
+        console.warn('Gagal memuat image logo:', path, err);
+        return { dataUrl: null, width: 1, height: 1 };
+    }
 }
 
 // Definisi kolom tabel: satu sumber kebenaran dipakai bareng
@@ -64,22 +70,35 @@ function drawColumnText(doc, col, text, y) {
 }
 
 export async function generateSpbPdf(row, currentUser = null, targetWindow = null) {
-    const win = targetWindow || (typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null);
+    let win = targetWindow;
+    if (!win && typeof window !== 'undefined') {
+        try {
+            win = window.open('', '_blank');
+            if (win) {
+                win.document.write('<!DOCTYPE html><html><head><title>Mencetak SPB...</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;"><div style="text-align:center;color:#475569;"><h3>Memuat Dokumen SPB...</h3><p>Mohon tunggu sebentar.</p></div></body></html>');
+            }
+        } catch (e) {
+            console.warn('Gagal membuka window popup:', e);
+        }
+    }
+
     try {
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 279] });
         const items = row.items || [];
 
-    // ---------- KOP SURAT ----------
-    try {
-        const { dataUrl, width: naturalWidth, height: naturalHeight } = await loadImageWithDimensions('/Logo Vertikal.png');
-        const maxH = 18; // mm (dari y=8 sampai y=26, berada di atas garis header y=27)
-        const aspectRatio = (naturalWidth && naturalHeight) ? (naturalWidth / naturalHeight) : 1;
-        const logoH = maxH;
-        const logoW = maxH * aspectRatio;
-        doc.addImage(dataUrl, 'PNG', 15, 8, logoW, logoH);
-    } catch (e) {
-        console.warn('Logo gagal dimuat, lanjut tanpa logo:', e);
-    }
+        // ---------- KOP SURAT ----------
+        try {
+            const { dataUrl, width: naturalWidth, height: naturalHeight } = await loadImageWithDimensions('/Logo Vertikal.png');
+            if (dataUrl) {
+                const maxH = 18;
+                const aspectRatio = (naturalWidth && naturalHeight) ? (naturalWidth / naturalHeight) : 1;
+                const logoH = maxH;
+                const logoW = maxH * aspectRatio;
+                doc.addImage(dataUrl, 'PNG', 15, 8, logoW, logoH);
+            }
+        } catch (e) {
+            console.warn('Logo gagal dimuat, lanjut tanpa logo:', e);
+        }
 
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
