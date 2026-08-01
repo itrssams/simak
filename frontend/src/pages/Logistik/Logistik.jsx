@@ -1045,6 +1045,7 @@ function payload_error_fallback(section) {
 }
 
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan }) {
+    const { user } = useAuth();
     const headers = {
         barang: ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         vendor: ['Vendor & Kategori', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
