@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     CircleDollarSign,
     ClipboardList,
+    Eye,
     FileClock,
     FilePlus2,
     FileSpreadsheet,
@@ -223,6 +224,8 @@ export default function CatatanUtangObatBhp() {
     const [paymentHistory, setPaymentHistory] = useState([]);
     const [realisasiTarget, setRealisasiTarget] = useState(null);
     const [realisasiForm, setRealisasiForm] = useState({ tanggal_realisasi: todayISO() });
+    const [detailTarget, setDetailTarget] = useState(null);
+    const [detailHistory, setDetailHistory] = useState([]);
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
 
@@ -366,6 +369,18 @@ export default function CatatanUtangObatBhp() {
             setPaymentHistory(hist);
         } catch {
             setPaymentHistory([]);
+        }
+    };
+
+    const openDetail = async (row) => {
+        setDetailTarget(row);
+        setDetailHistory([]);
+        try {
+            const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang: row.id, pagination: 'false', limit: 100 } });
+            const hist = Array.isArray(res.data) ? res.data : getResults(res.data) || [];
+            setDetailHistory(hist);
+        } catch {
+            setDetailHistory(row.pembayaran || []);
         }
     };
 
@@ -629,7 +644,7 @@ export default function CatatanUtangObatBhp() {
                 ) : (
                     <div className="utang-table-wrap table-fade-in">
                         {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
-                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onSort={setOrdering} />}
+                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
                     </div>
@@ -931,6 +946,105 @@ export default function CatatanUtangObatBhp() {
                 </div>,
                 document.body,
             )}
+
+            {detailTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
+                    <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: '#0284c7', color: '#fff' }}><Eye size={20} /></span>
+                            <div>
+                                <h2>Detail Utang &amp; Riwayat Pembayaran</h2>
+                                <p>{detailTarget.nomor_faktur || '-'} — {detailTarget.vendor_nama || '-'} <SumberBadge sumber={detailTarget.sumber} /></p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setDetailTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <section className="utang-payment-section">
+                                <SectionTitle>Ringkasan Faktur</SectionTitle>
+                                <div className="utang-pay-summary">
+                                    <Info label="Total Nominal" value={money(detailTarget.nominal)} />
+                                    <Info label="Sudah Dibayar" value={money(detailTarget.total_dibayar)} />
+                                    <Info label="Sisa Utang" value={money(detailTarget.sisa_utang)} />
+                                </div>
+                            </section>
+
+                            <section className="utang-payment-section">
+                                <SectionTitle>Informasi Faktur</SectionTitle>
+                                <div className="utang-verify-card">
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Status</span>
+                                        <span className="val"><StatusBadge status={detailTarget.status} label={detailTarget.status_label} /></span>
+                                    </div>
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">No. Ref / SPB</span>
+                                        <span className="val">{getRefNo(detailTarget)}</span>
+                                    </div>
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Tgl. Faktur</span>
+                                        <span className="val">{dateLabel(detailTarget.tanggal_faktur)}</span>
+                                    </div>
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Jatuh Tempo</span>
+                                        <span className="val">{dateLabel(detailTarget.tanggal_jatuh_tempo)}</span>
+                                    </div>
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Tgl. Titip</span>
+                                        <span className="val">{dateLabel(detailTarget.tanggal_titip)} ({calcUmurUtang(detailTarget.tanggal_titip)})</span>
+                                    </div>
+                                    {detailTarget.verified_by_name && (
+                                        <div className="utang-verify-row">
+                                            <span className="lbl">Verifikator</span>
+                                            <span className="val bold">{detailTarget.verified_by_name}</span>
+                                        </div>
+                                    )}
+                                    {detailTarget.keterangan_titip && (
+                                        <div className="utang-verify-row">
+                                            <span className="lbl">Keterangan Titip</span>
+                                            <span className="val">{detailTarget.keterangan_titip}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+
+                            <section className="utang-payment-section">
+                                <SectionTitle icon={History}>Riwayat Pembayaran (Realisasi &amp; Pengajuan)</SectionTitle>
+                                {detailHistory.length > 0 ? (
+                                    <div className="utang-history-wrap">
+                                        <table className="utang-history-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tgl Bayar / Rencana</th>
+                                                    <th>Jumlah Bayar</th>
+                                                    <th>Status</th>
+                                                    <th>Keterangan</th>
+                                                    <th>Operator</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {detailHistory.map((item, idx) => (
+                                                    <tr key={item.id || idx}>
+                                                        <td>{dateLabel(item.tanggal_realisasi || item.tanggal_proses || item.tanggal_rencana_bayar)}</td>
+                                                        <td className="utang-mono">{money(item.jumlah_bayar)}</td>
+                                                        <td><StatusBadge status={item.status} label={item.status_label || item.status} /></td>
+                                                        <td>{item.keterangan || '-'}</td>
+                                                        <td>{item.created_by_name || item.realized_by_name || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="utang-history-empty">Belum ada riwayat pembayaran untuk faktur ini.</div>
+                                )}
+                            </section>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" onClick={() => setDetailTarget(null)}>Tutup</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body,
+            )}
         </div>
     );
 }
@@ -1027,7 +1141,7 @@ function PendingTable({ items, onVerify, onSort }) {
     );
 }
 
-function ActiveTable({ items, onPayment, onSort }) {
+function ActiveTable({ items, onPayment, onDetail, onSort }) {
     return (
         <table className="utang-table">
             <thead>
@@ -1080,9 +1194,20 @@ function ActiveTable({ items, onPayment, onSort }) {
                             ) : '-'}
                         </td>
                         <td className="utang-right">
-                            <button className="utang-btn primary mini" disabled={item.status === 'lunas'} onClick={() => onPayment(item)}>
-                                <HandCoins size={15} /> {item.status === 'lunas' ? 'Lunas' : 'Ajukan Pembayaran'}
-                            </button>
+                            {item.status === 'lunas' ? (
+                                <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
+                                    <Eye size={15} /> Lihat Detail
+                                </button>
+                            ) : (
+                                <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+                                    <button className="utang-btn primary mini" onClick={() => onPayment(item)} title="Ajukan Pembayaran">
+                                        <HandCoins size={15} /> Ajukan Pembayaran
+                                    </button>
+                                    <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
+                                        <Eye size={15} />
+                                    </button>
+                                </div>
+                            )}
                         </td>
                     </tr>
                 ))}
