@@ -102,14 +102,14 @@ export async function generateSpbPdf(row) {
 
     // ---------- INFO SURAT ----------
     doc.setFont('times', 'normal');
-    doc.setFontSize(10);
     const thn = getYear(row.tanggal);
     const bln = romanMonth(row.tanggal);
-    const noSurat = row.nomor || '___';
+    const rawNo = row.no_spb || row.nomor || '___';
+    const formattedNo = String(rawNo).includes('/') ? rawNo : `${rawNo}/LOGISTIK-RSSAMS/${bln}/${thn}`;
 
     let infoY = 43;
     doc.text('Nomor', 15, infoY);
-    doc.text(`: ${noSurat}/FARMASI-RSSAMS/${bln}/${thn}`, 33, infoY);
+    doc.text(`: ${formattedNo}`, 33, infoY);
     infoY += 5;
     doc.text('Tanggal', 15, infoY);
     doc.text(`: ${formatDateToIndo(row.tanggal)}`, 33, infoY);
