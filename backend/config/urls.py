@@ -1,4 +1,4 @@
-﻿from django.contrib import admin
+from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -33,6 +33,7 @@ def me_view(request):
         'is_keuangan': user.is_keuangan,
         'is_petty_cash_cashier': user.is_petty_cash_cashier,
         'akses_catatan_utang': user.akses_catatan_utang,
+        'is_logistik': getattr(user, 'is_logistik', False),
         'unit': user.unit_id,
         'unit_nama': user.unit.nama if user.unit else None,
     })
