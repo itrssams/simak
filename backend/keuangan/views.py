@@ -6327,6 +6327,51 @@ def _get_rekanan_columns():
     return _rekanan_columns_cache
 
 
+_dafbrg_log_columns_cache = None
+
+
+def _get_dafbrg_log_columns():
+    global _dafbrg_log_columns_cache
+    if _dafbrg_log_columns_cache is not None:
+        return _dafbrg_log_columns_cache
+
+    cols = set()
+    table_name = "rssams.dafbrg_log"
+    with connection.cursor() as cursor:
+        try:
+            cursor.execute("SHOW COLUMNS FROM rssams.dafbrg_log")
+            cols = {row[0].lower() for row in cursor.fetchall()}
+        except Exception:
+            try:
+                cursor.execute("SHOW COLUMNS FROM dafbrg_log")
+                cols = {row[0].lower() for row in cursor.fetchall()}
+                table_name = "dafbrg_log"
+            except Exception:
+                pass
+
+        if cols:
+            if 'kode_material' not in cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN kode_material VARCHAR(50) DEFAULT ''")
+                    cols.add('kode_material')
+                except Exception:
+                    pass
+            if 'gol_baru' not in cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN gol_baru VARCHAR(50) DEFAULT ''")
+                    cols.add('gol_baru')
+                except Exception:
+                    pass
+            if 'stock_buffer' not in cols:
+                try:
+                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN stock_buffer INT DEFAULT 0")
+                    cols.add('stock_buffer')
+                except Exception:
+                    pass
+
+    _dafbrg_log_columns_cache = cols
+    return _dafbrg_log_columns_cache
+
 
 def legacy_stock(id_brg):
     row = legacy_fetchone(
