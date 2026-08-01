@@ -237,16 +237,30 @@ export async function generateSpbPdf(row, currentUser = null, targetWindow = nul
     doc.line(summaryLabelX, y + 1, summaryLabelX + doc.getTextWidth(namaTtd), y + 1);
 
     // ---------- OUTPUT ----------
-    const pdfBlobUrl = doc.output('bloburl');
-    if (win) {
-        win.location.href = pdfBlobUrl;
-    } else {
-        window.open(pdfBlobUrl, '_blank');
+    try {
+        const pdfBlob = doc.output('blob');
+        const pdfBlobUrl = URL.createObjectURL(pdfBlob);
+        if (win) {
+            win.location.href = pdfBlobUrl;
+        } else {
+            window.open(pdfBlobUrl, '_blank');
+        }
+    } catch (outputErr) {
+        const fallbackDataUrl = doc.output('dataurlnewwindow');
+        if (!fallbackDataUrl && win) {
+            win.location.href = doc.output('datauristring');
+        }
     }
     } catch (err) {
-        if (win && !win.closed) {
-            try { win.close(); } catch {}
-        }
         console.error('Gagal mencetak PDF SPB:', err);
+        if (win) {
+            try {
+                win.document.body.innerHTML = `<div style="padding:30px;color:#dc2626;font-family:sans-serif;"><h2>Gagal Mencetak SPB</h2><p>${err?.message || String(err)}</p></div>`;
+            } catch (e) {
+                alert('Gagal mencetak PDF SPB: ' + (err?.message || String(err)));
+            }
+        } else {
+            alert('Gagal mencetak PDF SPB: ' + (err?.message || String(err)));
+        }
     }
 }
