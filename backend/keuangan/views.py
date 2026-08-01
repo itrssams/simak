@@ -6377,6 +6377,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
     def list(self, request):
         search = request.query_params.get('search') or ''
         minimum = request.query_params.get('minimum')
+        positive_only = str(request.query_params.get('positive_only') or '').lower() in ('1', 'true', 'yes')
         golongan_filter = request.query_params.get('golongan') or ''
         show_all = str(request.query_params.get('show_all') or '').lower() in ('1', 'true', 'yes')
         where = ["del = 'N'"]
@@ -6389,7 +6390,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
             params.extend([golongan_filter, golongan_filter])
         if minimum == 'true':
             where.append('stock_buffer > 0 AND stock < stock_buffer')
-        elif not show_all:
+        elif positive_only:
             where.append('stock > 0')
         where_sql = ' AND '.join(where)
         base = f"""

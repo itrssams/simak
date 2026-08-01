@@ -204,7 +204,7 @@ export default function Logistik() {
     const fetchOptions = useCallback(async () => {
         try {
             const [barangRes, ruangRes, vendorRes] = await Promise.all([
-                api.get('/keuangan/logistik/barang/?page_size=2000'),
+                api.get('/keuangan/logistik/barang/?page_size=2000&show_all=true'),
                 api.get('/keuangan/logistik/barang/ruang-options/'),
                 api.get('/keuangan/logistik/vendor/options/?sumber=logistik'),
             ]);
