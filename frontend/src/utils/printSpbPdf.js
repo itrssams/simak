@@ -63,7 +63,7 @@ function drawColumnText(doc, col, text, y) {
     doc.text(String(text), tx, y, { align });
 }
 
-export async function generateSpbPdf(row) {
+export async function generateSpbPdf(row, currentUser = null) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 279] });
     const items = row.items || [];
 
@@ -206,7 +206,10 @@ export async function generateSpbPdf(row) {
     doc.text('Dipesan Oleh', summaryLabelX, y);
 
     y += 18;
-    const namaTtd = 'Ardianti Guspari S. Si., Apt.';
+    const userFullName = currentUser?.first_name
+        ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
+        : (currentUser?.nama_lengkap || currentUser?.nama || currentUser?.username || 'Ardianti Guspari S. Si., Apt.');
+    const namaTtd = userFullName;
     doc.setFont('times', 'bold');
     doc.text(namaTtd, summaryLabelX, y);
     doc.setLineWidth(0.2);

@@ -10,8 +10,8 @@ import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSel
 import TableSkeleton from '../../components/TableSkeleton';
 import '../Keuangan/InvoicePembiayaan.css';
 import './Logistik.css';
-import * as XLSX from 'xlsx';
 import { generateSpbPdf } from '../../utils/printSpbPdf';
+import { useAuth } from '../../context/AuthContext';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (value) => Number(value || 0).toLocaleString('id-ID');
@@ -144,6 +144,7 @@ const emptyOpname = { barang: '', tanggal: today(), real_stock: 0, keterangan: '
 
 export default function Logistik() {
     const toast = useToast();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { section = 'barang' } = useParams();
     const setSection = useCallback((sec) => navigate(`/logistik/${sec}`), [navigate]);
@@ -1116,7 +1117,7 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 </td>
             </tr>
         ));
-        if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r, 'spb'))}</td><td><Badge success={r.status==='Selesai'} warning={r.status==='Draft'}>{r.status}</Badge></td><td><div className="inv-row-actions"><button className="btn-view" onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button><button className="btn-edit" onClick={() => onEditPenerimaan(r)} title="Edit SPB"><Pencil size={15} /></button><button className="btn-print" onClick={() => generateSpbPdf(r)} title="Print SPB"><Printer size={15} /></button>{r.status !== 'Selesai' && <button className="btn-process" onClick={() => onProsesPenerimaan(r)} title="Proses ke Penerimaan"><CheckCircle2 size={15} /></button>}<button className="btn-delete" onClick={() => onDeleteSpb(r)} title={r.status === 'Selesai' ? "SPB Selesai (Terkunci)" : "Hapus SPB"}><Trash2 size={15} /></button></div></td></tr>);
+        if (section === 'spb') return rows.map((r) => <tr key={r.id}><td><strong>{r.nomor}</strong></td><td>{r.tanggal || '-'}</td><td>{r.pemasok || '-'}</td><td>{money(purchaseTotal(r, 'spb'))}</td><td><Badge success={r.status==='Selesai'} warning={r.status==='Draft'}>{r.status}</Badge></td><td><div className="inv-row-actions"><button className="btn-view" onClick={() => onDetail(r)} title="Lihat detail SPB"><Eye size={15} /></button><button className="btn-edit" onClick={() => onEditPenerimaan(r)} title="Edit SPB"><Pencil size={15} /></button><button className="btn-print" onClick={() => generateSpbPdf(r, user)} title="Print SPB"><Printer size={15} /></button>{r.status !== 'Selesai' && <button className="btn-process" onClick={() => onProsesPenerimaan(r)} title="Proses ke Penerimaan"><CheckCircle2 size={15} /></button>}<button className="btn-delete" onClick={() => onDeleteSpb(r)} title={r.status === 'Selesai' ? "SPB Selesai (Terkunci)" : "Hapus SPB"}><Trash2 size={15} /></button></div></td></tr>);
         if (section === 'penerimaan') return rows.map((r) => {
             const items = r.items || [];
             const qtyMasuk = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.isi || 0), 0);
