@@ -4383,10 +4383,11 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         qs = self.get_queryset()
-        total_nominal = qs.aggregate(total=Sum('nominal'))['total'] or Decimal('0')
-        pembayaran = PembayaranUtang.objects.filter(utang__in=qs, status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+        total_nominal = active_qs.aggregate(total=Sum('nominal'))['total'] or Decimal('0')
+        pembayaran = PembayaranUtang.objects.filter(utang__in=active_qs, status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
         return Response({
-            'utang_count': qs.exclude(status=UtangSupplier.STATUS_LUNAS).count(),
+            'utang_count': active_qs.count(),
             'total_nominal': total_nominal,
             'total_dibayar': pembayaran,
             'total_sisa': max(total_nominal - pembayaran, Decimal('0')),
