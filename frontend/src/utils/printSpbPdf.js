@@ -24,7 +24,7 @@ function fmtMoney(num) {
 }
 
 async function loadImageWithDimensions(path) {
-    const res = await fetch(path);
+    const res = await fetch(encodeURI(path));
     const blob = await res.blob();
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -63,9 +63,11 @@ function drawColumnText(doc, col, text, y) {
     doc.text(String(text), tx, y, { align });
 }
 
-export async function generateSpbPdf(row, currentUser = null) {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 279] });
-    const items = row.items || [];
+export async function generateSpbPdf(row, currentUser = null, targetWindow = null) {
+    const win = targetWindow || (typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null);
+    try {
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [215, 279] });
+        const items = row.items || [];
 
     // ---------- KOP SURAT ----------
     try {
@@ -217,5 +219,15 @@ export async function generateSpbPdf(row, currentUser = null) {
 
     // ---------- OUTPUT ----------
     const pdfBlobUrl = doc.output('bloburl');
-    window.open(pdfBlobUrl, '_blank');
+    if (win) {
+        win.location.href = pdfBlobUrl;
+    } else {
+        window.open(pdfBlobUrl, '_blank');
+    }
+    } catch (err) {
+        if (win && !win.closed) {
+            try { win.close(); } catch {}
+        }
+        console.error('Gagal mencetak PDF SPB:', err);
+    }
 }
