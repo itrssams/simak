@@ -24,6 +24,33 @@ from .audit import infer_target, make_description, target_display_from_user
 from .audit import get_keuangan_target_display
 
 
+KUNJUNGAN_TOTAL_SQL = """
+    COALESCE(a.adm,0)+COALESCE(a.jasa,0)+COALESCE(a.farmasi,0)+COALESCE(a.tindakan,0)+
+    COALESCE(a.fisio,0)+COALESCE(a.lab,0)+COALESCE(a.lab_pa,0)+COALESCE(a.kamar,0)+
+    COALESCE(a.rad,0)+COALESCE(a.bhp,0)+COALESCE(a.lainnya,0)+COALESCE(a.ambulan,0)+COALESCE(a.alat,0)
+"""
+
+
+def _dict_fetchall(cursor):
+    columns = [col[0] for col in cursor.description]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def _detect_type_from_j_lay(j_lay):
+    value = str(j_lay or '')
+    if len(value) >= 20 and value[19:20] == '1':
+        return 'OK'
+    if len(value) >= 19 and value[18:19] == '1':
+        return 'VK'
+    if len(value) >= 18 and value[17:18] == '1':
+        return 'Rawat Jalan'
+    if len(value) >= 17 and value[16:17] == '1':
+        return 'Rawat Inap'
+    if len(value) >= 16 and value[15:16] == '1':
+        return 'UGD'
+    return 'Kunjungan'
+
+
 def user_name(user):
     if not user:
         return ''
@@ -489,8 +516,15 @@ class FakturSerializer(serializers.ModelSerializer):
                     row['jenis_label'] = _detect_type_from_j_lay(row.get('j_lay'))
                     row['status_done'] = bool(row.get('cek'))
                     row['status_invoice'] = 'sudah' if row.get('no_invoice') else 'belum'
+                    total_b = Decimal(str(row.get('total_biaya') or 0))
+                    dp3_val = Decimal(str(row.get('dp3') or 0))
+                    jmlbyr_val = Decimal(str(row.get('jmlbyr') or 0))
+                    row['total_piutang'] = dp3_val if dp3_val > 0 else max(Decimal('0'), total_b - jmlbyr_val)
+                    row['total_dibayar_pasien'] = jmlbyr_val
                 return rows
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error('Error in get_pasien_invoice: %s', e)
             return []
 
     class Meta:
