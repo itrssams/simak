@@ -2076,7 +2076,7 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
     pdf.text(25, 254, "- Arsip")
     pdf.text(148, 209, "RS. SIAGA AL MUNAWWARAH")
     pdf.text(164, 213, "SAMARINDA")
-    pdf.text(160, 246, "HASANUDDIN, S.P.")
+    pdf.text(150, 246, "NEVI NEVADA, S.IP, M.M.")
 
     pdf_bytes = bytes(pdf.output(dest='S'))
 
@@ -2681,7 +2681,7 @@ def render_kwitansi_pdf_response(faktur):
 
     pdf.set_xy(sign_x, 142)
     pdf.set_font('Arial', '', 9)
-    pdf.cell(sign_w, 4, 'HASANUDDIN, S.P.', 0, 1, 'C')
+    pdf.cell(sign_w, 4, 'NEVI NEVADA, S.IP, M.M.', 0, 1, 'C')
 
     pdf_bytes = bytes(pdf.output(dest='S'))
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
@@ -2892,7 +2892,7 @@ def _render_legacy_invoice(faktur, mode):
                     <div>RS. SIAGA AL MUNAWWARAH</div>
                     <div>SAMARINDA</div>
                     <div class="sig-space"></div>
-                    <div class="sig-name">HASANUDDIN, S.P.</div>
+                    <div class="sig-name">NEVI NEVADA, S.IP, M.M.</div>
                 </div>
             </div>
         </div>
