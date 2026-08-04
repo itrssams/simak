@@ -2214,3 +2214,148 @@ textarea.utang-input {
   color: #fda4af;
   border-color: rgba(225, 29, 72, 0.35);
 }
+
+/* Vendor Retur Deposit Banner Styles */
+.utang-deposit-banner {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+  border: 1px solid #a7f3d0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  color: #065f46;
+}
+
+.utang-deposit-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  color: #047857;
+}
+
+.utang-deposit-head svg {
+  color: #059669;
+}
+
+.utang-deposit-desc {
+  font-size: 13px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+  opacity: 0.9;
+  line-height: 1.4;
+  color: #047857;
+}
+
+.utang-deposit-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #6ee7b7;
+}
+
+.utang-deposit-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  user-select: none;
+  color: #065f46;
+}
+
+.utang-deposit-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #059669;
+  cursor: pointer;
+}
+
+.utang-deposit-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.utang-deposit-input {
+  width: 150px !important;
+  padding: 4px 8px !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: #047857 !important;
+  background: #ffffff !important;
+  border: 1px solid #6ee7b7 !important;
+}
+
+.utang-deposit-summary {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #a7f3d0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.utang-deposit-kas-out {
+  color: #047857;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+/* Dark Mode Styles for Vendor Deposit Banner */
+[data-theme="dark"] .utang-deposit-banner {
+  background: rgba(6, 78, 59, 0.35) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] .utang-deposit-head {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .utang-deposit-head svg {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .utang-deposit-desc {
+  color: #a7f3d0 !important;
+}
+
+[data-theme="dark"] .utang-deposit-box {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .utang-deposit-check {
+  color: #ecfdf5 !important;
+}
+
+[data-theme="dark"] .utang-deposit-input-wrap {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .utang-deposit-input {
+  background: #0f172a !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-theme="dark"] .utang-deposit-summary {
+  border-top-color: rgba(16, 185, 129, 0.3) !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .utang-deposit-kas-out {
+  color: #34d399 !important;
+}

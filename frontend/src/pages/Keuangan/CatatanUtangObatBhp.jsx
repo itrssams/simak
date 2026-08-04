@@ -871,19 +871,18 @@ export default function CatatanUtangObatBhp() {
                             </section>
 
                             {vendorDepositInfo && vendorDepositInfo.total_sisa_deposit > 0 && (
-                                <div style={{ background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)', border: '1px solid #a7f3d0', padding: '14px 16px', borderRadius: '14px', marginBottom: '16px', color: '#065f46' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '14px' }}>
-                                        <Sparkles size={18} style={{ color: '#059669' }} />
+                                <div className="utang-deposit-banner">
+                                    <div className="utang-deposit-head">
+                                        <Sparkles size={18} />
                                         <span>Saldo Retur Vendor Tersedia: {money(vendorDepositInfo.total_sisa_deposit)}</span>
                                     </div>
-                                    <p style={{ fontSize: '13px', marginTop: '4px', marginBottom: '10px', opacity: 0.9, lineHeight: 1.4 }}>
+                                    <p className="utang-deposit-desc">
                                         Terdapat kredit dari retur barang sebelumnya pada vendor ini. Anda dapat menggunakannya sebagai potongan pembayaran.
                                     </p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'rgba(255,255,255,0.7)', padding: '10px 14px', borderRadius: '10px', border: '1px solid #6ee7b7' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', userSelect: 'none' }}>
+                                    <div className="utang-deposit-box">
+                                        <label className="utang-deposit-check">
                                             <input
                                                 type="checkbox"
-                                                style={{ width: 16, height: 16, accentColor: '#059669', cursor: 'pointer' }}
                                                 checked={paymentForm.use_deposit}
                                                 onChange={(e) => {
                                                     const isChecked = e.target.checked;
@@ -899,11 +898,10 @@ export default function CatatanUtangObatBhp() {
                                             Gunakan Potongan Retur
                                         </label>
                                         {paymentForm.use_deposit && (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ fontSize: '12px', opacity: 0.8 }}>Nominal Potongan:</span>
+                                            <div className="utang-deposit-input-wrap">
+                                                <span>Nominal Potongan:</span>
                                                 <input
-                                                    className="utang-input utang-input-right"
-                                                    style={{ width: '150px', padding: '4px 8px', fontSize: '13px', fontWeight: 'bold', color: '#047857' }}
+                                                    className="utang-input utang-input-right utang-deposit-input"
                                                     inputMode="decimal"
                                                     value={paymentForm.potongan_deposit}
                                                     onChange={(e) => {
@@ -920,9 +918,9 @@ export default function CatatanUtangObatBhp() {
                                         )}
                                     </div>
                                     {paymentForm.use_deposit && (
-                                        <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #a7f3d0', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600 }}>
+                                        <div className="utang-deposit-summary">
                                             <span>Transfer / Kas Keluar Aktual:</span>
-                                            <span style={{ color: '#047857', fontSize: '14px' }}>
+                                            <span className="utang-deposit-kas-out">
                                                 {money(Math.max(parseMoneyInput(paymentForm.jumlah_bayar) - parseMoneyInput(paymentForm.potongan_deposit), 0))}
                                             </span>
                                         </div>
