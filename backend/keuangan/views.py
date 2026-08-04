@@ -4563,14 +4563,21 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='export-excel')
     def export_excel(self, request):
-        qs = self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by')
+        from itertools import groupby
+
+        qs = list(self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by'))
+        # Urutkan berdasarkan vendor_nama
+        qs.sort(key=lambda item: (
+            (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else '').upper(),
+            item.id
+        ))
 
         wb = Workbook()
         ws = wb.active
         ws.title = "Pengajuan Pembayaran"
 
-        ws.merge_cells('A1:M1')
-        ws['A1'] = 'DAFTAR PENGAJUAN PEMBAYARAN UTANG SUPPLIER'
+        ws.merge_cells('A1:G1')
+        ws['A1'] = 'REKAP PENGAJUAN PEMBAYARAN UTANG SUPPLIER'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
 
@@ -4578,9 +4585,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws['A2'].font = Font(italic=True, size=10)
 
         headers = [
-            'No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref',
-            'Tgl Faktur', 'Tgl Titip Faktur', 'Umur Utang', 'Tgl Rencana Bayar',
-            'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)', 'Tanda Tangan Atasan'
+            'No', 'Sumber', 'Vendor / Supplier', 'Umur Utang',
+            'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)'
         ]
         ws.append([])
         ws.append(headers)
@@ -4595,77 +4601,115 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        total_nominal = Decimal('0')
         thin_border = Border(
             left=Side(style='thin', color='CBD5E1'),
             right=Side(style='thin', color='CBD5E1'),
             top=Side(style='thin', color='CBD5E1'),
             bottom=Side(style='thin', color='CBD5E1')
         )
+        subtotal_fill = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        subtotal_font = Font(bold=True, color='0F172A')
 
         today_date = timezone.localdate()
+        global_index = 1
+        grand_total = Decimal('0')
 
-        for idx, item in enumerate(qs, start=1):
-            jumlah = item.jumlah_bayar or Decimal('0')
-            total_nominal += jumlah
+        def get_vendor_name(item):
+            return (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else 'TANPA VENDOR').strip()
 
-            utang = item.utang
-            tgl_faktur = utang.tanggal_faktur.strftime('%d-%m-%Y') if (utang and utang.tanggal_faktur) else '-'
-            tgl_titip = utang.tanggal_titip.strftime('%d-%m-%Y') if (utang and utang.tanggal_titip) else '-'
+        for vendor_nama, group_items in groupby(qs, key=get_vendor_name):
+            items_list = list(group_items)
+            vendor_subtotal = Decimal('0')
 
-            if utang and utang.tanggal_titip:
-                days = (today_date - utang.tanggal_titip).days
-                umur_utang_str = f"{max(0, days)} Hari"
-            else:
-                umur_utang_str = '-'
+            for item in items_list:
+                jumlah = item.jumlah_bayar or Decimal('0')
+                vendor_subtotal += jumlah
+                grand_total += jumlah
 
-            tgl_rencana = item.tanggal_rencana_bayar.strftime('%d-%m-%Y') if item.tanggal_rencana_bayar else '-'
-            sumber_label = utang.get_sumber_display() if utang else '-'
-            operator = item.created_by.username if item.created_by else '-'
+                utang = item.utang
+                if utang and utang.tanggal_titip:
+                    days = (today_date - utang.tanggal_titip).days
+                    umur_utang_str = f"{max(0, days)} Hari"
+                else:
+                    umur_utang_str = '-'
 
-            ws.append([
-                idx,
-                sumber_label,
-                utang.vendor_nama if utang else '-',
-                utang.nomor_faktur if utang else '-',
-                utang.nomor_spb if utang else '-',
-                tgl_faktur,
-                tgl_titip,
-                umur_utang_str,
-                tgl_rencana,
-                float(jumlah),
-                item.keterangan or '',
-                operator,
-                '',
-            ])
+                sumber_label = utang.get_sumber_display() if utang else '-'
+                operator = item.created_by.username if item.created_by else '-'
 
-            row_num = ws.max_row
-            for col in range(1, 14):
-                c = ws.cell(row=row_num, column=col)
+                ws.append([
+                    global_index,
+                    sumber_label,
+                    utang.vendor_nama if utang else '-',
+                    umur_utang_str,
+                    float(jumlah),
+                    item.keterangan or '',
+                    operator,
+                ])
+                global_index += 1
+
+                row_num = ws.max_row
+                for col in range(1, 8):
+                    c = ws.cell(row=row_num, column=col)
+                    c.border = thin_border
+                    if col in [1, 2, 4]:
+                        c.alignment = Alignment(horizontal='center')
+                    elif col == 5:
+                        c.number_format = '#,##0.00'
+                        c.alignment = Alignment(horizontal='right')
+
+            # Subtotal per vendor tepat setelah kelompok vendor berakhir
+            subtotal_row = ws.max_row + 1
+            ws.cell(row=subtotal_row, column=1, value=f'SUBTOTAL {vendor_nama.upper()}')
+            ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=4)
+            
+            subtotal_cell = ws.cell(row=subtotal_row, column=5, value=float(vendor_subtotal))
+            subtotal_cell.number_format = '#,##0.00'
+
+            for col in range(1, 8):
+                c = ws.cell(row=subtotal_row, column=col)
+                c.fill = subtotal_fill
+                c.font = subtotal_font
                 c.border = thin_border
-                if col in [1, 2, 6, 7, 8, 9]:
-                    c.alignment = Alignment(horizontal='center')
-                elif col == 10:
-                    c.number_format = '#,##0.00'
-                    c.alignment = Alignment(horizontal='right')
+                if col == 1:
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                elif col == 5:
+                    c.alignment = Alignment(horizontal='right', vertical='center')
 
-        total_row = ws.max_row + 1
-        ws.cell(row=total_row, column=1, value='TOTAL PENGAJUAN')
-        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=9)
-        ws.cell(row=total_row, column=1).font = Font(bold=True)
-        ws.cell(row=total_row, column=1).alignment = Alignment(horizontal='right')
+        # Baris Grand Total Pengajuan
+        grand_row = ws.max_row + 1
+        ws.cell(row=grand_row, column=1, value='GRAND TOTAL PENGAJUAN')
+        ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=4)
+        
+        grand_cell = ws.cell(row=grand_row, column=5, value=float(grand_total))
+        grand_cell.number_format = '#,##0.00'
 
-        total_cell = ws.cell(row=total_row, column=10, value=float(total_nominal))
-        total_cell.font = Font(bold=True)
-        total_cell.number_format = '#,##0.00'
+        grand_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        grand_font = Font(bold=True, color='FFFFFF')
 
-        for col in range(1, 14):
-            ws.column_dimensions[get_column_letter(col)].width = 18
-        ws.column_dimensions['C'].width = 30
-        ws.column_dimensions['D'].width = 22
+        for col in range(1, 8):
+            c = ws.cell(row=grand_row, column=col)
+            c.fill = grand_fill
+            c.font = grand_font
+            c.border = thin_border
+            if col == 1:
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            elif col == 5:
+                c.alignment = Alignment(horizontal='right', vertical='center')
+
+        col_widths = {
+            'A': 8,
+            'B': 16,
+            'C': 35,
+            'D': 16,
+            'E': 22,
+            'F': 38,
+            'G': 20,
+        }
+        for col_letter, width in col_widths.items():
+            ws.column_dimensions[col_letter].width = width
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="Daftar_Pengajuan_Utang_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="Rekap_Pengajuan_Pembayaran_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
         wb.save(response)
         return response
         return qs.order_by(order, '-created_at')
