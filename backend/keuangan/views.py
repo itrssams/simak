@@ -4350,6 +4350,8 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         utang = self.get_object()
         if utang.status == UtangSupplier.STATUS_LUNAS:
             return Response({'error': 'Utang sudah lunas.'}, status=status.HTTP_400_BAD_REQUEST)
+        if utang.status in [UtangSupplier.STATUS_DIAJUKAN, UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN]:
+            return Response({'error': 'Faktur ini sedang dalam proses pengajuan pembayaran.'}, status=status.HTTP_400_BAD_REQUEST)
         tgl_rencana = request.data.get('tanggal_rencana_bayar') or timezone.now().date().isoformat()
         payload = {
             **request.data,

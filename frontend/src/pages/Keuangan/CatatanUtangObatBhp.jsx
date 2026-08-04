@@ -1212,7 +1212,12 @@ function ActiveTable({ items, onPayment, onDetail, onSort }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => (
+                {items.map((item) => {
+                    const isPendingApproval = item.status === 'diajukan' || item.status === 'sebagian_diajukan';
+                    const isNoSisa = Number(item.sisa_utang || 0) <= 0;
+                    const isPaymentDisabled = isPendingApproval || isNoSisa;
+
+                    return (
                     <tr key={item.id}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
@@ -1255,8 +1260,13 @@ function ActiveTable({ items, onPayment, onDetail, onSort }) {
                                 </button>
                             ) : (
                                 <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
-                                    <button className="utang-btn primary mini" onClick={() => onPayment(item)} title="Ajukan Pembayaran">
-                                        <HandCoins size={15} /> Ajukan Pembayaran
+                                    <button
+                                        className="utang-btn primary mini"
+                                        onClick={() => onPayment(item)}
+                                        disabled={isPaymentDisabled}
+                                        title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
+                                    >
+                                        <HandCoins size={15} /> {isPendingApproval ? 'Sedang Diajukan' : 'Ajukan Pembayaran'}
                                     </button>
                                     <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
                                         <Eye size={15} />
@@ -1265,7 +1275,8 @@ function ActiveTable({ items, onPayment, onDetail, onSort }) {
                             )}
                         </td>
                     </tr>
-                ))}
+                    );
+                })}
             </tbody>
         </table>
     );
