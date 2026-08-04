@@ -425,6 +425,9 @@ def write_audit_log(request, action=None, description='', metadata=None, status_
     metadata = metadata or {}
     if 'target' not in metadata:
         metadata['target'] = get_audit_target_snapshot(request, metadata.get('payload', {}))
+    target_snapshot = metadata.get('target', {}) if isinstance(metadata, dict) else {}
+    if not entity_id and isinstance(target_snapshot, dict) and target_snapshot.get('entity_id'):
+        entity_id = target_snapshot['entity_id']
     final_description = description or make_description(user, final_action, entity, entity_id, extra_action, metadata, status_code)
 
     return AuditLog.objects.create(
