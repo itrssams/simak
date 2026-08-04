@@ -67,7 +67,12 @@ ENTITY_LABELS = {
     'pelanggan': 'pelanggan',
     'pemasok': 'pemasok',
     'faktur': 'faktur pelanggan',
+    'pembayaran-faktur': 'pembayaran faktur pelanggan',
     'tagihan': 'tagihan pemasok',
+    'pembayaran-tagihan': 'pembayaran tagihan pemasok',
+    'utang-supplier': 'utang supplier',
+    'pembayaran-utang': 'pembayaran utang supplier',
+    'catatan-utang': 'catatan utang',
     'rekening': 'rekening bank',
     'petty-cash': 'pengajuan petty cash',
     'reimbursement': 'pengajuan reimbursement',
@@ -76,6 +81,11 @@ ENTITY_LABELS = {
     'log-perjalanan': 'log perjalanan driver',
     'log-bbm': 'log BBM',
     'log-maintenance': 'log maintenance',
+    'logistik-barang': 'barang logistik',
+    'logistik-pembelian': 'pembelian logistik',
+    'logistik-mutasi': 'mutasi logistik',
+    'logistik-permintaan': 'permintaan logistik',
+    'logistik-opname': 'stok opname logistik',
 }
 
 EXTRA_ACTION_LABELS = {
@@ -120,12 +130,45 @@ def get_keuangan_target_display(entity, entity_id):
         return ''
     try:
         from .models import (
-            Akun, Faktur, Jurnal, Kendaraan, LogBBM, LogMaintenance,
+            Akun, Faktur, PembayaranFaktur, Jurnal, Kendaraan, LogBBM, LogMaintenance,
             LogPerjalanan, Pelanggan, Pemasok, PettyCash,
             PengajuanPenambahanSaldo, RekeningBank, Reimbursement,
-            Tagihan, Transaksi,
+            Tagihan, PembayaranTagihan, Transaksi, UtangSupplier, PembayaranUtang,
+            LogistikBarang, LogistikPembelian,
         )
 
+        if entity == 'utang-supplier':
+            obj = UtangSupplier.objects.filter(pk=entity_id).first()
+            if obj:
+                ref = obj.nomor_faktur or f'SPB {obj.nomor_spb}' if obj.nomor_spb else f'Ref #{obj.id}'
+                vendor = f' ({obj.vendor_nama})' if obj.vendor_nama else ''
+                return f'Faktur {ref}{vendor}'
+        if entity == 'pembayaran-utang':
+            obj = PembayaranUtang.objects.filter(pk=entity_id).select_related('utang').first()
+            if obj and obj.utang:
+                ref = obj.utang.nomor_faktur or f'SPB {obj.utang.nomor_spb}' if obj.utang.nomor_spb else f'Ref #{obj.utang.id}'
+                vendor = f' ({obj.utang.vendor_nama})' if obj.utang.vendor_nama else ''
+                return f'Faktur {ref}{vendor}'
+        if entity == 'pembayaran-faktur':
+            obj = PembayaranFaktur.objects.filter(pk=entity_id).select_related('faktur__pelanggan').first()
+            if obj and obj.faktur:
+                pelanggan = f' ({obj.faktur.pelanggan.nama})' if obj.faktur.pelanggan else ''
+                return f'Faktur {obj.faktur.nomor_faktur}{pelanggan}'
+        if entity == 'pembayaran-tagihan':
+            obj = PembayaranTagihan.objects.filter(pk=entity_id).select_related('tagihan__pemasok').first()
+            if obj and obj.tagihan:
+                pemasok = f' ({obj.tagihan.pemasok.nama})' if obj.tagihan.pemasok else ''
+                return f'Tagihan {obj.tagihan.nomor_tagihan}{pemasok}'
+        if entity == 'logistik-barang':
+            obj = LogistikBarang.objects.filter(pk=entity_id).first()
+            if obj:
+                return f'{obj.kode_barang} - {obj.nama_barang}'
+        if entity == 'logistik-pembelian':
+            obj = LogistikPembelian.objects.filter(pk=entity_id).first()
+            if obj:
+                ref = obj.nomor_faktur or obj.nomor_po or f'#{obj.id}'
+                vendor = f' ({obj.vendor_nama})' if obj.vendor_nama else ''
+                return f'Pembelian {ref}{vendor}'
         if entity == 'petty-cash':
             obj = PettyCash.objects.filter(pk=entity_id).select_related('created_by').first()
             if obj:
@@ -301,7 +344,7 @@ def target_label(entity, entity_id='', metadata=None):
         return display
 
     payload = get_payload(metadata)
-    for key in ('no_pengajuan', 'no_reimbursement', 'no_perjalanan', 'nama', 'username', 'kode', 'nomor_jurnal'):
+    for key in ('nomor_faktur', 'nomor_spb', 'nomor_tagihan', 'nomor_po', 'no_pengajuan', 'no_reimbursement', 'no_perjalanan', 'nama', 'username', 'kode', 'nomor_jurnal'):
         if payload.get(key):
             return str(payload[key])
 
