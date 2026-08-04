@@ -931,7 +931,7 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-body">
                             <div className="utang-manual-grid">
                                 <label>
-                                    Vendor / Rekanan <span className="utang-req">*</span>
+                                    <span>Vendor / Rekanan <span className="utang-req">*</span></span>
                                     <SearchablePembiayaanSelect
                                         options={masterVendorOptions}
                                         value={manualForm.vendor_id}
@@ -940,7 +940,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>
-                                    Nomor Faktur <span className="utang-req">*</span>
+                                    <span>Nomor Faktur <span className="utang-req">*</span></span>
                                     <input
                                         className="utang-input"
                                         required
@@ -950,7 +950,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>
-                                    Nomor SPB / PO
+                                    <span>Nomor SPB / PO</span>
                                     <input
                                         className="utang-input"
                                         placeholder="Opsional"
@@ -959,7 +959,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>
-                                    Nominal Utang <span className="utang-req">*</span>
+                                    <span>Nominal Utang <span className="utang-req">*</span></span>
                                     <input
                                         className="utang-input utang-input-right"
                                         required
@@ -968,11 +968,11 @@ export default function CatatanUtangObatBhp() {
                                         onChange={(e) => setManualForm({ ...manualForm, nominal: formatMoneyInput(e.target.value) })}
                                     />
                                 </label>
-                                <label>Tanggal Faktur <span className="utang-req">*</span><DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
-                                <label>Tanggal Titip Faktur<DateInput value={manualForm.tanggal_titip} onChange={(v) => setManualForm({ ...manualForm, tanggal_titip: v })} /></label>
-                                <label>Tanggal Jatuh Tempo<DateInput value={manualForm.tanggal_jatuh_tempo} onChange={(v) => setManualForm({ ...manualForm, tanggal_jatuh_tempo: v })} /></label>
+                                <label><span>Tanggal Faktur <span className="utang-req">*</span></span><DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
+                                <label><span>Tanggal Titip Faktur</span><DateInput value={manualForm.tanggal_titip} onChange={(v) => setManualForm({ ...manualForm, tanggal_titip: v })} /></label>
+                                <label><span>Tanggal Jatuh Tempo</span><DateInput value={manualForm.tanggal_jatuh_tempo} onChange={(v) => setManualForm({ ...manualForm, tanggal_jatuh_tempo: v })} /></label>
                                 <label className="utang-span-full">
-                                    Keterangan <span className="utang-req">*</span>
+                                    <span>Keterangan <span className="utang-req">*</span></span>
                                     <textarea
                                         className="utang-input"
                                         required
