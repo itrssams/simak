@@ -578,6 +578,32 @@ class UtangSupplier(models.Model):
         return self.status
 
 
+class DepositVendor(models.Model):
+    vendor_id = models.IntegerField(db_index=True, help_text='ID rssams.rekanan.id_rekanan')
+    vendor_nama = models.CharField(max_length=150, blank=True)
+    utang_asal = models.ForeignKey(UtangSupplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='deposit_terbuat')
+    nominal_retur = models.DecimalField(max_digits=25, decimal_places=2)
+    terpakai = models.DecimalField(max_digits=25, decimal_places=2, default=Decimal('0'))
+    keterangan = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='deposit_vendor_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'deposit_vendor'
+        ordering = ['-created_at']
+        verbose_name = 'Deposit Vendor (Retur)'
+        verbose_name_plural = 'Deposit Vendor (Retur)'
+
+    def __str__(self):
+        return f'{self.vendor_nama} - Sisa Rp {self.sisa_deposit}'
+
+    @property
+    def sisa_deposit(self):
+        sisa = self.nominal_retur - (self.terpakai or Decimal('0'))
+        return max(sisa, Decimal('0'))
+
+
 class PembayaranUtang(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_REALISASI_SEBAGIAN = 'realisasi_sebagian'
@@ -595,6 +621,8 @@ class PembayaranUtang(models.Model):
     tanggal_proses = models.DateField()
     tanggal_app = models.DateField(null=True, blank=True)
     jumlah_bayar = models.DecimalField(max_digits=25, decimal_places=2)
+    potongan_deposit = models.DecimalField(max_digits=25, decimal_places=2, default=Decimal('0'), help_text='Nominal potongan dari deposit retur vendor')
+    jumlah_kas_keluar = models.DecimalField(max_digits=25, decimal_places=2, default=Decimal('0'), help_text='Nominal aktual kas/bank yang dikeluarkan')
     keterangan = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='pembayaran_utang')

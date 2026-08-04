@@ -9,7 +9,7 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana,
-    UtangSupplier, PembayaranUtang,
+    UtangSupplier, PembayaranUtang, DepositVendor,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     AuditLog,
@@ -663,7 +663,8 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
             'sumber', 'sumber_label', 'nomor_spb', 'app_siaga_faktur_id',
             'tanggal_titip',
             'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
-            'jumlah_bayar', 'keterangan', 'status', 'status_label',
+            'jumlah_bayar', 'potongan_deposit', 'jumlah_kas_keluar',
+            'keterangan', 'status', 'status_label',
             'created_by', 'created_by_name', 'created_at',
         ]
         read_only_fields = ['id', 'status_label', 'created_by', 'created_by_name', 'created_at']
@@ -672,17 +673,34 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
 class PembayaranUtangInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = PembayaranUtang
-        fields = ['utang', 'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar', 'keterangan']
+        fields = ['utang', 'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar', 'potongan_deposit', 'jumlah_kas_keluar', 'keterangan']
         extra_kwargs = {
             'tanggal_proses': {'required': False, 'allow_null': True},
             'tanggal_app': {'required': False, 'allow_null': True},
             'tanggal_rencana_bayar': {'required': False, 'allow_null': True},
+            'potongan_deposit': {'required': False},
+            'jumlah_kas_keluar': {'required': False},
         }
 
     def validate(self, attrs):
         if attrs.get('jumlah_bayar', 0) <= 0:
             raise serializers.ValidationError({'jumlah_bayar': 'Jumlah bayar harus lebih dari 0.'})
         return attrs
+
+
+class DepositVendorSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    sisa_deposit = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = DepositVendor
+        fields = [
+            'id', 'vendor_id', 'vendor_nama', 'utang_asal',
+            'nominal_retur', 'terpakai', 'sisa_deposit',
+            'keterangan', 'created_by', 'created_by_name',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'terpakai', 'sisa_deposit', 'created_by', 'created_by_name', 'created_at', 'updated_at']
 
 
 class UtangSupplierSerializer(serializers.ModelSerializer):

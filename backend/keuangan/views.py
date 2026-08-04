@@ -32,7 +32,7 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana, AlokasiDanaPemakaian,
-    UtangSupplier, PembayaranUtang,
+    UtangSupplier, PembayaranUtang, DepositVendor,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     AuditLog,
@@ -50,7 +50,7 @@ from .serializers import (
     FakturSerializer, FakturInputSerializer,
     PembayaranFakturSerializer, PembayaranFakturInputSerializer,
     AlokasiDanaSerializer,
-    UtangSupplierSerializer, PembayaranUtangSerializer, PembayaranUtangInputSerializer,
+    UtangSupplierSerializer, PembayaranUtangSerializer, PembayaranUtangInputSerializer, DepositVendorSerializer,
     TagihanSerializer, TagihanInputSerializer,
     PembayaranTagihanSerializer, PembayaranTagihanInputSerializer,
     RekeningBankSerializer, RekeningBankInputSerializer,
@@ -4345,6 +4345,60 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         wb.save(response)
         return response
 
+    @action(detail=False, methods=['get'], url_path='vendor-deposit')
+    def vendor_deposit(self, request):
+        vendor_id = request.query_params.get('vendor_id')
+        if not vendor_id:
+            return Response({'error': 'vendor_id wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        deposits = DepositVendor.objects.filter(vendor_id=vendor_id).order_by('created_at')
+        active_deposits = [d for d in deposits if d.sisa_deposit > 0]
+        total_sisa = sum((d.sisa_deposit for d in active_deposits), Decimal('0'))
+
+        return Response({
+            'vendor_id': int(vendor_id),
+            'total_sisa_deposit': float(total_sisa),
+            'deposits': DepositVendorSerializer(active_deposits, many=True).data,
+        })
+
+    @action(detail=True, methods=['post'], url_path='input-retur')
+    def input_retur(self, request, pk=None):
+        utang = self.get_object()
+        nominal_retur_raw = request.data.get('nominal_retur')
+        keterangan = (request.data.get('keterangan') or '').strip()
+
+        try:
+            nominal_retur = Decimal(str(nominal_retur_raw))
+            if nominal_retur <= 0:
+                raise ValueError
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'error': 'Nominal retur tidak valid atau harus lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not keterangan:
+            return Response({'error': 'Keterangan retur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if utang.nominal < nominal_retur:
+            return Response({'error': f'Nominal retur (Rp {nominal_retur:,.2f}) tidak boleh melebihi nominal faktur awal (Rp {utang.nominal:,.2f}).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        utang.nominal = utang.nominal - nominal_retur
+        utang.save(update_fields=['nominal', 'updated_at'])
+        utang.refresh_status()
+
+        deposit = DepositVendor.objects.create(
+            vendor_id=utang.vendor_id,
+            vendor_nama=utang.vendor_nama,
+            utang_asal=utang,
+            nominal_retur=nominal_retur,
+            keterangan=f"Retur Faktur {utang.nomor_faktur or utang.nomor_spb}: {keterangan}",
+            created_by=request.user,
+        )
+
+        return Response({
+            'message': f'Retur sebesar Rp {nominal_retur:,.2f} berhasil dicatat dan masuk ke Deposit Vendor.',
+            'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
+            'deposit': DepositVendorSerializer(deposit).data,
+        }, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'], url_path='bayar')
     def bayar(self, request, pk=None):
         utang = self.get_object()
@@ -4352,25 +4406,46 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             return Response({'error': 'Utang sudah lunas.'}, status=status.HTTP_400_BAD_REQUEST)
         if utang.status in [UtangSupplier.STATUS_DIAJUKAN, UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN]:
             return Response({'error': 'Faktur ini sedang dalam proses pengajuan pembayaran.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         tgl_rencana = request.data.get('tanggal_rencana_bayar') or timezone.now().date().isoformat()
+
+        potongan_deposit_raw = request.data.get('potongan_deposit') or 0
+        try:
+            potongan_deposit = Decimal(str(potongan_deposit_raw))
+            if potongan_deposit < 0:
+                raise ValueError
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'error': 'Nilai potongan deposit tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if potongan_deposit > 0:
+            deposits = DepositVendor.objects.filter(vendor_id=utang.vendor_id)
+            total_sisa_deposit = sum((d.sisa_deposit for d in deposits), Decimal('0'))
+            if potongan_deposit > total_sisa_deposit:
+                return Response({'error': f'Potongan deposit (Rp {potongan_deposit:,.2f}) melebihi saldo deposit vendor yang tersedia (Rp {total_sisa_deposit:,.2f}).'}, status=status.HTTP_400_BAD_REQUEST)
+
         payload = {
             **request.data,
             'utang': utang.id,
             'tanggal_rencana_bayar': tgl_rencana,
             'tanggal_proses': request.data.get('tanggal_proses') or tgl_rencana,
             'tanggal_app': request.data.get('tanggal_app') or tgl_rencana,
+            'potongan_deposit': potongan_deposit,
         }
         serializer = PembayaranUtangInputSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         
         tgl_proses = serializer.validated_data.get('tanggal_proses') or tgl_rencana
+        jumlah_bayar = serializer.validated_data['jumlah_bayar']
+        jumlah_kas_keluar = max(jumlah_bayar - potongan_deposit, Decimal('0'))
 
         pembayaran = PembayaranUtang.objects.create(
             utang=utang,
             tanggal_rencana_bayar=serializer.validated_data.get('tanggal_rencana_bayar'),
             tanggal_proses=tgl_proses,
             tanggal_app=serializer.validated_data.get('tanggal_app') or tgl_rencana,
-            jumlah_bayar=serializer.validated_data['jumlah_bayar'],
+            jumlah_bayar=jumlah_bayar,
+            potongan_deposit=potongan_deposit,
+            jumlah_kas_keluar=jumlah_kas_keluar,
             keterangan=serializer.validated_data.get('keterangan', ''),
             status=PembayaranUtang.STATUS_PENDING,
             created_by=request.user,
@@ -4555,6 +4630,21 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if not pembayaran.tanggal_app:
             pembayaran.tanggal_app = tanggal_realisasi
         pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar'])
+
+        # Potong terpakai pada DepositVendor jika menggunakan potongan_deposit
+        if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
+            sisa_potong = pembayaran.potongan_deposit
+            active_deposits = DepositVendor.objects.filter(vendor_id=pembayaran.utang.vendor_id).order_by('created_at')
+            for dep in active_deposits:
+                sisa_dep = dep.sisa_deposit
+                if sisa_dep <= 0:
+                    continue
+                potong_dep = min(sisa_potong, sisa_dep)
+                dep.terpakai += potong_dep
+                dep.save(update_fields=['terpakai', 'updated_at'])
+                sisa_potong -= potong_dep
+                if sisa_potong <= 0:
+                    break
 
         utang = pembayaran.utang
         utang.refresh_status()

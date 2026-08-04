@@ -15,8 +15,10 @@ import {
     HandCoins,
     History,
     ReceiptText,
+    RotateCcw,
     Search,
     ShieldCheck,
+    Sparkles,
     Trash2,
     Truck,
     User,
@@ -219,8 +221,9 @@ export default function CatatanUtangObatBhp() {
     const [total, setTotal] = useState(0);
     const [verifyTarget, setVerifyTarget] = useState(null);
     const [verifyForm, setVerifyForm] = useState(initialVerifyForm);
-    const [paymentTarget, setPaymentTarget] = useState(null);
-    const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
+    const [vendorDepositInfo, setVendorDepositInfo] = useState(null);
+    const [returTarget, setReturTarget] = useState(null);
+    const [returForm, setReturForm] = useState({ nominal_retur: '', keterangan: '' });
     const [paymentHistory, setPaymentHistory] = useState([]);
     const [realisasiTarget, setRealisasiTarget] = useState(null);
     const [realisasiForm, setRealisasiForm] = useState({ tanggal_realisasi: todayISO() });
@@ -357,6 +360,7 @@ export default function CatatanUtangObatBhp() {
 
     const openPayment = async (row) => {
         setPaymentTarget(row);
+        setVendorDepositInfo(null);
         const katLabel = row.kategori_vendor || row.kategori || (row.sumber === 'logistik' ? 'Logistik' : 'Obat & BHP');
         const fakturNo = row.nomor_faktur || row.nomor_spb || '';
         const vendorStr = row.vendor_nama ? ` (${row.vendor_nama})` : '';
@@ -365,15 +369,55 @@ export default function CatatanUtangObatBhp() {
         setPaymentForm({
             ...initialPaymentForm,
             jumlah_bayar: formatMoneyInput(row.sisa_utang || row.nominal || ''),
+            use_deposit: false,
+            potongan_deposit: '',
             keterangan: defaultKet,
         });
+
+        if (row.vendor_id) {
+            try {
+                const depRes = await api.get('/keuangan/utang-supplier/vendor-deposit/', { params: { vendor_id: row.vendor_id } });
+                if (depRes.data && depRes.data.total_sisa_deposit > 0) {
+                    setVendorDepositInfo(depRes.data);
+                }
+            } catch {
+                setVendorDepositInfo(null);
+            }
+        }
+
         try {
-            // Perbaikan bug: gunakan query param `utang` (bukan `utang__id`)
             const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang: row.id, pagination: 'false', limit: 100 } });
             const hist = Array.isArray(res.data) ? res.data : getResults(res.data) || [];
             setPaymentHistory(hist);
         } catch {
             setPaymentHistory([]);
+        }
+    };
+
+    const openRetur = (row) => {
+        setReturTarget(row);
+        setReturForm({ nominal_retur: '', keterangan: '' });
+    };
+
+    const submitRetur = async (event) => {
+        event.preventDefault();
+        if (!returTarget) return;
+        const nomRetur = parseMoneyInput(returForm.nominal_retur);
+        if (nomRetur <= 0) return toast.error('Nominal retur wajib lebih dari 0.');
+        if (!returForm.keterangan.trim()) return toast.error('Keterangan retur wajib diisi.');
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/utang-supplier/${returTarget.id}/input-retur/`, {
+                nominal_retur: nomRetur,
+                keterangan: returForm.keterangan.trim(),
+            });
+            toast.success(res.data.message || `Retur sebesar ${money(nomRetur)} berhasil dicatat.`);
+            setReturTarget(null);
+            await fetchData();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal mencatat retur barang.'));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -393,12 +437,14 @@ export default function CatatanUtangObatBhp() {
         event.preventDefault();
         if (!paymentTarget) return;
         const jumlah = parseMoneyInput(paymentForm.jumlah_bayar);
+        const potonganDep = paymentForm.use_deposit ? parseMoneyInput(paymentForm.potongan_deposit) : 0;
         if (jumlah <= 0) return toast.error('Jumlah pengajuan pembayaran wajib lebih dari 0.');
         setSaving(true);
         try {
             await api.post(`/keuangan/utang-supplier/${paymentTarget.id}/bayar/`, {
                 tanggal_rencana_bayar: paymentForm.tanggal_rencana_bayar || null,
                 jumlah_bayar: jumlah,
+                potongan_deposit: potonganDep,
                 keterangan: paymentForm.keterangan,
             });
             toast.success(`Pengajuan pembayaran ${money(jumlah)} berhasil dibuat.`);
@@ -651,7 +697,7 @@ export default function CatatanUtangObatBhp() {
                 ) : (
                     <div className="utang-table-wrap table-fade-in">
                         {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
-                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onSort={setOrdering} />}
+                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
                     </div>
@@ -822,6 +868,66 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                             </section>
 
+                            {vendorDepositInfo && vendorDepositInfo.total_sisa_deposit > 0 && (
+                                <div style={{ background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)', border: '1px solid #a7f3d0', padding: '14px 16px', borderRadius: '14px', marginBottom: '16px', color: '#065f46' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '14px' }}>
+                                        <Sparkles size={18} style={{ color: '#059669' }} />
+                                        <span>Saldo Retur Vendor Tersedia: {money(vendorDepositInfo.total_sisa_deposit)}</span>
+                                    </div>
+                                    <p style={{ fontSize: '13px', marginTop: '4px', marginBottom: '10px', opacity: 0.9, lineHeight: 1.4 }}>
+                                        Terdapat kredit dari retur barang sebelumnya pada vendor ini. Anda dapat menggunakannya sebagai potongan pembayaran.
+                                    </p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'rgba(255,255,255,0.7)', padding: '10px 14px', borderRadius: '10px', border: '1px solid #6ee7b7' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px', userSelect: 'none' }}>
+                                            <input
+                                                type="checkbox"
+                                                style={{ width: 16, height: 16, accentColor: '#059669', cursor: 'pointer' }}
+                                                checked={paymentForm.use_deposit}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    const totalBayarVal = parseMoneyInput(paymentForm.jumlah_bayar);
+                                                    const maxUse = Math.min(totalBayarVal, vendorDepositInfo.total_sisa_deposit);
+                                                    setPaymentForm({
+                                                        ...paymentForm,
+                                                        use_deposit: isChecked,
+                                                        potongan_deposit: isChecked ? formatMoneyInput(maxUse) : '',
+                                                    });
+                                                }}
+                                            />
+                                            Gunakan Potongan Retur
+                                        </label>
+                                        {paymentForm.use_deposit && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{ fontSize: '12px', opacity: 0.8 }}>Nominal Potongan:</span>
+                                                <input
+                                                    className="utang-input utang-input-right"
+                                                    style={{ width: '150px', padding: '4px 8px', fontSize: '13px', fontWeight: 'bold', color: '#047857' }}
+                                                    inputMode="decimal"
+                                                    value={paymentForm.potongan_deposit}
+                                                    onChange={(e) => {
+                                                        const val = parseMoneyInput(e.target.value);
+                                                        const totalBayarVal = parseMoneyInput(paymentForm.jumlah_bayar);
+                                                        const capped = Math.min(val, vendorDepositInfo.total_sisa_deposit, totalBayarVal);
+                                                        setPaymentForm({
+                                                            ...paymentForm,
+                                                            potongan_deposit: formatMoneyInput(capped),
+                                                        });
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {paymentForm.use_deposit && (
+                                        <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #a7f3d0', display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600 }}>
+                                            <span>Transfer / Kas Keluar Aktual:</span>
+                                            <span style={{ color: '#047857', fontSize: '14px' }}>
+                                                {money(Math.max(parseMoneyInput(paymentForm.jumlah_bayar) - parseMoneyInput(paymentForm.potongan_deposit), 0))}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <section className="utang-payment-section">
                                 <SectionTitle>Form Pengajuan Pembayaran</SectionTitle>
                                 <div className="utang-form-grid">
@@ -836,8 +942,18 @@ export default function CatatanUtangObatBhp() {
                                 {paymentHistory.length > 0 ? (
                                     <div className="utang-history-wrap">
                                         <table className="utang-history-table">
-                                            <thead><tr><th>Tgl Realisasi</th><th>Jumlah</th><th>Status</th><th>Keterangan</th></tr></thead>
-                                            <tbody>{paymentHistory.map((item, idx) => <tr key={idx}><td>{dateLabel(item.tanggal_proses)}</td><td className="utang-mono">{money(item.jumlah_bayar)}</td><td><StatusBadge status={item.status} label={item.status_label} /></td><td>{item.keterangan || '-'}</td></tr>)}</tbody>
+                                            <thead><tr><th>Tgl Realisasi</th><th>Jumlah</th><th>Potongan Retur</th><th>Status</th><th>Keterangan</th></tr></thead>
+                                            <tbody>
+                                                {paymentHistory.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{dateLabel(item.tanggal_proses)}</td>
+                                                        <td className="utang-mono">{money(item.jumlah_bayar)}</td>
+                                                        <td className="utang-mono">{item.potongan_deposit > 0 ? money(item.potongan_deposit) : '-'}</td>
+                                                        <td><StatusBadge status={item.status} label={item.status_label} /></td>
+                                                        <td>{item.keterangan || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
                                         </table>
                                     </div>
                                 ) : (
@@ -848,6 +964,69 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setPaymentTarget(null)}>Batal</button>
                             <button className="utang-btn primary" type="submit" disabled={saving}><CircleDollarSign size={16} /> {saving ? 'Menyimpan...' : 'Ajukan Pembayaran'}</button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
+            {returTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setReturTarget(null)}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitRetur} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: '#e11d48', color: '#fff' }}><RotateCcw size={20} /></span>
+                            <div>
+                                <h2>Input Retur Barang / Penyesuaian Faktur</h2>
+                                <p>{returTarget.nomor_faktur || '-'} — {returTarget.vendor_nama || '-'}</p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setReturTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-verify-card">
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Vendor</span>
+                                    <span className="val bold">{returTarget.vendor_nama || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono">{returTarget.nomor_faktur || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Nominal Faktur Saat Ini</span>
+                                    <span className="val price">{money(returTarget.nominal)}</span>
+                                </div>
+                            </div>
+
+                            <div className="utang-manual-grid" style={{ gridTemplateColumns: '1fr', marginTop: 14 }}>
+                                <label>
+                                    <span>Nominal Retur (Rp) <span className="utang-req">*</span></span>
+                                    <input
+                                        className="utang-input utang-input-right"
+                                        required
+                                        inputMode="decimal"
+                                        placeholder="Rp 0"
+                                        value={formatMoneyInput(returForm.nominal_retur)}
+                                        onChange={(e) => setReturForm({ ...returForm, nominal_retur: formatMoneyInput(e.target.value) })}
+                                    />
+                                </label>
+                                <label>
+                                    <span>Keterangan Retur <span className="utang-req">*</span></span>
+                                    <textarea
+                                        className="utang-input"
+                                        required
+                                        rows={3}
+                                        placeholder="Alasan retur barang / penyesuaian (misal: Obat kedaluwarsa 2 box)..."
+                                        value={returForm.keterangan}
+                                        onChange={(e) => setReturForm({ ...returForm, keterangan: e.target.value })}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setReturTarget(null)}>Batal</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: '#e11d48' }}>
+                                <RotateCcw size={16} /> {saving ? 'Menyimpan...' : 'Simpan Retur Vendor'}
+                            </button>
                         </div>
                     </form>
                 </div>,
@@ -1196,7 +1375,7 @@ function PendingTable({ items, onVerify, onSort }) {
     );
 }
 
-function ActiveTable({ items, onPayment, onDetail, onSort }) {
+function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
     return (
         <table className="utang-table">
             <thead>
@@ -1255,9 +1434,14 @@ function ActiveTable({ items, onPayment, onDetail, onSort }) {
                         </td>
                         <td className="utang-right">
                             {item.status === 'lunas' ? (
-                                <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
-                                    <Eye size={15} /> Lihat Detail
-                                </button>
+                                <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+                                    <button className="utang-btn soft mini" onClick={() => onRetur(item)} title="Input Retur Barang / Penyesuaian Faktur">
+                                        <RotateCcw size={15} /> Retur
+                                    </button>
+                                    <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
+                                        <Eye size={15} /> Lihat Detail
+                                    </button>
+                                </div>
                             ) : (
                                 <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
                                     <button
@@ -1267,6 +1451,9 @@ function ActiveTable({ items, onPayment, onDetail, onSort }) {
                                         title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
                                     >
                                         <HandCoins size={15} /> {isPendingApproval ? 'Sedang Diajukan' : 'Ajukan Pembayaran'}
+                                    </button>
+                                    <button className="utang-btn soft mini" onClick={() => onRetur(item)} title="Input Retur Barang / Penyesuaian Faktur">
+                                        <RotateCcw size={15} />
                                     </button>
                                     <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
                                         <Eye size={15} />
