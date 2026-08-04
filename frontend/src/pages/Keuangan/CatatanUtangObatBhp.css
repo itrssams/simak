@@ -2203,3 +2203,14 @@ textarea.utang-input {
 [data-theme="dark"] .utang-field-lbl {
   color: #cbd5e1 !important;
 }
+
+.utang-status.retur {
+  background: #ffe4e6;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+[data-theme="dark"] .utang-status.retur {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fda4af;
+  border-color: rgba(225, 29, 72, 0.35);
+}

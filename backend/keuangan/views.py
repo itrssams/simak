@@ -4393,6 +4393,19 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             created_by=request.user,
         )
 
+        PembayaranUtang.objects.create(
+            utang=utang,
+            tanggal_rencana_bayar=timezone.now().date(),
+            tanggal_proses=timezone.now().date(),
+            tanggal_app=timezone.now().date(),
+            jumlah_bayar=nominal_retur,
+            potongan_deposit=Decimal('0'),
+            jumlah_kas_keluar=Decimal('0'),
+            keterangan=f"Retur Barang: {keterangan}",
+            status=PembayaranUtang.STATUS_RETUR,
+            created_by=request.user,
+        )
+
         return Response({
             'message': f'Retur sebesar Rp {nominal_retur:,.2f} berhasil dicatat dan masuk ke Deposit Vendor.',
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
@@ -4564,7 +4577,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             qs = qs.filter(utang_id=utang_id)
         if status_param:
             if status_param == 'realisasi':
-                qs = qs.filter(Q(status__startswith='realisasi') | Q(status='realisasi'))
+                qs = qs.filter(Q(status__startswith='realisasi') | Q(status='realisasi') | Q(status='retur'))
             else:
                 qs = qs.filter(status=status_param)
         if sumber_filter and sumber_filter != 'semua':

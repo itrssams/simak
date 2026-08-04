@@ -609,11 +609,13 @@ class PembayaranUtang(models.Model):
     STATUS_REALISASI_SEBAGIAN = 'realisasi_sebagian'
     STATUS_REALISASI_LUNAS = 'realisasi_lunas'
     STATUS_DITOLAK = 'ditolak'
+    STATUS_RETUR = 'retur'
     STATUS_CHOICES = [
         (STATUS_PENDING, 'Dalam Pengajuan'),
         (STATUS_REALISASI_SEBAGIAN, 'Realisasi Sebagian'),
         (STATUS_REALISASI_LUNAS, 'Realisasi Pelunasan'),
         (STATUS_DITOLAK, 'Ditolak'),
+        (STATUS_RETUR, 'Retur Barang'),
     ]
 
     utang = models.ForeignKey(UtangSupplier, on_delete=models.PROTECT, related_name='pembayaran')

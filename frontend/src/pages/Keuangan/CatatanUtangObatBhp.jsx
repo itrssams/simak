@@ -1563,9 +1563,16 @@ function HistoryTable({ items, onSort }) {
                             <strong>{dateLabel(item.tanggal_proses)}</strong>
                             {item.tanggal_rencana_bayar && <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>}
                         </td>
-                        <td className={`utang-right utang-mono ${item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`}>{money(item.jumlah_bayar)}</td>
+                        <td className={`utang-right utang-mono ${item.status === 'retur' ? '' : item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`} style={item.status === 'retur' ? { color: '#e11d48', fontWeight: 'bold' } : undefined}>
+                            {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
+                        </td>
                         <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
-                        <td>{item.keterangan || '-'}</td>
+                        <td>
+                            {item.status === 'retur' && (
+                                <span style={{ marginRight: 6 }}><StatusBadge status="retur" label="Retur Barang" /></span>
+                            )}
+                            {item.keterangan || '-'}
+                        </td>
                         <td className="utang-operator-cell">
                             <span className="utang-operator-badge" title={`Dicatat oleh ${item.created_by_name || '-'}`}>
                                 <User size={13} style={{ opacity: 0.7 }} />
