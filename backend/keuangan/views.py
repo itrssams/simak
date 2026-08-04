@@ -4709,6 +4709,13 @@ class UtangMenungguVerifikasiView(APIView):
                 CONVERT(COALESCE(r.nama, '') USING utf8mb4) AS vendor_nama,
                 t.tgl_faktur                            AS tanggal_faktur,
                 t.tgl_jtempo                            AS tanggal_jatuh_tempo,
+                t.total                                 AS total_sebelum_diskon,
+                COALESCE(t.disc1, 0)                    AS disc1,
+                COALESCE(t.disc2, 0)                    AS disc2,
+                COALESCE(t.disc3, 0)                    AS disc3,
+                (t.total - COALESCE(t.disc1, 0) - COALESCE(t.disc2, 0) - COALESCE(t.disc3, 0)) AS total_setelah_diskon,
+                COALESCE(t.ppn, 0)                      AS ppn,
+                COALESCE(t.materai, 0)                  AS materai,
                 t.gtotal                                AS nominal,
                 'farmasi'                               AS sumber
         """
@@ -4725,6 +4732,13 @@ class UtangMenungguVerifikasiView(APIView):
                 CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
                 t.tgl_spk                               AS tanggal_faktur,
                 NULL                                    AS tanggal_jatuh_tempo,
+                t.nilai                                 AS total_sebelum_diskon,
+                0.00                                    AS disc1,
+                0.00                                    AS disc2,
+                0.00                                    AS disc3,
+                t.nilai                                 AS total_setelah_diskon,
+                0.00                                    AS ppn,
+                0.00                                    AS materai,
                 t.nilai                                 AS nominal,
                 'logistik'                              AS sumber
         """

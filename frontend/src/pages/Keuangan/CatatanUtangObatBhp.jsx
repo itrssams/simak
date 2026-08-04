@@ -698,8 +698,48 @@ export default function CatatanUtangObatBhp() {
                                     <span className="lbl">Jatuh Tempo</span>
                                     <span className="val">{dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
                                 </div>
+                                <div className="utang-verify-row" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: 6, marginTop: 4 }}>
+                                    <span className="lbl">Total Bruto</span>
+                                    <span className="val mono">{money(verifyTarget.total_sebelum_diskon || verifyTarget.nominal)}</span>
+                                </div>
+                                {Number(verifyTarget.disc1 || 0) > 0 && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Diskon 1</span>
+                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc1)}</span>
+                                    </div>
+                                )}
+                                {Number(verifyTarget.disc2 || 0) > 0 && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Diskon 2</span>
+                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc2)}</span>
+                                    </div>
+                                )}
+                                {Number(verifyTarget.disc3 || 0) > 0 && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Diskon 3</span>
+                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc3)}</span>
+                                    </div>
+                                )}
+                                {(Number(verifyTarget.disc1 || 0) > 0 || Number(verifyTarget.disc2 || 0) > 0 || Number(verifyTarget.disc3 || 0) > 0) && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Total Stlh Diskon</span>
+                                        <span className="val mono bold">{money(verifyTarget.total_setelah_diskon)}</span>
+                                    </div>
+                                )}
+                                {Number(verifyTarget.ppn || 0) > 0 && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">PPN</span>
+                                        <span className="val mono" style={{ color: '#16a34a' }}>+ {money(verifyTarget.ppn)}</span>
+                                    </div>
+                                )}
+                                {Number(verifyTarget.materai || 0) > 0 && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">Materai</span>
+                                        <span className="val mono">+ {money(verifyTarget.materai)}</span>
+                                    </div>
+                                )}
                                 <div className="utang-verify-row total">
-                                    <span className="lbl">Nominal Faktur</span>
+                                    <span className="lbl">Grand Total (Net)</span>
                                     <span className="val price">{money(verifyTarget.nominal)}</span>
                                 </div>
                             </div>
@@ -1128,7 +1168,14 @@ function PendingTable({ items, onVerify, onSort }) {
                             <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
                         </td>
                         <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                        <td className="utang-right utang-mono bold">{money(item.nominal)}</td>
+                        <td className="utang-right utang-mono bold">
+                            <div>{money(item.nominal)}</div>
+                            {item.sumber === 'farmasi' && (Number(item.disc1 || 0) > 0 || Number(item.ppn || 0) > 0) && (
+                                <small className="utang-subtext" style={{ fontSize: '11px', display: 'block', fontWeight: 'normal', color: '#64748b' }}>
+                                    Bruto: {money(item.total_sebelum_diskon)} {Number(item.disc1 || 0) > 0 ? `• Disc: ${money(item.disc1)}` : ''} {Number(item.ppn || 0) > 0 ? `• PPN: ${money(item.ppn)}` : ''}
+                                </small>
+                            )}
+                        </td>
                         <td className="utang-right">
                             <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
                                 <CheckCircle2 size={15} /> Verifikasi
