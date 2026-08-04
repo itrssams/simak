@@ -221,6 +221,8 @@ export default function CatatanUtangObatBhp() {
     const [total, setTotal] = useState(0);
     const [verifyTarget, setVerifyTarget] = useState(null);
     const [verifyForm, setVerifyForm] = useState(initialVerifyForm);
+    const [paymentTarget, setPaymentTarget] = useState(null);
+    const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
     const [vendorDepositInfo, setVendorDepositInfo] = useState(null);
     const [returTarget, setReturTarget] = useState(null);
     const [returForm, setReturForm] = useState({ nominal_retur: '', keterangan: '' });
@@ -310,11 +312,11 @@ export default function CatatanUtangObatBhp() {
     }, [mode]);
 
     useEffect(() => {
-        if (!verifyTarget && !paymentTarget && !realisasiTarget) return undefined;
+        if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !showManual) return undefined;
         const previous = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previous; };
-    }, [verifyTarget, paymentTarget, realisasiTarget]);
+    }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, showManual]);
 
     const resetFilters = () => setFilters({ ...initialFilters, ordering: getDefaultOrdering(mode) });
     const setOrdering = (field) => setFilters((prev) => ({
