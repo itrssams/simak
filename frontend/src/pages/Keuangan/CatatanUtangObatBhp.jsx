@@ -491,9 +491,11 @@ export default function CatatanUtangObatBhp() {
     const submitManual = async (event) => {
         event.preventDefault();
         const nominal = parseMoneyInput(manualForm.nominal);
-        if (nominal <= 0) return toast.error('Nominal wajib lebih dari 0.');
-        if (!manualForm.vendor_id) return toast.error('Vendor wajib dipilih.');
+        if (!manualForm.vendor_id) return toast.error('Vendor / Rekanan wajib dipilih.');
         if (!manualForm.nomor_faktur.trim()) return toast.error('Nomor faktur wajib diisi.');
+        if (nominal <= 0) return toast.error('Nominal utang wajib diisi dan lebih dari 0.');
+        if (!manualForm.tanggal_faktur) return toast.error('Tanggal faktur wajib diisi.');
+        if (!manualForm.keterangan || !manualForm.keterangan.trim()) return toast.error('Keterangan wajib diisi.');
         setSaving(true);
         try {
             await api.post('/keuangan/utang-supplier/create-manual/', {
@@ -929,7 +931,7 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-body">
                             <div className="utang-manual-grid">
                                 <label>
-                                    Vendor / Rekanan
+                                    Vendor / Rekanan <span className="utang-req">*</span>
                                     <SearchablePembiayaanSelect
                                         options={masterVendorOptions}
                                         value={manualForm.vendor_id}
@@ -938,7 +940,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>
-                                    Nomor Faktur
+                                    Nomor Faktur <span className="utang-req">*</span>
                                     <input
                                         className="utang-input"
                                         required
@@ -957,7 +959,7 @@ export default function CatatanUtangObatBhp() {
                                     />
                                 </label>
                                 <label>
-                                    Nominal Utang
+                                    Nominal Utang <span className="utang-req">*</span>
                                     <input
                                         className="utang-input utang-input-right"
                                         required
@@ -966,15 +968,16 @@ export default function CatatanUtangObatBhp() {
                                         onChange={(e) => setManualForm({ ...manualForm, nominal: formatMoneyInput(e.target.value) })}
                                     />
                                 </label>
-                                <label>Tanggal Faktur<DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
+                                <label>Tanggal Faktur <span className="utang-req">*</span><DateInput value={manualForm.tanggal_faktur} onChange={(v) => setManualForm({ ...manualForm, tanggal_faktur: v })} /></label>
                                 <label>Tanggal Titip Faktur<DateInput value={manualForm.tanggal_titip} onChange={(v) => setManualForm({ ...manualForm, tanggal_titip: v })} /></label>
                                 <label>Tanggal Jatuh Tempo<DateInput value={manualForm.tanggal_jatuh_tempo} onChange={(v) => setManualForm({ ...manualForm, tanggal_jatuh_tempo: v })} /></label>
                                 <label className="utang-span-full">
-                                    Keterangan
+                                    Keterangan <span className="utang-req">*</span>
                                     <textarea
                                         className="utang-input"
+                                        required
                                         rows={2}
-                                        placeholder="Catatan tambahan (opsional)"
+                                        placeholder="Tuliskan keterangan/catatan utang manual (wajib)..."
                                         value={manualForm.keterangan}
                                         onChange={(e) => setManualForm({ ...manualForm, keterangan: e.target.value })}
                                     />

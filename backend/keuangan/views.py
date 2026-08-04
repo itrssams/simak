@@ -4418,13 +4418,21 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         if not nomor_faktur:
             return Response({'error': 'nomor_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        tgl_faktur = data.get('tanggal_faktur')
+        if not tgl_faktur:
+            return Response({'error': 'tanggal_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        keterangan = (data.get('keterangan') or '').strip()
+        if not keterangan:
+            return Response({'error': 'keterangan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
         nominal_raw = data.get('nominal')
         try:
             nominal = Decimal(str(nominal_raw))
             if nominal <= 0:
                 raise ValueError
         except (TypeError, ValueError, InvalidOperation):
-            return Response({'error': 'nominal tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'nominal tidak valid atau wajib lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buat ID unik untuk utang manual agar tidak bertabrakan dengan constraint utang_faktur_sumber_uniq
         import uuid
