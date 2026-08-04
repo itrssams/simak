@@ -357,10 +357,15 @@ export default function CatatanUtangObatBhp() {
 
     const openPayment = async (row) => {
         setPaymentTarget(row);
+        const katLabel = row.kategori_vendor || row.kategori || (row.sumber === 'logistik' ? 'Logistik' : 'Obat & BHP');
+        const fakturNo = row.nomor_faktur || row.nomor_spb || '';
+        const vendorStr = row.vendor_nama ? ` (${row.vendor_nama})` : '';
+        const defaultKet = `Pembayaran ${katLabel}${vendorStr} Faktur ${fakturNo}`.trim();
+
         setPaymentForm({
             ...initialPaymentForm,
             jumlah_bayar: formatMoneyInput(row.sisa_utang || row.nominal || ''),
-            keterangan: `Pengajuan pembayaran faktur ${row.nomor_faktur || ''}`.trim(),
+            keterangan: defaultKet,
         });
         try {
             // Perbaikan bug: gunakan query param `utang` (bukan `utang__id`)
