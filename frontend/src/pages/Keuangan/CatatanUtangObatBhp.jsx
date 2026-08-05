@@ -71,6 +71,7 @@ const TABS = [
     { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
     { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
+    { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },
     { id: 'histori', label: 'Histori Pembayaran', icon: History },
 ];
 
@@ -92,6 +93,12 @@ const VIEW_META = {
         title: 'Pengajuan Pembayaran',
         desc: 'Daftar pengajuan pembayaran utang supplier yang menunggu persetujuan atasan / realisasi.',
         cardTitle: 'Daftar Pengajuan Pembayaran Pending',
+    },
+    deposit: {
+        icon: Sparkles,
+        title: 'Deposit / Saldo Retur Vendor',
+        desc: 'Daftar sisa saldo kredit deposit dari retur barang masing-masing vendor supplier.',
+        cardTitle: 'Rekap Saldo Deposit Vendor Retur Pembelian',
     },
     histori: {
         icon: History,
@@ -184,6 +191,7 @@ const getDefaultOrdering = (m) => {
     if (m === 'menunggu') return '-tanggal_faktur';
     if (m === 'pengajuan') return '-created_at';
     if (m === 'histori') return '-tanggal_proses';
+    if (m === 'deposit') return '-created_at';
     return '-verified_at';
 };
 
@@ -233,6 +241,8 @@ export default function CatatanUtangObatBhp() {
     const [detailHistory, setDetailHistory] = useState([]);
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
+    const [depositData, setDepositData] = useState({ summary: { total_vendor: 0, total_retur: 0, total_terpakai: 0, total_sisa_deposit: 0 }, vendors: [] });
+    const [selectedDepositVendor, setSelectedDepositVendor] = useState(null);
 
     const canAccess = Boolean(user?.is_superuser || user?.akses_catatan_utang);
 
@@ -257,16 +267,23 @@ export default function CatatanUtangObatBhp() {
         setLoading(true);
         try {
             const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
-            if (mode === 'pengajuan') {
-                activeFilters.status = 'pending';
-            } else if (mode === 'histori') {
-                activeFilters.status = 'realisasi';
-            } else if (mode !== 'aktif') {
-                delete activeFilters.status;
+            if (mode === 'deposit') {
+                const res = await api.get('/keuangan/utang-supplier/list-deposit-vendor/', { params: activeFilters });
+                setDepositData(res.data);
+                setItems(res.data.vendors || []);
+                setTotal((res.data.vendors || []).length);
+            } else {
+                if (mode === 'pengajuan') {
+                    activeFilters.status = 'pending';
+                } else if (mode === 'histori') {
+                    activeFilters.status = 'realisasi';
+                } else if (mode !== 'aktif') {
+                    delete activeFilters.status;
+                }
+                const res = await api.get(endpoint, { params: pageParams(page, pageSize, activeFilters) });
+                setItems(getResults(res.data));
+                setTotal(getCount(res.data));
             }
-            const res = await api.get(endpoint, { params: pageParams(page, pageSize, activeFilters) });
-            setItems(getResults(res.data));
-            setTotal(getCount(res.data));
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal memuat catatan utang.'));
         } finally {
@@ -312,11 +329,11 @@ export default function CatatanUtangObatBhp() {
     }, [mode]);
 
     useEffect(() => {
-        if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !showManual) return undefined;
+        if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !showManual && !selectedDepositVendor) return undefined;
         const previous = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previous; };
-    }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, showManual]);
+    }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, showManual, selectedDepositVendor]);
 
     const resetFilters = () => setFilters({ ...initialFilters, ordering: getDefaultOrdering(mode) });
     const setOrdering = (field) => setFilters((prev) => ({
@@ -701,6 +718,7 @@ export default function CatatanUtangObatBhp() {
                         {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
                         {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
+                        {mode === 'deposit' && <DepositVendorTable summary={depositData.summary} vendors={items} onDetail={setSelectedDepositVendor} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
                     </div>
                 )}
@@ -1029,6 +1047,60 @@ export default function CatatanUtangObatBhp() {
                             </button>
                         </div>
                     </form>
+                </div>,
+                document.body,
+            )}
+
+            {selectedDepositVendor && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setSelectedDepositVendor(null)}>
+                    <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 740 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: '#059669', color: '#fff' }}><Sparkles size={20} /></span>
+                            <div>
+                                <h2>Mutasi Deposit Retur Vendor</h2>
+                                <p>{selectedDepositVendor.vendor_nama}</p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setSelectedDepositVendor(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-pay-summary" style={{ marginBottom: 16 }}>
+                                <Info label="Total Retur Diterima" value={money(selectedDepositVendor.total_retur)} />
+                                <Info label="Deposit Terpakai" value={money(selectedDepositVendor.total_terpakai)} />
+                                <Info label="Sisa Deposit Aktif" value={money(selectedDepositVendor.total_sisa_deposit)} />
+                            </div>
+                            <div className="utang-history-wrap">
+                                <table className="utang-history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tgl Retur</th>
+                                            <th>No. Faktur Asal</th>
+                                            <th>Nominal Retur</th>
+                                            <th>Terpakai</th>
+                                            <th>Sisa Deposit</th>
+                                            <th>Keterangan</th>
+                                            <th>Operator</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(selectedDepositVendor.items || []).map((item, idx) => (
+                                            <tr key={item.id || idx}>
+                                                <td>{dateLabel(item.created_at)}</td>
+                                                <td className="utang-mono">{item.nomor_faktur || item.nomor_spb || '-'}</td>
+                                                <td className="utang-mono bold" style={{ color: '#059669' }}>{money(item.nominal_retur)}</td>
+                                                <td className="utang-mono">{money(item.terpakai)}</td>
+                                                <td className="utang-mono bold">{money(item.sisa_deposit)}</td>
+                                                <td>{item.keterangan || '-'}</td>
+                                                <td>{item.created_by_name || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" onClick={() => setSelectedDepositVendor(null)}>Tutup</button>
+                        </div>
+                    </div>
                 </div>,
                 document.body,
             )}
@@ -1628,4 +1700,73 @@ function Info({ label, value }) {
 
 function DateInput({ value, onChange, disabled = false }) {
     return <DateField value={value} onChange={onChange} disabled={disabled} />;
+}
+
+function DepositVendorTable({ summary, vendors, onDetail }) {
+    return (
+        <div>
+            {summary && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
+                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Vendor Deposit</span>
+                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{summary.total_vendor} Vendor</div>
+                    </div>
+                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
+                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Sisa Saldo Deposit Aktif</span>
+                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_sisa_deposit)}</div>
+                    </div>
+                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #64748b, #475569)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
+                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Deposit Terpakai</span>
+                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_terpakai)}</div>
+                    </div>
+                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
+                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Retur Diterima</span>
+                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_retur)}</div>
+                    </div>
+                </div>
+            )}
+            <table className="utang-table">
+                <thead>
+                    <tr>
+                        <th>Vendor</th>
+                        <th className="utang-right">Total Retur</th>
+                        <th className="utang-right">Total Terpakai</th>
+                        <th className="utang-right">Sisa Deposit Aktif</th>
+                        <th>Status</th>
+                        <th className="utang-right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {vendors.map((v) => {
+                        const isAktif = Number(v.total_sisa_deposit || 0) > 0;
+                        return (
+                            <tr key={v.vendor_id}>
+                                <td className="utang-name-cell">
+                                    <strong>{v.vendor_nama || '-'}</strong>
+                                    <small className="utang-subtext">{v.count} Transaksi Retur • Vendor ID: {v.vendor_id}</small>
+                                </td>
+                                <td className="utang-right utang-mono">{money(v.total_retur)}</td>
+                                <td className="utang-right utang-mono">{money(v.total_terpakai)}</td>
+                                <td className="utang-right utang-mono bold" style={{ color: isAktif ? '#059669' : '#64748b', fontSize: '14px' }}>
+                                    {money(v.total_sisa_deposit)}
+                                </td>
+                                <td>
+                                    {isAktif ? (
+                                        <span className="utang-status lunas" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }}>Saldo Aktif</span>
+                                    ) : (
+                                        <span className="utang-status" style={{ background: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' }}>Habis / Terpakai</span>
+                                    )}
+                                </td>
+                                <td className="utang-right">
+                                    <button className="utang-btn soft mini" onClick={() => onDetail(v)} title="Lihat detail mutasi deposit vendor ini">
+                                        <Eye size={15} /> Detail Mutasi
+                                    </button>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
 }

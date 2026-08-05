@@ -691,11 +691,14 @@ class PembayaranUtangInputSerializer(serializers.ModelSerializer):
 class DepositVendorSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     sisa_deposit = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
+    nomor_faktur = serializers.CharField(source='utang_asal.nomor_faktur', read_only=True, default='')
+    nomor_spb = serializers.CharField(source='utang_asal.nomor_spb', read_only=True, default='')
 
     class Meta:
         model = DepositVendor
         fields = [
             'id', 'vendor_id', 'vendor_nama', 'utang_asal',
+            'nomor_faktur', 'nomor_spb',
             'nominal_retur', 'terpakai', 'sisa_deposit',
             'keterangan', 'created_by', 'created_by_name',
             'created_at', 'updated_at',

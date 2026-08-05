@@ -4361,6 +4361,64 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             'deposits': DepositVendorSerializer(active_deposits, many=True).data,
         })
 
+    @action(detail=False, methods=['get'], url_path='list-deposit-vendor')
+    def list_deposit_vendor(self, request):
+        qs = DepositVendor.objects.all().order_by('-created_at')
+        
+        vendor_id = request.query_params.get('vendor_id')
+        search = (request.query_params.get('search') or '').strip()
+        status_filter = request.query_params.get('status') or 'aktif'
+
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        if search:
+            qs = qs.filter(
+                Q(vendor_nama__icontains=search) |
+                Q(keterangan__icontains=search) |
+                Q(utang_asal__nomor_faktur__icontains=search)
+            )
+
+        deposits_data = DepositVendorSerializer(qs, many=True).data
+
+        vendor_map = {}
+        for dep_obj, dep_data in zip(qs, deposits_data):
+            vid = dep_obj.vendor_id
+            if vid not in vendor_map:
+                vendor_map[vid] = {
+                    'vendor_id': vid,
+                    'vendor_nama': dep_obj.vendor_nama,
+                    'total_retur': Decimal('0'),
+                    'total_terpakai': Decimal('0'),
+                    'total_sisa_deposit': Decimal('0'),
+                    'count': 0,
+                    'items': [],
+                }
+            vendor_map[vid]['total_retur'] += dep_obj.nominal_retur
+            vendor_map[vid]['total_terpakai'] += dep_obj.terpakai
+            vendor_map[vid]['total_sisa_deposit'] += dep_obj.sisa_deposit
+            vendor_map[vid]['count'] += 1
+            vendor_map[vid]['items'].append(dep_data)
+
+        vendor_list = list(vendor_map.values())
+        if status_filter == 'aktif':
+            vendor_list = [v for v in vendor_list if v['total_sisa_deposit'] > 0]
+        elif status_filter == 'habis':
+            vendor_list = [v for v in vendor_list if v['total_sisa_deposit'] <= 0]
+
+        total_retur_all = sum((v['total_retur'] for v in vendor_list), Decimal('0'))
+        total_terpakai_all = sum((v['total_terpakai'] for v in vendor_list), Decimal('0'))
+        total_sisa_all = sum((v['total_sisa_deposit'] for v in vendor_list), Decimal('0'))
+
+        return Response({
+            'summary': {
+                'total_vendor': len(vendor_list),
+                'total_retur': float(total_retur_all),
+                'total_terpakai': float(total_terpakai_all),
+                'total_sisa_deposit': float(total_sisa_all),
+            },
+            'vendors': vendor_list,
+        })
+
     @action(detail=True, methods=['post'], url_path='input-retur')
     def input_retur(self, request, pk=None):
         utang = self.get_object()
