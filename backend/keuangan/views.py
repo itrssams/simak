@@ -492,8 +492,8 @@ def _legacy_kunjungan_where(params):
     elif id_pembiayaan:
         where.append("a.id_pembiayaan = %s")
         values.append(id_pembiayaan)
-    else:
-        # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS)
+    elif not search:
+        # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS) bila tidak sedang mencari
         where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s AND LOWER(c.pembiayaan) NOT LIKE %s)))")
         values.extend(['%BPJS%', '%swadana%'])
 
