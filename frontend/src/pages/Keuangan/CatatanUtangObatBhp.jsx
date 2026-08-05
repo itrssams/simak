@@ -30,6 +30,7 @@ import { useToast } from '../../context/ToastContext';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
+import DebouncedSearchInput from '../../components/DebouncedSearchInput';
 import TableSkeleton from '../../components/TableSkeleton';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './CatatanUtangObatBhp.css';
@@ -691,14 +692,12 @@ export default function CatatanUtangObatBhp() {
                             );
                         })}
                     </div>
-                    <label className="dki-search utang-tab-search">
-                        <Search size={16} />
-                        <input
-                            value={filters.search}
-                            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                            placeholder="Cari vendor / no faktur / no SPB..."
-                        />
-                    </label>
+                    <DebouncedSearchInput
+                        value={filters.search}
+                        onChange={(val) => setFilters((prev) => ({ ...prev, search: val }))}
+                        placeholder="Cari vendor / no faktur / no SPB..."
+                        className="utang-tab-search"
+                    />
                 </div>
 
                 <FilterBar

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import DateRangePicker from '../../components/DateRangePicker';
+import DebouncedSearchInput from '../../components/DebouncedSearchInput';
 import DateField from '../../components/DateField';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -125,14 +126,12 @@ export default function InvoiceVerifikasi() {
                 </div>
 
                 <div className="ivf-filter">
-                    <label className="ivf-search">
-                        <Search size={16} />
-                        <input
-                            value={filters.search}
-                            onChange={(e) => setFilter('search', e.target.value)}
-                            placeholder="Cari invoice / pembiayaan / pengaju..."
-                        />
-                    </label>
+                    <DebouncedSearchInput
+                        value={filters.search}
+                        onChange={(val) => setFilter('search', val)}
+                        placeholder="Cari invoice / pembiayaan / pengaju..."
+                        className="ivf-search"
+                    />
                     <DateRangePicker
                         dari={filters.dari}
                         sampai={filters.sampai}

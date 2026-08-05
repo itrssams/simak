@@ -43,6 +43,7 @@ import { useToast } from '../../context/ToastContext';
 import { getInvoiceDisplayAmounts } from './invoiceDisplayUtils';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import DateRangePicker from '../../components/DateRangePicker';
+import DebouncedSearchInput from '../../components/DebouncedSearchInput';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import TableSkeleton from '../../components/TableSkeleton';
@@ -957,14 +958,11 @@ export default function InvoicePembiayaan() {
 
                 <div className="dki-filter inv-filter">
                     <div className="inv-filter-row">
-                        <label className="dki-search">
-                            <Search size={16} />
-                            <input
-                                placeholder="Cari no faktur / penagih / pembiayaan..."
-                                value={filters.search}
-                                onChange={(e) => setFilter('search', e.target.value)}
-                            />
-                        </label>
+                        <DebouncedSearchInput
+                            value={filters.search}
+                            onChange={(val) => setFilter('search', val)}
+                            placeholder="Cari no faktur / penagih / pembiayaan..."
+                        />
 
                         <SearchablePembiayaanSelect
                             className="dki-filter-pembiayaan"

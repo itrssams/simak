@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import DateRangePicker from '../../components/DateRangePicker';
+import DebouncedSearchInput from '../../components/DebouncedSearchInput';
 import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import TableSkeleton from '../../components/TableSkeleton';
@@ -454,10 +455,11 @@ export default function DaftarKunjunganInvoice() {
 
                 <div className="dki-filter">
                     <div className="dki-filter-row-1">
-                        <label className="dki-search">
-                            <Search size={16} />
-                            <input value={filters.search} onChange={(e) => setFilter('search', e.target.value)} placeholder="Cari no kunjungan / RM / pasien..." />
-                        </label>
+                        <DebouncedSearchInput
+                            value={filters.search}
+                            onChange={(val) => setFilter('search', val)}
+                            placeholder="Cari no kunjungan / RM / pasien..."
+                        />
 
                         <DateRangePicker
                             dari={filters.dari}
