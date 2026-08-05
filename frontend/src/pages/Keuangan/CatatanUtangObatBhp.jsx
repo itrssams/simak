@@ -1452,9 +1452,6 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                                     >
                                         <HandCoins size={15} /> {isPendingApproval ? 'Sedang Diajukan' : 'Ajukan Pembayaran'}
                                     </button>
-                                    <button className="utang-btn soft mini" onClick={() => onRetur(item)} title="Input Retur Barang / Penyesuaian Faktur">
-                                        <RotateCcw size={15} />
-                                    </button>
                                     <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
                                         <Eye size={15} />
                                     </button>

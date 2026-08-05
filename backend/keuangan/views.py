@@ -4364,6 +4364,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
     @action(detail=True, methods=['post'], url_path='input-retur')
     def input_retur(self, request, pk=None):
         utang = self.get_object()
+        if utang.status != UtangSupplier.STATUS_LUNAS:
+            return Response({'error': 'Retur barang hanya dapat dicatat untuk faktur yang sudah berstatus LUNAS.'}, status=status.HTTP_400_BAD_REQUEST)
+
         nominal_retur_raw = request.data.get('nominal_retur')
         keterangan = (request.data.get('keterangan') or '').strip()
 
