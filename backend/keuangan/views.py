@@ -4650,6 +4650,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 tgl_titip_raw = r[10] if len(r) > 10 else None
                 nominal_raw = r[11]
                 ket_excel = str(r[12] or '').strip() # Col M (KETERANGAN / NO FAKTUR)
+                no_faktur = ket_excel or f"INV/OTS/{r_idx + 1}"
                 byr_raw = r[18] if len(r) > 18 and isinstance(r[18], (int, float)) else 0
 
                 if not vendor_nama or nominal_raw is None:
