@@ -550,6 +550,23 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const handleRollbackImport = async () => {
+        if (!window.confirm('PERINGATAN UNDO IMPORT!\n\nApakah Anda yakin ingin menghapus SELURUH data utang hasil import Excel OTS dari database SIMAK dan mengembalikan database ke kondisi semula sebelum import?')) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await api.post('/keuangan/utang-supplier/ots-rollback/');
+            toast.success(res.data.message || 'Berhasil melakukan Undo Import OTS.');
+            await fetchData();
+            await fetchSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal melakukan undo import.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const openManual = () => {
         setManualForm(initialManualForm);
         setShowManual(true);
@@ -665,6 +682,9 @@ export default function CatatanUtangObatBhp() {
                         )}
                         <button className="utang-btn primary" type="button" onClick={() => navigate('/keuangan/catatan-utang/import-ots')} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}>
                             <FileSpreadsheet size={16} /> Import Excel OTS
+                        </button>
+                        <button className="utang-btn primary" type="button" onClick={handleRollbackImport} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Hapus seluruh data utang hasil import Excel OTS">
+                            <RotateCcw size={16} /> Undo Import OTS
                         </button>
                         <button className="utang-btn-manual" type="button" onClick={openManual}>
                             <FilePlus2 size={16} /> Catat Utang Manual

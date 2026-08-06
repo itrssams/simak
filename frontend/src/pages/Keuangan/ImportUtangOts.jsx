@@ -15,7 +15,8 @@ import {
   Layers,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -38,6 +39,7 @@ export default function ImportUtangOts() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
 
   // Staging state
   const [stagedData, setStagedData] = useState(null); // { summary: {}, items: [] }
@@ -187,13 +189,41 @@ export default function ImportUtangOts() {
     }
   };
 
+  // Rollback / Undo Import from DB
+  const handleRollbackImport = async () => {
+    if (!window.confirm('PERINGATAN UNDO IMPORT!\n\nApakah Anda yakin ingin menghapus SELURUH data utang hasil import Excel OTS dari database SIMAK dan mengembalikan database ke kondisi semula sebelum import?')) {
+      return;
+    }
+
+    setRollingBack(true);
+    try {
+      const res = await api.post('/keuangan/utang-supplier/ots-rollback/');
+      toast.success(res.data.message || 'Berhasil mengembalikan data ke sebelum import.');
+      setStagedData(null);
+      setFile(null);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || 'Gagal melakukan undo import.');
+    } finally {
+      setRollingBack(false);
+    }
+  };
+
   return (
     <div className="import-ots-page">
       {/* Header Navigation */}
       <div className="import-ots-header">
-        <button className="btn-back" onClick={() => navigate('/keuangan/catatan-utang/obat-bhp')}>
-          <ArrowLeft size={16} /> Kembali ke Catatan Utang
-        </button>
+        <div className="header-top-row">
+          <button className="btn-back" onClick={() => navigate('/keuangan/catatan-utang/obat-bhp')}>
+            <ArrowLeft size={16} /> Kembali ke Catatan Utang
+          </button>
+          
+          <button className="btn-rollback" onClick={handleRollbackImport} disabled={rollingBack}>
+            {rollingBack ? <RefreshCw className="spin" size={16} /> : <RotateCcw size={16} />}
+            {rollingBack ? ' Mengembalikan Data...' : ' Undo / Hapus Data Import OTS (Rollback)'}
+          </button>
+        </div>
+
         <div className="title-section">
           <h1>
             <FileSpreadsheet size={26} className="icon-title" /> Import & Rekonsiliasi Data Utang Excel OTS

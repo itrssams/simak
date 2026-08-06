@@ -4884,6 +4884,24 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             'committed_count': committed_count
         }, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['post'], url_path='ots-rollback')
+    def ots_rollback(self, request):
+        with transaction.atomic():
+            ots_utang_qs = UtangSupplier.objects.filter(app_siaga_faktur_id__startswith='OTS-')
+            total_utang = ots_utang_qs.count()
+
+            pembayaran_qs = PembayaranUtang.objects.filter(utang__app_siaga_faktur_id__startswith='OTS-')
+            total_pembayaran = pembayaran_qs.count()
+
+            pembayaran_qs.delete()
+            ots_utang_qs.delete()
+
+        return Response({
+            'message': f'Berhasil mengembalikan data (Undo Import). Menghapus {total_utang} data utang dan {total_pembayaran} riwayat pembayaran hasil import Excel OTS.',
+            'deleted_utang_count': total_utang,
+            'deleted_pembayaran_count': total_pembayaran
+        }, status=status.HTTP_200_OK)
+
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
