@@ -366,6 +366,7 @@ export default function ImportUtangOts() {
                     <th className="col-spb">No. SPB</th>
                     <th className="col-faktur">No. Faktur Supplier</th>
                     <th className="col-tgl">Tgl Faktur</th>
+                    <th className="col-tgl">Tgl Titip</th>
                     <th className="col-nominal text-right">Nominal</th>
                     <th className="col-bayar text-right">Dibayar</th>
                     <th className="col-sisa text-right">Sisa Utang</th>
@@ -376,7 +377,7 @@ export default function ImportUtangOts() {
                 <tbody>
                   {paginatedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="text-center py-5 text-muted">
+                      <td colSpan={12} className="text-center py-5 text-muted">
                         Tidak ada data faktur yang sesuai dengan filter pencarian.
                       </td>
                     </tr>
@@ -397,6 +398,7 @@ export default function ImportUtangOts() {
                         <td className="col-spb"><code className="code-spb">{item.no_spb || '-'}</code></td>
                         <td className="col-faktur"><span className="font-mono text-sm">{item.no_faktur}</span></td>
                         <td className="col-tgl">{item.tgl_faktur || '-'}</td>
+                        <td className="col-tgl">{item.tgl_titip || item.tgl_faktur || '-'}</td>
                         <td className="col-nominal text-right font-medium">{formatRupiah(item.nominal)}</td>
                         <td className="col-bayar text-right text-success">{formatRupiah(item.jumlah_bayar)}</td>
                         <td className={`col-sisa text-right font-bold ${item.sisa_utang > 0 ? 'text-danger' : 'text-muted'}`}>

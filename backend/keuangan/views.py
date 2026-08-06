@@ -4647,6 +4647,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 no_spb = str(r[7] or '').strip()
                 vendor_nama = str(r[8] or '').strip()
                 tgl_faktur_raw = r[9]
+                tgl_titip_raw = r[10] if len(r) > 10 else None
                 nominal_raw = r[11]
                 no_faktur = str(r[12] or '').strip()
                 byr_raw = r[18] if len(r) > 18 and isinstance(r[18], (int, float)) else 0
@@ -4669,17 +4670,21 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 sisa = max(Decimal('0'), nominal - byr)
                 row_num = r_idx + 1
 
-                # Parse date
-                tgl_faktur_str = ''
-                if isinstance(tgl_faktur_raw, (datetime, time)):
-                    tgl_faktur_str = tgl_faktur_raw.strftime('%Y-%m-%d')
-                elif isinstance(tgl_faktur_raw, str) and tgl_faktur_raw.strip():
-                    tgl_faktur_str = tgl_faktur_raw.strip()[:10]
+                # Helper date parser
+                def parse_date_str(val):
+                    if not val:
+                        return ''
+                    if isinstance(val, (datetime, time)):
+                        return val.strftime('%Y-%m-%d')
+                    if isinstance(val, str) and val.strip():
+                        return val.strip()[:10]
+                    return ''
 
-                # Parse dates for rencana bayar/proses/app
-                tgl_rencana_str = str(r[15])[:10] if len(r) > 15 and r[15] else None
-                tgl_proses_str = str(r[16])[:10] if len(r) > 16 and r[16] else None
-                tgl_app_str = str(r[17])[:10] if len(r) > 17 and r[17] else None
+                tgl_faktur_str = parse_date_str(tgl_faktur_raw)
+                tgl_titip_str = parse_date_str(tgl_titip_raw) or tgl_faktur_str
+                tgl_rencana_str = parse_date_str(r[15]) if len(r) > 15 else ''
+                tgl_proses_str = parse_date_str(r[16]) if len(r) > 16 else ''
+                tgl_app_str = parse_date_str(r[17]) if len(r) > 17 else ''
 
                 # Check cell fill color
                 is_green = False
@@ -4736,6 +4741,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     'no_spb': no_spb,
                     'vendor_nama': vendor_nama,
                     'tgl_faktur': tgl_faktur_str,
+                    'tgl_titip': tgl_titip_str,
                     'nominal': float(nominal),
                     'no_faktur': no_faktur or f"INV/OTS/{row_num}",
                     'jumlah_bayar': float(byr),
@@ -4807,14 +4813,19 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 else:
                     st = UtangSupplier.STATUS_BELUM_DIBAYAR
 
-                tgl_faktur_str = item.get('tgl_faktur')
-                if not tgl_faktur_str:
-                    tgl_faktur = timezone.localdate()
-                else:
+                def parse_date_obj(val_str):
+                    if not val_str:
+                        return None
                     try:
-                        tgl_faktur = datetime.strptime(tgl_faktur_str[:10], '%Y-%m-%d').date()
+                        return datetime.strptime(str(val_str)[:10], '%Y-%m-%d').date()
                     except Exception:
-                        tgl_faktur = timezone.localdate()
+                        return None
+
+                tgl_faktur = parse_date_obj(item.get('tgl_faktur')) or timezone.localdate()
+                tgl_titip = parse_date_obj(item.get('tgl_titip')) or tgl_faktur
+                tgl_rencana = parse_date_obj(item.get('tgl_rencana_bayar')) or tgl_faktur
+                tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
+                tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
 
                 utang = UtangSupplier.objects.create(
                     app_siaga_faktur_id=f"OTS-{item.get('row_idx')}",
@@ -4824,7 +4835,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     nomor_faktur=no_faktur,
                     nomor_spb=no_spb if no_spb else None,
                     tanggal_faktur=tgl_faktur,
-                    tanggal_titip=tgl_faktur,
+                    tanggal_titip=tgl_titip,
                     nominal=nominal,
                     keterangan_titip=f"Import Excel OTS 2026 - {kategori}"[:250],
                     status=st,
@@ -4836,10 +4847,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     st_pembayaran = PembayaranUtang.STATUS_REALISASI_LUNAS if sisa <= Decimal('0') else PembayaranUtang.STATUS_REALISASI_SEBAGIAN
                     PembayaranUtang.objects.create(
                         utang=utang,
-                        tanggal_rencana_bayar=tgl_faktur,
-                        tanggal_proses=tgl_faktur,
-                        tanggal_app=tgl_faktur,
-                        tanggal_realisasi=tgl_faktur,
+                        tanggal_rencana_bayar=tgl_rencana,
+                        tanggal_proses=tgl_proses,
+                        tanggal_app=tgl_app,
+                        tanggal_realisasi=tgl_app,
                         jumlah_bayar=bayar,
                         potongan_deposit=Decimal('0'),
                         jumlah_kas_keluar=bayar,
