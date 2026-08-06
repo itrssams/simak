@@ -662,6 +662,9 @@ export default function CatatanUtangObatBhp() {
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
                         )}
+                        <button className="utang-btn primary" type="button" onClick={() => navigate('/keuangan/catatan-utang/import-ots')} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}>
+                            <FileSpreadsheet size={16} /> Import Excel OTS
+                        </button>
                         <button className="utang-btn-manual" type="button" onClick={openManual}>
                             <FilePlus2 size={16} /> Catat Utang Manual
                         </button>

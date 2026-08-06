@@ -28,6 +28,7 @@ import DaftarKunjunganInvoice from './pages/Keuangan/DaftarKunjunganInvoice';
 import InvoiceVerifikasi from './pages/Keuangan/InvoiceVerifikasi';
 import MasterPembiayaan from './pages/Keuangan/MasterPembiayaan';
 import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
+import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -147,6 +148,7 @@ const AppRoutes = () => {
             <Route path="/keuangan/master-pembiayaan" element={<ProtectedRoute allow={isKeuangan}><MasterPembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/invoices/:id" element={<ProtectedRoute allow={isKeuangan}><InvoicePembiayaan /></ProtectedRoute>} />
             <Route path="/keuangan/catatan-utang/obat-bhp" element={<ProtectedRoute allow={canCatatanUtang}><CatatanUtangObatBhp /></ProtectedRoute>} />
+            <Route path="/keuangan/catatan-utang/import-ots" element={<ProtectedRoute allow={canCatatanUtang}><ImportUtangOts /></ProtectedRoute>} />
             <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
             <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u)}><Logistik /></ProtectedRoute>} />
 

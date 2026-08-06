@@ -4607,6 +4607,254 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         )
         return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['post'], url_path='ots-preview', parser_classes=[MultiPartParser, FormParser])
+    def ots_preview(self, request):
+        excel_file = request.FILES.get('file')
+        if not excel_file:
+            return Response({'error': 'File Excel wajib diunggah.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
+            if 'LIST FAKTUR' in wb.sheetnames:
+                sheet = wb['LIST FAKTUR']
+            else:
+                sheet = wb.active
+
+            rows = list(sheet.iter_rows(values_only=True))
+            if len(rows) < 3:
+                return Response({'error': 'Sheet Excel tidak memiliki data yang cukup.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            green_hex = 'FF92D050'
+            staged_items = []
+            seen_keys = {}
+
+            total_rows = 0
+            total_nominal = Decimal('0')
+            total_bayar = Decimal('0')
+            total_sisa_utang = Decimal('0')
+            total_anomali = 0
+            total_lunas = 0
+            total_utang_aktif = 0
+
+            for r_idx in range(2, len(rows)):
+                r = rows[r_idx]
+                if not r:
+                    continue
+
+                status_code = str(r[3] or '').strip()
+                kategori = str(r[4] or '').strip()
+                no_spb = str(r[7] or '').strip()
+                vendor_nama = str(r[8] or '').strip()
+                tgl_faktur_raw = r[9]
+                nominal_raw = r[11]
+                no_faktur = str(r[12] or '').strip()
+                byr_raw = r[18] if len(r) > 18 and isinstance(r[18], (int, float)) else 0
+
+                if not vendor_nama or nominal_raw is None:
+                    continue
+
+                try:
+                    nominal = Decimal(str(nominal_raw))
+                    if nominal <= Decimal('0'):
+                        continue
+                except (InvalidOperation, ValueError, TypeError):
+                    continue
+
+                try:
+                    byr = Decimal(str(byr_raw)) if byr_raw else Decimal('0')
+                except (InvalidOperation, ValueError, TypeError):
+                    byr = Decimal('0')
+
+                sisa = max(Decimal('0'), nominal - byr)
+                row_num = r_idx + 1
+
+                # Parse date
+                tgl_faktur_str = ''
+                if isinstance(tgl_faktur_raw, (datetime, time)):
+                    tgl_faktur_str = tgl_faktur_raw.strftime('%Y-%m-%d')
+                elif isinstance(tgl_faktur_raw, str) and tgl_faktur_raw.strip():
+                    tgl_faktur_str = tgl_faktur_raw.strip()[:10]
+
+                # Parse dates for rencana bayar/proses/app
+                tgl_rencana_str = str(r[15])[:10] if len(r) > 15 and r[15] else None
+                tgl_proses_str = str(r[16])[:10] if len(r) > 16 and r[16] else None
+                tgl_app_str = str(r[17])[:10] if len(r) > 17 and r[17] else None
+
+                # Check cell fill color
+                is_green = False
+                try:
+                    cell = sheet.cell(row=row_num, column=1)
+                    if cell.fill and cell.fill.start_color:
+                        if str(cell.fill.start_color.rgb) == green_hex:
+                            is_green = True
+                except Exception:
+                    pass
+
+                # Status determination
+                if sisa <= Decimal('0'):
+                    status_ditentukan = 'lunas'
+                    total_lunas += 1
+                elif byr > Decimal('0'):
+                    status_ditentukan = 'sebagian'
+                    total_utang_aktif += 1
+                else:
+                    status_ditentukan = 'belum_dibayar'
+                    total_utang_aktif += 1
+
+                # Anomaly checking
+                anomali_reasons = []
+                if status_code == 'U' and sisa <= Decimal('0'):
+                    anomali_reasons.append("Kode status Excel 'U', tetapi pembayaran sudah lunas (sisa Rp 0).")
+                elif status_code == 'L' and sisa > Decimal('0'):
+                    anomali_reasons.append(f"Kode status Excel 'L', tetapi sisa utang masih Rp {sisa:,.2f}.")
+
+                key = (vendor_nama.upper(), float(nominal), no_spb, no_faktur)
+                if key in seen_keys:
+                    prev_row = seen_keys[key]
+                    anomali_reasons.append(f"Potensi duplikat dari baris {prev_row}.")
+                else:
+                    seen_keys[key] = row_num
+
+                if status_ditentukan != 'lunas' and not no_spb:
+                    anomali_reasons.append("Faktur utang aktif ini tidak memiliki Nomor SPB (akan dimasukkan sebagai Utang Manual Non-SPB).")
+
+                is_anomali = len(anomali_reasons) > 0
+                if is_anomali:
+                    total_anomali += 1
+
+                total_rows += 1
+                total_nominal += nominal
+                total_bayar += byr
+                total_sisa_utang += sisa
+
+                staged_items.append({
+                    'id': f"OTS-{row_num}",
+                    'row_idx': row_num,
+                    'status_excel': status_code,
+                    'kategori': kategori,
+                    'no_spb': no_spb,
+                    'vendor_nama': vendor_nama,
+                    'tgl_faktur': tgl_faktur_str,
+                    'nominal': float(nominal),
+                    'no_faktur': no_faktur or f"INV/OTS/{row_num}",
+                    'jumlah_bayar': float(byr),
+                    'sisa_utang': float(sisa),
+                    'tgl_rencana_bayar': tgl_rencana_str,
+                    'tgl_proses': tgl_proses_str,
+                    'tgl_app': tgl_app_str,
+                    'is_green': is_green,
+                    'status_ditentukan': status_ditentukan,
+                    'is_anomali': is_anomali,
+                    'anomali_reasons': anomali_reasons,
+                    'user_action': 'terima' if not is_anomali else 'duplikat_review',
+                })
+
+            return Response({
+                'summary': {
+                    'total_rows': total_rows,
+                    'total_nominal': float(total_nominal),
+                    'total_bayar': float(total_bayar),
+                    'total_sisa_utang': float(total_sisa_utang),
+                    'total_anomali': total_anomali,
+                    'total_lunas': total_lunas,
+                    'total_utang_aktif': total_utang_aktif,
+                },
+                'items': staged_items
+            })
+        except Exception as e:
+            return Response({'error': f'Gagal membaca file Excel: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='ots-commit')
+    def ots_commit(self, request):
+        items = request.data.get('items')
+        if not items or not isinstance(items, list):
+            return Response({'error': 'Daftar items yang diverifikasi wajib dikirim.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        active_items = [item for item in items if item.get('user_action') != 'abaikan']
+
+        committed_count = 0
+        with transaction.atomic():
+            for item in active_items:
+                v_nama = item.get('vendor_nama', 'VENDOR UNKNOWN').strip()
+                kategori = item.get('kategori', '')
+                no_spb = item.get('no_spb', '').strip()
+                no_faktur = item.get('no_faktur', '').strip() or f"OTS/{item.get('row_idx')}"
+                
+                try:
+                    nominal = Decimal(str(item.get('nominal', 0)))
+                    bayar = Decimal(str(item.get('jumlah_bayar', 0)))
+                except (InvalidOperation, ValueError, TypeError):
+                    continue
+
+                if nominal <= Decimal('0'):
+                    continue
+
+                sisa = max(Decimal('0'), nominal - bayar)
+
+                kat_upper = kategori.upper()
+                if 'OBAT' in kat_upper or 'BHP' in kat_upper:
+                    sumber = UtangSupplier.SUMBER_FARMASI
+                elif 'LOGISTIK' in kat_upper or 'BARANG' in kat_upper:
+                    sumber = UtangSupplier.SUMBER_LOGISTIK
+                else:
+                    sumber = UtangSupplier.SUMBER_MANUAL
+
+                if sisa <= Decimal('0'):
+                    st = UtangSupplier.STATUS_LUNAS
+                elif bayar > Decimal('0'):
+                    st = UtangSupplier.STATUS_SEBAGIAN
+                else:
+                    st = UtangSupplier.STATUS_BELUM_DIBAYAR
+
+                tgl_faktur_str = item.get('tgl_faktur')
+                if not tgl_faktur_str:
+                    tgl_faktur = timezone.localdate()
+                else:
+                    try:
+                        tgl_faktur = datetime.strptime(tgl_faktur_str[:10], '%Y-%m-%d').date()
+                    except Exception:
+                        tgl_faktur = timezone.localdate()
+
+                utang = UtangSupplier.objects.create(
+                    app_siaga_faktur_id=f"OTS-{item.get('row_idx')}",
+                    sumber=sumber,
+                    vendor_id=item.get('vendor_id') or 9999,
+                    vendor_nama=v_nama,
+                    nomor_faktur=no_faktur,
+                    nomor_spb=no_spb if no_spb else None,
+                    tanggal_faktur=tgl_faktur,
+                    tanggal_titip=tgl_faktur,
+                    nominal=nominal,
+                    keterangan_titip=f"Import Excel OTS 2026 - {kategori}"[:250],
+                    status=st,
+                    verified_by=request.user,
+                    verified_at=timezone.now(),
+                )
+
+                if bayar > Decimal('0'):
+                    st_pembayaran = PembayaranUtang.STATUS_REALISASI_LUNAS if sisa <= Decimal('0') else PembayaranUtang.STATUS_REALISASI_SEBAGIAN
+                    PembayaranUtang.objects.create(
+                        utang=utang,
+                        tanggal_rencana_bayar=tgl_faktur,
+                        tanggal_proses=tgl_faktur,
+                        tanggal_app=tgl_faktur,
+                        tanggal_realisasi=tgl_faktur,
+                        jumlah_bayar=bayar,
+                        potongan_deposit=Decimal('0'),
+                        jumlah_kas_keluar=bayar,
+                        keterangan=f"Realisasi Saldo Awal Import Excel OTS (Row {item.get('row_idx')})",
+                        status=st_pembayaran,
+                        created_by=request.user,
+                        realisasi_by=request.user,
+                    )
+                    utang.refresh_status()
+
+                committed_count += 1
+
+        return Response({
+            'message': f'Berhasil menyimpan {committed_count} faktur utang dari Excel ke SIMAK.',
+            'committed_count': committed_count
+        }, status=status.HTTP_201_CREATED)
 
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
