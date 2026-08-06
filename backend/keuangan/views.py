@@ -4866,14 +4866,12 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                         tanggal_rencana_bayar=tgl_rencana,
                         tanggal_proses=tgl_proses,
                         tanggal_app=tgl_app,
-                        tanggal_realisasi=tgl_app,
                         jumlah_bayar=bayar,
                         potongan_deposit=Decimal('0'),
                         jumlah_kas_keluar=bayar,
                         keterangan=f"Realisasi Saldo Awal OTS (Row {item.get('row_idx')}) - {ket_detail}"[:250],
                         status=st_pembayaran,
                         created_by=request.user,
-                        realisasi_by=request.user,
                     )
                     utang.refresh_status()
 
