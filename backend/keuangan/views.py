@@ -4649,7 +4649,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 tgl_faktur_raw = r[9]
                 tgl_titip_raw = r[10] if len(r) > 10 else None
                 nominal_raw = r[11]
-                no_faktur = str(r[12] or '').strip()
+                ket_excel = str(r[12] or '').strip() # Col M (KETERANGAN / NO FAKTUR)
                 byr_raw = r[18] if len(r) > 18 and isinstance(r[18], (int, float)) else 0
 
                 if not vendor_nama or nominal_raw is None:
@@ -4743,7 +4743,8 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     'tgl_faktur': tgl_faktur_str,
                     'tgl_titip': tgl_titip_str,
                     'nominal': float(nominal),
-                    'no_faktur': no_faktur or f"INV/OTS/{row_num}",
+                    'no_faktur': ket_excel or f"INV/OTS/{row_num}",
+                    'keterangan_excel': ket_excel,
                     'jumlah_bayar': float(byr),
                     'sisa_utang': float(sisa),
                     'tgl_rencana_bayar': tgl_rencana_str,
@@ -4827,17 +4828,31 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
                 tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
 
+                vendor_id = item.get('vendor_id') or 9999
+                ket_detail = (item.get('keterangan_excel') or item.get('no_faktur') or '').strip()
+                full_keterangan = f"[{kategori}] {ket_detail}" if kategori else ket_detail
+
+                # Auto update vendor master category in rssams.rekanan if empty
+                if kategori and v_nama:
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            UPDATE rssams.rekanan 
+                            SET kategori = %s 
+                            WHERE (LOWER(nama) = LOWER(%s) OR id_rekanan = %s) 
+                              AND (kategori IS NULL OR kategori = '')
+                        """, [kategori[:100], v_nama, vendor_id])
+
                 utang = UtangSupplier.objects.create(
                     app_siaga_faktur_id=f"OTS-{item.get('row_idx')}",
                     sumber=sumber,
-                    vendor_id=item.get('vendor_id') or 9999,
+                    vendor_id=vendor_id,
                     vendor_nama=v_nama,
                     nomor_faktur=no_faktur,
                     nomor_spb=no_spb if no_spb else None,
                     tanggal_faktur=tgl_faktur,
                     tanggal_titip=tgl_titip,
                     nominal=nominal,
-                    keterangan_titip=f"Import Excel OTS 2026 - {kategori}"[:250],
+                    keterangan_titip=full_keterangan[:250],
                     status=st,
                     verified_by=request.user,
                     verified_at=timezone.now(),
@@ -4854,7 +4869,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                         jumlah_bayar=bayar,
                         potongan_deposit=Decimal('0'),
                         jumlah_kas_keluar=bayar,
-                        keterangan=f"Realisasi Saldo Awal Import Excel OTS (Row {item.get('row_idx')})",
+                        keterangan=f"Realisasi Saldo Awal OTS (Row {item.get('row_idx')}) - {ket_detail}"[:250],
                         status=st_pembayaran,
                         created_by=request.user,
                         realisasi_by=request.user,
