@@ -68,7 +68,7 @@ export default function ImportUtangOts() {
     formData.append('file', file);
 
     try {
-      const res = await api.post('/api/keuangan/catatan-utang/ots-preview/', formData, {
+      const res = await api.post('/keuangan/utang-supplier/ots-preview/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setStagedData(res.data);
@@ -166,7 +166,7 @@ export default function ImportUtangOts() {
 
     setCommitting(true);
     try {
-      const res = await api.post('/api/keuangan/catatan-utang/ots-commit/', { items: stagedData.items });
+      const res = await api.post('/keuangan/utang-supplier/ots-commit/', { items: stagedData.items });
       toast.success(res.data.message || 'Berhasil meng-upload data ke database!');
       navigate('/keuangan/catatan-utang/obat-bhp');
     } catch (err) {
