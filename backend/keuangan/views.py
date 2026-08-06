@@ -4849,7 +4849,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     vendor_id=vendor_id,
                     vendor_nama=v_nama,
                     nomor_faktur=no_faktur,
-                    nomor_spb=no_spb if no_spb else None,
+                    nomor_spb=no_spb if no_spb else "",
                     tanggal_faktur=tgl_faktur,
                     tanggal_titip=tgl_titip,
                     nominal=nominal,
