@@ -4784,10 +4784,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         committed_count = 0
         with transaction.atomic():
             for item in active_items:
-                v_nama = item.get('vendor_nama', 'VENDOR UNKNOWN').strip()
+                v_nama = (item.get('vendor_nama', 'VENDOR UNKNOWN').strip())[:145]
                 kategori = item.get('kategori', '')
-                no_spb = item.get('no_spb', '').strip()
-                no_faktur = item.get('no_faktur', '').strip() or f"OTS/{item.get('row_idx')}"
+                no_spb = (item.get('no_spb', '').strip())[:45]
+                no_faktur = (item.get('no_faktur', '').strip() or f"OTS/{item.get('row_idx')}")[:95]
                 
                 try:
                     nominal = Decimal(str(item.get('nominal', 0)))
