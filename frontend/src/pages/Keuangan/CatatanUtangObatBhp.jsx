@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertTriangle,
     CalendarDays,
@@ -202,6 +202,7 @@ const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: ''
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan: '' };
 
 export default function CatatanUtangObatBhp() {
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
     const { user } = useAuth();
