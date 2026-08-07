@@ -1909,7 +1909,7 @@ class InvoicePDF(FPDF):
     def header(self):
         logo_path = get_invoice_logo_path()
         if logo_path:
-            self.image(logo_path, x=160, y=6, w=40)
+            self.image(logo_path, x=172, y=5, h=21)
         self.ln(20)
 
     def footer(self):
