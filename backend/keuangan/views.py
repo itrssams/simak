@@ -4832,7 +4832,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         active_items = [item for item in items if item.get('user_action') != 'abaikan']
 
         # Group items by SPB + Vendor + Sumber so installments of the SAME SPB are consolidated under 1 Main Record!
-        grouped_spb = collections.defaultdict(list)
+        grouped_spb = defaultdict(list)
         standalone_items = []
 
         for item in active_items:
