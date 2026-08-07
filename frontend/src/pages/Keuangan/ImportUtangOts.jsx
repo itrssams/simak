@@ -162,6 +162,30 @@ export default function ImportUtangOts() {
     toast.info?.(`Seluruh item anomali diubah aksinya ke '${action}'.`) || toast.success(`Seluruh item anomali diubah aksinya ke '${action}'.`);
   };
 
+  // Bulk action scoped ONLY to currently filtered items
+  const handleBulkActionFiltered = (action) => {
+    if (!filteredItems || filteredItems.length === 0) {
+      toast.error('Tidak ada data yang tampil pada filter saat ini.');
+      return;
+    }
+
+    const filteredIds = new Set(filteredItems.map((i) => i.id));
+
+    setStagedData((prev) => {
+      if (!prev) return prev;
+      const updatedItems = prev.items.map((item) => {
+        if (filteredIds.has(item.id)) {
+          return { ...item, user_action: action };
+        }
+        return item;
+      });
+      return { ...prev, items: updatedItems };
+    });
+
+    const actionText = action === 'terima' ? 'Terima' : 'Abaikan';
+    toast.success(`${filteredItems.length} faktur hasil filter berhasil di-set ke '${actionText}'.`);
+  };
+
   // Commit to DB
   const handleCommitToDatabase = async () => {
     if (!stagedData?.items) return;
@@ -360,6 +384,26 @@ export default function ImportUtangOts() {
                     <option key={k} value={k}>{k || 'Lain-lain'}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="filter-scoped-actions">
+                <span className="scoped-label">Aksi Massal Filter ({filteredItems.length}):</span>
+                <button
+                  type="button"
+                  className="btn-scoped accept"
+                  onClick={() => handleBulkActionFiltered('terima')}
+                  title={`Terima semua ${filteredItems.length} faktur hasil filter saat ini`}
+                >
+                  <CheckCircle size={13} /> Terima Filtered ({filteredItems.length})
+                </button>
+                <button
+                  type="button"
+                  className="btn-scoped ignore"
+                  onClick={() => handleBulkActionFiltered('abaikan')}
+                  title={`Abaikan semua ${filteredItems.length} faktur hasil filter saat ini`}
+                >
+                  <XCircle size={13} /> Abaikan Filtered ({filteredItems.length})
+                </button>
               </div>
             </div>
           </div>
