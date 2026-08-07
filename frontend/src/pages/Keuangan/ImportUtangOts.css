@@ -439,6 +439,8 @@
 
 .btn-small.accept-all { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
 .btn-small.skip-all { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.btn-small.btn-export-anomali { background: #1e3a8a; color: #ffffff; border: 1px solid #1e40af; }
+.btn-small.btn-export-anomali:hover { background: #1e40af; box-shadow: 0 2px 6px rgba(30, 58, 138, 0.3); }
 
 /* Table Section */
 .table-container {

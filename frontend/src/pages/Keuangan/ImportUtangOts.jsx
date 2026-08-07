@@ -213,6 +213,35 @@ export default function ImportUtangOts() {
     }
   };
 
+  // Export Anomali to Excel
+  const handleExportAnomali = async () => {
+    if (!stagedData?.items) return;
+    const anomaliItems = stagedData.items.filter((i) => i.is_anomali);
+    if (anomaliItems.length === 0) {
+      toast.info('Tidak ada data anomali untuk di-export.');
+      return;
+    }
+
+    try {
+      const response = await api.post(
+        '/keuangan/utang-supplier/ots-export-anomali/',
+        { items: stagedData.items },
+        { responseType: 'blob' }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Laporan_Anomali_OTS_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Berhasil mengunduh Laporan Anomali Excel.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal meng-export data anomali ke Excel.');
+    }
+  };
+
   // Rollback / Undo Import from DB
   const handleRollbackImport = async () => {
     if (!window.confirm('PERINGATAN UNDO IMPORT!\n\nApakah Anda yakin ingin menghapus SELURUH data utang hasil import Excel OTS dari database SIMAK dan mengembalikan database ke kondisi semula sebelum import?')) {
@@ -423,6 +452,9 @@ export default function ImportUtangOts() {
                 </div>
               </div>
               <div className="banner-actions">
+                <button className="btn-small btn-export-anomali" onClick={handleExportAnomali} title="Download file Excel khusus data faktur yang terindikasi anomali/duplikat">
+                  <FileSpreadsheet size={14} /> Download Excel Anomali ({stagedData.summary.total_anomali})
+                </button>
                 <button className="btn-small accept-all" onClick={() => handleBulkActionAnomali('terima')} title="Set TERIMA (Cicilan) untuk seluruh anomali">
                   <CheckCircle size={14} /> Set Terima Semua (Cicilan)
                 </button>

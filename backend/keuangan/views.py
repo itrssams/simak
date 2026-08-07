@@ -4965,6 +4965,87 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             'deleted_pembayaran_count': total_pembayaran
         }, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=['post'], url_path='ots-export-anomali')
+    def ots_export_anomali(self, request):
+        items = request.data.get('items', [])
+        anomali_items = [item for item in items if item.get('is_anomali')]
+        
+        if not anomali_items:
+            return Response({'error': 'Tidak ada data anomali untuk di-export.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Laporan Anomali OTS"
+
+        headers = [
+            "Baris Excel", "Vendor / Distributor", "Kategori", "No. SPB", 
+            "No. Faktur Supplier", "Tgl Faktur", "Tgl Titip", "Nominal (Rp)", 
+            "Dibayar (Rp)", "Sisa Utang (Rp)", "Status Excel", "Penyebab Anomali / Warning"
+        ]
+        
+        ws.append(headers)
+        
+        header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        for item in anomali_items:
+            reasons = " | ".join(item.get('anomali_reasons', []))
+            row_data = [
+                item.get('row_idx'),
+                item.get('vendor_nama'),
+                item.get('kategori'),
+                item.get('no_spb'),
+                item.get('no_faktur'),
+                item.get('tgl_faktur'),
+                item.get('tgl_titip'),
+                float(item.get('nominal', 0)),
+                float(item.get('jumlah_bayar', 0)),
+                float(item.get('sisa_utang', 0)),
+                item.get('status_excel'),
+                reasons
+            ]
+            ws.append(row_data)
+
+        for row in ws.iter_rows(min_row=2, max_row=len(anomali_items) + 1):
+            for col_idx, cell in enumerate(row):
+                cell.border = thin_border
+                if col_idx in (7, 8, 9):
+                    cell.number_format = '#,##0'
+                    cell.alignment = Alignment(horizontal="right")
+                elif col_idx in (0, 3, 5, 6, 10):
+                    cell.alignment = Alignment(horizontal="center")
+                else:
+                    cell.alignment = Alignment(horizontal="left", wrap_text=True)
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 65)
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="Laporan_Anomali_OTS_2026.xlsx"'
+        wb.save(response)
+        return response
+
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
