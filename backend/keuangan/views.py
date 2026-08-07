@@ -4630,6 +4630,18 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             seen_keys = {}
             seen_spb = {}
 
+            # Fetch existing non-OTS SPBs and Fakturs from SIMAK Database to cross-check
+            existing_db_spbs = set(
+                UtangSupplier.objects.exclude(app_siaga_faktur_id__startswith='OTS-')
+                .exclude(nomor_spb='')
+                .values_list('nomor_spb', flat=True)
+            )
+            existing_db_fakturs = set(
+                UtangSupplier.objects.exclude(app_siaga_faktur_id__startswith='OTS-')
+                .exclude(nomor_faktur='')
+                .values_list('nomor_faktur', flat=True)
+            )
+
             total_rows = 0
             total_nominal = Decimal('0')
             total_bayar = Decimal('0')
@@ -4730,6 +4742,12 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                         anomali_reasons.append(f"Nomor SPB '{no_spb}' juga digunakan pada baris #{prev_spb_row}.")
                     else:
                         seen_spb[spb_key] = row_num
+
+                if no_spb and no_spb in existing_db_spbs:
+                    anomali_reasons.append(f"Nomor SPB '{no_spb}' SUDAH TERCATAT di database SIMAK sebelumnya (terjadi duplikasi dengan data yang sudah ada).")
+
+                if no_faktur and no_faktur in existing_db_fakturs:
+                    anomali_reasons.append(f"Nomor Faktur '{no_faktur}' SUDAH TERCATAT di database SIMAK sebelumnya.")
 
                 if status_ditentukan != 'lunas' and not no_spb:
                     anomali_reasons.append("Faktur utang aktif ini tidak memiliki Nomor SPB (akan dimasukkan sebagai Utang Manual Non-SPB).")
