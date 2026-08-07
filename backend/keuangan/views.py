@@ -4831,43 +4831,52 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
 
         active_items = [item for item in items if item.get('user_action') != 'abaikan']
 
+        # Group items by SPB + Vendor + Sumber so installments of the SAME SPB are consolidated under 1 Main Record!
+        grouped_spb = collections.defaultdict(list)
+        standalone_items = []
+
+        for item in active_items:
+            no_spb = (item.get('no_spb') or '').strip().upper()
+            v_nama = (item.get('vendor_nama') or '').strip().upper()
+            kategori = item.get('kategori', '')
+
+            kat_upper = kategori.upper()
+            if any(kw in kat_upper for kw in ['ATK', 'RUMAH TANGGA', 'CETAKAN']):
+                sumber = UtangSupplier.SUMBER_MANUAL
+            elif 'BHP' in kat_upper or 'OBAT' in kat_upper:
+                sumber = UtangSupplier.SUMBER_FARMASI
+            else:
+                sumber = UtangSupplier.SUMBER_MANUAL
+
+            if no_spb:
+                grouped_spb[(sumber, v_nama, no_spb)].append(item)
+            else:
+                standalone_items.append([item])
+
+        all_groups = list(grouped_spb.values()) + standalone_items
+
         committed_count = 0
         with transaction.atomic():
-            for item in active_items:
-                v_nama = (item.get('vendor_nama', 'VENDOR UNKNOWN').strip())[:145]
-                kategori = item.get('kategori', '')
-                no_spb = (item.get('no_spb', '').strip())[:45]
-                no_faktur = (item.get('no_faktur', '').strip() or f"OTS/{item.get('row_idx')}")[:95]
-                
-                try:
-                    nominal = Decimal(str(item.get('nominal', 0)))
-                    bayar = Decimal(str(item.get('jumlah_bayar', 0)))
-                except (InvalidOperation, ValueError, TypeError):
+            for group in all_groups:
+                if not group:
                     continue
 
-                if nominal <= Decimal('0'):
-                    continue
+                # Main item selection: Prefer the active debt item (sisa_utang > 0), or latest item in group
+                unpaid_items = [i for i in group if Decimal(str(i.get('sisa_utang', 0))) > Decimal('0')]
+                main_item = unpaid_items[-1] if unpaid_items else group[-1]
 
-                sisa = max(Decimal('0'), nominal - bayar)
+                v_nama = (main_item.get('vendor_nama', 'VENDOR UNKNOWN').strip())[:145]
+                kategori = main_item.get('kategori', '')
+                no_spb = (main_item.get('no_spb', '').strip())[:45]
+                no_faktur = (main_item.get('no_faktur', '').strip() or f"OTS/{main_item.get('row_idx')}")[:95]
 
                 kat_upper = kategori.upper()
-                if 'ATK' in kat_upper or 'RUMAH TANGGA' in kat_upper or 'CETAKAN' in kat_upper:
+                if any(kw in kat_upper for kw in ['ATK', 'RUMAH TANGGA', 'CETAKAN']):
                     sumber = UtangSupplier.SUMBER_MANUAL
-                elif 'OBAT' in kat_upper or kat_upper == 'OBAT DAN BHP':
-                    sumber = UtangSupplier.SUMBER_FARMASI
-                elif 'LOGISTIK' in kat_upper or 'BARANG' in kat_upper:
-                    sumber = UtangSupplier.SUMBER_LOGISTIK
-                elif 'BHP' in kat_upper:
+                elif 'BHP' in kat_upper or 'OBAT' in kat_upper:
                     sumber = UtangSupplier.SUMBER_FARMASI
                 else:
                     sumber = UtangSupplier.SUMBER_MANUAL
-
-                if sisa <= Decimal('0'):
-                    st = UtangSupplier.STATUS_LUNAS
-                elif bayar > Decimal('0'):
-                    st = UtangSupplier.STATUS_SEBAGIAN
-                else:
-                    st = UtangSupplier.STATUS_BELUM_DIBAYAR
 
                 def parse_date_obj(val_str):
                     if not val_str:
@@ -4877,20 +4886,31 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     except Exception:
                         return None
 
-                tgl_faktur = parse_date_obj(item.get('tgl_faktur')) or timezone.localdate()
-                tgl_titip = parse_date_obj(item.get('tgl_titip')) or tgl_faktur
-                tgl_rencana = parse_date_obj(item.get('tgl_rencana_bayar')) or tgl_faktur
-                tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
-                tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
+                # Calculate total contract nominal & total payments across group
+                total_nominal = sum(Decimal(str(i.get('nominal', 0))) for i in group)
+                total_bayar = sum(Decimal(str(i.get('jumlah_bayar', 0))) for i in group)
+                total_sisa = max(Decimal('0'), total_nominal - total_bayar)
 
-                vendor_id = item.get('vendor_id')
+                if total_nominal <= Decimal('0'):
+                    continue
+
+                if total_sisa <= Decimal('0'):
+                    st = UtangSupplier.STATUS_LUNAS
+                elif total_bayar > Decimal('0'):
+                    st = UtangSupplier.STATUS_SEBAGIAN
+                else:
+                    st = UtangSupplier.STATUS_BELUM_DIBAYAR
+
+                tgl_faktur = parse_date_obj(main_item.get('tgl_faktur')) or timezone.localdate()
+                tgl_titip = parse_date_obj(main_item.get('tgl_titip')) or tgl_faktur
+
+                vendor_id = main_item.get('vendor_id')
                 v_nama_final = v_nama
 
                 # Intelligent Vendor Master Resolution (Match or Auto-Create)
                 if v_nama:
                     v_lower = v_nama.lower().strip()
                     with connection.cursor() as cursor:
-                        # 1. Check exact case-insensitive match
                         cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan WHERE LOWER(TRIM(nama)) = %s LIMIT 1", [v_lower])
                         r_row = cursor.fetchone()
                         if r_row:
@@ -4898,7 +4918,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                             if kategori and not existing_kat:
                                 cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], vendor_id])
                         else:
-                            # 2. Check stripped punctuation match (e.g. "ALEXA MEDIKA PT" vs "ALEXA MEDIKA, PT")
                             v_stripped = re.sub(r'[^a-zA-Z0-9]', '', v_lower)
                             cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan")
                             all_r = cursor.fetchall()
@@ -4911,7 +4930,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                                         cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], r_id])
                                     break
                             
-                            # 3. If not found in SIMAK master, automatically create new vendor in rssams.rekanan
                             if not found_m and not vendor_id:
                                 cursor.execute("SELECT COALESCE(MAX(id_rekanan), 0) + 1 FROM rssams.rekanan")
                                 next_id = cursor.fetchone()[0]
@@ -4923,11 +4941,12 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                                 v_nama_final = v_nama
 
                 vendor_id = vendor_id or 9999
-                ket_detail = (item.get('keterangan_excel') or item.get('no_faktur') or '').strip()
+                ket_detail = (main_item.get('keterangan_excel') or main_item.get('no_faktur') or '').strip()
                 full_keterangan = f"[{kategori}] {ket_detail}" if kategori else ket_detail
 
+                # Create 1 Main UtangSupplier Record for this SPB!
                 utang = UtangSupplier.objects.create(
-                    app_siaga_faktur_id=f"OTS-{item.get('row_idx')}",
+                    app_siaga_faktur_id=f"OTS-{main_item.get('row_idx')}",
                     sumber=sumber,
                     vendor_id=vendor_id,
                     vendor_nama=v_nama_final[:145],
@@ -4935,33 +4954,40 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     nomor_spb=no_spb if no_spb else "",
                     tanggal_faktur=tgl_faktur,
                     tanggal_titip=tgl_titip,
-                    nominal=nominal,
+                    nominal=total_nominal,
                     keterangan_titip=full_keterangan[:250],
                     status=st,
                     verified_by=request.user,
                     verified_at=timezone.now(),
                 )
 
-                if bayar > Decimal('0'):
-                    st_pembayaran = PembayaranUtang.STATUS_REALISASI_LUNAS if sisa <= Decimal('0') else PembayaranUtang.STATUS_REALISASI_SEBAGIAN
-                    PembayaranUtang.objects.create(
-                        utang=utang,
-                        tanggal_rencana_bayar=tgl_rencana,
-                        tanggal_proses=tgl_proses,
-                        tanggal_app=tgl_app,
-                        jumlah_bayar=bayar,
-                        potongan_deposit=Decimal('0'),
-                        jumlah_kas_keluar=bayar,
-                        keterangan=f"Realisasi Saldo Awal OTS (Row {item.get('row_idx')}) - {ket_detail}"[:250],
-                        status=st_pembayaran,
-                        created_by=request.user,
-                    )
-                    utang.refresh_status()
+                # Create child PembayaranUtang for EVERY payment item in group!
+                for item in group:
+                    byr = Decimal(str(item.get('jumlah_bayar', 0)))
+                    if byr > Decimal('0'):
+                        tgl_rencana = parse_date_obj(item.get('tgl_rencana_bayar')) or tgl_faktur
+                        tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
+                        tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
+                        item_ket = (item.get('keterangan_excel') or item.get('no_faktur') or f"Row #{item.get('row_idx')}").strip()
 
+                        PembayaranUtang.objects.create(
+                            utang=utang,
+                            tanggal_rencana_bayar=tgl_rencana,
+                            tanggal_proses=tgl_proses,
+                            tanggal_app=tgl_app,
+                            jumlah_bayar=byr,
+                            potongan_deposit=Decimal('0'),
+                            jumlah_kas_keluar=byr,
+                            keterangan=f"Realisasi Saldo Awal OTS (Baris #{item.get('row_idx')}) - {item_ket}"[:250],
+                            status=PembayaranUtang.STATUS_REALISASI_LUNAS,
+                            created_by=request.user,
+                        )
+
+                utang.refresh_status()
                 committed_count += 1
 
         return Response({
-            'message': f'Berhasil menyimpan {committed_count} faktur utang dari Excel ke SIMAK.',
+            'message': f'Berhasil menyimpan {committed_count} SPB / faktur utang terpisahkan dari Excel ke SIMAK.',
             'committed_count': committed_count
         }, status=status.HTTP_201_CREATED)
 
