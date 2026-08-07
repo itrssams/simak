@@ -4627,6 +4627,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
 
             green_hex = 'FF92D050'
             staged_items = []
+            SUMBER_MANUAL = UtangSupplier.SUMBER_MANUAL
+            SUMBER_FARMASI = UtangSupplier.SUMBER_FARMASI
+
             seen_keys = {}
             seen_spb = {}
 
