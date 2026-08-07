@@ -4801,10 +4801,14 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 sisa = max(Decimal('0'), nominal - bayar)
 
                 kat_upper = kategori.upper()
-                if 'OBAT' in kat_upper or 'BHP' in kat_upper:
+                if 'ATK' in kat_upper or 'RUMAH TANGGA' in kat_upper or 'CETAKAN' in kat_upper:
+                    sumber = UtangSupplier.SUMBER_MANUAL
+                elif 'OBAT' in kat_upper or kat_upper == 'OBAT DAN BHP':
                     sumber = UtangSupplier.SUMBER_FARMASI
                 elif 'LOGISTIK' in kat_upper or 'BARANG' in kat_upper:
                     sumber = UtangSupplier.SUMBER_LOGISTIK
+                elif 'BHP' in kat_upper:
+                    sumber = UtangSupplier.SUMBER_FARMASI
                 else:
                     sumber = UtangSupplier.SUMBER_MANUAL
 
