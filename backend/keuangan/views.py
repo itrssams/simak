@@ -2834,7 +2834,7 @@ def _render_legacy_invoice(faktur, mode):
     <div class="container">
         <div class="header">
             <div class="logo">
-                <img src="http://localhost:8000/static/images/logo-1.jpg" alt="Logo">
+                <img src="/static/images/logo-1.jpg" alt="Logo">
             </div>
         </div>
         
