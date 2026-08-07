@@ -4628,6 +4628,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             green_hex = 'FF92D050'
             staged_items = []
             seen_keys = {}
+            seen_spb = {}
 
             total_rows = 0
             total_nominal = Decimal('0')
@@ -4718,9 +4719,17 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 key = (vendor_nama.upper(), float(nominal), no_spb, no_faktur)
                 if key in seen_keys:
                     prev_row = seen_keys[key]
-                    anomali_reasons.append(f"Potensi duplikat dari baris {prev_row}.")
+                    anomali_reasons.append(f"Potensi duplikat persis dari baris #{prev_row}.")
                 else:
                     seen_keys[key] = row_num
+
+                if no_spb:
+                    spb_key = (vendor_nama.upper(), no_spb.upper())
+                    if spb_key in seen_spb:
+                        prev_spb_row = seen_spb[spb_key]
+                        anomali_reasons.append(f"Nomor SPB '{no_spb}' juga digunakan pada baris #{prev_spb_row}.")
+                    else:
+                        seen_spb[spb_key] = row_num
 
                 if status_ditentukan != 'lunas' and not no_spb:
                     anomali_reasons.append("Faktur utang aktif ini tidak memiliki Nomor SPB (akan dimasukkan sebagai Utang Manual Non-SPB).")
