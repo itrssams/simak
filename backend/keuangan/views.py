@@ -4041,7 +4041,7 @@ def _utang_order_clause(value, allowed):
 
 def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
-    where = ['u.app_siaga_faktur_id IS NULL']
+    where = ['u.id IS NULL']
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
@@ -4067,7 +4067,7 @@ def _build_pending_where(params):
 
 def _build_pending_where_logistik(params):
     """WHERE builder untuk tabel logistik (tran_beli_brg_log)."""
-    where = ['t.done = \'Y\'', 'u.app_siaga_faktur_id IS NULL', "COALESCE(t.rekanan, '') != 'STOCK OPNAME'", "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"]
+    where = ['t.done = \'Y\'', 'u.id IS NULL', "COALESCE(t.rekanan, '') != 'STOCK OPNAME'", "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"]
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
