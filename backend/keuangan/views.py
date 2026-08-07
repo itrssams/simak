@@ -4630,17 +4630,16 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             seen_keys = {}
             seen_spb = {}
 
-            # Fetch existing non-OTS SPBs and Fakturs from SIMAK Database to cross-check
-            existing_db_spbs = set(
-                UtangSupplier.objects.exclude(app_siaga_faktur_id__startswith='OTS-')
-                .exclude(nomor_spb='')
-                .values_list('nomor_spb', flat=True)
-            )
-            existing_db_fakturs = set(
-                UtangSupplier.objects.exclude(app_siaga_faktur_id__startswith='OTS-')
-                .exclude(nomor_faktur='')
-                .values_list('nomor_faktur', flat=True)
-            )
+            # Fetch existing non-OTS SPBs and Fakturs from SIMAK Database with department scoping
+            existing_db_spb_map = {}
+            existing_db_faktur_map = {}
+            for u in UtangSupplier.objects.exclude(app_siaga_faktur_id__startswith='OTS-'):
+                st_display = u.get_status_display() or u.status
+                s_label = "LOGISTIK" if u.sumber == SUMBER_MANUAL else "FARMASI"
+                if u.nomor_spb:
+                    existing_db_spb_map[(u.sumber, u.nomor_spb.strip().upper())] = (st_display, u.vendor_nama, s_label)
+                if u.nomor_faktur:
+                    existing_db_faktur_map[(u.sumber, u.nomor_faktur.strip().upper())] = (st_display, u.vendor_nama, s_label)
 
             total_rows = 0
             total_nominal = Decimal('0')
@@ -4683,6 +4682,18 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
 
                 sisa = max(Decimal('0'), nominal - byr)
                 row_num = r_idx + 1
+
+                # Determine department sumber
+                kat_upper = kategori.upper()
+                if any(kw in kat_upper for kw in ['ATK', 'RUMAH TANGGA', 'CETAKAN']):
+                    sumber = SUMBER_MANUAL
+                    sumber_label = "LOGISTIK"
+                elif 'BHP' in kat_upper or 'OBAT' in kat_upper:
+                    sumber = SUMBER_FARMASI
+                    sumber_label = "FARMASI"
+                else:
+                    sumber = SUMBER_MANUAL
+                    sumber_label = "LOGISTIK"
 
                 # Helper date parser
                 def parse_date_str(val):
@@ -4731,7 +4742,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 is_exact_duplicate = False
                 is_spb_split = False
 
-                key = (vendor_nama.upper(), float(nominal), no_spb.upper(), no_faktur.upper())
+                key = (sumber, vendor_nama.upper(), float(nominal), no_spb.upper(), no_faktur.upper())
                 if key in seen_keys:
                     prev_row = seen_keys[key]
                     is_exact_duplicate = True
@@ -4740,19 +4751,23 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     seen_keys[key] = row_num
 
                 if no_spb and not is_exact_duplicate:
-                    spb_key = (vendor_nama.upper(), no_spb.upper())
+                    spb_key = (sumber, vendor_nama.upper(), no_spb.upper())
                     if spb_key in seen_spb:
                         prev_spb_row = seen_spb[spb_key]
                         is_spb_split = True
-                        anomali_reasons.append(f"ℹ️ SPB Cicilan / Split Faktur: Nomor SPB '{no_spb}' juga tercatat di baris #{prev_spb_row}.")
+                        anomali_reasons.append(f"ℹ️ SPB Cicilan / Split Faktur ({sumber_label}): Nomor SPB '{no_spb}' juga tercatat di baris #{prev_spb_row}.")
                     else:
                         seen_spb[spb_key] = row_num
 
-                if no_spb and no_spb in existing_db_spbs:
-                    anomali_reasons.append(f"Nomor SPB '{no_spb}' SUDAH TERCATAT di database SIMAK sebelumnya.")
+                db_spb_key = (sumber, no_spb.upper())
+                if no_spb and db_spb_key in existing_db_spb_map:
+                    st_info, v_info, s_info = existing_db_spb_map[db_spb_key]
+                    anomali_reasons.append(f"Nomor SPB [{s_info}] '{no_spb}' SUDAH TERCATAT di Database SIMAK ({v_info}, Status: {st_info}).")
 
-                if no_faktur and no_faktur in existing_db_fakturs:
-                    anomali_reasons.append(f"Nomor Faktur '{no_faktur}' SUDAH TERCATAT di database SIMAK sebelumnya.")
+                db_faktur_key = (sumber, no_faktur.upper())
+                if no_faktur and db_faktur_key in existing_db_faktur_map:
+                    st_info, v_info, s_info = existing_db_faktur_map[db_faktur_key]
+                    anomali_reasons.append(f"Nomor Faktur [{s_info}] '{no_faktur}' SUDAH TERCATAT di Database SIMAK ({v_info}, Status: {st_info}).")
 
                 if status_ditentukan != 'lunas' and not no_spb:
                     anomali_reasons.append("Faktur utang aktif ini tidak memiliki Nomor SPB (akan dimasukkan sebagai Utang Manual Non-SPB).")
