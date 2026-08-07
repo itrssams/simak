@@ -49,6 +49,7 @@ export default function ImportUtangOts() {
   const [search, setSearch] = useState('');
   const [selectedVendor, setSelectedVendor] = useState('all');
   const [selectedKategori, setSelectedKategori] = useState('all');
+  const [selectedAnomaliCat, setSelectedAnomaliCat] = useState('all');
 
   // Client-side pagination state
   const [page, setPage] = useState(1);
