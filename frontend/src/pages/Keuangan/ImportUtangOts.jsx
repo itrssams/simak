@@ -383,9 +383,22 @@ export default function ImportUtangOts() {
                 </button>
               </div>
 
-              <button className="btn-secondary btn-reset-upload" onClick={() => setStagedData(null)} title="Upload ulang file Excel">
-                <RefreshCw size={15} /> Upload Ulang
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {stagedData.summary.total_anomali > 0 && (
+                  <button
+                    type="button"
+                    className="btn-export-anomali-main"
+                    onClick={handleExportAnomali}
+                    title="Download Laporan Excel khusus data faktur yang terindikasi anomali/duplikat"
+                  >
+                    <FileSpreadsheet size={15} /> Download Excel Anomali ({stagedData.summary.total_anomali})
+                  </button>
+                )}
+
+                <button className="btn-secondary btn-reset-upload" onClick={() => setStagedData(null)} title="Upload ulang file Excel">
+                  <RefreshCw size={15} /> Upload Ulang
+                </button>
+              </div>
             </div>
 
             <div className="controls-filter-row">

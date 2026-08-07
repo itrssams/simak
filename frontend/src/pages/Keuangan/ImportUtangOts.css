@@ -394,6 +394,28 @@
   border-color: #94a3b8;
 }
 
+.btn-export-anomali-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #1e40af;
+  background: #1e3a8a;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-export-anomali-main:hover {
+  background: #1e40af;
+  box-shadow: 0 4px 8px rgba(30, 58, 138, 0.35);
+  transform: translateY(-1px);
+}
+
 /* Anomali Banner */
 .anomali-banner {
   display: flex;
