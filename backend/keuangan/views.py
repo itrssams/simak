@@ -2591,7 +2591,7 @@ def render_kwitansi_pdf_response(faktur):
 
     logo_path = get_invoice_logo_path()
     if logo_path:
-        pdf.image(logo_path, x=152, y=4, w=39)
+        pdf.image(logo_path, x=168, y=3, h=21)
 
     pdf.set_font('Times', 'B', 18)
     pdf.set_xy(38, 8)
@@ -2804,8 +2804,8 @@ def _render_legacy_invoice(faktur, mode):
         body {{ font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #000; line-height: 1.3; }}
         .container {{ width: 100%; position: relative; }}
         .header {{ position: relative; height: 18mm; margin-bottom: 0; }}
-        .logo {{ position: absolute; right: 0; top: -5px; width: 150px; }}
-        .logo img {{ width: 100%; height: auto; }}
+        .logo {{ position: absolute; right: 0; top: -5px; height: 65px; text-align: right; }}
+        .logo img {{ height: 65px; width: auto; max-height: 65px; object-fit: contain; }}
         h1 {{ text-align: center; font-size: 16px; font-weight: bold; text-decoration: underline; margin: 2mm 0; letter-spacing: 0; }}
         .content {{ margin-top: 1mm; }}
         .to-section {{ margin-bottom: 1.5mm; line-height: 1.5; font-size: 11px; }}
