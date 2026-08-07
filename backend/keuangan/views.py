@@ -4829,25 +4829,54 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
                 tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
 
-                vendor_id = item.get('vendor_id') or 9999
+                vendor_id = item.get('vendor_id')
+                v_nama_final = v_nama
+
+                # Intelligent Vendor Master Resolution (Match or Auto-Create)
+                if v_nama:
+                    v_lower = v_nama.lower().strip()
+                    with connection.cursor() as cursor:
+                        # 1. Check exact case-insensitive match
+                        cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan WHERE LOWER(TRIM(nama)) = %s LIMIT 1", [v_lower])
+                        r_row = cursor.fetchone()
+                        if r_row:
+                            vendor_id, v_nama_final, existing_kat = r_row[0], r_row[1], r_row[2]
+                            if kategori and not existing_kat:
+                                cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], vendor_id])
+                        else:
+                            # 2. Check stripped punctuation match (e.g. "ALEXA MEDIKA PT" vs "ALEXA MEDIKA, PT")
+                            v_stripped = re.sub(r'[^a-zA-Z0-9]', '', v_lower)
+                            cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan")
+                            all_r = cursor.fetchall()
+                            found_m = False
+                            for r_id, r_n, r_k in all_r:
+                                if r_n and re.sub(r'[^a-zA-Z0-9]', '', r_n.lower()) == v_stripped:
+                                    vendor_id, v_nama_final = r_id, r_n
+                                    found_m = True
+                                    if kategori and not r_k:
+                                        cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], r_id])
+                                    break
+                            
+                            # 3. If not found in SIMAK master, automatically create new vendor in rssams.rekanan
+                            if not found_m and not vendor_id:
+                                cursor.execute("SELECT COALESCE(MAX(id_rekanan), 0) + 1 FROM rssams.rekanan")
+                                next_id = cursor.fetchone()[0]
+                                cursor.execute("""
+                                    INSERT INTO rssams.rekanan (id_rekanan, nama, alamat, telp, kc, del, sumber, kategori)
+                                    VALUES (%s, %s, '', '', '', 'N', 'ots_import', %s)
+                                """, [next_id, v_nama[:100], (kategori or '')[:100]])
+                                vendor_id = next_id
+                                v_nama_final = v_nama
+
+                vendor_id = vendor_id or 9999
                 ket_detail = (item.get('keterangan_excel') or item.get('no_faktur') or '').strip()
                 full_keterangan = f"[{kategori}] {ket_detail}" if kategori else ket_detail
-
-                # Auto update vendor master category in rssams.rekanan if empty
-                if kategori and v_nama:
-                    with connection.cursor() as cursor:
-                        cursor.execute("""
-                            UPDATE rssams.rekanan 
-                            SET kategori = %s 
-                            WHERE (LOWER(nama) = LOWER(%s) OR id_rekanan = %s) 
-                              AND (kategori IS NULL OR kategori = '')
-                        """, [kategori[:100], v_nama, vendor_id])
 
                 utang = UtangSupplier.objects.create(
                     app_siaga_faktur_id=f"OTS-{item.get('row_idx')}",
                     sumber=sumber,
                     vendor_id=vendor_id,
-                    vendor_nama=v_nama,
+                    vendor_nama=v_nama_final[:145],
                     nomor_faktur=no_faktur,
                     nomor_spb=no_spb if no_spb else "",
                     tanggal_faktur=tgl_faktur,
