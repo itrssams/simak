@@ -111,6 +111,16 @@ export default function ImportUtangOts() {
       if (selectedVendor !== 'all' && item.vendor_nama !== selectedVendor) return false;
       if (selectedKategori !== 'all' && item.kategori !== selectedKategori) return false;
 
+      // Anomali category filter
+      if (selectedAnomaliCat !== 'all') {
+        const reasonsStr = (item.anomali_reasons || []).join(' ').toLowerCase();
+        if (selectedAnomaliCat === 'human_error' && !reasonsStr.includes('human error') && !reasonsStr.includes('duplikat persis')) return false;
+        if (selectedAnomaliCat === 'spb_cicilan' && !reasonsStr.includes('cicilan') && !reasonsStr.includes('split faktur') && !reasonsStr.includes('juga digunakan')) return false;
+        if (selectedAnomaliCat === 'db_simak' && !reasonsStr.includes('sudah tercatat') && !reasonsStr.includes('sudah ada')) return false;
+        if (selectedAnomaliCat === 'non_spb' && !reasonsStr.includes('tidak memiliki nomor spb') && !reasonsStr.includes('non-spb')) return false;
+        if (selectedAnomaliCat === 'status_mismatch' && !reasonsStr.includes('kode status excel')) return false;
+      }
+
       // Search filter
       if (search) {
         const needle = search.toLowerCase();
@@ -123,7 +133,7 @@ export default function ImportUtangOts() {
 
       return true;
     });
-  }, [stagedData, activeTab, selectedVendor, selectedKategori, search]);
+  }, [stagedData, activeTab, selectedVendor, selectedKategori, selectedAnomaliCat, search]);
 
   // Paginated items
   const totalFilteredRows = filteredItems.length;
@@ -425,6 +435,18 @@ export default function ImportUtangOts() {
                   {kategoriList.map((k) => (
                     <option key={k} value={k}>{k || 'Lain-lain'}</option>
                   ))}
+                </select>
+              </div>
+
+              <div className="filter-dropdown">
+                <AlertTriangle size={14} style={{ color: '#d97706' }} />
+                <select value={selectedAnomaliCat} onChange={(e) => { setSelectedAnomaliCat(e.target.value); setPage(1); }}>
+                  <option value="all">Semua Tipe Anomali</option>
+                  <option value="human_error">🔴 Human Error (Duplikat Persis)</option>
+                  <option value="spb_cicilan">🟢 SPB Cicilan / Split Delivery</option>
+                  <option value="db_simak">🔵 Sudah Ada di DB SIMAK</option>
+                  <option value="non_spb">🟡 Catat Manual (Non-SPB)</option>
+                  <option value="status_mismatch">⚪ Status Excel Mismatch</option>
                 </select>
               </div>
 
