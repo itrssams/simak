@@ -4982,9 +4982,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         ws.title = "Laporan Anomali OTS"
 
         headers = [
-            "Baris Excel", "Vendor / Distributor", "Kategori", "No. SPB", 
-            "No. Faktur Supplier", "Tgl Faktur", "Tgl Titip", "Nominal (Rp)", 
-            "Dibayar (Rp)", "Sisa Utang (Rp)", "Status Excel", "Penyebab Anomali / Warning"
+            "Baris Excel", "Vendor / Distributor", "Kategori Transaksi", "No. SPB", 
+            "No. Faktur Supplier", "Tipe / Kategori Anomali", "Tgl Faktur", "Tgl Titip", 
+            "Nominal (Rp)", "Dibayar (Rp)", "Sisa Utang (Rp)", "Status Excel", "Detail Penyebab Warning"
         ]
         
         ws.append(headers)
@@ -5005,34 +5005,55 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             bottom=Side(style='thin', color='CBD5E1')
         )
 
+        def determine_anomaly_category(reasons):
+            reasons_str = " ".join(reasons).lower()
+            cats = []
+            if 'human error' in reasons_str or 'duplikat persis' in reasons_str:
+                cats.append('Human Error (Duplikat Persis)')
+            if 'cicilan' in reasons_str or 'split faktur' in reasons_str:
+                cats.append('SPB Cicilan / Split')
+            if 'sudah tercatat' in reasons_str:
+                cats.append('Sudah Ada di SIMAK DB')
+            if 'tidak memiliki nomor spb' in reasons_str:
+                cats.append('Non-SPB (Manual)')
+            if 'kode status excel' in reasons_str:
+                cats.append('Status Excel Mismatch')
+            return " + ".join(cats) if cats else 'Perlu Review'
+
         for item in anomali_items:
-            reasons = " | ".join(item.get('anomali_reasons', []))
+            reasons_list = item.get('anomali_reasons', [])
+            reasons_text = " | ".join(reasons_list)
+            tipe_anomali = determine_anomaly_category(reasons_list)
+            
             row_data = [
                 item.get('row_idx'),
                 item.get('vendor_nama'),
                 item.get('kategori'),
                 item.get('no_spb'),
                 item.get('no_faktur'),
+                tipe_anomali,
                 item.get('tgl_faktur'),
                 item.get('tgl_titip'),
                 float(item.get('nominal', 0)),
                 float(item.get('jumlah_bayar', 0)),
                 float(item.get('sisa_utang', 0)),
                 item.get('status_excel'),
-                reasons
+                reasons_text
             ]
             ws.append(row_data)
 
         for row in ws.iter_rows(min_row=2, max_row=len(anomali_items) + 1):
             for col_idx, cell in enumerate(row):
                 cell.border = thin_border
-                if col_idx in (7, 8, 9):
+                if col_idx in (8, 9, 10):
                     cell.number_format = '#,##0'
                     cell.alignment = Alignment(horizontal="right")
-                elif col_idx in (0, 3, 5, 6, 10):
+                elif col_idx in (0, 3, 5, 6, 7, 11):
                     cell.alignment = Alignment(horizontal="center")
                 else:
                     cell.alignment = Alignment(horizontal="left", wrap_text=True)
+
+        ws.auto_filter.ref = ws.dimensions
 
         for col in ws.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
