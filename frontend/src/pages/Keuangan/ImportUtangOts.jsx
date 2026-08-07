@@ -413,16 +413,21 @@ export default function ImportUtangOts() {
             <div className="anomali-banner card">
               <div className="banner-text">
                 <AlertTriangle size={20} className="icon-warn" />
-                <span>
-                  <strong>Area Verifikasi Manual Anomali:</strong> Terdapat <b>{stagedData.summary.total_anomali}</b> faktur yang terindikasi ganda, status ragu, atau tanpa nomor SPB.
-                </span>
+                <div>
+                  <strong>Panduan Verifikasi Anomali & Duplikat:</strong> Terdapat <b>{stagedData.summary.total_anomali}</b> faktur terdeteksi. Silakan tentukan keputusan Anda:
+                  <div style={{ fontSize: '0.82rem', marginTop: '0.3rem', color: '#475569' }}>
+                    • 🔴 Klik <b>Abaikan</b> — Jika baris merupakan <i>Human Error / Salah Ketik Excel (Duplikat persis)</i>.
+                    <br />
+                    • 🟢 Klik <b>Terima</b> — Jika baris merupakan <i>Cicilan / Split Faktur Sah</i> (akan digabung otomatis ke SPB terkait).
+                  </div>
+                </div>
               </div>
               <div className="banner-actions">
-                <button className="btn-small accept-all" onClick={() => handleBulkActionAnomali('terima')}>
-                  <CheckCircle size={14} /> Terima Semua Anomali
+                <button className="btn-small accept-all" onClick={() => handleBulkActionAnomali('terima')} title="Set TERIMA (Cicilan) untuk seluruh anomali">
+                  <CheckCircle size={14} /> Set Terima Semua (Cicilan)
                 </button>
-                <button className="btn-small skip-all" onClick={() => handleBulkActionAnomali('abaikan')}>
-                  <XCircle size={14} /> Abaikan Semua Anomali
+                <button className="btn-small skip-all" onClick={() => handleBulkActionAnomali('abaikan')} title="Set ABAIKAN (Human Error) untuk seluruh anomali">
+                  <XCircle size={14} /> Set Abaikan Semua (Human Error)
                 </button>
               </div>
             </div>
