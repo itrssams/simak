@@ -5010,15 +5010,15 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             cats = []
             if 'human error' in reasons_str or 'duplikat persis' in reasons_str:
                 cats.append('Human Error (Duplikat Persis)')
-            if 'cicilan' in reasons_str or 'split faktur' in reasons_str:
-                cats.append('SPB Cicilan / Split')
-            if 'sudah tercatat' in reasons_str:
-                cats.append('Sudah Ada di SIMAK DB')
-            if 'tidak memiliki nomor spb' in reasons_str:
-                cats.append('Non-SPB (Manual)')
+            if 'cicilan' in reasons_str or 'split faktur' in reasons_str or 'juga digunakan' in reasons_str:
+                cats.append('SPB Cicilan / Split Delivery')
+            if 'sudah tercatat' in reasons_str or 'sudah ada' in reasons_str:
+                cats.append('Sudah Ada di DB SIMAK')
+            if 'tidak memiliki nomor spb' in reasons_str or 'tanpa nomor spb' in reasons_str or 'manual non-spb' in reasons_str:
+                cats.append('Catat Manual (Non-SPB)')
             if 'kode status excel' in reasons_str:
                 cats.append('Status Excel Mismatch')
-            return " + ".join(cats) if cats else 'Perlu Review'
+            return " | ".join(cats) if cats else 'Perlu Review'
 
         for item in anomali_items:
             reasons_list = item.get('anomali_reasons', [])
