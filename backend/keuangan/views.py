@@ -4728,23 +4728,28 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 elif status_code == 'L' and sisa > Decimal('0'):
                     anomali_reasons.append(f"Kode status Excel 'L', tetapi sisa utang masih Rp {sisa:,.2f}.")
 
-                key = (vendor_nama.upper(), float(nominal), no_spb, no_faktur)
+                is_exact_duplicate = False
+                is_spb_split = False
+
+                key = (vendor_nama.upper(), float(nominal), no_spb.upper(), no_faktur.upper())
                 if key in seen_keys:
                     prev_row = seen_keys[key]
-                    anomali_reasons.append(f"Potensi duplikat persis dari baris #{prev_row}.")
+                    is_exact_duplicate = True
+                    anomali_reasons.append(f"⚠️ Human Error / Duplikat Persis: Baris #{row_num} identik dengan baris #{prev_row} (otomatis di-set ABAIKAN).")
                 else:
                     seen_keys[key] = row_num
 
-                if no_spb:
+                if no_spb and not is_exact_duplicate:
                     spb_key = (vendor_nama.upper(), no_spb.upper())
                     if spb_key in seen_spb:
                         prev_spb_row = seen_spb[spb_key]
-                        anomali_reasons.append(f"Nomor SPB '{no_spb}' juga digunakan pada baris #{prev_spb_row}.")
+                        is_spb_split = True
+                        anomali_reasons.append(f"ℹ️ SPB Cicilan / Split Faktur: Nomor SPB '{no_spb}' juga tercatat di baris #{prev_spb_row}.")
                     else:
                         seen_spb[spb_key] = row_num
 
                 if no_spb and no_spb in existing_db_spbs:
-                    anomali_reasons.append(f"Nomor SPB '{no_spb}' SUDAH TERCATAT di database SIMAK sebelumnya (terjadi duplikasi dengan data yang sudah ada).")
+                    anomali_reasons.append(f"Nomor SPB '{no_spb}' SUDAH TERCATAT di database SIMAK sebelumnya.")
 
                 if no_faktur and no_faktur in existing_db_fakturs:
                     anomali_reasons.append(f"Nomor Faktur '{no_faktur}' SUDAH TERCATAT di database SIMAK sebelumnya.")
@@ -4782,7 +4787,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     'status_ditentukan': status_ditentukan,
                     'is_anomali': is_anomali,
                     'anomali_reasons': anomali_reasons,
-                    'user_action': 'terima' if not is_anomali else 'duplikat_review',
+                    'user_action': 'abaikan' if is_exact_duplicate else 'terima',
                 })
 
             return Response({
