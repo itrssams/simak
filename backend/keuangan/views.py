@@ -4092,21 +4092,37 @@ def _build_pending_where_logistik(params):
 
 
 def _pending_base_sql():
-    """FROM clause untuk farmasi — JOIN ke utang_supplier filter sumber=farmasi."""
+    """FROM clause untuk farmasi — JOIN ke utang_supplier jika app_siaga_faktur_id, nomor_spb, atau nomor_faktur sudah ada di SIMAK."""
     return """
         FROM rssams.tran_beli_brg_farmasi t
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci AND u.sumber = 'farmasi'
+        LEFT JOIN utang_supplier u ON (
+            u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            OR (u.nomor_spb != '' AND (u.nomor_spb = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci OR u.nomor_spb = CONVERT(t.no_faktur USING utf8mb4) COLLATE utf8mb4_unicode_ci))
+            OR (u.nomor_faktur != '' AND u.nomor_faktur = CONVERT(t.no_faktur USING utf8mb4) COLLATE utf8mb4_unicode_ci)
+        )
     """
 
 
 def _pending_base_sql_logistik():
-    """FROM clause untuk logistik — LEFT JOIN rekanan by-nama (best-effort), JOIN ke utang_supplier filter sumber=logistik."""
+    """FROM clause untuk logistik — JOIN ke utang_supplier jika app_siaga_faktur_id, nomor_spb, atau nomor_faktur sudah ada di SIMAK."""
     return """
         FROM rssams.tran_beli_brg_log t
         LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
         LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
-        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci AND u.sumber = 'logistik'
+        LEFT JOIN utang_supplier u ON (
+            u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            OR (u.nomor_spb != '' AND (
+                u.nomor_spb = CONVERT(s.no_spb USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                OR u.nomor_spb = CONVERT(t.id_spb USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                OR u.nomor_spb = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                OR u.nomor_spb = CONVERT(t.no_spk USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            ))
+            OR (u.nomor_faktur != '' AND (
+                u.nomor_faktur = CONVERT(t.no_spk USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                OR u.nomor_faktur = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            ))
+        )
     """
 
 
