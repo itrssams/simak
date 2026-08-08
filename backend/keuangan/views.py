@@ -4216,11 +4216,17 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(sumber=sumber_filter)
         kategori_filter = (params.get('kategori') or '').strip()
-        if kategori_filter and 'kategori' in _get_rekanan_columns():
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT id_rekanan FROM rssams.rekanan WHERE kategori = %s AND del = 'N'", [kategori_filter])
-                v_ids = [r[0] for r in cursor.fetchall()]
-            qs = qs.filter(vendor_id__in=v_ids)
+        if kategori_filter:
+            v_ids = []
+            if 'kategori' in _get_rekanan_columns():
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT id_rekanan FROM rssams.rekanan WHERE UPPER(TRIM(kategori)) = UPPER(TRIM(%s)) AND del = 'N'", [kategori_filter])
+                    v_ids = [r[0] for r in cursor.fetchall()]
+            qs = qs.filter(
+                Q(vendor_id__in=v_ids) |
+                Q(kategori__iexact=kategori_filter) |
+                Q(keterangan_titip__icontains=f"[{kategori_filter}]")
+            )
         if dari:
             qs = qs.filter(tanggal_faktur__gte=dari)
         if sampai:
@@ -4931,7 +4937,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                         r_row = cursor.fetchone()
                         if r_row:
                             vendor_id, v_nama_final, existing_kat = r_row[0], r_row[1], r_row[2]
-                            if kategori and not existing_kat:
+                            if kategori:
                                 cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], vendor_id])
                         else:
                             v_stripped = re.sub(r'[^a-zA-Z0-9]', '', v_lower)
@@ -4942,7 +4948,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                                 if r_n and re.sub(r'[^a-zA-Z0-9]', '', r_n.lower()) == v_stripped:
                                     vendor_id, v_nama_final = r_id, r_n
                                     found_m = True
-                                    if kategori and not r_k:
+                                    if kategori:
                                         cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], r_id])
                                     break
                             
@@ -4966,6 +4972,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     sumber=sumber,
                     vendor_id=vendor_id,
                     vendor_nama=v_nama_final[:145],
+                    kategori=kategori[:100] if kategori else "",
                     nomor_faktur=no_faktur,
                     nomor_spb=no_spb if no_spb else "",
                     tanggal_faktur=tgl_faktur,

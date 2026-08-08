@@ -511,6 +511,7 @@ class UtangSupplier(models.Model):
     nomor_faktur = models.CharField(max_length=100)
     vendor_id = models.IntegerField(help_text='ID rssams.rekanan.id_rekanan')
     vendor_nama = models.CharField(max_length=150, blank=True)
+    kategori = models.CharField(max_length=100, blank=True, help_text='Kategori barang/faktur (e.g. ALAT KESEHATAN, OBAT DAN BHP, ATK)')
     tanggal_faktur = models.DateField(null=True, blank=True)
     tanggal_jatuh_tempo = models.DateField(null=True, blank=True)
     nominal = models.DecimalField(max_digits=25, decimal_places=2)

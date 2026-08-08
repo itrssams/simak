@@ -720,7 +720,7 @@ class UtangSupplierSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'app_siaga_faktur_id', 'sumber', 'sumber_label',
             'nomor_spb', 'tanggal_spb',
-            'nomor_faktur', 'vendor_id', 'vendor_nama', 'tanggal_faktur',
+            'nomor_faktur', 'vendor_id', 'vendor_nama', 'kategori', 'tanggal_faktur',
             'tanggal_jatuh_tempo', 'nominal', 'tanggal_titip',
             'keterangan_titip', 'status', 'status_label', 'total_dibayar',
             'sisa_utang', 'verified_by', 'verified_by_name', 'verified_at',
