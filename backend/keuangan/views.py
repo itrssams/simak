@@ -4242,16 +4242,21 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             qs = qs.filter(sumber=sumber_filter)
         kategori_filter = (params.get('kategori') or '').strip()
         if kategori_filter:
+            k_variants = list({kategori_filter, kategori_filter.replace('&', 'DAN'), kategori_filter.replace('DAN', '&')})
             v_ids = []
             if 'kategori' in _get_rekanan_columns():
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT id_rekanan FROM rssams.rekanan WHERE UPPER(TRIM(kategori)) = UPPER(TRIM(%s)) AND del = 'N'", [kategori_filter])
+                    placeholders = ', '.join(['UPPER(TRIM(%s))'] * len(k_variants))
+                    sql = f"SELECT id_rekanan FROM rssams.rekanan WHERE UPPER(TRIM(kategori)) IN ({placeholders}) AND del = 'N'"
+                    cursor.execute(sql, k_variants)
                     v_ids = [r[0] for r in cursor.fetchall()]
-            qs = qs.filter(
-                Q(vendor_id__in=v_ids) |
-                Q(kategori__iexact=kategori_filter) |
-                Q(keterangan_titip__icontains=f"[{kategori_filter}]")
-            )
+            
+            kat_q = Q(vendor_id__in=v_ids)
+            for var in k_variants:
+                kat_q |= Q(kategori__iexact=var)
+                kat_q |= Q(keterangan_titip__icontains=f"[{var}]")
+            
+            qs = qs.filter(kat_q)
         if dari:
             qs = qs.filter(tanggal_faktur__gte=dari)
         if sampai:
