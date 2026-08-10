@@ -646,13 +646,14 @@ class PembayaranUtang(models.Model):
         return f'{self.utang.nomor_faktur} - {self.jumlah_bayar} ({self.tanggal_proses})'
 
     def clean(self):
-        if self.jumlah_bayar <= 0:
+        if self.jumlah_bayar and self.jumlah_bayar <= 0:
             raise ValidationError('Jumlah bayar harus lebih dari 0.')
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        self.clean()
         super().save(*args, **kwargs)
-        self.utang.refresh_status()
+        if hasattr(self, 'utang') and self.utang:
+            self.utang.refresh_status()
 
     def delete(self, *args, **kwargs):
         utang = self.utang

@@ -5015,6 +5015,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 )
 
                 # Create child PembayaranUtang for EVERY payment item in group!
+                payments_to_create = []
                 for item in group:
                     byr = Decimal(str(item.get('jumlah_bayar', 0)))
                     if byr > Decimal('0'):
@@ -5023,7 +5024,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                         tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
                         item_ket = (item.get('keterangan_excel') or item.get('no_faktur') or f"Row #{item.get('row_idx')}").strip()
 
-                        PembayaranUtang.objects.create(
+                        payments_to_create.append(PembayaranUtang(
                             utang=utang,
                             tanggal_rencana_bayar=tgl_rencana,
                             tanggal_proses=tgl_proses,
@@ -5034,7 +5035,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                             keterangan=f"Realisasi Saldo Awal OTS (Baris #{item.get('row_idx')}) - {item_ket}"[:250],
                             status=PembayaranUtang.STATUS_REALISASI_LUNAS,
                             created_by=request.user,
-                        )
+                        ))
+
+                if payments_to_create:
+                    PembayaranUtang.objects.bulk_create(payments_to_create)
 
                 utang.refresh_status()
                 committed_count += 1
