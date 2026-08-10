@@ -531,6 +531,10 @@ class UtangSupplier(models.Model):
             models.Index(fields=['status'], name='utang_status_idx'),
             models.Index(fields=['tanggal_jatuh_tempo'], name='utang_jtempo_idx'),
             models.Index(fields=['sumber'], name='utang_sumber_idx'),
+            models.Index(fields=['nomor_spb'], name='utang_nspb_idx'),
+            models.Index(fields=['nomor_faktur'], name='utang_nfaktur_idx'),
+            models.Index(fields=['app_siaga_faktur_id'], name='utang_siagafak_idx'),
+            models.Index(fields=['kategori'], name='utang_kategori_idx'),
         ]
         constraints = [
             models.UniqueConstraint(

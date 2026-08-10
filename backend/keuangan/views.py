@@ -4071,7 +4071,11 @@ def _utang_order_clause(value, allowed):
 
 def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
-    where = ['u.id IS NULL']
+    where = [
+        'u.id IS NULL',
+        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
+    ]
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
@@ -4097,7 +4101,15 @@ def _build_pending_where(params):
 
 def _build_pending_where_logistik(params):
     """WHERE builder untuk tabel logistik (tran_beli_brg_log)."""
-    where = ['t.done = \'Y\'', 'u.id IS NULL', "COALESCE(t.rekanan, '') != 'STOCK OPNAME'", "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"]
+    where = [
+        't.done = \'Y\'',
+        'u.id IS NULL',
+        "COALESCE(t.rekanan, '') != 'STOCK OPNAME'",
+        "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'",
+        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
+    ]
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
@@ -4109,7 +4121,6 @@ def _build_pending_where_logistik(params):
         needle = f'%{search}%'
         values.extend([needle, needle, needle, needle])
     if vendor_id:
-        # filter by matched rekanan id
         where.append('r.id_rekanan = %s')
         values.append(vendor_id)
     if dari:
@@ -4122,37 +4133,21 @@ def _build_pending_where_logistik(params):
 
 
 def _pending_base_sql():
-    """FROM clause untuk farmasi — JOIN ke utang_supplier jika app_siaga_faktur_id, nomor_spb, atau nomor_faktur sudah ada di SIMAK."""
+    """FROM clause untuk farmasi — JOIN ke utang_supplier by app_siaga_faktur_id."""
     return """
         FROM rssams.tran_beli_brg_farmasi t
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-        LEFT JOIN utang_supplier u ON (
-            u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
-            OR (u.nomor_spb != '' AND (u.nomor_spb = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci OR u.nomor_spb = CONVERT(t.no_faktur USING utf8mb4) COLLATE utf8mb4_unicode_ci))
-            OR (u.nomor_faktur != '' AND u.nomor_faktur = CONVERT(t.no_faktur USING utf8mb4) COLLATE utf8mb4_unicode_ci)
-        )
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
     """
 
 
 def _pending_base_sql_logistik():
-    """FROM clause untuk logistik — JOIN ke utang_supplier jika app_siaga_faktur_id, nomor_spb, atau nomor_faktur sudah ada di SIMAK."""
+    """FROM clause untuk logistik — JOIN ke utang_supplier by app_siaga_faktur_id."""
     return """
         FROM rssams.tran_beli_brg_log t
         LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
-        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) AND r.del = 'N'
-        LEFT JOIN utang_supplier u ON (
-            u.app_siaga_faktur_id = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
-            OR (u.nomor_spb != '' AND (
-                u.nomor_spb = CONVERT(s.no_spb USING utf8mb4) COLLATE utf8mb4_unicode_ci
-                OR u.nomor_spb = CONVERT(t.id_spb USING utf8mb4) COLLATE utf8mb4_unicode_ci
-                OR u.nomor_spb = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
-                OR u.nomor_spb = CONVERT(t.no_spk USING utf8mb4) COLLATE utf8mb4_unicode_ci
-            ))
-            OR (u.nomor_faktur != '' AND (
-                u.nomor_faktur = CONVERT(t.no_spk USING utf8mb4) COLLATE utf8mb4_unicode_ci
-                OR u.nomor_faktur = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_unicode_ci
-            ))
-        )
+        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
     """
 
 
