@@ -7,6 +7,7 @@ import {
     Eye,
     History,
     ReceiptText,
+    RotateCcw,
     Search,
     ShieldCheck,
     X,
@@ -31,6 +32,7 @@ export default function InvoiceVerifikasi() {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [verifyingId, setVerifyingId] = useState(null);
+    const [unverifyingId, setUnverifyingId] = useState(null);
     const [activeTab, setActiveTab] = useState('menunggu');
     const [filters, setFilters] = useState({ search: '', dari: '', sampai: '' });
     const [page, setPage] = useState(1);
@@ -80,6 +82,26 @@ export default function InvoiceVerifikasi() {
             toast.error(errorMessage(err, 'Gagal verifikasi pembayaran.'));
         } finally {
             setVerifyingId(null);
+        }
+    };
+
+    const unverifyPayment = async (row) => {
+        if (!canVerify) {
+            toast.error('Hanya manajer keuangan ke atas yang bisa membatalkan verifikasi pembayaran.');
+            return;
+        }
+        if (!window.confirm(`Batalkan verifikasi pembayaran invoice ${row.faktur.nomor_faktur} (${money(row.jumlah)})?\n\nSaldo alokasi pembiayaan yang terpotong akan dikembalikan.`)) {
+            return;
+        }
+        setUnverifyingId(row.id);
+        try {
+            const res = await api.post(`/keuangan/faktur/${row.faktur.id}/pembayaran/${row.id}/batal-verifikasi/`);
+            toast.success(res.data.message || `Verifikasi pembayaran invoice ${row.faktur.nomor_faktur} berhasil dibatalkan.`);
+            await fetchRows();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal membatalkan verifikasi pembayaran.'));
+        } finally {
+            setUnverifyingId(null);
         }
     };
 
@@ -200,11 +222,26 @@ export default function InvoiceVerifikasi() {
                                             </div>
                                         ) : (
                                             <div className="ivf-verified-info">
-                                                <strong>{row.verified_by_name || '-'}</strong>
-                                                <small>{dateLabel(row.verified_at)}</small>
-                                                <button type="button" className="ivf-icon" title="Lihat invoice" onClick={() => navigate(`/keuangan/invoices/${row.faktur.id}`)}>
-                                                    <Eye size={16} />
-                                                </button>
+                                                <div className="ivf-verifier-meta">
+                                                    <strong>{row.verified_by_name || '-'}</strong>
+                                                    <small>{dateLabel(row.verified_at)}</small>
+                                                </div>
+                                                <div className="ivf-actions">
+                                                    <button type="button" className="ivf-icon" title="Lihat invoice" onClick={() => navigate(`/keuangan/invoices/${row.faktur.id}`)}>
+                                                        <Eye size={16} />
+                                                    </button>
+                                                    {row.status_verifikasi === 'terverifikasi' && (
+                                                        <button
+                                                            type="button"
+                                                            className="ivf-unverify"
+                                                            disabled={!canVerify || unverifyingId === row.id}
+                                                            title={canVerify ? 'Batalkan verifikasi pembayaran ini' : 'Hanya manajer keuangan ke atas'}
+                                                            onClick={() => unverifyPayment(row)}
+                                                        >
+                                                            <RotateCcw size={14} /> {unverifyingId === row.id ? 'Membatalkan...' : 'Batal Verifikasi'}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </td>

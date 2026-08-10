@@ -1550,6 +1550,36 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         faktur.refresh_from_db()
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path=r'pembayaran/(?P<pembayaran_id>[^/.]+)/batal-verifikasi')
+    def batal_verifikasi_pembayaran(self, request, pk=None, pembayaran_id=None):
+        if not is_manajer_keuangan(request.user):
+            return Response({'error': 'Hanya manajer keuangan ke atas yang bisa membatalkan verifikasi pembayaran.'}, status=status.HTTP_403_FORBIDDEN)
+        faktur = self.get_object()
+        try:
+            pembayaran = faktur.pembayaran.get(pk=pembayaran_id)
+        except PembayaranFaktur.DoesNotExist:
+            return Response({'error': 'Pembayaran tidak ditemukan pada invoice ini.'}, status=status.HTTP_404_NOT_FOUND)
+        if pembayaran.status_verifikasi != 'terverifikasi':
+            return Response({'error': 'Hanya pembayaran berstatus terverifikasi yang dapat dibatalkan verifikasinya.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            pemakaian_qs = AlokasiDanaPemakaian.objects.filter(pembayaran=pembayaran)
+            affected_alokasi = list({p.alokasi_dana for p in pemakaian_qs})
+            pemakaian_qs.delete()
+            for alokasi in affected_alokasi:
+                alokasi.save()
+
+            pembayaran.status_verifikasi = 'menunggu'
+            pembayaran.verified_by = None
+            pembayaran.verified_at = None
+            pembayaran.save()
+
+        faktur.refresh_from_db()
+        return Response({
+            'message': f'Verifikasi pembayaran invoice {faktur.nomor_faktur} berhasil dibatalkan.',
+            'faktur': FakturSerializer(faktur).data
+        }, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['delete'], url_path=r'pembayaran/(?P<pembayaran_id>[^/.]+)')
     def hapus_pembayaran(self, request, pk=None, pembayaran_id=None):
         faktur = self.get_object()
