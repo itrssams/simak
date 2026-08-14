@@ -4082,8 +4082,8 @@ def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = [
         'u.id IS NULL',
-        "(CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_general_ci NOT IN (SELECT CONVERT(nomor_spb USING utf8mb4) COLLATE utf8mb4_general_ci FROM utang_supplier WHERE nomor_spb != ''))",
-        "(t.no_faktur IS NULL OR t.no_faktur = '' OR CONVERT(t.no_faktur USING utf8mb4) COLLATE utf8mb4_general_ci NOT IN (SELECT CONVERT(nomor_faktur USING utf8mb4) COLLATE utf8mb4_general_ci FROM utang_supplier WHERE nomor_faktur != ''))"
+        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4115,9 +4115,9 @@ def _build_pending_where_logistik(params):
         'u.id IS NULL',
         "COALESCE(t.rekanan, '') != 'STOCK OPNAME'",
         "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'",
-        "(CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_general_ci NOT IN (SELECT CONVERT(nomor_spb USING utf8mb4) COLLATE utf8mb4_general_ci FROM utang_supplier WHERE nomor_spb != ''))",
-        "(s.no_spb IS NULL OR s.no_spb = '' OR CONVERT(s.no_spb USING utf8mb4) COLLATE utf8mb4_general_ci NOT IN (SELECT CONVERT(nomor_spb USING utf8mb4) COLLATE utf8mb4_general_ci FROM utang_supplier WHERE nomor_spb != ''))",
-        "(t.no_spk IS NULL OR t.no_spk = '' OR CONVERT(t.no_spk USING utf8mb4) COLLATE utf8mb4_general_ci NOT IN (SELECT CONVERT(nomor_faktur USING utf8mb4) COLLATE utf8mb4_general_ci FROM utang_supplier WHERE nomor_faktur != ''))"
+        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4146,7 +4146,7 @@ def _pending_base_sql():
     return """
         FROM rssams.tran_beli_brg_farmasi t
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-        LEFT JOIN utang_supplier u ON CONVERT(u.app_siaga_faktur_id USING utf8mb4) COLLATE utf8mb4_general_ci = CONVERT(t.id USING utf8mb4) COLLATE utf8mb4_general_ci
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
     """
 
 
@@ -4155,8 +4155,8 @@ def _pending_base_sql_logistik():
     return """
         FROM rssams.tran_beli_brg_log t
         LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
-        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(CONVERT(r.nama USING utf8mb4))) COLLATE utf8mb4_general_ci = UPPER(TRIM(CONVERT(t.rekanan USING utf8mb4))) COLLATE utf8mb4_general_ci AND r.del = 'N'
-        LEFT JOIN utang_supplier u ON CONVERT(u.app_siaga_faktur_id USING utf8mb4) COLLATE utf8mb4_general_ci = CONVERT(CONCAT('LOG-', t.id) USING utf8mb4) COLLATE utf8mb4_general_ci
+        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
+        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
     """
 
 
