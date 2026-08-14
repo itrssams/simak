@@ -4,9 +4,8 @@ def set_collation_forward(apps, schema_editor):
     if schema_editor.connection.vendor == 'mysql':
         with schema_editor.connection.cursor() as cursor:
             try:
-                cursor.execute("ALTER TABLE utang_supplier MODIFY app_siaga_faktur_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL")
-                cursor.execute("ALTER TABLE utang_supplier MODIFY nomor_spb VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL")
-                cursor.execute("ALTER TABLE utang_supplier MODIFY nomor_faktur VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL")
+                cursor.execute("ALTER TABLE utang_supplier CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
+                cursor.execute("ALTER TABLE pembayaran_utang CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
             except Exception:
                 pass
 
