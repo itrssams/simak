@@ -8,7 +8,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
-from django.db import connection, transaction
+from django.db import connection, transaction, models
 from django.db.models.deletion import ProtectedError
 from decimal import Decimal, InvalidOperation
 from rest_framework.views import APIView
@@ -20,7 +20,7 @@ from collections import defaultdict
 import calendar
 import re
 from django.utils import timezone
-from datetime import datetime, time, timedelta
+from datetime import datetime, date, time, timedelta
 import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -500,13 +500,13 @@ def _legacy_kunjungan_where(params):
 
     dari = (params.get('dari') or '').strip()
     if dari:
-        where.append("DATE(a.tgl_masuk) >= %s")
-        values.append(dari)
+        where.append("a.tgl_masuk >= %s")
+        values.append(f"{dari} 00:00:00" if len(dari) == 10 else dari)
 
     sampai = (params.get('sampai') or '').strip()
     if sampai:
-        where.append("DATE(a.tgl_masuk) <= %s")
-        values.append(sampai)
+        where.append("a.tgl_masuk <= %s")
+        values.append(f"{sampai} 23:59:59" if len(sampai) == 10 else sampai)
 
     done = (params.get('done') or '').strip()
     if done == '1':
@@ -641,15 +641,24 @@ class KunjunganInvoiceView(APIView):
                 page_size = min(max(int(request.query_params.get('page_size') or 10), 1), 100)
                 offset = (page - 1) * page_size
 
-                base_sql = f"""
+                search = (request.query_params.get('search') or '').strip()
+                count_base_sql = f"""
+                    FROM rssams.kunjung a
+                    {'INNER JOIN rssams.regpasien b ON a.noreg = b.noreg' if search else ''}
+                    LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
+                    INNER JOIN rssams.verif_kunjung e ON a.no = e.no
+                    WHERE {where_sql}
+                """
+                cursor.execute(f"SELECT COUNT(*) AS total {count_base_sql}", values)
+                total = cursor.fetchone()[0]
+
+                list_base_sql = f"""
                     FROM rssams.kunjung a
                     INNER JOIN rssams.regpasien b ON a.noreg = b.noreg
                     LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
                     INNER JOIN rssams.verif_kunjung e ON a.no = e.no
                     WHERE {where_sql}
                 """
-                cursor.execute(f"SELECT COUNT(*) AS total {base_sql}", values)
-                total = cursor.fetchone()[0]
                 cursor.execute(f"""
                     SELECT
                         a.no, a.noreg, b.nama, b.sex, DATE(a.tgl_masuk) AS tgl_masuk,
@@ -658,7 +667,7 @@ class KunjunganInvoiceView(APIView):
                         IFNULL(e.no_invoice, '') AS no_invoice,
                         ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya,
                         a.dp3, a.jmlbyr
-                    {base_sql}
+                    {list_base_sql}
                     ORDER BY a.tgl_masuk DESC, a.no DESC
                     LIMIT %s OFFSET %s
                 """, [*values, page_size, offset])
@@ -4658,7 +4667,144 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             verified_by=request.user,
             verified_at=timezone.now(),
         )
-        return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+def parse_lenient_date(val):
+    if not val:
+        return None
+    if isinstance(val, (datetime, date)):
+        return val.date() if isinstance(val, datetime) else val
+    val_s = str(val).strip()
+    if not val_s:
+        return None
+    # Try different separators
+    parts = None
+    for sep in ('/', '-', '.'):
+        if sep in val_s:
+            parts = val_s.split(sep)
+            break
+    if not parts or len(parts) < 3:
+        return None
+    try:
+        # Check order: is it YYYY-MM-DD or DD/MM/YYYY?
+        if len(parts[0]) == 4:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2][:2])
+        elif len(parts[2][:4]) == 4:
+            day, month, year = int(parts[0]), int(parts[1]), int(parts[2][:4])
+        else:
+            return None
+        # Capping month
+        month = max(1, min(12, month))
+        # Capping day based on month and year
+        if month in (4, 6, 9, 11):
+            day = min(day, 30)
+        elif month == 2:
+            is_leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+            day = min(day, 29 if is_leap else 28)
+        else:
+            day = min(day, 31)
+        day = max(1, day)
+        return date(year, month, day)
+    except Exception:
+        return None
+
+def _clean_vendor_name(name):
+    if not name:
+        return ''
+    s = str(name).upper()
+    s = re.sub(r'\b(PT|CV|PD|UD|TB|NV)\b', '', s)
+    s = re.sub(r'[^A-Z0-9]', '', s)
+    return s
+
+
+class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    serializer_class = UtangSupplierSerializer
+
+    def get_queryset(self):
+        qs = UtangSupplier.objects.all()
+        params = self.request.query_params
+
+        search = (params.get('search') or '').strip()
+        vendor_id = (params.get('vendor_id') or '').strip()
+        kategori = (params.get('kategori') or '').strip()
+        st = (params.get('status') or '').strip()
+        sumber = (params.get('sumber') or '').strip()
+        dari = (params.get('dari') or '').strip()
+        sampai = (params.get('sampai') or '').strip()
+        ordering = (params.get('ordering') or '').strip()
+
+        if search:
+            qs = qs.filter(
+                models.Q(nomor_faktur__icontains=search) |
+                models.Q(nomor_spb__icontains=search) |
+                models.Q(vendor_nama__icontains=search) |
+                models.Q(keterangan_titip__icontains=search) |
+                models.Q(app_siaga_faktur_id__icontains=search)
+            )
+
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+
+        if kategori:
+            qs = qs.filter(kategori__icontains=kategori)
+
+        if st == 'aktif':
+            qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+        elif st and st not in ['semua', 'all']:
+            qs = qs.filter(status=st)
+
+        if sumber and sumber not in ['semua', 'all']:
+            qs = qs.filter(sumber=sumber)
+
+        if dari:
+            qs = qs.filter(tanggal_titip__gte=dari)
+
+        if sampai:
+            qs = qs.filter(tanggal_titip__lte=sampai)
+
+        if ordering:
+            allowed_ordering = [
+                'tanggal_titip', '-tanggal_titip',
+                'tanggal_faktur', '-tanggal_faktur',
+                'verified_at', '-verified_at',
+                'vendor_nama', '-vendor_nama',
+                'nominal', '-nominal',
+                'status', '-status',
+                'created_at', '-created_at'
+            ]
+            if ordering in allowed_ordering:
+                qs = qs.order_by(ordering)
+            else:
+                qs = qs.order_by('-verified_at', '-created_at')
+        else:
+            qs = qs.order_by('-verified_at', '-created_at')
+
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+
+        total_nominal = active_qs.aggregate(total=models.Sum('nominal'))['total'] or Decimal('0')
+        total_dibayar = PembayaranUtang.objects.filter(
+            utang__in=active_qs,
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
+        ).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+        
+        total_sisa = max(Decimal('0'), total_nominal - total_dibayar)
+
+        total_faktur = qs.count()
+        total_lunas_count = qs.filter(status=UtangSupplier.STATUS_LUNAS).count()
+        total_aktif_count = active_qs.count()
+
+        return Response({
+            'total_faktur': total_faktur,
+            'total_lunas_count': total_lunas_count,
+            'total_aktif_count': total_aktif_count,
+            'utang_count': total_aktif_count,
+            'total_nominal': total_nominal,
+            'total_dibayar': total_dibayar,
+            'total_sisa': total_sisa,
+        })
 
     @action(detail=False, methods=['post'], url_path='ots-preview', parser_classes=[MultiPartParser, FormParser])
     def ots_preview(self, request):
@@ -4681,6 +4827,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             staged_items = []
             SUMBER_MANUAL = UtangSupplier.SUMBER_MANUAL
             SUMBER_FARMASI = UtangSupplier.SUMBER_FARMASI
+
+            # Read Cell T1 (authoritative "Sisa Utang Aktif" from Excel subtotal formula)
+            excel_t1_raw = sheet.cell(row=1, column=20).value  # Col T, Row 1
+            try:
+                excel_t1_value = Decimal(str(excel_t1_raw)) if excel_t1_raw else None
+            except Exception:
+                excel_t1_value = None
 
             seen_keys = {}
             seen_spb = {}
@@ -4718,7 +4871,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 nominal_raw = r[11]
                 ket_excel = str(r[12] or '').strip() # Col M (KETERANGAN / NO FAKTUR)
                 no_faktur = ket_excel or f"INV/OTS/{r_idx + 1}"
-                byr_raw = r[18] if len(r) > 18 and isinstance(r[18], (int, float)) else 0
+                byr_raw = r[18] if len(r) > 18 else 0
 
                 if not vendor_nama or nominal_raw is None:
                     continue
@@ -4731,7 +4884,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     continue
 
                 try:
-                    byr = Decimal(str(byr_raw)) if byr_raw else Decimal('0')
+                    byr = Decimal(str(byr_raw)) if (byr_raw is not None and str(byr_raw).strip() != '') else Decimal('0')
                 except (InvalidOperation, ValueError, TypeError):
                     byr = Decimal('0')
 
@@ -4750,84 +4903,93 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     sumber = SUMBER_MANUAL
                     sumber_label = "LOGISTIK"
 
-                # Helper date parser
+                # Helper date parser supporting datetime.date, datetime.datetime, and multiple string formats
                 def parse_date_str(val):
+                    d_obj = parse_lenient_date(val)
+                    if d_obj:
+                        return d_obj.strftime('%Y-%m-%d')
                     if not val:
                         return ''
-                    if isinstance(val, (datetime, time)):
-                        return val.strftime('%Y-%m-%d')
-                    if isinstance(val, str) and val.strip():
-                        return val.strip()[:10]
-                    return ''
+                    val_s = str(val).strip()
+                    return val_s[:10]
 
-                tgl_faktur_str = parse_date_str(tgl_faktur_raw)
-                tgl_titip_str = parse_date_str(tgl_titip_raw) or tgl_faktur_str
+                tgl_faktur_str = (
+                    parse_date_str(tgl_faktur_raw) or
+                    parse_date_str(tgl_titip_raw) or
+                    (parse_date_str(r[15]) if len(r) > 15 else '') or
+                    (parse_date_str(r[16]) if len(r) > 16 else '') or
+                    (parse_date_str(r[17]) if len(r) > 17 else '')
+                )
+                tgl_titip_str = parse_date_str(tgl_titip_raw) or (parse_date_str(r[15]) if len(r) > 15 else '') or tgl_faktur_str
                 tgl_rencana_str = parse_date_str(r[15]) if len(r) > 15 else ''
                 tgl_proses_str = parse_date_str(r[16]) if len(r) > 16 else ''
                 tgl_app_str = parse_date_str(r[17]) if len(r) > 17 else ''
 
-                # Check cell fill color
+                # Check cell fill color safely
                 is_green = False
                 try:
                     cell = sheet.cell(row=row_num, column=1)
-                    if cell.fill and cell.fill.start_color:
-                        if str(cell.fill.start_color.rgb) == green_hex:
+                    if cell and cell.fill and getattr(cell.fill, 'start_color', None):
+                        st_c = cell.fill.start_color
+                        c_val = getattr(st_c, 'rgb', None) or getattr(st_c, 'value', None)
+                        if c_val and str(c_val).upper() in ['FF92D050', '92D050']:
                             is_green = True
                 except Exception:
                     pass
 
-                # Status determination
-                if sisa <= Decimal('0'):
+                # Status determination: Prioritize explicit Excel Status Code 'U' (Utang Aktif) vs 'L' (Lunas)
+                if status_code == 'U':
+                    if byr >= nominal:
+                        byr = Decimal('0')
+                    sisa = max(Decimal('0'), nominal - byr)
+                    status_ditentukan = 'sebagian' if byr > Decimal('0') else 'belum_dibayar'
+                    total_utang_aktif += 1
+                elif status_code == 'L':
+                    byr = nominal
+                    sisa = Decimal('0')
                     status_ditentukan = 'lunas'
                     total_lunas += 1
-                elif byr > Decimal('0'):
-                    status_ditentukan = 'sebagian'
-                    total_utang_aktif += 1
                 else:
-                    status_ditentukan = 'belum_dibayar'
-                    total_utang_aktif += 1
-
-                # Anomaly checking
-                anomali_reasons = []
-                if status_code == 'U' and sisa <= Decimal('0'):
-                    anomali_reasons.append("Kode status Excel 'U', tetapi pembayaran sudah lunas (sisa Rp 0).")
-                elif status_code == 'L' and sisa > Decimal('0'):
-                    anomali_reasons.append(f"Kode status Excel 'L', tetapi sisa utang masih Rp {sisa:,.2f}.")
-
-                is_exact_duplicate = False
-                is_spb_split = False
-
-                key = (sumber, vendor_nama.upper(), float(nominal), no_spb.upper(), no_faktur.upper())
-                if key in seen_keys:
-                    prev_row = seen_keys[key]
-                    is_exact_duplicate = True
-                    anomali_reasons.append(f"⚠️ Human Error / Duplikat Persis: Baris #{row_num} identik dengan baris #{prev_row} (otomatis di-set ABAIKAN).")
-                else:
-                    seen_keys[key] = row_num
-
-                if no_spb and not is_exact_duplicate:
-                    spb_key = (sumber, vendor_nama.upper(), no_spb.upper())
-                    if spb_key in seen_spb:
-                        prev_spb_row = seen_spb[spb_key]
-                        is_spb_split = True
-                        anomali_reasons.append(f"ℹ️ SPB Cicilan / Split Faktur ({sumber_label}): Nomor SPB '{no_spb}' juga tercatat di baris #{prev_spb_row}.")
+                    if sisa <= Decimal('0'):
+                        status_ditentukan = 'lunas'
+                        total_lunas += 1
+                    elif byr > Decimal('0'):
+                        status_ditentukan = 'sebagian'
+                        total_utang_aktif += 1
                     else:
-                        seen_spb[spb_key] = row_num
+                        status_ditentukan = 'belum_dibayar'
+                        total_utang_aktif += 1
 
-                db_spb_key = (sumber, no_spb.upper())
-                if no_spb and db_spb_key in existing_db_spb_map:
-                    st_info, v_info, s_info = existing_db_spb_map[db_spb_key]
-                    anomali_reasons.append(f"Nomor SPB [{s_info}] '{no_spb}' SUDAH TERCATAT di Database SIMAK ({v_info}, Status: {st_info}).")
+                # Exact duplicate detection
+                key_spb = (sumber, no_spb.upper()) if no_spb else None
+                # Only use faktur-based key for Non-SPB items (manual entries like remunerasi).
+                # Two different SPBs with the same supplier invoice number are legitimate separate transactions.
+                key_faktur = (sumber, no_faktur.upper()) if (no_faktur and not no_spb) else None
+                is_exact_duplicate = False
+                anomali_reasons = []
 
-                db_faktur_key = (sumber, no_faktur.upper())
-                if no_faktur and db_faktur_key in existing_db_faktur_map:
-                    st_info, v_info, s_info = existing_db_faktur_map[db_faktur_key]
-                    anomali_reasons.append(f"Nomor Faktur [{s_info}] '{no_faktur}' SUDAH TERCATAT di Database SIMAK ({v_info}, Status: {st_info}).")
+                if key_spb and key_spb in seen_spb:
+                    is_exact_duplicate = True
+                    anomali_reasons.append(f"Duplikat persis dengan baris #{seen_spb[key_spb]}")
+                elif key_faktur and key_faktur in seen_keys:
+                    is_exact_duplicate = True
+                    anomali_reasons.append(f"Duplikat persis dengan baris #{seen_keys[key_faktur]}")
 
-                if status_ditentukan != 'lunas' and not no_spb:
-                    anomali_reasons.append("Faktur utang aktif ini tidak memiliki Nomor SPB (akan dimasukkan sebagai Utang Manual Non-SPB).")
+                if key_spb and not is_exact_duplicate:
+                    seen_spb[key_spb] = row_num
+                if key_faktur and not is_exact_duplicate:
+                    seen_keys[key_faktur] = row_num
 
-                is_anomali = len(anomali_reasons) > 0
+                if key_spb and key_spb in existing_db_spb_map:
+                    st_db, v_db, s_label = existing_db_spb_map[key_spb]
+                    anomali_reasons.append(f"SPB '{no_spb}' sudah tercatat di DB SIMAK ({s_label} - Status: {st_db}, Vendor: {v_db})")
+                elif key_faktur and key_faktur in existing_db_faktur_map:
+                    st_db, v_db, s_label = existing_db_faktur_map[key_faktur]
+                    anomali_reasons.append(f"Faktur '{no_faktur}' sudah tercatat di DB SIMAK ({s_label} - Status: {st_db}, Vendor: {v_db})")
+
+
+
+                is_anomali = bool(anomali_reasons)
                 if is_anomali:
                     total_anomali += 1
 
@@ -4860,6 +5022,38 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     'user_action': 'abaikan' if is_exact_duplicate else 'terima',
                 })
 
+            # Reconcile with Excel Cell T1: flag rows that cause discrepancy
+            if excel_t1_value is not None:
+                # Calculate our active debt total (sum of sisa for non-lunas items)
+                our_aktif_total = sum(
+                    Decimal(str(item['sisa_utang']))
+                    for item in staged_items
+                    if item['status_ditentukan'] != 'lunas'
+                )
+                diff = our_aktif_total - excel_t1_value
+                if diff > Decimal('0'):
+                    # Find rows whose sisa_utang individually or cumulatively match the discrepancy
+                    remaining_diff = diff
+                    for item in staged_items:
+                        if remaining_diff <= Decimal('0'):
+                            break
+                        if item['status_ditentukan'] == 'lunas':
+                            continue
+                        item_sisa = Decimal(str(item['sisa_utang']))
+                        if item_sisa > Decimal('0') and item_sisa == remaining_diff:
+                            item['is_anomali'] = True
+                            item['anomali_reasons'].append(
+                                f"⚠️ Anomali Subtotal Excel: Faktur '{item['vendor_nama']}' (Rp {float(item_sisa):,.0f}) "
+                                f"ber-kode 'U' namun tidak tercakup dalam rumus subtotal T1 Excel "
+                                f"(selisih Rp {float(remaining_diff):,.0f}). User bisa pilih TERIMA atau ABAIKAN."
+                            )
+                            item['user_action'] = 'abaikan'
+                            total_sisa_utang -= item_sisa
+                            total_utang_aktif -= 1
+                            if not any(r != item['anomali_reasons'][-1] for r in item['anomali_reasons'][:-1] if 'Anomali' in r):
+                                total_anomali += 1
+                            remaining_diff -= item_sisa
+
             return Response({
                 'summary': {
                     'total_rows': total_rows,
@@ -4869,10 +5063,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     'total_anomali': total_anomali,
                     'total_lunas': total_lunas,
                     'total_utang_aktif': total_utang_aktif,
+                    'excel_t1_value': float(excel_t1_value) if excel_t1_value is not None else None,
                 },
                 'items': staged_items
             })
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({'error': f'Gagal membaca file Excel: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'], url_path='ots-commit')
@@ -4907,7 +5104,27 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
 
         all_groups = list(grouped_spb.values()) + standalone_items
 
+        # Pre-fetch all vendor masters into memory for instant O(1) lookup
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan")
+            rekanan_rows = cursor.fetchall()
+
+        rekanan_exact_map = {}
+        rekanan_stripped_map = {}
+        next_rekanan_id = (max((r[0] for r in rekanan_rows), default=0)) + 1
+
+        for r_id, r_n, r_k in rekanan_rows:
+            if r_n:
+                r_low = r_n.lower().strip()
+                rekanan_exact_map[r_low] = (r_id, r_n, r_k)
+                r_strip = re.sub(r'[^a-zA-Z0-9]', '', r_low)
+                if r_strip:
+                    rekanan_stripped_map[r_strip] = (r_id, r_n, r_k)
+
         committed_count = 0
+        auto_lunas_count = 0
+        vendor_lunas_watermarks = {}  # (vendor_id, vendor_nama_upper) -> latest_lunas_date
+
         with transaction.atomic():
             for group in all_groups:
                 if not group:
@@ -4931,12 +5148,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                     sumber = UtangSupplier.SUMBER_MANUAL
 
                 def parse_date_obj(val_str):
-                    if not val_str:
-                        return None
-                    try:
-                        return datetime.strptime(str(val_str)[:10], '%Y-%m-%d').date()
-                    except Exception:
-                        return None
+                    return parse_lenient_date(val_str)
 
                 # Calculate total contract nominal & total payments across group
                 total_nominal = sum(Decimal(str(i.get('nominal', 0))) for i in group)
@@ -4946,53 +5158,78 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 if total_nominal <= Decimal('0'):
                     continue
 
-                if total_sisa <= Decimal('0'):
+                status_code = str(main_item.get('status_excel', '')).strip().upper()
+                if status_code == 'U':
+                    if total_bayar >= total_nominal:
+                        total_bayar = Decimal('0')
+                    total_sisa = max(Decimal('0'), total_nominal - total_bayar)
+                    st = UtangSupplier.STATUS_SEBAGIAN if total_bayar > Decimal('0') else UtangSupplier.STATUS_BELUM_DIBAYAR
+                elif status_code == 'L':
+                    total_bayar = total_nominal
+                    total_sisa = Decimal('0')
                     st = UtangSupplier.STATUS_LUNAS
-                elif total_bayar > Decimal('0'):
-                    st = UtangSupplier.STATUS_SEBAGIAN
                 else:
-                    st = UtangSupplier.STATUS_BELUM_DIBAYAR
+                    if total_sisa <= Decimal('0'):
+                        st = UtangSupplier.STATUS_LUNAS
+                    elif total_bayar > Decimal('0'):
+                        st = UtangSupplier.STATUS_SEBAGIAN
+                    else:
+                        st = UtangSupplier.STATUS_BELUM_DIBAYAR
 
-                tgl_faktur = parse_date_obj(main_item.get('tgl_faktur')) or timezone.localdate()
-                tgl_titip = parse_date_obj(main_item.get('tgl_titip')) or tgl_faktur
+                tgl_faktur = (
+                    parse_date_obj(main_item.get('tgl_faktur')) or
+                    parse_date_obj(main_item.get('tgl_titip')) or
+                    parse_date_obj(main_item.get('tgl_rencana_bayar')) or
+                    parse_date_obj(main_item.get('tgl_proses')) or
+                    parse_date_obj(main_item.get('tgl_app')) or
+                    timezone.localdate()
+                )
+                tgl_titip = (
+                    parse_date_obj(main_item.get('tgl_titip')) or
+                    parse_date_obj(main_item.get('tgl_rencana_bayar')) or
+                    parse_date_obj(main_item.get('tgl_proses')) or
+                    parse_date_obj(main_item.get('tgl_app')) or
+                    tgl_faktur
+                )
 
                 vendor_id = main_item.get('vendor_id')
                 v_nama_final = v_nama
 
-                # Intelligent Vendor Master Resolution (Match or Auto-Create)
+                # Fast memory lookup for vendor master resolution
                 if v_nama:
-                    v_lower = v_nama.lower().strip()
-                    with connection.cursor() as cursor:
-                        cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan WHERE LOWER(TRIM(nama)) = %s LIMIT 1", [v_lower])
-                        r_row = cursor.fetchone()
-                        if r_row:
-                            vendor_id, v_nama_final, existing_kat = r_row[0], r_row[1], r_row[2]
-                            if kategori:
-                                cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], vendor_id])
-                        else:
-                            v_stripped = re.sub(r'[^a-zA-Z0-9]', '', v_lower)
-                            cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan")
-                            all_r = cursor.fetchall()
-                            found_m = False
-                            for r_id, r_n, r_k in all_r:
-                                if r_n and re.sub(r'[^a-zA-Z0-9]', '', r_n.lower()) == v_stripped:
-                                    vendor_id, v_nama_final = r_id, r_n
-                                    found_m = True
-                                    if kategori:
-                                        cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [kategori[:100], r_id])
-                                    break
-                            
-                            if not found_m and not vendor_id:
-                                cursor.execute("SELECT COALESCE(MAX(id_rekanan), 0) + 1 FROM rssams.rekanan")
-                                next_id = cursor.fetchone()[0]
+                    v_low = v_nama.lower().strip()
+                    if v_low in rekanan_exact_map:
+                        vendor_id, v_nama_final, _ = rekanan_exact_map[v_low]
+                    else:
+                        v_strip = re.sub(r'[^a-zA-Z0-9]', '', v_low)
+                        if v_strip in rekanan_stripped_map:
+                            vendor_id, v_nama_final, _ = rekanan_stripped_map[v_strip]
+                        elif not vendor_id:
+                            vendor_id = next_rekanan_id
+                            v_nama_final = v_nama
+                            rekanan_exact_map[v_low] = (vendor_id, v_nama, kategori)
+                            rekanan_stripped_map[v_strip] = (vendor_id, v_nama, kategori)
+                            with connection.cursor() as cursor:
                                 cursor.execute("""
                                     INSERT INTO rssams.rekanan (id_rekanan, nama, alamat, telp, kc, del, sumber, kategori)
                                     VALUES (%s, %s, '', '', '', 'N', 'ots_import', %s)
-                                """, [next_id, v_nama[:100], (kategori or '')[:100]])
-                                vendor_id = next_id
-                                v_nama_final = v_nama
+                                """, [vendor_id, v_nama[:100], (kategori or '')[:100]])
+                            next_rekanan_id += 1
 
                 vendor_id = vendor_id or 9999
+
+                # Track latest Lunas date per vendor for High-Water Mark Auto-Lunas
+                if st == UtangSupplier.STATUS_LUNAS and tgl_faktur:
+                    v_clean = _clean_vendor_name(v_nama_final)
+                    if vendor_id and vendor_id != 9999:
+                        curr = vendor_lunas_watermarks.get(vendor_id)
+                        if not curr or tgl_faktur > curr:
+                            vendor_lunas_watermarks[vendor_id] = tgl_faktur
+                    if v_clean:
+                        curr = vendor_lunas_watermarks.get(v_clean)
+                        if not curr or tgl_faktur > curr:
+                            vendor_lunas_watermarks[v_clean] = tgl_faktur
+
                 ket_detail = (main_item.get('keterangan_excel') or main_item.get('no_faktur') or '').strip()
                 full_keterangan = f"[{kategori}] {ket_detail}" if kategori else ket_detail
 
@@ -5043,9 +5280,150 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
                 utang.refresh_status()
                 committed_count += 1
 
+            # Execute High-Water Mark Auto-Lunas for un-imported legacy purchases <= vendor's latest lunas date
+            if vendor_lunas_watermarks:
+                with connection.cursor() as cursor:
+                    # 1. Fetch pending Farmasi purchases
+                    cursor.execute("""
+                        SELECT t.id, t.id_rekanan, r.nama, t.tgl_faktur, t.no_faktur, t.no_spb,
+                               COALESCE(t.gtotal, t.total, 0) AS total_biaya
+                        FROM rssams.tran_beli_brg_farmasi t
+                        LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
+                        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                        WHERE u.id IS NULL
+                          AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
+                          AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                    """)
+                    columns = [col[0] for col in cursor.description]
+                    all_pending_farm = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+                    # 2. Fetch pending Logistik purchases
+                    cursor.execute("""
+                        SELECT t.id, r.id_rekanan, COALESCE(t.rekanan, r.nama, '') AS nama, t.tgl_spk AS tgl_faktur, t.no_spk AS no_faktur, t.id AS no_spb,
+                               COALESCE(t.nilai, 0) AS total_biaya
+                        FROM rssams.tran_beli_brg_log t
+                        LEFT JOIN rssams.rekanan r ON r.nama = t.rekanan
+                        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                        WHERE t.done = 'Y'
+                          AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
+                          AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
+                          AND u.id IS NULL
+                          AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
+                          AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                    """)
+                    columns = [col[0] for col in cursor.description]
+                    all_pending_log = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+                auto_list = []
+                for p in all_pending_farm:
+                    v_id = p.get('id_rekanan')
+                    v_clean = _clean_vendor_name(p.get('nama'))
+                    max_w = (vendor_lunas_watermarks.get(v_id) if (v_id and v_id != 9999) else None) or vendor_lunas_watermarks.get(v_clean)
+
+                    if max_w:
+                        tgl_fak = p.get('tgl_faktur')
+                        tgl_fak_date = None
+                        if tgl_fak:
+                            if isinstance(tgl_fak, datetime):
+                                tgl_fak_date = tgl_fak.date()
+                            elif isinstance(tgl_fak, str):
+                                try:
+                                    tgl_fak_date = datetime.strptime(tgl_fak[:10], '%Y-%m-%d').date()
+                                except Exception:
+                                    tgl_fak_date = None
+                            else:
+                                tgl_fak_date = tgl_fak
+
+                        if tgl_fak_date is None or tgl_fak_date <= max_w:
+                            auto_list.append((p, UtangSupplier.SUMBER_FARMASI, max_w, tgl_fak_date or max_w))
+
+                for p in all_pending_log:
+                    v_id = p.get('id_rekanan')
+                    v_clean = _clean_vendor_name(p.get('nama'))
+                    max_w = (vendor_lunas_watermarks.get(v_id) if (v_id and v_id != 9999) else None) or vendor_lunas_watermarks.get(v_clean)
+
+                    if max_w:
+                        tgl_fak = p.get('tgl_faktur')
+                        tgl_fak_date = None
+                        if tgl_fak:
+                            if isinstance(tgl_fak, datetime):
+                                tgl_fak_date = tgl_fak.date()
+                            elif isinstance(tgl_fak, str):
+                                try:
+                                    tgl_fak_date = datetime.strptime(tgl_fak[:10], '%Y-%m-%d').date()
+                                except Exception:
+                                    tgl_fak_date = None
+                            else:
+                                tgl_fak_date = tgl_fak
+
+                        if tgl_fak_date is None or tgl_fak_date <= max_w:
+                            auto_list.append((p, UtangSupplier.SUMBER_MANUAL, max_w, tgl_fak_date or max_w))
+
+                utang_auto_objs = []
+                auto_meta = []
+                for p_item, p_sumber, max_w, tgl_fak_date in auto_list:
+                    tot_b = Decimal(str(p_item.get('total_biaya') or 0))
+                    if tot_b <= Decimal('0'):
+                        continue
+                    spb_id = str(p_item.get('id'))
+                    no_spb_str = str(p_item.get('no_spb') or spb_id or '')[:45]
+                    no_fak_str = str(p_item.get('no_faktur') or f"INV/OTS/AUTO/{spb_id}")[:95]
+                    v_id = p_item.get('id_rekanan') or 9999
+                    v_nama = str(p_item.get('nama') or 'VENDOR UNKNOWN')[:145]
+                    app_id = f"OTS-AUTO-{spb_id}"
+
+                    utang_auto_objs.append(UtangSupplier(
+                        app_siaga_faktur_id=app_id,
+                        sumber=p_sumber,
+                        vendor_id=v_id,
+                        vendor_nama=v_nama,
+                        kategori="OBAT DAN BHP" if p_sumber == UtangSupplier.SUMBER_FARMASI else "BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.",
+                        nomor_faktur=no_fak_str,
+                        nomor_spb=no_spb_str,
+                        tanggal_faktur=tgl_fak_date,
+                        tanggal_titip=tgl_fak_date,
+                        nominal=tot_b,
+                        keterangan_titip=f"[Auto-Lunas OTS Cutoff] Lunas pra-cutoff {max_w}",
+                        status=UtangSupplier.STATUS_LUNAS,
+                        verified_by=request.user,
+                        verified_at=timezone.now(),
+                    ))
+                    auto_meta.append((app_id, tot_b, tgl_fak_date, max_w))
+
+                if utang_auto_objs:
+                    UtangSupplier.objects.bulk_create(utang_auto_objs, ignore_conflicts=True)
+                    auto_lunas_count = len(utang_auto_objs)
+
+                    created_app_ids = [m[0] for m in auto_meta]
+                    utang_map = {u.app_siaga_faktur_id: u.id for u in UtangSupplier.objects.filter(app_siaga_faktur_id__in=created_app_ids)}
+
+                    pembayaran_auto_objs = []
+                    for app_id, tot_b, tgl_fak_date, max_w in auto_meta:
+                        u_id = utang_map.get(app_id)
+                        if u_id:
+                            pembayaran_auto_objs.append(PembayaranUtang(
+                                utang_id=u_id,
+                                tanggal_rencana_bayar=tgl_fak_date,
+                                tanggal_proses=tgl_fak_date,
+                                tanggal_app=tgl_fak_date,
+                                jumlah_bayar=tot_b,
+                                potongan_deposit=Decimal('0'),
+                                jumlah_kas_keluar=tot_b,
+                                keterangan=f"[Auto-Lunas OTS Cutoff] Realisasi lunas otomatis pra-cutoff {max_w}",
+                                status=PembayaranUtang.STATUS_REALISASI_LUNAS,
+                                created_by=request.user,
+                            ))
+                    if pembayaran_auto_objs:
+                        PembayaranUtang.objects.bulk_create(pembayaran_auto_objs, ignore_conflicts=True)
+
+        msg = f'Berhasil menyimpan {committed_count} SPB/faktur dari Excel ke SIMAK.'
+        if auto_lunas_count > 0:
+            msg += f' Juga melunaskan otomatis {auto_lunas_count} faktur lama yang terpotong tanggal lunas terbaru vendor.'
+
         return Response({
-            'message': f'Berhasil menyimpan {committed_count} SPB / faktur utang terpisahkan dari Excel ke SIMAK.',
-            'committed_count': committed_count
+            'message': msg,
+            'committed_count': committed_count,
+            'auto_lunas_count': auto_lunas_count,
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='ots-rollback')
@@ -5526,6 +5904,8 @@ class UtangMenungguVerifikasiView(APIView):
 
         # Order mapping berlaku di wrapper query (alias kolom output)
         order = _utang_order_clause(params.get('ordering'), {
+            '-tanggal_spb': 'tanggal_spb DESC',
+            'tanggal_spb': 'tanggal_spb',
             '-tanggal_faktur': 'tanggal_faktur DESC',
             'tanggal_faktur': 'tanggal_faktur',
             'vendor': 'vendor_nama',
@@ -5534,12 +5914,10 @@ class UtangMenungguVerifikasiView(APIView):
             '-nomor_spb': 'nomor_spb DESC',
             'nomor_faktur': 'nomor_faktur',
             '-nomor_faktur': 'nomor_faktur DESC',
-            'tanggal_spb': 'tanggal_spb',
-            '-tanggal_spb': 'tanggal_spb DESC',
-            'created_at': 'tanggal_faktur',
-            '-created_at': 'tanggal_faktur DESC',
-            'verified_at': 'tanggal_faktur',
-            '-verified_at': 'tanggal_faktur DESC',
+            'created_at': 'tanggal_spb DESC',
+            '-created_at': 'tanggal_spb DESC',
+            'verified_at': 'tanggal_spb DESC',
+            '-verified_at': 'tanggal_spb DESC',
             'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
             '-tanggal_jatuh_tempo': 'tanggal_jatuh_tempo DESC',
             'nominal': 'nominal',
@@ -5709,6 +6087,211 @@ class UtangMenungguVerifikasiView(APIView):
             )
 
         return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+def _normalize_vendor_name_key(name):
+    if not name:
+        return ""
+    s = str(name).upper().strip()
+    s = re.sub(r'\b(PT|CV|UD|PD|NV|TBK)\b', '', s)
+    return re.sub(r'[^A-Z0-9]', '', s)
+
+
+class UtangPelunasanDataLamaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        selected_items = request.data.get('items')
+        selected_map = {}
+        if selected_items and isinstance(selected_items, list):
+            for item in selected_items:
+                if isinstance(item, dict) and item.get('app_siaga_faktur_id'):
+                    key = (str(item.get('app_siaga_faktur_id')), (item.get('sumber') or 'farmasi').strip())
+                    selected_map[key] = True
+
+        with connection.cursor() as cursor:
+            # Build max tanggal_titip mapping by both vendor_id AND normalized vendor_nama
+            cursor.execute("""
+                SELECT vendor_id, vendor_nama, MAX(tanggal_titip) as max_titip
+                FROM utang_supplier
+                WHERE tanggal_titip IS NOT NULL
+                GROUP BY vendor_id, vendor_nama
+            """)
+            vendor_max_titip_by_id = {}
+            vendor_max_titip_by_name = {}
+
+            for r in cursor.fetchall():
+                v_id, v_name, max_titip = r
+                if v_id:
+                    if v_id not in vendor_max_titip_by_id or max_titip > vendor_max_titip_by_id[v_id]:
+                        vendor_max_titip_by_id[v_id] = max_titip
+                norm_name = _normalize_vendor_name_key(v_name)
+                if norm_name:
+                    if norm_name not in vendor_max_titip_by_name or max_titip > vendor_max_titip_by_name[norm_name]:
+                        vendor_max_titip_by_name[norm_name] = max_titip
+
+            # 1. Fetch unverified farmasi purchases
+            cursor.execute("""
+                SELECT 
+                    CONVERT(t.id USING utf8mb4) AS app_siaga_faktur_id,
+                    CONVERT(COALESCE(NULLIF(t.no_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
+                    t.tgl_faktur AS tanggal_spb,
+                    CONVERT(COALESCE(NULLIF(t.no_faktur, ''), '-') USING utf8mb4) AS nomor_faktur,
+                    r.id_rekanan AS vendor_id,
+                    CONVERT(COALESCE(r.nama, '') USING utf8mb4) AS vendor_nama,
+                    t.tgl_faktur AS tanggal_faktur,
+                    t.gtotal AS nominal
+                FROM rssams.tran_beli_brg_farmasi t
+                LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
+                LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                WHERE u.id IS NULL 
+                  AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
+                  AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+            """)
+            cols_f = [col[0] for col in cursor.description]
+            farmasi_rows = [dict(zip(cols_f, row)) for row in cursor.fetchall()]
+
+            # 2. Fetch unverified logistik purchases
+            cursor.execute("""
+                SELECT 
+                    CONVERT(t.id USING utf8mb4) AS app_siaga_faktur_id,
+                    CONVERT(COALESCE(NULLIF(s.no_spb, ''), NULLIF(t.id_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
+                    t.tgl_spk AS tanggal_spb,
+                    CONVERT(COALESCE(NULLIF(NULLIF(t.no_spk, ''), '-'), '-') USING utf8mb4) AS nomor_faktur,
+                    r.id_rekanan AS vendor_id,
+                    CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
+                    t.tgl_spk AS tanggal_faktur,
+                    t.nilai AS nominal
+                FROM rssams.tran_beli_brg_log t
+                LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
+                LEFT JOIN rssams.rekanan r ON (r.nama = t.rekanan OR r.nama = s.no_spb)
+                LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
+                WHERE t.done = 'Y' 
+                  AND u.id IS NULL 
+                  AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
+                  AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
+                  AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
+                  AND (s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
+                  AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+            """)
+            cols_l = [col[0] for col in cursor.description]
+            logistik_rows = [dict(zip(cols_l, row)) for row in cursor.fetchall()]
+
+        now = timezone.now()
+        today = timezone.localdate()
+        total_nominal = Decimal('0')
+
+        to_create = []
+        for r in farmasi_rows:
+            f_id = str(r['app_siaga_faktur_id'])
+            v_id = r.get('vendor_id')
+            v_nama = r.get('vendor_nama') or ''
+            norm_v_nama = _normalize_vendor_name_key(v_nama)
+            tgl_f = r.get('tanggal_faktur')
+            
+            is_old = False
+            if selected_map:
+                if (f_id, 'farmasi') in selected_map:
+                    is_old = True
+            else:
+                max_titip = vendor_max_titip_by_id.get(v_id)
+                norm_max_titip = vendor_max_titip_by_name.get(norm_v_nama)
+                if norm_max_titip and (not max_titip or norm_max_titip > max_titip):
+                    max_titip = norm_max_titip
+
+                if max_titip:
+                    if tgl_f is None or tgl_f <= max_titip:
+                        is_old = True
+                else:
+                    if tgl_f is None or tgl_f.year < 2026:
+                        is_old = True
+
+            if is_old:
+                nom = Decimal(str(r.get('nominal') or 0))
+                ket = 'Dipelutaskan otomatis (Pilihan manual massal)' if selected_map else 'Dipelutaskan otomatis (Sisa data lama sebelum tanggal titip OTS vendor)'
+                to_create.append(UtangSupplier(
+                    app_siaga_faktur_id=f_id,
+                    sumber=UtangSupplier.SUMBER_FARMASI,
+                    nomor_spb=r.get('nomor_spb') or '',
+                    tanggal_spb=r.get('tanggal_spb'),
+                    nomor_faktur=r.get('nomor_faktur') or '',
+                    vendor_id=v_id or 0,
+                    vendor_nama=v_nama,
+                    tanggal_faktur=tgl_f,
+                    nominal=nom,
+                    status=UtangSupplier.STATUS_LUNAS,
+                    tanggal_titip=tgl_f or today,
+                    keterangan_titip=ket,
+                    verified_by=request.user,
+                    verified_at=now
+                ))
+                total_nominal += nom
+
+        for r in logistik_rows:
+            f_id = str(r['app_siaga_faktur_id'])
+            v_id = r.get('vendor_id')
+            v_nama = r.get('vendor_nama') or ''
+            norm_v_nama = _normalize_vendor_name_key(v_nama)
+            tgl_f = r.get('tanggal_faktur')
+            
+            is_old = False
+            if selected_map:
+                if (f_id, 'logistik') in selected_map or (f"LOG-{f_id}", 'logistik') in selected_map:
+                    is_old = True
+            else:
+                max_titip = vendor_max_titip_by_id.get(v_id)
+                norm_max_titip = vendor_max_titip_by_name.get(norm_v_nama)
+                if norm_max_titip and (not max_titip or norm_max_titip > max_titip):
+                    max_titip = norm_max_titip
+
+                if max_titip:
+                    if tgl_f is None or tgl_f <= max_titip:
+                        is_old = True
+                else:
+                    if tgl_f is None or tgl_f.year < 2026:
+                        is_old = True
+
+            if is_old:
+                nom = Decimal(str(r.get('nominal') or 0))
+                app_id = f"LOG-{f_id}"
+                ket = 'Dipelutaskan otomatis (Pilihan manual massal)' if selected_map else 'Dipelutaskan otomatis (Sisa data lama sebelum tanggal titip OTS vendor)'
+                to_create.append(UtangSupplier(
+                    app_siaga_faktur_id=app_id,
+                    sumber=UtangSupplier.SUMBER_LOGISTIK,
+                    nomor_spb=r.get('nomor_spb') or '',
+                    tanggal_spb=r.get('tanggal_spb'),
+                    nomor_faktur=r.get('nomor_faktur') or '',
+                    vendor_id=v_id or 0,
+                    vendor_nama=v_nama,
+                    tanggal_faktur=tgl_f,
+                    nominal=nom,
+                    status=UtangSupplier.STATUS_LUNAS,
+                    tanggal_titip=tgl_f or today,
+                    keterangan_titip=ket,
+                    verified_by=request.user,
+                    verified_at=now
+                ))
+                total_nominal += nom
+
+        UtangSupplier.objects.bulk_create(to_create, batch_size=500, ignore_conflicts=True)
+        return Response({
+            'success': True,
+            'count': len(to_create),
+            'total_nominal': float(total_nominal),
+            'message': f'Berhasil melunaskan {len(to_create)} faktur sisa lama (berdasarkan tanggal titip OTS masing-masing vendor) dengan total nominal Rp {total_nominal:,.0f}.'
+        })
+
+    def delete(self, request):
+        qs = UtangSupplier.objects.filter(keterangan_titip__icontains='Dipelutaskan otomatis (Sisa data lama')
+        count = qs.count()
+        total_nominal = sum((u.nominal or Decimal('0')) for u in qs)
+        qs.delete()
+        return Response({
+            'success': True,
+            'count': count,
+            'total_nominal': float(total_nominal),
+            'message': f'Berhasil membatalkan (Undo) pelunasan {count} faktur sisa data lama. Data dikembalikan ke status Menunggu Verifikasi.'
+        })
 
 
 class UtangVendorOptionsView(APIView):

@@ -15,7 +15,7 @@ from .views import (
     LogistikBarangViewSet, LogistikPembelianViewSet, LogistikBatchViewSet,
     LogistikMutasiViewSet, LogistikPermintaanViewSet, LogistikOpnameViewSet, LogistikVendorViewSet,
     LogistikSpbViewSet, LogistikSpbItemViewSet,
-    UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView,
+    UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView, UtangPelunasanDataLamaView,
     faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
 )
 
@@ -70,6 +70,7 @@ urlpatterns = [
     path('pembiayaan-options/', PembiayaanListView.as_view(), name='pembiayaan-options'),
     path('pembiayaan-options/<int:id_pembiayaan>/', PembiayaanDetailView.as_view(), name='pembiayaan-detail'),
     path('catatan-utang/obat-bhp/menunggu-verifikasi/', UtangMenungguVerifikasiView.as_view(), name='utang-obat-bhp-menunggu'),
+    path('catatan-utang/obat-bhp/lunaskan-data-lama/', UtangPelunasanDataLamaView.as_view(), name='utang-obat-bhp-lunaskan-data-lama'),
     path('catatan-utang/obat-bhp/vendor-options/', UtangVendorOptionsView.as_view(), name='utang-obat-bhp-vendor-options'),
     path('laporan-petty-cash/', LaporanPettyCashView.as_view(), name='laporan-petty-cash'),
     path('faktur/rekap/excel/', faktur_rekap_excel_view, name='faktur-rekap-excel'),

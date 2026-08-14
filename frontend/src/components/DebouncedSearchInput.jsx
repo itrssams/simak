@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Search, X } from 'lucide-react';
-import useDebounce from '../hooks/useDebounce';
 
 export default function DebouncedSearchInput({
     value = '',
@@ -11,17 +10,36 @@ export default function DebouncedSearchInput({
     iconSize = 16,
 }) {
     const [searchTerm, setSearchTerm] = useState(value);
-    const debouncedSearchTerm = useDebounce(searchTerm, delay);
+    const timeoutRef = useRef(null);
 
+    // Synchronize internal state whenever `value` prop changes from parent (e.g. Reset Filter)
     useEffect(() => {
         setSearchTerm(value || '');
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
     }, [value]);
 
-    useEffect(() => {
-        if (debouncedSearchTerm !== value) {
-            onChange(debouncedSearchTerm);
+    const handleInputChange = (e) => {
+        const newVal = e.target.value;
+        setSearchTerm(newVal);
+
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
         }
-    }, [debouncedSearchTerm, onChange, value]);
+
+        timeoutRef.current = setTimeout(() => {
+            onChange(newVal);
+        }, delay);
+    };
+
+    const handleClear = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+        }
+        setSearchTerm('');
+        onChange('');
+    };
 
     return (
         <label className={`dki-search ${className}`.trim()}>
@@ -29,7 +47,7 @@ export default function DebouncedSearchInput({
             <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleInputChange}
                 placeholder={placeholder}
             />
             {searchTerm && (
@@ -45,10 +63,7 @@ export default function DebouncedSearchInput({
                         alignItems: 'center',
                         opacity: 0.65,
                     }}
-                    onClick={() => {
-                        setSearchTerm('');
-                        onChange('');
-                    }}
+                    onClick={handleClear}
                     title="Hapus pencarian"
                 >
                     <X size={14} />

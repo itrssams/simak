@@ -5,6 +5,7 @@ import {
     AlertTriangle,
     CalendarDays,
     CheckCircle2,
+    CheckCheck,
     CircleDollarSign,
     ClipboardList,
     Eye,
@@ -36,7 +37,8 @@ import { getCount, getResults, pageParams, SimplePagination } from '../../utils/
 import './CatatanUtangObatBhp.css';
 
 const STATUS_OPTIONS = [
-    { value: '', label: 'Semua Status' },
+    { value: '', label: 'Semua Status (Termasuk Lunas)' },
+    { value: 'aktif', label: 'Utang Aktif (Belum Lunas)' },
     { value: 'belum_dibayar', label: 'Belum Dibayar' },
     { value: 'diajukan', label: 'Diajukan' },
     { value: 'sebagian', label: 'Sebagian' },
@@ -110,9 +112,9 @@ const VIEW_META = {
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `Rp\u00a0${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+const money = (value) => `Rp\u00a0${Math.round(Number(value || 0)).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
-const getRefNo = (item) => item.nomor_spb || `RJ-${item.app_siaga_faktur_id}`;
+const getRefNo = (item) => item.nomor_spb || item.app_siaga_faktur_id || '-';
 const calcUmurUtang = (tanggal_titip) => {
     if (!tanggal_titip) return '-';
     const tglTitip = new Date(tanggal_titip);
@@ -154,7 +156,7 @@ const formatMoneyInput = (value) => {
     if (value === '' || value === null || value === undefined) return '';
     if (typeof value === 'number') {
         if (!Number.isFinite(value) || value === 0) return '';
-        return `Rp ${value.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+        return `Rp ${Math.round(value).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
     }
     const str = String(value).trim();
     if (!str) return '';
@@ -162,7 +164,7 @@ const formatMoneyInput = (value) => {
     if (/^-?\d+(\.\d+)?$/.test(str)) {
         const num = Number(str);
         if (!Number.isFinite(num) || num === 0) return '';
-        return `Rp ${num.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+        return `Rp ${Math.round(num).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
     }
 
     const raw = str.replace(/[^\d.,]/g, '');
@@ -189,11 +191,11 @@ const formatMoneyInput = (value) => {
 const errorMessage = (err, fallback) => err?.response?.data?.detail || err?.response?.data?.error || Object.values(err?.response?.data || {}).flat().join(' ') || fallback;
 
 const getDefaultOrdering = (m) => {
-    if (m === 'menunggu') return '-tanggal_faktur';
+    if (m === 'menunggu') return '-tanggal_spb';
     if (m === 'pengajuan') return '-created_at';
     if (m === 'histori') return '-tanggal_proses';
     if (m === 'deposit') return '-created_at';
-    return '-verified_at';
+    return 'tanggal_titip';
 };
 
 const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at' };
@@ -243,8 +245,17 @@ export default function CatatanUtangObatBhp() {
     const [detailHistory, setDetailHistory] = useState([]);
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
+    const [selectedKeys, setSelectedKeys] = useState([]);
     const [depositData, setDepositData] = useState({ summary: { total_vendor: 0, total_retur: 0, total_terpakai: 0, total_sisa_deposit: 0 }, vendors: [] });
     const [selectedDepositVendor, setSelectedDepositVendor] = useState(null);
+
+    const resetFilters = useCallback(() => {
+        setFilters({
+            ...initialFilters,
+            ordering: getDefaultOrdering(mode)
+        });
+        setPage(1);
+    }, [mode]);
 
     const canAccess = Boolean(user?.is_superuser || user?.akses_catatan_utang);
 
@@ -337,7 +348,6 @@ export default function CatatanUtangObatBhp() {
         return () => { document.body.style.overflow = previous; };
     }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, showManual, selectedDepositVendor]);
 
-    const resetFilters = () => setFilters({ ...initialFilters, ordering: getDefaultOrdering(mode) });
     const setOrdering = (field) => setFilters((prev) => ({
         ...prev,
         ordering: prev.ordering === field ? `-${field}` : prev.ordering === `-${field}` ? '' : field,
@@ -567,6 +577,80 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const handlePelunasanDataLama = async () => {
+        if (!window.confirm('KONFIRMASI PELUNASAN DATA LAMA:\n\nApakah Anda yakin ingin melunaskan SELURUH sisa transaksi gudang lama yang belum diverifikasi?\n\n- Sistem akan menghitung batas Tanggal Titip OTS terakhir secara DINAMIS untuk Masing-Masing Vendor.\n- Faktur sebelum tanggal titip OTS vendor tsb yang tidak ada di Excel OTS akan otomatis ditandai LUNAS.\n- Faktur berjalan yang lebih baru dari tanggal titip vendor tsb tetap berada di "Menunggu Verifikasi".')) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await api.post('/keuangan/catatan-utang/obat-bhp/lunaskan-data-lama/');
+            toast.success(res.data.message || 'Berhasil melunaskan sisa data transaksi lama.');
+            await fetchData();
+            await fetchSummary();
+            await fetchPendingSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal melunaskan data lama.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleUndoPelunasanDataLama = async () => {
+        if (!window.confirm('KONFIRMASI UNDO PELUNASAN DATA LAMA:\n\nApakah Anda yakin ingin membatalkan (Undo) pelunasan masal data transaksi gudang lama?\n\nSeluruh faktur sisa lama yang sebelumnya dipelutaskan akan dikembalikan ke status "Menunggu Verifikasi".')) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const res = await api.delete('/keuangan/catatan-utang/obat-bhp/lunaskan-data-lama/');
+            toast.success(res.data.message || 'Berhasil membatalkan (Undo) pelunasan data lama.');
+            await fetchData();
+            await fetchSummary();
+            await fetchPendingSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal membatalkan (Undo) pelunasan data lama.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const toggleSelectAll = (checked, pageItems) => {
+        if (checked) {
+            const keys = pageItems.map(i => `${i.sumber}-${i.app_siaga_faktur_id}`);
+            setSelectedKeys(keys);
+        } else {
+            setSelectedKeys([]);
+        }
+    };
+
+    const toggleSelectItem = (key) => {
+        setSelectedKeys(prev => 
+            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        );
+    };
+
+    const handleBulkPelunasanSelected = async () => {
+        if (selectedKeys.length === 0) return;
+        if (!window.confirm(`KONFIRMASI PELUNASAN TERPILIH:\n\nApakah Anda yakin ingin melunaskan ${selectedKeys.length} faktur yang dipilih?`)) return;
+
+        const selectedObjects = items
+            .filter(i => selectedKeys.includes(`${i.sumber}-${i.app_siaga_faktur_id}`))
+            .map(i => ({ app_siaga_faktur_id: i.app_siaga_faktur_id, sumber: i.sumber }));
+
+        setSaving(true);
+        try {
+            const res = await api.post('/keuangan/catatan-utang/obat-bhp/lunaskan-data-lama/', { items: selectedObjects });
+            toast.success(res.data.message || `Berhasil melunaskan ${selectedKeys.length} faktur terpilih.`);
+            setSelectedKeys([]);
+            await fetchData();
+            await fetchSummary();
+            await fetchPendingSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal melunaskan faktur terpilih.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const openManual = () => {
         setManualForm(initialManualForm);
         setShowManual(true);
@@ -680,6 +764,21 @@ export default function CatatanUtangObatBhp() {
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
                         )}
+                        {mode === 'menunggu' && (
+                            <>
+                                {selectedKeys.length > 0 && (
+                                    <button className="utang-btn primary" type="button" onClick={handleBulkPelunasanSelected} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }} title="Pelunasan Masal Faktur Terpilih">
+                                        <CheckCheck size={16} /> Lunaskan ({selectedKeys.length}) Terpilih
+                                    </button>
+                                )}
+                                <button className="utang-btn primary" type="button" onClick={handlePelunasanDataLama} style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff' }} title="Pelunasan Masal Data Transaksi Gudang Lama (Dinamis Sesuai Tanggal Titip Terakhir Masing-Masing Vendor di Excel OTS)">
+                                    <CheckCheck size={16} /> Lunaskan Sisa Data Lama
+                                </button>
+                                <button className="utang-btn primary" type="button" onClick={handleUndoPelunasanDataLama} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Batalkan (Undo) Pelunasan Masal Data Lama">
+                                    <RotateCcw size={16} /> Undo Pelunasan Data Lama
+                                </button>
+                            </>
+                        )}
                         <button className="utang-btn primary" type="button" onClick={() => navigate('/keuangan/catatan-utang/import-ots')} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}>
                             <FileSpreadsheet size={16} /> Import Excel OTS
                         </button>
@@ -738,7 +837,16 @@ export default function CatatanUtangObatBhp() {
                     <div className="utang-empty">Belum ada data sesuai filter.</div>
                 ) : (
                     <div className="utang-table-wrap table-fade-in">
-                        {mode === 'menunggu' && <PendingTable items={items} onVerify={openVerify} onSort={setOrdering} />}
+                        {mode === 'menunggu' && (
+                            <PendingTable 
+                                items={items} 
+                                onVerify={openVerify} 
+                                onSort={setOrdering} 
+                                selectedKeys={selectedKeys} 
+                                onToggleAll={toggleSelectAll} 
+                                onToggleItem={toggleSelectItem} 
+                            />
+                        )}
                         {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'deposit' && <DepositVendorTable summary={depositData.summary} vendors={items} onDetail={setSelectedDepositVendor} />}
@@ -1407,6 +1515,35 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                 <select className="dki-select dki-filter-status" value={mode === 'aktif' ? filters.status : ''} onChange={(e) => setFilters({ ...filters, status: e.target.value })} disabled={mode !== 'aktif'} title={mode === 'aktif' ? 'Filter status' : 'Status hanya tersedia di tab Utang Aktif'}>
                     {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
+                <select
+                    className="dki-select utang-ordering-filter"
+                    value={filters.ordering || ''}
+                    onChange={(e) => setFilters({ ...filters, ordering: e.target.value })}
+                    title="Urutkan data berdasarkan"
+                >
+                    {mode === 'menunggu' ? (
+                        <>
+                            <option value="-tanggal_spb">Tgl SPB Terbaru</option>
+                            <option value="tanggal_spb">Tgl SPB Terlama</option>
+                            <option value="-tanggal_faktur">Tgl Faktur Terbaru</option>
+                            <option value="tanggal_faktur">Tgl Faktur Terlama</option>
+                            <option value="vendor">Vendor (A-Z)</option>
+                            <option value="-nominal">Nominal Terbesar</option>
+                            <option value="nominal">Nominal Terkecil</option>
+                        </>
+                    ) : (
+                        <>
+                            <option value="tanggal_titip">Tgl Titip Terlama (Umur Utang)</option>
+                            <option value="-tanggal_titip">Tgl Titip Terbaru</option>
+                            <option value="-verified_at">Verifikasi Terbaru</option>
+                            <option value="-tanggal_faktur">Tgl Faktur Terbaru</option>
+                            <option value="tanggal_faktur">Tgl Faktur Terlama</option>
+                            <option value="-nominal">Nominal Terbesar</option>
+                            <option value="nominal">Nominal Terkecil</option>
+                            <option value="vendor_nama">Vendor (A-Z)</option>
+                        </>
+                    )}
+                </select>
                 <DateRangePicker
                     dari={filters.dari}
                     sampai={filters.sampai}
@@ -1419,11 +1556,22 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     );
 }
 
-function PendingTable({ items, onVerify, onSort }) {
+function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll, onToggleItem }) {
+    const allSelected = items.length > 0 && items.every(i => selectedKeys.includes(`${i.sumber}-${i.app_siaga_faktur_id}`));
+
     return (
         <table className="utang-table">
             <thead>
                 <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={(e) => onToggleAll && onToggleAll(e.target.checked, items)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10b981' }}
+                            title="Pilih Semua Halaman Ini"
+                        />
+                    </th>
                     <th>Sumber</th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur" field="nomor_faktur" onSort={onSort} />
@@ -1433,38 +1581,50 @@ function PendingTable({ items, onVerify, onSort }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => (
-                    <tr key={`${item.sumber}-${item.app_siaga_faktur_id}`}>
-                        <td><SumberBadge sumber={item.sumber} /></td>
-                        <td className="utang-name-cell">
-                            <strong>{item.vendor_nama || '-'}</strong>
-                            {item.sumber === 'logistik' && !item.vendor_id_hint && (
-                                <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
-                                    <AlertTriangle size={12} /> Pilih vendor
-                                </span>
-                            )}
-                            <small className="utang-subtext">SPB: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
-                        </td>
-                        <td>
-                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
-                            <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
-                        </td>
-                        <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
-                        <td className="utang-right utang-mono bold">
-                            <div>{money(item.nominal)}</div>
-                            {item.sumber === 'farmasi' && (Number(item.disc1 || 0) > 0 || Number(item.ppn || 0) > 0) && (
-                                <small className="utang-subtext" style={{ fontSize: '11px', display: 'block', fontWeight: 'normal', color: '#64748b' }}>
-                                    Bruto: {money(item.total_sebelum_diskon)} {Number(item.disc1 || 0) > 0 ? `• Disc: ${money(item.disc1)}` : ''} {Number(item.ppn || 0) > 0 ? `• PPN: ${money(item.ppn)}` : ''}
-                                </small>
-                            )}
-                        </td>
-                        <td className="utang-right">
-                            <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
-                                <CheckCircle2 size={15} /> Verifikasi
-                            </button>
-                        </td>
-                    </tr>
-                ))}
+                {items.map((item) => {
+                    const key = `${item.sumber}-${item.app_siaga_faktur_id}`;
+                    const isSelected = selectedKeys.includes(key);
+                    return (
+                        <tr key={key} style={isSelected ? { backgroundColor: '#f0fdf4' } : {}}>
+                            <td style={{ textAlign: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => onToggleItem && onToggleItem(key)}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10b981' }}
+                                />
+                            </td>
+                            <td><SumberBadge sumber={item.sumber} /></td>
+                            <td className="utang-name-cell">
+                                <strong>{item.vendor_nama || '-'}</strong>
+                                {item.sumber === 'logistik' && !item.vendor_id_hint && (
+                                    <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
+                                        <AlertTriangle size={12} /> Pilih vendor
+                                    </span>
+                                )}
+                                <small className="utang-subtext">SPB: {getRefNo(item)} {item.sumber === 'farmasi' ? `• ID ${item.vendor_id}` : ''}</small>
+                            </td>
+                            <td>
+                                <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                                <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
+                            </td>
+                            <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
+                            <td className="utang-right utang-mono bold">
+                                <div>{money(item.nominal)}</div>
+                                {item.sumber === 'farmasi' && (Number(item.disc1 || 0) > 0 || Number(item.ppn || 0) > 0) && (
+                                    <small className="utang-subtext" style={{ fontSize: '11px', display: 'block', fontWeight: 'normal', color: '#64748b' }}>
+                                        Bruto: {money(item.total_sebelum_diskon)} {Number(item.disc1 || 0) > 0 ? `• Disc: ${money(item.disc1)}` : ''} {Number(item.ppn || 0) > 0 ? `• PPN: ${money(item.ppn)}` : ''}
+                                    </small>
+                                )}
+                            </td>
+                            <td className="utang-right">
+                                <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
+                                    <CheckCircle2 size={15} /> Verifikasi
+                                </button>
+                            </td>
+                        </tr>
+                    );
+                })}
             </tbody>
         </table>
     );
