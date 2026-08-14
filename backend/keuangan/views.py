@@ -5391,11 +5391,16 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     auto_meta.append((app_id, tot_b, tgl_fak_date, max_w))
 
                 if utang_auto_objs:
-                    UtangSupplier.objects.bulk_create(utang_auto_objs, ignore_conflicts=True)
+                    UtangSupplier.objects.bulk_create(utang_auto_objs, batch_size=100, ignore_conflicts=True)
                     auto_lunas_count = len(utang_auto_objs)
 
                     created_app_ids = [m[0] for m in auto_meta]
-                    utang_map = {u.app_siaga_faktur_id: u.id for u in UtangSupplier.objects.filter(app_siaga_faktur_id__in=created_app_ids)}
+                    utang_map = {}
+                    chunk_size = 500
+                    for i in range(0, len(created_app_ids), chunk_size):
+                        chunk = created_app_ids[i:i + chunk_size]
+                        for u in UtangSupplier.objects.filter(app_siaga_faktur_id__in=chunk).values_list('app_siaga_faktur_id', 'id'):
+                            utang_map[u[0]] = u[1]
 
                     pembayaran_auto_objs = []
                     for app_id, tot_b, tgl_fak_date, max_w in auto_meta:
@@ -5414,7 +5419,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                                 created_by=request.user,
                             ))
                     if pembayaran_auto_objs:
-                        PembayaranUtang.objects.bulk_create(pembayaran_auto_objs, ignore_conflicts=True)
+                        PembayaranUtang.objects.bulk_create(pembayaran_auto_objs, batch_size=100, ignore_conflicts=True)
 
         msg = f'Berhasil menyimpan {committed_count} SPB/faktur dari Excel ke SIMAK.'
         if auto_lunas_count > 0:
@@ -6273,7 +6278,7 @@ class UtangPelunasanDataLamaView(APIView):
                 ))
                 total_nominal += nom
 
-        UtangSupplier.objects.bulk_create(to_create, batch_size=500, ignore_conflicts=True)
+        UtangSupplier.objects.bulk_create(to_create, batch_size=100, ignore_conflicts=True)
         return Response({
             'success': True,
             'count': len(to_create),
