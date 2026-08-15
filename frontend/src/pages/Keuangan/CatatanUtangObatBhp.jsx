@@ -708,7 +708,9 @@ export default function CatatanUtangObatBhp() {
             });
             toast.success('Catatan utang manual berhasil disimpan.');
             setShowManual(false);
-            if (mode === 'aktif') await fetchData();
+            setManualForm(initialManualForm);
+            await fetchSummary();
+            if (mode === 'aktif' || mode === 'semua') await fetchData();
             else setSearchParams({ tab: 'aktif' });
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal menyimpan utang manual.'));

@@ -4215,191 +4215,209 @@ def _fetch_logistik_pembelian(pembelian_id):
         return dict(zip(columns, row))
 
 
-class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
-    queryset = UtangSupplier.objects.select_related('verified_by').prefetch_related('pembayaran__created_by').all()
+def parse_lenient_date(val):
+    if not val:
+        return None
+    if isinstance(val, (datetime, date)):
+        return val.date() if isinstance(val, datetime) else val
+    val_s = str(val).strip()
+    if not val_s:
+        return None
+    # Try different separators
+    parts = None
+    for sep in ('/', '-', '.'):
+        if sep in val_s:
+            parts = val_s.split(sep)
+            break
+    if not parts or len(parts) < 3:
+        return None
+    try:
+        # Check order: is it YYYY-MM-DD or DD/MM/YYYY?
+        if len(parts[0]) == 4:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2][:2])
+        elif len(parts[2][:4]) == 4:
+            day, month, year = int(parts[0]), int(parts[1]), int(parts[2][:4])
+        else:
+            return None
+        # Capping month
+        month = max(1, min(12, month))
+        # Capping day based on month and year
+        if month in (4, 6, 9, 11):
+            day = min(day, 30)
+        elif month == 2:
+            is_leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+            day = min(day, 29 if is_leap else 28)
+        else:
+            day = min(day, 31)
+        day = max(1, day)
+        return date(year, month, day)
+    except Exception:
+        return None
+
+
+def _clean_vendor_name(name):
+    if not name:
+        return ''
+    s = str(name).upper()
+    s = re.sub(r'\b(PT|CV|PD|UD|TB|NV)\b', '', s)
+    s = re.sub(r'[^A-Z0-9]', '', s)
+    return s
+
+
+class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     serializer_class = UtangSupplierSerializer
-    permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = UtangSupplier.objects.all()
         params = self.request.query_params
+
         search = (params.get('search') or '').strip()
-        vendor_id = params.get('vendor_id')
-        status_filter = params.get('status')
-        sumber_filter = (params.get('sumber') or '').strip()
-        dari = params.get('dari')
-        sampai = params.get('sampai')
+        vendor_id = (params.get('vendor_id') or '').strip()
+        kategori = (params.get('kategori') or '').strip()
+        st = (params.get('status') or '').strip()
+        sumber = (params.get('sumber') or '').strip()
+        dari = (params.get('dari') or '').strip()
+        sampai = (params.get('sampai') or '').strip()
+        ordering = (params.get('ordering') or '').strip()
 
         if search:
             qs = qs.filter(
-                Q(nomor_spb__icontains=search)
-                | Q(nomor_faktur__icontains=search)
-                | Q(vendor_nama__icontains=search)
-                | Q(app_siaga_faktur_id__icontains=search)
+                models.Q(nomor_faktur__icontains=search) |
+                models.Q(nomor_spb__icontains=search) |
+                models.Q(vendor_nama__icontains=search) |
+                models.Q(keterangan_titip__icontains=search) |
+                models.Q(app_siaga_faktur_id__icontains=search)
             )
+
         if vendor_id:
             qs = qs.filter(vendor_id=vendor_id)
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        if sumber_filter and sumber_filter != 'semua':
-            qs = qs.filter(sumber=sumber_filter)
-        kategori_filter = (params.get('kategori') or '').strip()
-        if kategori_filter:
-            k_variants = list({kategori_filter, kategori_filter.replace('&', 'DAN'), kategori_filter.replace('DAN', '&')})
-            v_ids = []
-            if 'kategori' in _get_rekanan_columns():
-                with connection.cursor() as cursor:
-                    placeholders = ', '.join(['UPPER(TRIM(%s))'] * len(k_variants))
-                    sql = f"SELECT id_rekanan FROM rssams.rekanan WHERE UPPER(TRIM(kategori)) IN ({placeholders}) AND del = 'N'"
-                    cursor.execute(sql, k_variants)
-                    v_ids = [r[0] for r in cursor.fetchall()]
-            
-            kat_q = Q(vendor_id__in=v_ids)
-            for var in k_variants:
-                kat_q |= Q(kategori__iexact=var)
-                kat_q |= Q(keterangan_titip__icontains=f"[{var}]")
-            
-            qs = qs.filter(kat_q)
+
+        if kategori:
+            qs = qs.filter(kategori__icontains=kategori)
+
+        if st == 'aktif':
+            qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+        elif st and st not in ['semua', 'all']:
+            qs = qs.filter(status=st)
+
+        if sumber and sumber not in ['semua', 'all']:
+            qs = qs.filter(sumber=sumber)
+
         if dari:
-            qs = qs.filter(tanggal_faktur__gte=dari)
+            qs = qs.filter(tanggal_titip__gte=dari)
+
         if sampai:
-            qs = qs.filter(tanggal_faktur__lte=sampai)
+            qs = qs.filter(tanggal_titip__lte=sampai)
 
-        order = _utang_order_clause(params.get('ordering'), {
-            'verified_at': 'verified_at',
-            '-verified_at': '-verified_at',
-            'vendor': 'vendor_nama',
-            '-vendor': '-vendor_nama',
-            'nomor_faktur': 'nomor_faktur',
-            '-nomor_faktur': '-nomor_faktur',
-            'tanggal_faktur': 'tanggal_faktur',
-            '-tanggal_faktur': '-tanggal_faktur',
-            'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
-            '-tanggal_jatuh_tempo': '-tanggal_jatuh_tempo',
-            'tanggal_titip': 'tanggal_titip',
-            '-tanggal_titip': '-tanggal_titip',
-            'nominal': 'nominal',
-            '-nominal': '-nominal',
-            'status': 'status',
-            '-status': '-status',
+        if ordering:
+            allowed_ordering = [
+                'tanggal_titip', '-tanggal_titip',
+                'tanggal_faktur', '-tanggal_faktur',
+                'verified_at', '-verified_at',
+                'vendor_nama', '-vendor_nama',
+                'nominal', '-nominal',
+                'status', '-status',
+                'created_at', '-created_at'
+            ]
+            if ordering in allowed_ordering:
+                qs = qs.order_by(ordering)
+            else:
+                qs = qs.order_by('-verified_at', '-created_at')
+        else:
+            qs = qs.order_by('-verified_at', '-created_at')
+
+        return qs
+
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+
+        total_nominal = active_qs.aggregate(total=models.Sum('nominal'))['total'] or Decimal('0')
+        total_dibayar = PembayaranUtang.objects.filter(
+            utang__in=active_qs,
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
+        ).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+        
+        total_sisa = max(Decimal('0'), total_nominal - total_dibayar)
+
+        total_faktur = qs.count()
+        total_lunas_count = qs.filter(status=UtangSupplier.STATUS_LUNAS).count()
+        total_aktif_count = active_qs.count()
+
+        return Response({
+            'total_faktur': total_faktur,
+            'total_lunas_count': total_lunas_count,
+            'total_aktif_count': total_aktif_count,
+            'utang_count': total_aktif_count,
+            'total_nominal': total_nominal,
+            'total_dibayar': total_dibayar,
+            'total_sisa': total_sisa,
         })
-        return qs.order_by(order, '-created_at')
 
-    @action(detail=False, methods=['get'], url_path='export-excel')
-    def export_excel(self, request):
-        qs = self.get_queryset().select_related('verified_by')
+    @action(detail=False, methods=['post'], url_path='create-manual')
+    def create_manual(self, request):
+        """Membuat catatan utang secara manual (tidak dari database legacy)."""
+        data = request.data
+        vendor_id = data.get('vendor_id')
+        if not vendor_id:
+            return Response({'error': 'vendor_id wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Daftar Utang Supplier"
+        # Ambil nama vendor dari rssams.rekanan
+        vendor_nama = ''
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N'", [vendor_id])
+            row = cursor.fetchone()
+            if row:
+                vendor_nama = row[0]
 
-        ws.merge_cells('A1:N1')
-        ws['A1'] = 'DAFTAR UTANG SUPPLIER (OBAT, BHP & LOGISTIK)'
-        ws['A1'].font = Font(bold=True, size=14)
-        ws['A1'].alignment = Alignment(horizontal='center')
+        if not vendor_nama:
+            return Response({'error': 'Vendor tidak ditemukan di master rekanan.'}, status=status.HTTP_404_NOT_FOUND)
 
-        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
-        ws['A2'].font = Font(italic=True, size=10)
+        nomor_faktur = (data.get('nomor_faktur') or '').strip()
+        if not nomor_faktur:
+            return Response({'error': 'nomor_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        headers = [
-            'No', 'Sumber', 'Vendor / Supplier', 'No. Faktur', 'No. SPB / Ref',
-            'Tgl Faktur', 'Tgl Titip Faktur', 'Umur Utang', 'Tgl Jatuh Tempo',
-            'Nominal Utang (Rp)', 'Total Dibayar (Rp)', 'Sisa Utang (Rp)', 'Status', 'Verifikator'
-        ]
-        ws.append([])
-        ws.append(headers)
+        tgl_faktur = data.get('tanggal_faktur')
+        if not tgl_faktur:
+            return Response({'error': 'tanggal_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        header_row = 4
-        header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
-        header_font = Font(bold=True, color='FFFFFF')
+        keterangan = (data.get('keterangan') or '').strip()
+        if not keterangan:
+            return Response({'error': 'keterangan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=header_row, column=col_num)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+        nominal_raw = data.get('nominal')
+        try:
+            nominal = Decimal(str(nominal_raw))
+            if nominal <= 0:
+                raise ValueError
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'error': 'nominal tidak valid atau wajib lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        total_nominal = Decimal('0')
-        total_dibayar = Decimal('0')
-        total_sisa = Decimal('0')
-        thin_border = Border(
-            left=Side(style='thin', color='CBD5E1'),
-            right=Side(style='thin', color='CBD5E1'),
-            top=Side(style='thin', color='CBD5E1'),
-            bottom=Side(style='thin', color='CBD5E1')
+        import uuid
+        faktur_id = f'MNL-{uuid.uuid4().hex[:12].upper()}'
+
+        utang = UtangSupplier.objects.create(
+            app_siaga_faktur_id=faktur_id,
+            sumber=UtangSupplier.SUMBER_MANUAL,
+            nomor_faktur=nomor_faktur,
+            nomor_spb=(data.get('nomor_spb') or '').strip(),
+            vendor_id=int(vendor_id),
+            vendor_nama=vendor_nama,
+            tanggal_faktur=data.get('tanggal_faktur') or None,
+            tanggal_jatuh_tempo=data.get('tanggal_jatuh_tempo') or None,
+            tanggal_titip=data.get('tanggal_titip') or timezone.localdate(),
+            nominal=nominal,
+            keterangan_titip=keterangan,
+            status=UtangSupplier.STATUS_BELUM_DIBAYAR,
+            verified_by=request.user,
+            verified_at=timezone.now(),
         )
 
-        today_date = timezone.localdate()
-
-        for idx, item in enumerate(qs, start=1):
-            nom = item.nominal or Decimal('0')
-            dibayar = item.total_dibayar or Decimal('0')
-            sisa = item.sisa_utang or Decimal('0')
-
-            total_nominal += nom
-            total_dibayar += dibayar
-            total_sisa += sisa
-
-            tgl_faktur = item.tanggal_faktur.strftime('%d-%m-%Y') if item.tanggal_faktur else '-'
-            tgl_titip = item.tanggal_titip.strftime('%d-%m-%Y') if item.tanggal_titip else '-'
-            
-            if item.tanggal_titip:
-                days = (today_date - item.tanggal_titip).days
-                umur_utang_str = f"{max(0, days)} Hari"
-            else:
-                umur_utang_str = '-'
-
-            tgl_tempo = item.tanggal_jatuh_tempo.strftime('%d-%m-%Y') if item.tanggal_jatuh_tempo else '-'
-            sumber_label = item.get_sumber_display()
-            verifier = item.verified_by.username if item.verified_by else '-'
-
-            ws.append([
-                idx,
-                sumber_label,
-                item.vendor_nama or '-',
-                item.nomor_faktur or '-',
-                item.nomor_spb or '-',
-                tgl_faktur,
-                tgl_titip,
-                umur_utang_str,
-                tgl_tempo,
-                float(nom),
-                float(dibayar),
-                float(sisa),
-                item.get_status_display(),
-                verifier,
-            ])
-
-            row_num = ws.max_row
-            for col in range(1, 15):
-                c = ws.cell(row=row_num, column=col)
-                c.border = thin_border
-                if col in [1, 2, 6, 7, 8, 9, 13]:
-                    c.alignment = Alignment(horizontal='center')
-                elif col in [10, 11, 12]:
-                    c.number_format = '#,##0.00'
-                    c.alignment = Alignment(horizontal='right')
-
-        total_row = ws.max_row + 1
-        ws.cell(row=total_row, column=1, value='TOTAL')
-        ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=9)
-        ws.cell(row=total_row, column=1).font = Font(bold=True)
-        ws.cell(row=total_row, column=1).alignment = Alignment(horizontal='right')
-
-        for col_idx, val in [(10, total_nominal), (11, total_dibayar), (12, total_sisa)]:
-            cell = ws.cell(row=total_row, column=col_idx, value=float(val))
-            cell.font = Font(bold=True)
-            cell.number_format = '#,##0.00'
-
-        for col in range(1, 15):
-            ws.column_dimensions[get_column_letter(col)].width = 18
-        ws.column_dimensions['C'].width = 30
-        ws.column_dimensions['D'].width = 22
-
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="Daftar_Utang_Supplier_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
-        wb.save(response)
-        return response
+        return Response({
+            'message': 'Catatan utang manual berhasil dibuat.',
+            'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='vendor-deposit')
     def vendor_deposit(self, request):
@@ -4429,9 +4447,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             qs = qs.filter(vendor_id=vendor_id)
         if search:
             qs = qs.filter(
-                Q(vendor_nama__icontains=search) |
-                Q(keterangan__icontains=search) |
-                Q(utang_asal__nomor_faktur__icontains=search)
+                models.Q(vendor_nama__icontains=search) |
+                models.Q(keterangan__icontains=search) |
+                models.Q(utang_asal__nomor_faktur__icontains=search)
             )
 
         deposits_data = DepositVendorSerializer(qs, many=True).data
@@ -4586,219 +4604,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSe
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
             'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
         }, status=status.HTTP_201_CREATED)
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.get_queryset()
-        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
-        total_nominal = active_qs.aggregate(total=Sum('nominal'))['total'] or Decimal('0')
-        pembayaran = PembayaranUtang.objects.filter(utang__in=active_qs, status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
-        return Response({
-            'utang_count': active_qs.count(),
-            'total_nominal': total_nominal,
-            'total_dibayar': pembayaran,
-            'total_sisa': max(total_nominal - pembayaran, Decimal('0')),
-            'belum_dibayar': qs.filter(status=UtangSupplier.STATUS_BELUM_DIBAYAR).count(),
-            'diajukan': qs.filter(status=UtangSupplier.STATUS_DIAJUKAN).count(),
-            'sebagian': qs.filter(status=UtangSupplier.STATUS_SEBAGIAN).count(),
-            'sebagian_diajukan': qs.filter(status=UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN).count(),
-            'lunas': qs.filter(status=UtangSupplier.STATUS_LUNAS).count(),
-        })
-
-    @action(detail=False, methods=['post'], url_path='create-manual')
-    def create_manual(self, request):
-        """Membuat catatan utang secara manual (tidak dari database legacy)."""
-        data = request.data
-        vendor_id = data.get('vendor_id')
-        if not vendor_id:
-            return Response({'error': 'vendor_id wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Ambil nama vendor dari rssams.rekanan
-        vendor_row = legacy_fetchone(
-            'SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = %s',
-            [vendor_id, 'N'],
-        )
-        if not vendor_row:
-            return Response({'error': 'Vendor tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
-
-        nomor_faktur = (data.get('nomor_faktur') or '').strip()
-        if not nomor_faktur:
-            return Response({'error': 'nomor_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        tgl_faktur = data.get('tanggal_faktur')
-        if not tgl_faktur:
-            return Response({'error': 'tanggal_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        keterangan = (data.get('keterangan') or '').strip()
-        if not keterangan:
-            return Response({'error': 'keterangan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        nominal_raw = data.get('nominal')
-        try:
-            nominal = Decimal(str(nominal_raw))
-            if nominal <= 0:
-                raise ValueError
-        except (TypeError, ValueError, InvalidOperation):
-            return Response({'error': 'nominal tidak valid atau wajib lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Buat ID unik untuk utang manual agar tidak bertabrakan dengan constraint utang_faktur_sumber_uniq
-        import uuid
-        faktur_id = f'MNL-{uuid.uuid4().hex[:12].upper()}'
-
-        utang = UtangSupplier.objects.create(
-            app_siaga_faktur_id=faktur_id,
-            sumber=UtangSupplier.SUMBER_MANUAL,
-            nomor_faktur=nomor_faktur,
-            nomor_spb=data.get('nomor_spb') or '',
-            vendor_id=int(vendor_id),
-            vendor_nama=vendor_row['nama'],
-            tanggal_faktur=data.get('tanggal_faktur') or None,
-            tanggal_jatuh_tempo=data.get('tanggal_jatuh_tempo') or None,
-            tanggal_titip=data.get('tanggal_titip') or timezone.localdate(),
-            nominal=nominal,
-            keterangan_titip=data.get('keterangan') or '',
-            status=UtangSupplier.STATUS_BELUM_DIBAYAR,
-            verified_by=request.user,
-            verified_at=timezone.now(),
-        )
-def parse_lenient_date(val):
-    if not val:
-        return None
-    if isinstance(val, (datetime, date)):
-        return val.date() if isinstance(val, datetime) else val
-    val_s = str(val).strip()
-    if not val_s:
-        return None
-    # Try different separators
-    parts = None
-    for sep in ('/', '-', '.'):
-        if sep in val_s:
-            parts = val_s.split(sep)
-            break
-    if not parts or len(parts) < 3:
-        return None
-    try:
-        # Check order: is it YYYY-MM-DD or DD/MM/YYYY?
-        if len(parts[0]) == 4:
-            year, month, day = int(parts[0]), int(parts[1]), int(parts[2][:2])
-        elif len(parts[2][:4]) == 4:
-            day, month, year = int(parts[0]), int(parts[1]), int(parts[2][:4])
-        else:
-            return None
-        # Capping month
-        month = max(1, min(12, month))
-        # Capping day based on month and year
-        if month in (4, 6, 9, 11):
-            day = min(day, 30)
-        elif month == 2:
-            is_leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-            day = min(day, 29 if is_leap else 28)
-        else:
-            day = min(day, 31)
-        day = max(1, day)
-        return date(year, month, day)
-    except Exception:
-        return None
-
-def _clean_vendor_name(name):
-    if not name:
-        return ''
-    s = str(name).upper()
-    s = re.sub(r'\b(PT|CV|PD|UD|TB|NV)\b', '', s)
-    s = re.sub(r'[^A-Z0-9]', '', s)
-    return s
-
-
-class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    serializer_class = UtangSupplierSerializer
-
-    def get_queryset(self):
-        qs = UtangSupplier.objects.all()
-        params = self.request.query_params
-
-        search = (params.get('search') or '').strip()
-        vendor_id = (params.get('vendor_id') or '').strip()
-        kategori = (params.get('kategori') or '').strip()
-        st = (params.get('status') or '').strip()
-        sumber = (params.get('sumber') or '').strip()
-        dari = (params.get('dari') or '').strip()
-        sampai = (params.get('sampai') or '').strip()
-        ordering = (params.get('ordering') or '').strip()
-
-        if search:
-            qs = qs.filter(
-                models.Q(nomor_faktur__icontains=search) |
-                models.Q(nomor_spb__icontains=search) |
-                models.Q(vendor_nama__icontains=search) |
-                models.Q(keterangan_titip__icontains=search) |
-                models.Q(app_siaga_faktur_id__icontains=search)
-            )
-
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
-
-        if kategori:
-            qs = qs.filter(kategori__icontains=kategori)
-
-        if st == 'aktif':
-            qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
-        elif st and st not in ['semua', 'all']:
-            qs = qs.filter(status=st)
-
-        if sumber and sumber not in ['semua', 'all']:
-            qs = qs.filter(sumber=sumber)
-
-        if dari:
-            qs = qs.filter(tanggal_titip__gte=dari)
-
-        if sampai:
-            qs = qs.filter(tanggal_titip__lte=sampai)
-
-        if ordering:
-            allowed_ordering = [
-                'tanggal_titip', '-tanggal_titip',
-                'tanggal_faktur', '-tanggal_faktur',
-                'verified_at', '-verified_at',
-                'vendor_nama', '-vendor_nama',
-                'nominal', '-nominal',
-                'status', '-status',
-                'created_at', '-created_at'
-            ]
-            if ordering in allowed_ordering:
-                qs = qs.order_by(ordering)
-            else:
-                qs = qs.order_by('-verified_at', '-created_at')
-        else:
-            qs = qs.order_by('-verified_at', '-created_at')
-
-        return qs
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.filter_queryset(self.get_queryset())
-        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
-
-        total_nominal = active_qs.aggregate(total=models.Sum('nominal'))['total'] or Decimal('0')
-        total_dibayar = PembayaranUtang.objects.filter(
-            utang__in=active_qs,
-            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
-        ).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
-        
-        total_sisa = max(Decimal('0'), total_nominal - total_dibayar)
-
-        total_faktur = qs.count()
-        total_lunas_count = qs.filter(status=UtangSupplier.STATUS_LUNAS).count()
-        total_aktif_count = active_qs.count()
-
-        return Response({
-            'total_faktur': total_faktur,
-            'total_lunas_count': total_lunas_count,
-            'total_aktif_count': total_aktif_count,
-            'utang_count': total_aktif_count,
-            'total_nominal': total_nominal,
-            'total_dibayar': total_dibayar,
-            'total_sisa': total_sisa,
-        })
 
     @action(detail=False, methods=['post'], url_path='ots-preview', parser_classes=[MultiPartParser, FormParser])
     def ots_preview(self, request):
