@@ -813,7 +813,11 @@ export default function InvoicePembiayaan() {
 
     const openRekapDialog = () => {
         const today = new Date().toISOString().slice(0, 10);
-        setRekapForm({ tgl1: today, tgl2: today });
+        setRekapForm({
+            tgl1: filters.dari || today,
+            tgl2: filters.sampai || today,
+            id_pembiayaan: filters.id_pembiayaan || '',
+        });
         setRekapOpen(true);
     };
 

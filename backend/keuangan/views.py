@@ -3534,10 +3534,7 @@ def faktur_rekap_print_view(request):
     ).exclude(status='batal')
 
     if id_pembiayaan:
-        try:
-            fakturs_qs = fakturs_qs.filter(id_pembiayaan=int(id_pembiayaan))
-        except (ValueError, TypeError):
-            fakturs_qs = fakturs_qs.filter(id_pembiayaan=id_pembiayaan)
+        fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
 
     fakturs = fakturs_qs.select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
     
@@ -3752,10 +3749,7 @@ def faktur_rekap_excel_view(request):
     )
 
     if id_pembiayaan:
-        try:
-            fakturs_qs = fakturs_qs.filter(id_pembiayaan=int(id_pembiayaan))
-        except (ValueError, TypeError):
-            fakturs_qs = fakturs_qs.filter(id_pembiayaan=id_pembiayaan)
+        fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
 
     fakturs = (
         fakturs_qs
