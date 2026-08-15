@@ -5549,7 +5549,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def export_excel(self, request):
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
 
         qs = self.filter_queryset(self.get_queryset())
         
@@ -5560,7 +5559,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws.merge_cells('A1:O1')
         ws['A1'] = 'REKAP DAFTAR UTANG SUPPLIER (OBAT, BHP & LOGISTIK)'
         ws['A1'].font = Font(bold=True, size=14, color='1E293B')
-        ws['A1'].alignment = Alignment(horizontal='center')
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
 
         ws['A2'] = f'Tanggal Export: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
         ws['A2'].font = Font(italic=True, size=10, color='64748B')
@@ -5583,23 +5582,28 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        thin_border = Border(
-            left=Side(style='thin', color='CBD5E1'),
-            right=Side(style='thin', color='CBD5E1'),
-            top=Side(style='thin', color='CBD5E1'),
-            bottom=Side(style='thin', color='CBD5E1')
-        )
-
         today_date = timezone.localdate()
-        global_index = 1
-        tot_nom = Decimal('0')
-        tot_byr = Decimal('0')
-        tot_sisa = Decimal('0')
+        tot_nom = 0.0
+        tot_byr = 0.0
+        tot_sisa = 0.0
 
-        for u in qs:
-            nom = u.nominal or Decimal('0')
-            byr = u.sudah_dibayar or Decimal('0')
-            sisa = u.sisa_utang or Decimal('0')
+        utang_list = list(qs)
+        utang_ids = [u.id for u in utang_list]
+        pay_map = {}
+        if utang_ids:
+            pays = (
+                PembayaranUtang.objects
+                .filter(utang_id__in=utang_ids, status__in=['realisasi_sebagian', 'realisasi_lunas'])
+                .values('utang_id')
+                .annotate(total=Sum('jumlah_bayar'))
+            )
+            for p in pays:
+                pay_map[p['utang_id']] = float(p['total'] or 0)
+
+        for idx, u in enumerate(utang_list, 1):
+            nom = float(u.nominal or 0)
+            byr = pay_map.get(u.id, 0.0)
+            sisa = max(nom - byr, 0.0)
             tot_nom += nom
             tot_byr += byr
             tot_sisa += sisa
@@ -5608,7 +5612,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             status_lbl = dict(UtangSupplier.STATUS_CHOICES).get(u.status, u.status)
 
             ws.append([
-                global_index,
+                idx,
                 u.get_sumber_display(),
                 u.vendor_nama,
                 u.kategori or '-',
@@ -5617,46 +5621,43 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 u.tanggal_spb.strftime('%d-%m-%Y') if u.tanggal_spb else '-',
                 u.tanggal_faktur.strftime('%d-%m-%Y') if u.tanggal_faktur else '-',
                 u.tanggal_titip.strftime('%d-%m-%Y') if u.tanggal_titip else '-',
-                u.jatuh_tempo.strftime('%d-%m-%Y') if u.jatuh_tempo else '-',
+                u.tanggal_jatuh_tempo.strftime('%d-%m-%Y') if u.tanggal_jatuh_tempo else '-',
                 umur_str,
-                float(nom),
-                float(byr),
-                float(sisa),
+                nom,
+                byr,
+                sisa,
                 status_lbl,
             ])
-            global_index += 1
 
         total_row_idx = ws.max_row + 1
         ws.cell(row=total_row_idx, column=1, value='TOTAL')
         ws.merge_cells(start_row=total_row_idx, start_column=1, end_row=total_row_idx, end_column=11)
-        ws.cell(row=total_row_idx, column=12, value=float(tot_nom))
-        ws.cell(row=total_row_idx, column=13, value=float(tot_byr))
-        ws.cell(row=total_row_idx, column=14, value=float(tot_sisa))
+        ws.cell(row=total_row_idx, column=12, value=tot_nom)
+        ws.cell(row=total_row_idx, column=13, value=tot_byr)
+        ws.cell(row=total_row_idx, column=14, value=tot_sisa)
 
         total_fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
         total_font = Font(bold=True, color='0F172A')
 
-        for r_idx in range(5, ws.max_row + 1):
-            is_tot = (r_idx == total_row_idx)
-            for c_idx, cell in enumerate(ws[r_idx], 1):
-                cell.border = thin_border
-                if is_tot:
-                    cell.fill = total_fill
-                    cell.font = total_font
-                if c_idx in (12, 13, 14):
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = Alignment(horizontal='right', vertical='center')
-                elif c_idx in (1, 5, 6, 7, 8, 9, 10, 11, 15):
-                    cell.alignment = Alignment(horizontal='center', vertical='center')
-                else:
-                    cell.alignment = Alignment(horizontal='left', vertical='center')
+        for c_idx in range(1, 16):
+            c = ws.cell(row=total_row_idx, column=c_idx)
+            c.fill = total_fill
+            c.font = total_font
+            if c_idx in (12, 13, 14):
+                c.number_format = '#,##0.00'
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            else:
+                c.alignment = Alignment(horizontal='center', vertical='center')
 
-        ws.auto_filter.ref = f'A4:O{ws.max_row - 1}'
+        ws.auto_filter.ref = f'A4:O{ws.max_row}'
 
-        for col in ws.columns:
-            max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 45)
+        col_widths = {
+            'A': 8, 'B': 12, 'C': 32, 'D': 24, 'E': 18, 'F': 22,
+            'G': 14, 'H': 14, 'I': 14, 'J': 14, 'K': 14,
+            'L': 20, 'M': 20, 'N': 20, 'O': 18
+        }
+        for col_letter, width in col_widths.items():
+            ws.column_dimensions[col_letter].width = width
 
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
