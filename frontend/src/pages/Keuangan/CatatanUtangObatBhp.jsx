@@ -71,7 +71,7 @@ const VENDOR_CATEGORIES = [
 const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
 
 const TABS = [
-    { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
+    { id: 'aktif', label: 'Semua', icon: ReceiptText },
     { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },

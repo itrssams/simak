@@ -863,7 +863,7 @@ export default function InvoicePembiayaan() {
         closeRekapDialog();
     };
 
-    const exportRekapExcel = () => {
+    const exportRekapExcel = async () => {
         if (!rekapForm.tgl1 || !rekapForm.tgl2) {
             toast.error('Tanggal awal dan akhir wajib diisi.');
             return;
@@ -874,14 +874,28 @@ export default function InvoicePembiayaan() {
             return;
         }
 
-        const baseURL = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
-
-        let excelUrl = `${baseURL}/keuangan/faktur/rekap/excel/?dari=${rekapForm.tgl1}&sampai=${rekapForm.tgl2}`;
-        if (rekapForm.id_pembiayaan) {
-            excelUrl += `&id_pembiayaan=${encodeURIComponent(rekapForm.id_pembiayaan)}`;
+        toast.info('Menyiapkan file Excel rekap...');
+        try {
+            let url = `/keuangan/faktur/rekap/excel/?dari=${rekapForm.tgl1}&sampai=${rekapForm.tgl2}`;
+            if (rekapForm.id_pembiayaan) {
+                url += `&id_pembiayaan=${encodeURIComponent(rekapForm.id_pembiayaan)}`;
+            }
+            const res = await api.get(url, { responseType: 'blob' });
+            const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', `Rekap_Invoice_${rekapForm.tgl1}_sampai_${rekapForm.tgl2}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+            toast.success('File Excel rekap berhasil diunduh.');
+            closeRekapDialog();
+        } catch (err) {
+            console.error('Error export rekap excel:', err);
+            toast.error(errorMessage(err, 'Gagal mengunduh file Excel rekap.'));
         }
-
-        window.open(excelUrl, '_blank');
     };
 
     const printReceipt = (event) => {

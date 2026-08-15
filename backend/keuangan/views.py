@@ -5545,6 +5545,126 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         wb.save(response)
         return response
 
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        qs = self.filter_queryset(self.get_queryset())
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Daftar Utang Supplier"
+
+        ws.merge_cells('A1:O1')
+        ws['A1'] = 'REKAP DAFTAR UTANG SUPPLIER (OBAT, BHP & LOGISTIK)'
+        ws['A1'].font = Font(bold=True, size=14, color='1E293B')
+        ws['A1'].alignment = Alignment(horizontal='center')
+
+        ws['A2'] = f'Tanggal Export: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        ws['A2'].font = Font(italic=True, size=10, color='64748B')
+
+        headers = [
+            'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. SPB', 'No. Faktur',
+            'Tgl SPB', 'Tgl Faktur', 'Tgl Titip', 'Jatuh Tempo', 'Umur Utang',
+            'Nominal Faktur (Rp)', 'Sudah Dibayar (Rp)', 'Sisa Utang (Rp)', 'Status'
+        ]
+        ws.append([])
+        ws.append(headers)
+
+        header_row = 4
+        header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=header_row, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        today_date = timezone.localdate()
+        global_index = 1
+        tot_nom = Decimal('0')
+        tot_byr = Decimal('0')
+        tot_sisa = Decimal('0')
+
+        for u in qs:
+            nom = u.nominal or Decimal('0')
+            byr = u.sudah_dibayar or Decimal('0')
+            sisa = u.sisa_utang or Decimal('0')
+            tot_nom += nom
+            tot_byr += byr
+            tot_sisa += sisa
+
+            umur_str = f"{max(0, (today_date - u.tanggal_titip).days)} Hari" if u.tanggal_titip else '-'
+            status_lbl = dict(UtangSupplier.STATUS_CHOICES).get(u.status, u.status)
+
+            ws.append([
+                global_index,
+                u.get_sumber_display(),
+                u.vendor_nama,
+                u.kategori or '-',
+                u.nomor_spb or '-',
+                u.nomor_faktur or '-',
+                u.tanggal_spb.strftime('%d-%m-%Y') if u.tanggal_spb else '-',
+                u.tanggal_faktur.strftime('%d-%m-%Y') if u.tanggal_faktur else '-',
+                u.tanggal_titip.strftime('%d-%m-%Y') if u.tanggal_titip else '-',
+                u.jatuh_tempo.strftime('%d-%m-%Y') if u.jatuh_tempo else '-',
+                umur_str,
+                float(nom),
+                float(byr),
+                float(sisa),
+                status_lbl,
+            ])
+            global_index += 1
+
+        total_row_idx = ws.max_row + 1
+        ws.cell(row=total_row_idx, column=1, value='TOTAL')
+        ws.merge_cells(start_row=total_row_idx, start_column=1, end_row=total_row_idx, end_column=11)
+        ws.cell(row=total_row_idx, column=12, value=float(tot_nom))
+        ws.cell(row=total_row_idx, column=13, value=float(tot_byr))
+        ws.cell(row=total_row_idx, column=14, value=float(tot_sisa))
+
+        total_fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+        total_font = Font(bold=True, color='0F172A')
+
+        for r_idx in range(5, ws.max_row + 1):
+            is_tot = (r_idx == total_row_idx)
+            for c_idx, cell in enumerate(ws[r_idx], 1):
+                cell.border = thin_border
+                if is_tot:
+                    cell.fill = total_fill
+                    cell.font = total_font
+                if c_idx in (12, 13, 14):
+                    cell.number_format = '#,##0.00'
+                    cell.alignment = Alignment(horizontal='right', vertical='center')
+                elif c_idx in (1, 5, 6, 7, 8, 9, 10, 11, 15):
+                    cell.alignment = Alignment(horizontal='center', vertical='center')
+                else:
+                    cell.alignment = Alignment(horizontal='left', vertical='center')
+
+        ws.auto_filter.ref = f'A4:O{ws.max_row - 1}'
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 45)
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="Rekap_Utang_Supplier_{today_date}.xlsx"'
+        wb.save(response)
+        return response
+
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
