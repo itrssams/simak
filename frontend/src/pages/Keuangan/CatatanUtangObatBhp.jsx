@@ -15,6 +15,7 @@ import {
     FilterX,
     HandCoins,
     History,
+    Layers,
     ReceiptText,
     RotateCcw,
     Search,
@@ -38,10 +39,10 @@ import './CatatanUtangObatBhp.css';
 
 const STATUS_OPTIONS = [
     { value: '', label: 'Semua Status (Termasuk Lunas)' },
-    { value: 'aktif', label: 'Utang Aktif (Belum Lunas)' },
+    { value: 'aktif', label: 'Utang Aktif (Belum Lunas Saja)' },
     { value: 'belum_dibayar', label: 'Belum Dibayar' },
-    { value: 'diajukan', label: 'Diajukan' },
-    { value: 'sebagian', label: 'Sebagian' },
+    { value: 'diajukan', label: 'Diajukan Pembayaran' },
+    { value: 'sebagian', label: 'Bayar Sebagian' },
     { value: 'sebagian_diajukan', label: 'Sebagian Diajukan' },
     { value: 'lunas', label: 'Lunas' },
 ];
@@ -71,7 +72,8 @@ const VENDOR_CATEGORIES = [
 const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
 
 const TABS = [
-    { id: 'aktif', label: 'Semua', icon: ReceiptText },
+    { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
+    { id: 'semua', label: 'Semua', icon: Layers },
     { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },
@@ -79,17 +81,23 @@ const TABS = [
 ];
 
 const VIEW_META = {
+    aktif: {
+        icon: ReceiptText,
+        title: 'Daftar Utang Aktif',
+        desc: 'Faktur yang belum lunas (belum dibayar dan bayar sebagian) siap diajukan pembayaran.',
+        cardTitle: 'Utang Supplier Aktif (Belum Lunas)',
+    },
+    semua: {
+        icon: Layers,
+        title: 'Semua Catatan Utang',
+        desc: 'Seluruh riwayat faktur utang supplier Obat, BHP & Logistik (lunas maupun belum lunas).',
+        cardTitle: 'Semua Utang Supplier Tercatat',
+    },
     menunggu: {
         icon: FileClock,
         title: 'Menunggu Verifikasi',
         desc: 'Faktur pembelian Obat, BHP & Logistik yang belum dicatat sebagai utang SIMAK.',
         cardTitle: 'Faktur Menunggu Verifikasi',
-    },
-    aktif: {
-        icon: ReceiptText,
-        title: 'Daftar Utang Aktif',
-        desc: 'Faktur yang sudah diverifikasi dan siap diajukan pembayaran bertahap.',
-        cardTitle: 'Utang Supplier Aktif',
     },
     pengajuan: {
         icon: ClipboardList,
@@ -290,7 +298,15 @@ export default function CatatanUtangObatBhp() {
                     activeFilters.status = 'pending';
                 } else if (mode === 'histori') {
                     activeFilters.status = 'realisasi';
-                } else if (mode !== 'aktif') {
+                } else if (mode === 'aktif') {
+                    // Khusus utang aktif (hanya yang belum lunas: belum dibayar, sebagian, diajukan, sebagian_diajukan)
+                    activeFilters.status = activeFilters.status || 'aktif';
+                } else if (mode === 'semua') {
+                    // Semua riwayat data utang (lunas maupun belum lunas)
+                    if (!activeFilters.status) {
+                        activeFilters.status = 'semua';
+                    }
+                } else {
                     delete activeFilters.status;
                 }
                 const res = await api.get(endpoint, { params: pageParams(page, pageSize, activeFilters) });
@@ -533,13 +549,26 @@ export default function CatatanUtangObatBhp() {
 
     const exportExcel = async () => {
         try {
+            toast.info('Menyiapkan file Excel...');
             const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
-            const exportEndpoint = mode === 'pengajuan'
-                ? '/keuangan/pembayaran-utang/export-excel/'
-                : '/keuangan/utang-supplier/export-excel/';
-            const fileName = mode === 'pengajuan'
-                ? `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`
-                : `Daftar_Utang_Supplier_${todayISO()}.xlsx`;
+            let exportEndpoint = '';
+            let fileName = '';
+
+            if (mode === 'pengajuan') {
+                exportEndpoint = '/keuangan/pembayaran-utang/export-excel/';
+                fileName = `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`;
+            } else if (mode === 'aktif') {
+                if (!activeFilters.status) activeFilters.status = 'aktif';
+                exportEndpoint = '/keuangan/utang-supplier/export-excel/';
+                fileName = `Daftar_Utang_Aktif_Supplier_${todayISO()}.xlsx`;
+            } else if (mode === 'semua') {
+                if (!activeFilters.status) activeFilters.status = 'semua';
+                exportEndpoint = '/keuangan/utang-supplier/export-excel/';
+                fileName = `Daftar_Semua_Utang_Supplier_${todayISO()}.xlsx`;
+            } else {
+                exportEndpoint = '/keuangan/utang-supplier/export-excel/';
+                fileName = `Daftar_Utang_Supplier_${todayISO()}.xlsx`;
+            }
 
             const res = await api.get(exportEndpoint, {
                 params: activeFilters,
@@ -556,6 +585,7 @@ export default function CatatanUtangObatBhp() {
             window.URL.revokeObjectURL(url);
             toast.success('File Excel berhasil diunduh.');
         } catch (err) {
+            console.error('Error export excel:', err);
             toast.error(errorMessage(err, 'Gagal mengunduh file Excel.'));
         }
     };
@@ -759,7 +789,7 @@ export default function CatatanUtangObatBhp() {
                         <p>{total} data tercatat sesuai filter.</p>
                     </div>
                     <div className="utang-card-actions">
-                        {(mode === 'pengajuan' || mode === 'aktif') && (
+                        {(mode === 'pengajuan' || mode === 'aktif' || mode === 'semua') && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
@@ -847,7 +877,7 @@ export default function CatatanUtangObatBhp() {
                                 onToggleItem={toggleSelectItem} 
                             />
                         )}
-                        {mode === 'aktif' && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
+                        {(mode === 'aktif' || mode === 'semua') && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
                         {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
                         {mode === 'deposit' && <DepositVendorTable summary={depositData.summary} vendors={items} onDetail={setSelectedDepositVendor} />}
                         {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
@@ -1512,7 +1542,13 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                 >
                     {SUMBER_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
-                <select className="dki-select dki-filter-status" value={mode === 'aktif' ? filters.status : ''} onChange={(e) => setFilters({ ...filters, status: e.target.value })} disabled={mode !== 'aktif'} title={mode === 'aktif' ? 'Filter status' : 'Status hanya tersedia di tab Utang Aktif'}>
+                <select
+                    className="dki-select dki-filter-status"
+                    value={(mode === 'aktif' || mode === 'semua') ? (filters.status || '') : ''}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    disabled={mode !== 'aktif' && mode !== 'semua'}
+                    title={(mode === 'aktif' || mode === 'semua') ? 'Filter status faktur' : 'Status hanya tersedia di tab Utang Aktif / Semua'}
+                >
                     {STATUS_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
                 <select
