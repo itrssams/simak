@@ -1061,8 +1061,8 @@ export default function InvoicePembiayaan() {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="inv-right inv-mono">{money(item.total_real_rs || (Number(item.total_tagihan || 0) + Number(item.tanggungan_bpjs || 0)))}</td>
-                                            <td className="inv-right inv-mono">{money(item.total_piutang ?? item.total_tagihan)}</td>
+                                            <td className="inv-right inv-mono">{money(Number(item.total_real_rs || 0) > 0 ? item.total_real_rs : (Number(item.total_tagihan || 0) + Number(item.tanggungan_bpjs || 0)))}</td>
+                                            <td className="inv-right inv-mono">{money(item.total_piutang !== undefined && item.total_piutang !== null ? item.total_piutang : item.total_tagihan)}</td>
                                             <td>
                                                 <StatusBadge status={item.status} label={item.status_label} />
                                                 {item.status === 'bayar_sebagian' && (
@@ -1365,7 +1365,7 @@ export default function InvoicePembiayaan() {
                                             <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.2)', display: 'grid', gap: 6 }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                                                     <span>Total Biaya Riil RS:</span>
-                                                    <strong>{money(selected.total_real_rs || (selectedDisplayAmounts.total + Number(selected.tanggungan_bpjs || 0)))}</strong>
+                                                    <strong>{money(Number(selected.total_real_rs || 0) > 0 ? selected.total_real_rs : (selectedDisplayAmounts.total + Number(selected.tanggungan_bpjs || 0)))}</strong>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#e11d48' }}>
                                                     <span>Ditanggung BPJS (INA-CBGs):</span>

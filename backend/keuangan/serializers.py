@@ -408,10 +408,24 @@ class FakturSerializer(serializers.ModelSerializer):
     sisa_tagihan     = serializers.SerializerMethodField()
     total_dibayar    = serializers.SerializerMethodField()
     total_piutang    = serializers.SerializerMethodField()
+    total_real_rs    = serializers.SerializerMethodField()
     status           = serializers.SerializerMethodField()
     status_label     = serializers.SerializerMethodField()
     pasien_invoice   = serializers.SerializerMethodField()
     dibatalkan_oleh_nama = serializers.SerializerMethodField()
+
+    def get_total_real_rs(self, obj):
+        val = Decimal(str(obj.total_real_rs or 0))
+        if val > 0:
+            return val
+        breakdown_total = (
+            Decimal(str(obj.adm or 0)) + Decimal(str(obj.jasa or 0)) + Decimal(str(obj.farmasi or 0)) + Decimal(str(obj.tindakan or 0)) +
+            Decimal(str(obj.fisio or 0)) + Decimal(str(obj.lab or 0)) + Decimal(str(obj.rad or 0)) + Decimal(str(obj.kamar or 0)) +
+            Decimal(str(obj.bhp or 0)) + Decimal(str(obj.lainnya or 0)) + Decimal(str(obj.ambulan or 0)) + Decimal(str(obj.alat or 0))
+        )
+        if breakdown_total > 0:
+            return breakdown_total
+        return Decimal(str(obj.total_tagihan or 0)) + Decimal(str(obj.tanggungan_bpjs or 0))
 
     def get_dibatalkan_oleh_nama(self, obj):
         if obj.dibatalkan_oleh:
