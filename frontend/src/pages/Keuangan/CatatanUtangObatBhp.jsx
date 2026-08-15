@@ -72,21 +72,15 @@ const VENDOR_CATEGORIES = [
 const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
 
 const TABS = [
-    { id: 'aktif', label: 'Utang Aktif', icon: ReceiptText },
     { id: 'semua', label: 'Semua', icon: Layers },
-    { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
+    { id: 'aktif', label: 'Hutang Aktif', icon: ReceiptText },
+    { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
     { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },
-    { id: 'histori', label: 'Histori Pembayaran', icon: History },
+    { id: 'histori', label: 'Riwayat Pembayaran', icon: History },
 ];
 
 const VIEW_META = {
-    aktif: {
-        icon: ReceiptText,
-        title: 'Daftar Utang Aktif',
-        desc: 'Faktur yang belum lunas (belum dibayar dan bayar sebagian) siap diajukan pembayaran.',
-        cardTitle: 'Utang Supplier Aktif (Belum Lunas)',
-    },
     semua: {
         icon: Layers,
         title: 'Semua Catatan Utang',
@@ -98,6 +92,12 @@ const VIEW_META = {
         title: 'Menunggu Verifikasi',
         desc: 'Faktur pembelian Obat, BHP & Logistik yang belum dicatat sebagai utang SIMAK.',
         cardTitle: 'Faktur Menunggu Verifikasi',
+    },
+    aktif: {
+        icon: ReceiptText,
+        title: 'Daftar Hutang Aktif',
+        desc: 'Faktur yang belum lunas (belum dibayar dan bayar sebagian) siap diajukan pembayaran.',
+        cardTitle: 'Hutang Supplier Aktif (Belum Lunas)',
     },
     pengajuan: {
         icon: ClipboardList,
@@ -113,9 +113,9 @@ const VIEW_META = {
     },
     histori: {
         icon: History,
-        title: 'Histori Pembayaran',
+        title: 'Riwayat Pembayaran',
         desc: 'Riwayat semua realisasi pembayaran utang supplier Obat, BHP & Logistik.',
-        cardTitle: 'Histori Pembayaran Utang',
+        cardTitle: 'Riwayat Pembayaran Utang',
     },
 };
 
@@ -217,8 +217,8 @@ export default function CatatanUtangObatBhp() {
     const toast = useToast();
     const { user } = useAuth();
     
-    const mode = searchParams.get('tab') || 'aktif';
-    const meta = VIEW_META[mode] || VIEW_META.aktif;
+    const mode = searchParams.get('tab') || 'semua';
+    const meta = VIEW_META[mode] || VIEW_META.semua;
     const Icon = meta.icon;
 
     const [items, setItems] = useState([]);
