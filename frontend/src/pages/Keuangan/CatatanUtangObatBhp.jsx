@@ -637,7 +637,7 @@ export default function CatatanUtangObatBhp() {
     };
 
     const handlePelunasanDataLama = async () => {
-        if (!window.confirm('KONFIRMASI PELUNASAN DATA LAMA:\n\nApakah Anda yakin ingin melunaskan SELURUH sisa transaksi gudang lama yang belum diverifikasi?\n\n- Sistem akan menghitung batas Tanggal Titip OTS terakhir secara DINAMIS untuk Masing-Masing Vendor.\n- Faktur sebelum tanggal titip OTS vendor tsb yang tidak ada di Excel OTS akan otomatis ditandai LUNAS.\n- Faktur berjalan yang lebih baru dari tanggal titip vendor tsb tetap berada di "Menunggu Verifikasi".')) {
+        if (!window.confirm('KONFIRMASI PELUNASAN DATA LAMA:\n\nApakah Anda yakin ingin melunaskan SELURUH sisa transaksi gudang lama yang belum diverifikasi?\n\n- Sistem akan menghitung batas Tanggal Faktur OTS terakhir secara DINAMIS untuk Masing-Masing Vendor.\n- Faktur sebelum atau sama dengan tanggal faktur OTS vendor tsb yang tidak ada di Excel OTS akan otomatis ditandai LUNAS.\n- Faktur baru yang tanggal fakturnya lebih baru dari cut-off vendor tsb tetap berada di "Menunggu Verifikasi".')) {
             return;
         }
         setSaving(true);
@@ -832,7 +832,7 @@ export default function CatatanUtangObatBhp() {
                                         <CheckCheck size={16} /> Lunaskan ({selectedKeys.length}) Terpilih
                                     </button>
                                 )}
-                                <button className="utang-btn primary" type="button" onClick={handlePelunasanDataLama} style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff' }} title="Pelunasan Masal Data Transaksi Gudang Lama (Dinamis Sesuai Tanggal Titip Terakhir Masing-Masing Vendor di Excel OTS)">
+                                <button className="utang-btn primary" type="button" onClick={handlePelunasanDataLama} style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff' }} title="Pelunasan Masal Data Transaksi Gudang Lama (Dinamis Sesuai Tanggal Faktur Terakhir Masing-Masing Vendor di Excel OTS)">
                                     <CheckCheck size={16} /> Lunaskan Sisa Data Lama
                                 </button>
                                 <button className="utang-btn primary" type="button" onClick={handleUndoPelunasanDataLama} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Batalkan (Undo) Pelunasan Masal Data Lama">

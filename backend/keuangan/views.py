@@ -6055,25 +6055,25 @@ class UtangPelunasanDataLamaView(APIView):
                     selected_map[key] = True
 
         with connection.cursor() as cursor:
-            # Build max tanggal_titip mapping by both vendor_id AND normalized vendor_nama
+            # Build max tanggal_faktur mapping by both vendor_id AND normalized vendor_nama
             cursor.execute("""
-                SELECT vendor_id, vendor_nama, MAX(tanggal_titip) as max_titip
+                SELECT vendor_id, vendor_nama, MAX(tanggal_faktur) as max_faktur
                 FROM utang_supplier
-                WHERE tanggal_titip IS NOT NULL
+                WHERE tanggal_faktur IS NOT NULL
                 GROUP BY vendor_id, vendor_nama
             """)
-            vendor_max_titip_by_id = {}
-            vendor_max_titip_by_name = {}
+            vendor_max_faktur_by_id = {}
+            vendor_max_faktur_by_name = {}
 
             for r in cursor.fetchall():
-                v_id, v_name, max_titip = r
+                v_id, v_name, max_faktur = r
                 if v_id:
-                    if v_id not in vendor_max_titip_by_id or max_titip > vendor_max_titip_by_id[v_id]:
-                        vendor_max_titip_by_id[v_id] = max_titip
+                    if v_id not in vendor_max_faktur_by_id or max_faktur > vendor_max_faktur_by_id[v_id]:
+                        vendor_max_faktur_by_id[v_id] = max_faktur
                 norm_name = _normalize_vendor_name_key(v_name)
                 if norm_name:
-                    if norm_name not in vendor_max_titip_by_name or max_titip > vendor_max_titip_by_name[norm_name]:
-                        vendor_max_titip_by_name[norm_name] = max_titip
+                    if norm_name not in vendor_max_faktur_by_name or max_faktur > vendor_max_faktur_by_name[norm_name]:
+                        vendor_max_faktur_by_name[norm_name] = max_faktur
 
             # 1. Fetch unverified farmasi purchases
             cursor.execute("""
@@ -6135,17 +6135,19 @@ class UtangPelunasanDataLamaView(APIView):
             tgl_f = r.get('tanggal_faktur')
             
             is_old = False
+            max_faktur_ref = None
             if selected_map:
                 if (f_id, 'farmasi') in selected_map:
                     is_old = True
             else:
-                max_titip = vendor_max_titip_by_id.get(v_id)
-                norm_max_titip = vendor_max_titip_by_name.get(norm_v_nama)
-                if norm_max_titip and (not max_titip or norm_max_titip > max_titip):
-                    max_titip = norm_max_titip
+                max_faktur = vendor_max_faktur_by_id.get(v_id)
+                norm_max_faktur = vendor_max_faktur_by_name.get(norm_v_nama)
+                if norm_max_faktur and (not max_faktur or norm_max_faktur > max_faktur):
+                    max_faktur = norm_max_faktur
 
-                if max_titip:
-                    if tgl_f is None or tgl_f <= max_titip:
+                max_faktur_ref = max_faktur
+                if max_faktur:
+                    if tgl_f is None or tgl_f <= max_faktur:
                         is_old = True
                 else:
                     if tgl_f is None or tgl_f.year < 2026:
@@ -6153,7 +6155,7 @@ class UtangPelunasanDataLamaView(APIView):
 
             if is_old:
                 nom = Decimal(str(r.get('nominal') or 0))
-                ket = 'Dipelutaskan otomatis (Pilihan manual massal)' if selected_map else 'Dipelutaskan otomatis (Sisa data lama sebelum tanggal titip OTS vendor)'
+                ket = 'Dipelunaskan otomatis (Pilihan manual massal)' if selected_map else f'Dipelunaskan otomatis (Sisa data lama sebelum tanggal faktur OTS vendor: {max_faktur_ref or "< 2026"})'
                 to_create.append(UtangSupplier(
                     app_siaga_faktur_id=f_id,
                     sumber=UtangSupplier.SUMBER_FARMASI,
@@ -6180,17 +6182,19 @@ class UtangPelunasanDataLamaView(APIView):
             tgl_f = r.get('tanggal_faktur')
             
             is_old = False
+            max_faktur_ref = None
             if selected_map:
                 if (f_id, 'logistik') in selected_map or (f"LOG-{f_id}", 'logistik') in selected_map:
                     is_old = True
             else:
-                max_titip = vendor_max_titip_by_id.get(v_id)
-                norm_max_titip = vendor_max_titip_by_name.get(norm_v_nama)
-                if norm_max_titip and (not max_titip or norm_max_titip > max_titip):
-                    max_titip = norm_max_titip
+                max_faktur = vendor_max_faktur_by_id.get(v_id)
+                norm_max_faktur = vendor_max_faktur_by_name.get(norm_v_nama)
+                if norm_max_faktur and (not max_faktur or norm_max_faktur > max_faktur):
+                    max_faktur = norm_max_faktur
 
-                if max_titip:
-                    if tgl_f is None or tgl_f <= max_titip:
+                max_faktur_ref = max_faktur
+                if max_faktur:
+                    if tgl_f is None or tgl_f <= max_faktur:
                         is_old = True
                 else:
                     if tgl_f is None or tgl_f.year < 2026:
@@ -6199,7 +6203,7 @@ class UtangPelunasanDataLamaView(APIView):
             if is_old:
                 nom = Decimal(str(r.get('nominal') or 0))
                 app_id = f"LOG-{f_id}"
-                ket = 'Dipelutaskan otomatis (Pilihan manual massal)' if selected_map else 'Dipelutaskan otomatis (Sisa data lama sebelum tanggal titip OTS vendor)'
+                ket = 'Dipelunaskan otomatis (Pilihan manual massal)' if selected_map else f'Dipelunaskan otomatis (Sisa data lama sebelum tanggal faktur OTS vendor: {max_faktur_ref or "< 2026"})'
                 to_create.append(UtangSupplier(
                     app_siaga_faktur_id=app_id,
                     sumber=UtangSupplier.SUMBER_LOGISTIK,
@@ -6223,11 +6227,14 @@ class UtangPelunasanDataLamaView(APIView):
             'success': True,
             'count': len(to_create),
             'total_nominal': float(total_nominal),
-            'message': f'Berhasil melunaskan {len(to_create)} faktur sisa lama (berdasarkan tanggal titip OTS masing-masing vendor) dengan total nominal Rp {total_nominal:,.0f}.'
+            'message': f'Berhasil melunaskan {len(to_create)} faktur sisa lama (berdasarkan tanggal faktur OTS masing-masing vendor) dengan total nominal Rp {total_nominal:,.0f}.'
         })
 
     def delete(self, request):
-        qs = UtangSupplier.objects.filter(keterangan_titip__icontains='Dipelutaskan otomatis (Sisa data lama')
+        qs = UtangSupplier.objects.filter(
+            models.Q(keterangan_titip__icontains='Dipelunaskan otomatis') |
+            models.Q(keterangan_titip__icontains='Dipelutaskan otomatis')
+        )
         count = qs.count()
         total_nominal = sum((u.nominal or Decimal('0')) for u in qs)
         qs.delete()
