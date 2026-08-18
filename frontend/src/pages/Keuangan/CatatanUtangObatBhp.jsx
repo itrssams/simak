@@ -2058,7 +2058,17 @@ function SectionTitle({ children, icon: Icon }) {
 }
 
 function Info({ label, value }) {
-    return <div className="utang-info-item"><span>{label}</span><strong className="utang-mono">{value}</strong></div>;
+    const valStr = String(value || '');
+    const len = valStr.length;
+    // Auto-scale font down smoothly if number is long (e.g. >= 100jt / milyaran)
+    const fontSize = len >= 17 ? '11px' : len >= 15 ? '12px' : len >= 13 ? '13px' : '14.5px';
+
+    return (
+        <div className="utang-info-item">
+            <span>{label}</span>
+            <strong className="utang-mono" style={{ fontSize, whiteSpace: 'nowrap', letterSpacing: '-0.3px' }}>{value}</strong>
+        </div>
+    );
 }
 
 function DateInput({ value, onChange, disabled = false }) {

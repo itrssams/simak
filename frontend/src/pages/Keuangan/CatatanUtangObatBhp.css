@@ -908,13 +908,15 @@
 }
 
 .utang-modal.payment.utang-detail-modal {
-  width: 1240px;
-  max-width: calc(100vw - 32px);
+  width: min(1060px, 94vw);
+  max-width: 1060px;
   max-height: calc(100vh - 32px);
+  overflow-x: hidden;
 }
 
 .utang-modal.payment.utang-detail-modal .utang-modal-body {
-  padding: 18px 24px 22px;
+  padding: 16px 20px 20px;
+  overflow-x: hidden;
 }
 
 .utang-modal-head {
@@ -2600,15 +2602,17 @@ textarea.utang-input {
 ========================= */
 .utang-detail-split-grid {
   display: grid;
-  grid-template-columns: 460px 1fr;
-  gap: 24px;
+  grid-template-columns: 400px minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .utang-detail-split-grid {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 16px;
   }
 }
 
@@ -2617,41 +2621,61 @@ textarea.utang-input {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 
 .utang-detail-col-left .utang-pay-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.utang-detail-col-left .utang-pay-summary .utang-info {
-  padding: 12px 14px;
+.utang-detail-col-left .utang-pay-summary .utang-info-item {
+  padding: 10px 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+  box-sizing: border-box;
 }
 
-.utang-detail-col-left .utang-pay-summary .utang-info span {
+.utang-detail-col-left .utang-pay-summary .utang-info-item span {
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 750;
   letter-spacing: 0.2px;
+  color: #64748b;
+  text-transform: uppercase;
 }
 
-.utang-detail-col-left .utang-pay-summary .utang-info strong {
+.utang-detail-col-left .utang-pay-summary .utang-info-item strong {
   white-space: nowrap;
-  font-size: 15px;
+  overflow: visible;
+  text-overflow: clip;
+  color: #0f172a;
+  font-weight: 800;
+  display: block;
 }
 
 .utang-detail-col-left .utang-verify-card {
-  padding: 16px 18px;
-  gap: 10px;
+  padding: 14px 16px;
+  gap: 9px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .utang-detail-col-left .utang-verify-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  font-size: 13.5px;
+  gap: 12px;
+  font-size: 13px;
 }
 
 .utang-detail-col-left .utang-verify-row .lbl {
@@ -2665,60 +2689,92 @@ textarea.utang-input {
   text-align: right;
   font-weight: 600;
   color: #0f172a;
+  word-break: break-word;
 }
 
 .utang-detail-col-right .utang-history-wrap {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
-  overflow: visible;
+  overflow: hidden;
+  background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .utang-detail-col-right .utang-history-table {
   width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
 }
 
-.utang-detail-col-right .utang-history-table th,
+.utang-detail-col-right .utang-history-table th {
+  background: #f8fafc;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
 .utang-detail-col-right .utang-history-table td {
-  padding: 12px 16px;
-  font-size: 13.5px;
+  padding: 13px 12px;
+  font-size: 13px;
   vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.utang-detail-col-right .utang-history-table tr:last-child td {
+  border-bottom: 0;
 }
 
 .utang-detail-col-right .utang-history-table th:nth-child(1),
 .utang-detail-col-right .utang-history-table td:nth-child(1) {
   white-space: nowrap;
-  width: 115px;
+  width: 95px;
 }
 
 .utang-detail-col-right .utang-history-table th:nth-child(2),
 .utang-detail-col-right .utang-history-table td:nth-child(2) {
   white-space: nowrap;
   text-align: right;
-  width: 135px;
+  width: 120px;
 }
 
 .utang-detail-col-right .utang-history-table th:nth-child(3),
 .utang-detail-col-right .utang-history-table td:nth-child(3) {
   white-space: nowrap;
   text-align: center;
-  width: 125px;
+  width: 120px;
 }
 
 .utang-detail-col-right .utang-history-table th:nth-child(4),
 .utang-detail-col-right .utang-history-table td:nth-child(4) {
-  min-width: 180px;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .utang-detail-col-right .utang-history-table th:nth-child(5),
 .utang-detail-col-right .utang-history-table td:nth-child(5) {
   white-space: nowrap;
-  width: 90px;
+  width: 75px;
 }
 
 .utang-nominal-retur {
   color: #e11d48 !important;
   font-weight: 750 !important;
+}
+
+[data-theme="dark"] .utang-detail-col-left .utang-pay-summary .utang-info-item {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .utang-detail-col-left .utang-pay-summary .utang-info-item span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .utang-detail-col-left .utang-pay-summary .utang-info-item strong {
+  color: #f8fafc !important;
 }
 
 [data-theme="dark"] .utang-nominal-retur {
@@ -2732,7 +2788,19 @@ textarea.utang-input {
 }
 
 [data-theme="dark"] .utang-detail-col-right .utang-history-wrap {
+  background: rgba(15, 23, 42, 0.6) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .utang-detail-col-right .utang-history-table th {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .utang-detail-col-right .utang-history-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f9 !important;
 }
 
 
