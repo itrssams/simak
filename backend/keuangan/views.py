@@ -6055,11 +6055,11 @@ class UtangPelunasanDataLamaView(APIView):
                     selected_map[key] = True
 
         with connection.cursor() as cursor:
-            # Build max tanggal_faktur mapping by both vendor_id AND normalized vendor_nama
+            # Build max tanggal_faktur LUNAS mapping by both vendor_id AND normalized vendor_nama
             cursor.execute("""
                 SELECT vendor_id, vendor_nama, MAX(tanggal_faktur) as max_faktur
                 FROM utang_supplier
-                WHERE tanggal_faktur IS NOT NULL
+                WHERE tanggal_faktur IS NOT NULL AND status = 'lunas'
                 GROUP BY vendor_id, vendor_nama
             """)
             vendor_max_faktur_by_id = {}
