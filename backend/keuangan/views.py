@@ -4076,8 +4076,8 @@ def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = [
         'u.id IS NULL',
-        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
-        "(t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
+        "(t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4109,9 +4109,9 @@ def _build_pending_where_logistik(params):
         'u.id IS NULL',
         "COALESCE(t.rekanan, '') != 'STOCK OPNAME'",
         "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'",
-        "(t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
-        "(s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))",
-        "(t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))"
+        "(t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
+        "(s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4140,7 +4140,7 @@ def _pending_base_sql():
     return """
         FROM rssams.tran_beli_brg_farmasi t
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
     """
 
 
@@ -4150,7 +4150,7 @@ def _pending_base_sql_logistik():
         FROM rssams.tran_beli_brg_log t
         LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
         LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
-        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
+        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
     """
 
 
@@ -4337,7 +4337,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         total_nominal = active_qs.aggregate(total=models.Sum('nominal'))['total'] or Decimal('0')
         total_dibayar = PembayaranUtang.objects.filter(
             utang__in=active_qs,
-            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
         ).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
         
         total_sisa = max(Decimal('0'), total_nominal - total_dibayar)
@@ -5054,9 +5054,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 for item in group:
                     byr = Decimal(str(item.get('jumlah_bayar', 0)))
                     if byr > Decimal('0'):
-                        tgl_rencana = parse_date_obj(item.get('tgl_rencana_bayar')) or tgl_faktur
-                        tgl_proses = parse_date_obj(item.get('tgl_proses')) or tgl_rencana
-                        tgl_app = parse_date_obj(item.get('tgl_app')) or tgl_proses
+                        tgl_parsed_rencana = parse_date_obj(item.get('tgl_rencana_bayar'))
+                        tgl_parsed_proses = parse_date_obj(item.get('tgl_proses'))
+                        tgl_parsed_app = parse_date_obj(item.get('tgl_app'))
+
+                        tgl_proses = tgl_parsed_proses or tgl_parsed_app or tgl_parsed_rencana or tgl_faktur
+                        tgl_rencana = tgl_parsed_rencana or tgl_proses
+                        tgl_app = tgl_parsed_app or tgl_proses
                         item_ket = (item.get('keterangan_excel') or item.get('no_faktur') or f"Row #{item.get('row_idx')}").strip()
 
                         payments_to_create.append(PembayaranUtang(
@@ -5087,10 +5091,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                                COALESCE(t.gtotal, t.total, 0) AS total_biaya
                         FROM rssams.tran_beli_brg_farmasi t
                         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-                        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
                         WHERE u.id IS NULL
-                          AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
-                          AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                          AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
+                          AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
                     """)
                     columns = [col[0] for col in cursor.description]
                     all_pending_farm = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -5101,13 +5105,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                                COALESCE(t.nilai, 0) AS total_biaya
                         FROM rssams.tran_beli_brg_log t
                         LEFT JOIN rssams.rekanan r ON r.nama = t.rekanan
-                        LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
                         WHERE t.done = 'Y'
                           AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                           AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
                           AND u.id IS NULL
-                          AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
-                          AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                          AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
+                          AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
                     """)
                     columns = [col[0] for col in cursor.description]
                     all_pending_log = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -5245,6 +5249,27 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'message': f'Berhasil mengembalikan data (Undo Import). Menghapus {total_utang} data utang dan {total_pembayaran} riwayat pembayaran hasil import Excel OTS.',
             'deleted_utang_count': total_utang,
             'deleted_pembayaran_count': total_pembayaran
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='sync-ots-dates')
+    def sync_ots_dates(self, request):
+        qs = PembayaranUtang.objects.filter(
+            keterangan__startswith='Realisasi Saldo Awal OTS'
+        ).exclude(
+            tanggal_proses=F('tanggal_app')
+        )
+        
+        count = qs.count()
+        if count == 0:
+            return Response({'message': 'Semua tanggal pembayaran OTS sudah sinkron dengan data asli di Excel.'}, status=status.HTTP_200_OK)
+            
+        updated = qs.update(
+            tanggal_proses=F('tanggal_app'), 
+            tanggal_rencana_bayar=F('tanggal_app')
+        )
+        
+        return Response({
+            'message': f'Berhasil memperbaiki {updated} riwayat pembayaran cicilan OTS yang tanggalnya tidak sinkron.'
         }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='reset-all')
@@ -5417,7 +5442,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if utang_ids:
             pays = (
                 PembayaranUtang.objects
-                .filter(utang_id__in=utang_ids, status__in=['realisasi_sebagian', 'realisasi_lunas'])
+                .filter(utang_id__in=utang_ids, status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur'])
                 .values('utang_id')
                 .annotate(total=Sum('jumlah_bayar'))
             )
@@ -5574,7 +5599,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         # Hitung sisa utang faktur SEBELUM realisasi ini disimpan
         total_realisasi_lainnya = pembayaran.utang.pembayaran.filter(
-            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS]
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
         ).exclude(pk=pembayaran.pk).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
         
         sisa_sebelumnya = pembayaran.utang.nominal - total_realisasi_lainnya
@@ -6059,7 +6084,7 @@ class UtangPelunasanDataLamaView(APIView):
             # Build max tanggal_faktur LUNAS mapping by both vendor_id AND normalized vendor_nama
             cursor.execute("""
                 SELECT vendor_id, vendor_nama, MAX(tanggal_faktur) as max_faktur
-                FROM utang_supplier
+                FROM keuangan_utang_supplier
                 WHERE tanggal_faktur IS NOT NULL AND status = 'lunas'
                 GROUP BY vendor_id, vendor_nama
             """)
@@ -6089,10 +6114,10 @@ class UtangPelunasanDataLamaView(APIView):
                     t.gtotal AS nominal
                 FROM rssams.tran_beli_brg_farmasi t
                 LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-                LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = t.id
+                LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
                 WHERE u.id IS NULL 
-                  AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
-                  AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                  AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
+                  AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
             """)
             cols_f = [col[0] for col in cursor.description]
             farmasi_rows = [dict(zip(cols_f, row)) for row in cursor.fetchall()]
@@ -6111,14 +6136,14 @@ class UtangPelunasanDataLamaView(APIView):
                 FROM rssams.tran_beli_brg_log t
                 LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
                 LEFT JOIN rssams.rekanan r ON (r.nama = t.rekanan OR r.nama = s.no_spb)
-                LEFT JOIN utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
+                LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
                 WHERE t.done = 'Y' 
                   AND u.id IS NULL 
                   AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                   AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
-                  AND (t.id NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
-                  AND (s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM utang_supplier WHERE nomor_spb != ''))
-                  AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM utang_supplier WHERE nomor_faktur != ''))
+                  AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
+                  AND (s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
+                  AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
             """)
             cols_l = [col[0] for col in cursor.description]
             logistik_rows = [dict(zip(cols_l, row)) for row in cursor.fetchall()]

@@ -273,6 +273,22 @@ export default function ImportUtangOts() {
     }
   };
 
+  const [syncingDates, setSyncingDates] = useState(false);
+
+  // Sync OTS Dates
+  const handleSyncOtsDates = async () => {
+    setSyncingDates(true);
+    try {
+      const res = await api.post('/keuangan/utang-supplier/sync-ots-dates/');
+      toast.success(res.data.message || 'Berhasil sinkronisasi tanggal OTS.');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || 'Gagal sinkronisasi tanggal OTS.');
+    } finally {
+      setSyncingDates(false);
+    }
+  };
+
   return (
     <div className="import-ots-page">
       {/* Header Navigation */}
@@ -282,10 +298,16 @@ export default function ImportUtangOts() {
             <ArrowLeft size={16} /> Kembali ke Catatan Utang
           </button>
           
-          <button className="btn-rollback" onClick={handleRollbackImport} disabled={rollingBack}>
-            {rollingBack ? <RefreshCw className="spin" size={16} /> : <RotateCcw size={16} />}
-            {rollingBack ? ' Mengembalikan Data...' : ' Undo / Hapus Data Import OTS (Rollback)'}
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn-secondary" onClick={handleSyncOtsDates} disabled={syncingDates || rollingBack} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', cursor: 'pointer', fontWeight: 600, color: '#334155' }}>
+              {syncingDates ? <RefreshCw className="spin" size={16} /> : <RefreshCw size={16} />}
+              {syncingDates ? ' Menyinkronkan...' : ' Sinkron Tanggal Cicilan OTS'}
+            </button>
+            <button className="btn-rollback" onClick={handleRollbackImport} disabled={rollingBack || syncingDates}>
+              {rollingBack ? <RefreshCw className="spin" size={16} /> : <RotateCcw size={16} />}
+              {rollingBack ? ' Mengembalikan Data...' : ' Undo / Hapus Data Import OTS (Rollback)'}
+            </button>
+          </div>
         </div>
 
         <div className="title-section">

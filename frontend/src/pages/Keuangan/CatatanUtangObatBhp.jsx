@@ -203,6 +203,7 @@ const getDefaultOrdering = (m) => {
     if (m === 'pengajuan') return '-created_at';
     if (m === 'histori') return '-tanggal_proses';
     if (m === 'deposit') return '-created_at';
+    if (m === 'semua') return '-verified_at';
     return 'tanggal_titip';
 };
 
@@ -489,6 +490,7 @@ export default function CatatanUtangObatBhp() {
         try {
             const res = await api.get('/keuangan/pembayaran-utang/', { params: { utang: row.id, pagination: 'false', limit: 100 } });
             const hist = Array.isArray(res.data) ? res.data : getResults(res.data) || [];
+            console.log("HISTORY LOADED:", hist);
             setDetailHistory(hist);
         } catch {
             setDetailHistory(row.pembayaran || []);
@@ -1576,11 +1578,12 @@ export default function CatatanUtangObatBhp() {
 
                                 {/* Right Column: Riwayat Pembayaran & Retur */}
                                 <div className="utang-detail-col-right">
-                                    <section className="utang-payment-section">
-                                        <SectionTitle icon={History}>Riwayat Transaksi (Realisasi &amp; Retur)</SectionTitle>
-                                        {detailHistory.length > 0 ? (
-                                            <div className="utang-history-wrap">
-                                                <table className="utang-history-table">
+                                    <div className="utang-detail-col-right-inner">
+                                        <section className="utang-payment-section">
+                                            <SectionTitle icon={History}>Riwayat Transaksi (Realisasi &amp; Retur) - Total: {detailHistory.length}</SectionTitle>
+                                            {detailHistory.length > 0 ? (
+                                                <div className="utang-history-wrap">
+                                                    <table className="utang-history-table">
                                                     <thead>
                                                         <tr>
                                                             <th>Tgl Proses</th>
@@ -1613,7 +1616,8 @@ export default function CatatanUtangObatBhp() {
                                                 </div>
                                             </div>
                                         )}
-                                    </section>
+                                        </section>
+                                    </div>
                                 </div>
                             </div>
                         </div>

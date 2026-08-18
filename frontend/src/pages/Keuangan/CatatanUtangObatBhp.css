@@ -1193,7 +1193,6 @@ textarea.utang-input {
 }
 
 .utang-history-wrap {
-  max-height: 128px;
   overflow: auto;
   border: 1px solid rgba(226, 232, 240, .72);
   border-radius: 12px;
@@ -2604,7 +2603,7 @@ textarea.utang-input {
   display: grid;
   grid-template-columns: 400px minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
   width: 100%;
   box-sizing: border-box;
 }
@@ -2616,12 +2615,25 @@ textarea.utang-input {
   }
 }
 
-.utang-detail-col-left,
-.utang-detail-col-right {
+.utang-detail-col-left {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.utang-detail-col-right {
+  position: relative;
   min-width: 0;
+}
+
+.utang-detail-col-right-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .utang-detail-col-left .utang-pay-summary {
@@ -2692,10 +2704,19 @@ textarea.utang-input {
   word-break: break-word;
 }
 
+.utang-detail-col-right .utang-payment-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .utang-detail-col-right .utang-history-wrap {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
   background: #ffffff;
   width: 100%;
   box-sizing: border-box;
@@ -2785,6 +2806,13 @@ textarea.utang-input {
   background: rgba(15, 23, 42, 0.5) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .utang-detail-col-right .utang-payment-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 [data-theme="dark"] .utang-detail-col-right .utang-history-wrap {
