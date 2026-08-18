@@ -35,6 +35,7 @@ class AuditLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'system_audit_log'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['entity_type', 'entity_id'], name='keuangan_au_entity__f2af1e_idx'),
@@ -65,6 +66,7 @@ class IdempotencyLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'system_idempotency_log'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['idempotency_key', 'user'], name='keuangan_id_idempot_f20424_idx'),
@@ -101,6 +103,7 @@ class Akun(models.Model):
     created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_akun'
         ordering = ['kode_akun']
         verbose_name = 'Akun'
         verbose_name_plural = 'Daftar Akun'
@@ -129,6 +132,7 @@ class Pelanggan(models.Model):
     created_at      = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_pelanggan'
         ordering = ['nama']
         verbose_name = 'Pelanggan'
         verbose_name_plural = 'Daftar Pelanggan'
@@ -158,6 +162,7 @@ class Pemasok(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_pemasok'
         ordering = ['nama']
         verbose_name = 'Pemasok'
         verbose_name_plural = 'Daftar Pemasok'
@@ -178,6 +183,7 @@ class Jurnal(models.Model):
     updated_at   = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_jurnal'
         ordering = ['-tanggal', '-created_at']
         verbose_name = 'Jurnal'
         verbose_name_plural = 'Entri Jurnal'
@@ -204,6 +210,9 @@ class JurnalItem(models.Model):
     keterangan = models.CharField(max_length=200, blank=True)
     debit      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     kredit     = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = 'keuangan_jurnal_item'
 
     def __str__(self):
         return f"{self.akun} | D:{self.debit} K:{self.kredit}"
@@ -243,6 +252,7 @@ class Transaksi(models.Model):
     updated_at      = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_transaksi'
         ordering = ['-tanggal', '-created_at']
         verbose_name = 'Transaksi'
         verbose_name_plural = 'Daftar Transaksi'
@@ -313,6 +323,7 @@ class Faktur(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_faktur'
         ordering = ['-tanggal', '-created_at']
         verbose_name = 'Faktur'
         verbose_name_plural = 'Daftar Faktur'
@@ -412,6 +423,9 @@ class FakturItem(models.Model):
     harga_satuan = models.DecimalField(max_digits=15, decimal_places=2)
     subtotal     = models.DecimalField(max_digits=15, decimal_places=2)
 
+    class Meta:
+        db_table = 'keuangan_faktur_item'
+
     def save(self, *args, **kwargs):
         self.subtotal = self.kuantitas * self.harga_satuan
         super().save(*args, **kwargs)
@@ -448,6 +462,7 @@ class PembayaranFaktur(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_pembayaran_faktur'
         ordering = ['-tanggal', '-created_at']
         verbose_name = 'Pembayaran Faktur'
         verbose_name_plural = 'Pembayaran Faktur'
@@ -524,7 +539,7 @@ class UtangSupplier(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'utang_supplier'
+        db_table = 'keuangan_utang_supplier'
         ordering = ['-tanggal_faktur', '-created_at']
         indexes = [
             models.Index(fields=['vendor_id'], name='utang_vendor_idx'),
@@ -595,7 +610,7 @@ class DepositVendor(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'deposit_vendor'
+        db_table = 'keuangan_deposit_vendor'
         ordering = ['-created_at']
         verbose_name = 'Deposit Vendor (Retur)'
         verbose_name_plural = 'Deposit Vendor (Retur)'
@@ -636,7 +651,7 @@ class PembayaranUtang(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'pembayaran_utang'
+        db_table = 'keuangan_pembayaran_utang'
         ordering = ['-tanggal_proses', '-created_at']
         indexes = [
             models.Index(fields=['utang', 'tanggal_proses'], name='payutang_utang_tgl_idx'),
@@ -687,6 +702,7 @@ class AlokasiDana(models.Model):
     updated_at      = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_alokasi_dana'
         ordering = ['-tanggal_penerimaan', '-created_at']
         verbose_name = 'Alokasi Dana'
         verbose_name_plural = 'Alokasi Dana'
@@ -730,6 +746,7 @@ class AlokasiDanaPemakaian(models.Model):
     created_at   = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_alokasi_dana_pemakaian'
         ordering = ['created_at', 'id']
         verbose_name = 'Pemakaian Alokasi Dana'
         verbose_name_plural = 'Pemakaian Alokasi Dana'
@@ -761,6 +778,7 @@ class Tagihan(models.Model):
     updated_at        = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_tagihan'
         ordering = ['-tanggal', '-created_at']
         verbose_name = 'Tagihan'
         verbose_name_plural = 'Daftar Tagihan'
@@ -779,6 +797,9 @@ class TagihanItem(models.Model):
     kuantitas    = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     harga_satuan = models.DecimalField(max_digits=15, decimal_places=2)
     subtotal     = models.DecimalField(max_digits=15, decimal_places=2)
+
+    class Meta:
+        db_table = 'keuangan_tagihan_item'
 
     def save(self, *args, **kwargs):
         self.subtotal = self.kuantitas * self.harga_satuan
@@ -806,6 +827,7 @@ class PembayaranTagihan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_pembayaran_tagihan'
         ordering = ['-tanggal']
         verbose_name = 'Pembayaran Tagihan'
         verbose_name_plural = 'Pembayaran Tagihan'
@@ -833,6 +855,7 @@ class RekeningBank(models.Model):
     updated_at     = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'keuangan_rekening_bank'
         ordering = ['bank', 'nama_rekening']
         verbose_name = 'Rekening Bank'
         verbose_name_plural = 'Daftar Rekening Bank'
@@ -857,6 +880,7 @@ class RiwayatSaldoRekening(models.Model):
     created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'keuangan_riwayat_saldo_rekening'
         ordering = ['-created_at']
         verbose_name = 'Riwayat Saldo Rekening'
 
@@ -916,6 +940,7 @@ class PettyCash(models.Model):
     updated_at     = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'petty_cash'
         ordering = ['-created_at']
         verbose_name = 'Petty Cash'
         verbose_name_plural = 'Petty Cash'
@@ -946,6 +971,7 @@ class LaporanPenggunaan(models.Model):
     updated_at           = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'petty_cash_laporan_penggunaan'
         verbose_name = 'Laporan Penggunaan'
         verbose_name_plural = 'Laporan Penggunaan'
 
@@ -980,6 +1006,7 @@ class Reimbursement(models.Model):
     updated_at       = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'petty_cash_reimbursement'
         ordering = ['-created_at']
         verbose_name = 'Reimbursement'
         verbose_name_plural = 'Reimbursement'
@@ -1005,6 +1032,7 @@ class FotoReimbursement(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'petty_cash_foto_reimbursement'
         ordering = ['urutan', 'created_at']
         verbose_name = 'Foto Reimbursement'
         verbose_name_plural = 'Foto Reimbursement'
@@ -1029,6 +1057,7 @@ class FotoPettyCash(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'petty_cash_foto'
         ordering = ['urutan', 'created_at']
         verbose_name = 'Foto Petty Cash'
         verbose_name_plural = 'Foto Petty Cash'
@@ -1053,6 +1082,7 @@ class FotoLaporanPenggunaan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'petty_cash_foto_laporan'
         ordering = ['urutan', 'created_at']
         verbose_name = 'Foto Laporan Penggunaan'
         verbose_name_plural = 'Foto Laporan Penggunaan'
@@ -1078,6 +1108,7 @@ class SaldoPettyCash(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'petty_cash_saldo'
         verbose_name = 'Saldo Petty Cash'
 
     def __str__(self):
@@ -1102,6 +1133,7 @@ class RiwayatSaldoPettyCash(models.Model):
     created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'petty_cash_riwayat_saldo'
         ordering     = ['-created_at']
         verbose_name = 'Riwayat Saldo Petty Cash'
 
@@ -1136,6 +1168,7 @@ class PengajuanPenambahanSaldo(models.Model):
     updated_at       = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'petty_cash_pengajuan_saldo'
         ordering        = ['-created_at']
         verbose_name    = 'Pengajuan Penambahan Saldo'
         verbose_name_plural = 'Pengajuan Penambahan Saldo'
@@ -1181,6 +1214,7 @@ class Kendaraan(models.Model):
     updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'driver_kendaraan'
         ordering     = ['jenis', 'nama']
         verbose_name = 'Kendaraan'
         verbose_name_plural = 'Daftar Kendaraan'
@@ -1227,6 +1261,7 @@ class LogPerjalanan(models.Model):
     updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'driver_log_perjalanan'
         ordering     = ['-tanggal', '-jam_berangkat']
         verbose_name = 'Log Perjalanan'
         verbose_name_plural = 'Log Perjalanan'
@@ -1266,6 +1301,7 @@ class LaporanPerjalanan(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'driver_laporan_perjalanan'
         verbose_name = 'Laporan Perjalanan'
         verbose_name_plural = 'Laporan Perjalanan'
 
@@ -1281,6 +1317,7 @@ class FotoLaporanPerjalanan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'driver_foto_laporan'
         ordering = ['urutan', 'created_at']
         verbose_name = 'Foto Laporan Perjalanan'
         verbose_name_plural = 'Foto Laporan Perjalanan'
@@ -1308,6 +1345,7 @@ class LogBBM(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'driver_log_bbm'
         ordering     = ['-tanggal', '-created_at']
         verbose_name = 'Log BBM'
         verbose_name_plural = 'Log BBM'
@@ -1338,6 +1376,7 @@ class LogMaintenance(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'driver_log_maintenance'
         ordering     = ['-tanggal', '-created_at']
         verbose_name = 'Log Maintenance'
         verbose_name_plural = 'Log Maintenance'
@@ -1375,6 +1414,7 @@ class ITBackupRecord(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'it_backup_record'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['status', '-created_at'], name='it_backup_status_idx'),
@@ -1433,6 +1473,7 @@ class ITRepairRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'it_repair_request'
         ordering = ['-requested_at', '-created_at']
         indexes = [
             models.Index(fields=['status', 'priority'], name='it_ticket_status_idx'),
@@ -1467,6 +1508,7 @@ class ITCredentialNote(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'it_credential_note'
         ordering = ['name']
         indexes = [
             models.Index(fields=['category', 'is_active'], name='it_credential_cat_idx'),
@@ -1498,6 +1540,7 @@ class ITRemoteAccess(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'it_remote_access'
         ordering = ['device_name']
         indexes = [
             models.Index(fields=['status', 'device_name'], name='it_remote_status_idx'),
@@ -1550,6 +1593,7 @@ class ITSubscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'it_subscription'
         ordering = ['end_date', 'name']
         indexes = [
             models.Index(fields=['status', 'end_date'], name='it_sub_status_end_idx'),
@@ -1579,6 +1623,7 @@ class Announcement(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'system_announcement'
         ordering = ['-publish_at', '-created_at']
         indexes = [
             models.Index(fields=['is_active', 'publish_at'], name='announce_active_pub_idx'),
@@ -1595,6 +1640,7 @@ class AnnouncementRead(models.Model):
     read_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'system_announcement_read'
         unique_together = ('announcement', 'user')
         ordering = ['-read_at']
 
@@ -1618,6 +1664,7 @@ class InventoryOption(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'inventaris_option'
         ordering = ['option_type', 'sort_order', 'name']
         unique_together = ('option_type', 'name')
         indexes = [
@@ -1652,6 +1699,7 @@ class InventoryAsset(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'inventaris_asset'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['unit', 'category'], name='inv_asset_unit_cat_idx'),
@@ -1679,6 +1727,7 @@ class LogistikBarang(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'logistik_barang'
         ordering = ['nama_barang']
         indexes = [
             models.Index(fields=['nama_barang'], name='log_barang_nama_idx'),
@@ -1736,6 +1785,7 @@ class LogistikBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'logistik_batch'
         ordering = ['id']
 
     @property
@@ -1765,6 +1815,7 @@ class LogistikMutasi(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'logistik_mutasi'
         ordering = ['-tanggal', '-created_at']
         indexes = [models.Index(fields=['barang', 'tanggal'], name='log_mutasi_barang_tgl_idx')]
 
@@ -1794,6 +1845,7 @@ class LogistikPermintaan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'logistik_permintaan'
         ordering = ['-tanggal', '-created_at']
 
 
@@ -1806,4 +1858,5 @@ class LogistikOpname(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = 'logistik_opname'
         ordering = ['-tanggal', '-created_at']
