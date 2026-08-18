@@ -5248,6 +5248,26 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'deleted_pembayaran_count': total_pembayaran
         }, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=['post'], url_path='reset-all')
+    def reset_all(self, request):
+        """Mereset / Menghapus SELURUH data utang supplier, pembayaran utang, dan deposit vendor."""
+        with transaction.atomic():
+            total_pembayaran = PembayaranUtang.objects.all().count()
+            PembayaranUtang.objects.all().delete()
+
+            total_deposit = DepositVendor.objects.all().count()
+            DepositVendor.objects.all().delete()
+
+            total_utang = UtangSupplier.objects.all().count()
+            UtangSupplier.objects.all().delete()
+
+        return Response({
+            'message': f'Berhasil mereset database. Menghapus {total_utang} data utang, {total_pembayaran} data riwayat pembayaran, dan {total_deposit} data deposit vendor. Seluruh faktur kini kembali bersih di Menunggu Verifikasi.',
+            'deleted_utang_count': total_utang,
+            'deleted_pembayaran_count': total_pembayaran,
+            'deleted_deposit_count': total_deposit,
+        }, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=['post'], url_path='ots-export-anomali')
     def ots_export_anomali(self, request):
         items = request.data.get('items', [])

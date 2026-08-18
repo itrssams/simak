@@ -607,6 +607,33 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const handleResetAll = async () => {
+        const confirmText = prompt(
+            '⚠️ PERINGATAN RESET TOTAL UTANG & VERIFIKASI!\n\n' +
+            'Aksi ini akan MENGHAPUS SELURUH catatan utang supplier di SIMAK (baik hasil verifikasi Siaga, OTS, maupun Manual), ' +
+            'beserta seluruh riwayat pembayaran utang dan deposit vendor.\n\n' +
+            'Seluruh faktur dari gudang/farmasi akan kembali bersih ke tab "Menunggu Verifikasi".\n\n' +
+            'Ketik "RESET" untuk mengonfirmasi:'
+        );
+        if (confirmText !== 'RESET') {
+            if (confirmText !== null) toast.error('Reset dibatalkan. Konfirmasi tidak sesuai.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const res = await api.post('/keuangan/utang-supplier/reset-all/');
+            toast.success(res.data.message || 'Berhasil mereset seluruh data utang dan verifikasi.');
+            await fetchData();
+            await fetchSummary();
+            await fetchPendingSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal mereset data utang.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handlePelunasanDataLama = async () => {
         if (!window.confirm('KONFIRMASI PELUNASAN DATA LAMA:\n\nApakah Anda yakin ingin melunaskan SELURUH sisa transaksi gudang lama yang belum diverifikasi?\n\n- Sistem akan menghitung batas Tanggal Titip OTS terakhir secara DINAMIS untuk Masing-Masing Vendor.\n- Faktur sebelum tanggal titip OTS vendor tsb yang tidak ada di Excel OTS akan otomatis ditandai LUNAS.\n- Faktur berjalan yang lebih baru dari tanggal titip vendor tsb tetap berada di "Menunggu Verifikasi".')) {
             return;
@@ -816,6 +843,9 @@ export default function CatatanUtangObatBhp() {
                         </button>
                         <button className="utang-btn primary" type="button" onClick={handleRollbackImport} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Hapus seluruh data utang hasil import Excel OTS">
                             <RotateCcw size={16} /> Undo Import OTS
+                        </button>
+                        <button className="utang-btn primary" type="button" onClick={handleResetAll} style={{ background: '#b91c1c', borderColor: '#991b1b', color: '#ffffff' }} title="Hapus / Reset seluruh data utang dan verifikasi kembali ke kondisi awal">
+                            <RotateCcw size={16} /> Reset Semua Verifikasi
                         </button>
                         <button className="utang-btn-manual" type="button" onClick={openManual}>
                             <FilePlus2 size={16} /> Catat Utang Manual
