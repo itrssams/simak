@@ -1022,16 +1022,16 @@ export default function CatatanUtangObatBhp() {
                                     </div>
                                 )}
                                 <div className="utang-verify-row total">
-                                    <span className="lbl">Grand Total (Net)</span>
+                                    <span className="lbl">Total Nominal</span>
                                     <span className="val price">{money(verifyTarget.nominal)}</span>
                                 </div>
                             </div>
 
                             {verifyTarget.sumber === 'logistik' && (
-                                <div className="utang-vendor-warning">
-                                    <Truck size={16} />
+                                <div className="utang-vendor-notice">
+                                    <AlertTriangle size={16} />
                                     <div>
-                                        <strong>Pembelian Logistik</strong>
+                                        <strong>Pencocokan Master Vendor Logistik</strong>
                                         <span> — {!verifyTarget.vendor_id_hint ? 'Vendor belum terhubung ke Master Data. Pilih vendor di bawah.' : `Vendor terdeteksi (${verifyTarget.vendor_nama}). Ubah jika perlu.`}</span>
                                     </div>
                                 </div>
@@ -1082,11 +1082,15 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setPaymentTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitPayment} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon"><HandCoins size={20} /></span>
-                            <div>
-                                <h2>Ajukan Pembayaran Utang</h2>
-                                <p>{paymentTarget.nomor_faktur} - {paymentTarget.vendor_nama} <SumberBadge sumber={paymentTarget.sumber} /></p>
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff' }}><HandCoins size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Ajukan Pembayaran Utang</h2>
+                                    <SumberBadge sumber={paymentTarget.sumber} />
+                                </div>
+                                <p className="utang-modal-head-subtitle">Vendor: <strong>{paymentTarget.vendor_nama || '-'}</strong></p>
                             </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setPaymentTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
                         <div className="utang-modal-body">
                             <section className="utang-payment-section">
@@ -1202,10 +1206,13 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setReturTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitRetur} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: '#e11d48', color: '#fff' }}><RotateCcw size={20} /></span>
-                            <div>
-                                <h2>Input Retur / Potongan Faktur</h2>
-                                <p>{returTarget.nomor_faktur || '-'} — {returTarget.vendor_nama || '-'} <SumberBadge sumber={returTarget.sumber} /></p>
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #e11d48, #f43f5e)', color: '#fff' }}><RotateCcw size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Input Retur / Potongan Faktur</h2>
+                                    <SumberBadge sumber={returTarget.sumber} />
+                                </div>
+                                <p className="utang-modal-head-subtitle">Vendor: <strong>{returTarget.vendor_nama || '-'}</strong></p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setReturTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
@@ -1216,16 +1223,22 @@ export default function CatatanUtangObatBhp() {
                                     <span className="val bold">{returTarget.vendor_nama || '-'}</span>
                                 </div>
                                 <div className="utang-verify-row">
-                                    <span className="lbl">No. Faktur / SPB</span>
-                                    <span className="val mono">{returTarget.nomor_faktur || '-'} {returTarget.nomor_spb ? `(SPB: ${returTarget.nomor_spb})` : ''}</span>
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{returTarget.nomor_faktur || '-'}</span>
                                 </div>
+                                {returTarget.nomor_spb && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">No. SPB</span>
+                                        <span className="val mono">{returTarget.nomor_spb}</span>
+                                    </div>
+                                )}
                                 <div className="utang-verify-row">
                                     <span className="lbl">Total Nominal Faktur</span>
                                     <span className="val price">{money(returTarget.nominal)}</span>
                                 </div>
                                 <div className="utang-verify-row">
                                     <span className="lbl">Sisa Utang Saat Ini</span>
-                                    <span className="val price" style={{ color: '#e11d48', fontWeight: 700 }}>{money(returTarget.sisa_utang)}</span>
+                                    <span className="val price" style={{ color: '#e11d48', fontWeight: 800 }}>{money(returTarget.sisa_utang)}</span>
                                 </div>
                             </div>
 
@@ -1348,11 +1361,15 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setRealisasiTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={confirmRealisasi} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}><CheckCircle2 size={20} /></span>
-                            <div>
-                                <h2>Realisasi Pembayaran Utang</h2>
-                                <p>Konfirmasi bahwa pengajuan pembayaran ini telah disetujui &amp; dibayarkan.</p>
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff' }}><CheckCircle2 size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Realisasi Pembayaran Utang</h2>
+                                    {realisasiTarget.sumber && <SumberBadge sumber={realisasiTarget.sumber} />}
+                                </div>
+                                <p className="utang-modal-head-subtitle">Vendor: <strong>{realisasiTarget.vendor_nama || '-'}</strong></p>
                             </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setRealisasiTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
                         <div className="utang-modal-body">
                             <div className="utang-verify-card">
@@ -1362,7 +1379,7 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                                 <div className="utang-verify-row">
                                     <span className="lbl">No. Faktur</span>
-                                    <span className="val mono">{realisasiTarget.nomor_faktur || '-'}</span>
+                                    <span className="val mono" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{realisasiTarget.nomor_faktur || '-'}</span>
                                 </div>
                                 <div className="utang-verify-row">
                                     <span className="lbl">Tgl Rencana Bayar</span>
@@ -1391,8 +1408,7 @@ export default function CatatanUtangObatBhp() {
                                         inputMode="decimal"
                                         value={realisasiForm.jumlah_bayar}
                                         onChange={(e) => setRealisasiForm({ ...realisasiForm, jumlah_bayar: formatMoneyInput(e.target.value) })}
-                                        onBlur={(e) => setRealisasiForm({ ...realisasiForm, jumlah_bayar: formatMoneyInput(e.target.value) })}
-                                        onKeyDown={(e) => e.stopPropagation()}
+                                        placeholder="Rp 0"
                                     />
                                 </div>
                             </div>
@@ -1400,7 +1416,7 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setRealisasiTarget(null)}>Batal</button>
                             <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                                <CheckCircle2 size={16} /> {saving ? 'Menyimpan...' : 'Simpan Pembayaran'}
+                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : 'Konfirmasi Realisasi Bayar'}
                             </button>
                         </div>
                     </form>
@@ -1412,11 +1428,14 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setShowManual(false)}>
                     <form className="utang-modal manual" role="dialog" aria-modal="true" onSubmit={submitManual} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon"><FilePlus2 size={20} /></span>
-                            <div>
-                                <h2>Catat Utang Manual</h2>
-                                <p>Buat catatan utang baru langsung tanpa melalui verifikasi faktur legacy.</p>
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff' }}><FilePlus2 size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Catat Utang Manual</h2>
+                                </div>
+                                <p className="utang-modal-head-subtitle">Input faktur/biaya operasional di luar farmasi &amp; logistik</p>
                             </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setShowManual(false)} aria-label="Tutup"><X size={18} /></button>
                         </div>
                         <div className="utang-modal-body">
                             <div className="utang-manual-grid">
@@ -1489,10 +1508,13 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
                     <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: '#0284c7', color: '#fff' }}><Eye size={20} /></span>
-                            <div>
-                                <h2>Detail Utang &amp; Riwayat Pembayaran</h2>
-                                <p>{detailTarget.nomor_faktur || '-'} — {detailTarget.vendor_nama || '-'} <SumberBadge sumber={detailTarget.sumber} /></p>
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)', color: '#fff' }}><Eye size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Detail Utang &amp; Riwayat Pembayaran</h2>
+                                    <SumberBadge sumber={detailTarget.sumber} />
+                                </div>
+                                <p className="utang-modal-head-subtitle">Vendor: <strong>{detailTarget.vendor_nama || '-'}</strong></p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setDetailTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
