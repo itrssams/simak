@@ -882,7 +882,7 @@ export default function CatatanUtangObatBhp() {
                     <DebouncedSearchInput
                         value={filters.search}
                         onChange={(val) => setFilters((prev) => ({ ...prev, search: val }))}
-                        placeholder="Cari vendor / no faktur / no SPB..."
+                        placeholder="Cari vendor / faktur / SPB / keterangan..."
                         className="utang-tab-search"
                     />
                 </div>

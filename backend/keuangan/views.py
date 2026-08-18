@@ -4286,6 +4286,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 models.Q(nomor_spb__icontains=search) |
                 models.Q(vendor_nama__icontains=search) |
                 models.Q(keterangan_titip__icontains=search) |
+                models.Q(kategori__icontains=search) |
                 models.Q(app_siaga_faktur_id__icontains=search)
             )
 
@@ -4449,7 +4450,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             qs = qs.filter(
                 models.Q(vendor_nama__icontains=search) |
                 models.Q(keterangan__icontains=search) |
-                models.Q(utang_asal__nomor_faktur__icontains=search)
+                models.Q(utang_asal__nomor_faktur__icontains=search) |
+                models.Q(utang_asal__nomor_spb__icontains=search) |
+                models.Q(utang_asal__keterangan_titip__icontains=search)
             )
 
         deposits_data = DepositVendorSerializer(qs, many=True).data
@@ -5513,6 +5516,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 Q(utang__nomor_faktur__icontains=search)
                 | Q(utang__nomor_spb__icontains=search)
                 | Q(utang__vendor_nama__icontains=search)
+                | Q(utang__keterangan_titip__icontains=search)
+                | Q(utang__kategori__icontains=search)
                 | Q(keterangan__icontains=search)
             )
         if vendor_id:
