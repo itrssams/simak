@@ -1506,7 +1506,7 @@ export default function CatatanUtangObatBhp() {
 
             {detailTarget && createPortal(
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
-                    <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 960, width: '92vw' }}>
+                    <div className="utang-modal payment utang-detail-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
                             <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)', color: '#fff' }}><Eye size={20} /></span>
                             <div className="utang-modal-head-text">
@@ -1540,7 +1540,7 @@ export default function CatatanUtangObatBhp() {
                                             </div>
                                             <div className="utang-verify-row">
                                                 <span className="lbl">No. Faktur</span>
-                                                <span className="val mono" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{detailTarget.nomor_faktur || '-'}</span>
+                                                <span className="val mono">{detailTarget.nomor_faktur || '-'}</span>
                                             </div>
                                             <div className="utang-verify-row">
                                                 <span className="lbl">No. Ref / SPB</span>
@@ -1567,7 +1567,7 @@ export default function CatatanUtangObatBhp() {
                                             {detailTarget.keterangan_titip && (
                                                 <div className="utang-verify-row">
                                                     <span className="lbl">Keterangan Titip</span>
-                                                    <span className="val" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{detailTarget.keterangan_titip}</span>
+                                                    <span className="val">{detailTarget.keterangan_titip}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1576,10 +1576,10 @@ export default function CatatanUtangObatBhp() {
 
                                 {/* Right Column: Riwayat Pembayaran & Retur */}
                                 <div className="utang-detail-col-right">
-                                    <section className="utang-payment-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                    <section className="utang-payment-section">
                                         <SectionTitle icon={History}>Riwayat Transaksi (Realisasi &amp; Retur)</SectionTitle>
                                         {detailHistory.length > 0 ? (
-                                            <div className="utang-history-wrap" style={{ flex: 1, maxHeight: 420, overflowY: 'auto' }}>
+                                            <div className="utang-history-wrap">
                                                 <table className="utang-history-table">
                                                     <thead>
                                                         <tr>
@@ -1598,7 +1598,7 @@ export default function CatatanUtangObatBhp() {
                                                                     {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
                                                                 </td>
                                                                 <td><StatusBadge status={item.status} label={item.status_label || item.status} /></td>
-                                                                <td style={{ maxWidth: 160, wordBreak: 'break-word' }}>{item.keterangan || '-'}</td>
+                                                                <td>{item.keterangan || '-'}</td>
                                                                 <td>{item.created_by_name || item.realized_by_name || '-'}</td>
                                                             </tr>
                                                         ))}
