@@ -4499,8 +4499,8 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='input-retur')
     def input_retur(self, request, pk=None):
         utang = self.get_object()
-        if utang.status != UtangSupplier.STATUS_LUNAS:
-            return Response({'error': 'Retur barang hanya dapat dicatat untuk faktur yang sudah berstatus LUNAS.'}, status=status.HTTP_400_BAD_REQUEST)
+        if utang.status in [UtangSupplier.STATUS_DIAJUKAN, UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN]:
+            return Response({'error': 'Faktur ini sedang dalam proses pengajuan pembayaran. Batalkan pengajuan terlebih dahulu untuk mencatat retur.'}, status=status.HTTP_400_BAD_REQUEST)
 
         nominal_retur_raw = request.data.get('nominal_retur')
         keterangan = (request.data.get('keterangan') or '').strip()
@@ -4513,29 +4513,18 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({'error': 'Nominal retur tidak valid atau harus lebih dari 0.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not keterangan:
-            return Response({'error': 'Keterangan retur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Keterangan / Nomor Nota Retur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if utang.nominal < nominal_retur:
-            return Response({'error': f'Nominal retur (Rp {nominal_retur:,.2f}) tidak boleh melebihi nominal faktur awal (Rp {utang.nominal:,.2f}).'}, status=status.HTTP_400_BAD_REQUEST)
+        sisa_utang = utang.sisa_utang
+        if sisa_utang < nominal_retur:
+            return Response({'error': f'Nominal retur (Rp {nominal_retur:,.2f}) tidak boleh melebihi sisa utang saat ini (Rp {sisa_utang:,.2f}).'}, status=status.HTTP_400_BAD_REQUEST)
 
-        utang.nominal = utang.nominal - nominal_retur
-        utang.save(update_fields=['nominal', 'updated_at'])
-        utang.refresh_status()
-
-        deposit = DepositVendor.objects.create(
-            vendor_id=utang.vendor_id,
-            vendor_nama=utang.vendor_nama,
-            utang_asal=utang,
-            nominal_retur=nominal_retur,
-            keterangan=f"Retur Faktur {utang.nomor_faktur or utang.nomor_spb}: {keterangan}",
-            created_by=request.user,
-        )
-
-        PembayaranUtang.objects.create(
+        today = timezone.localdate()
+        pembayaran = PembayaranUtang.objects.create(
             utang=utang,
-            tanggal_rencana_bayar=timezone.now().date(),
-            tanggal_proses=timezone.now().date(),
-            tanggal_app=timezone.now().date(),
+            tanggal_rencana_bayar=today,
+            tanggal_proses=today,
+            tanggal_app=today,
             jumlah_bayar=nominal_retur,
             potongan_deposit=Decimal('0'),
             jumlah_kas_keluar=Decimal('0'),
@@ -4544,10 +4533,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             created_by=request.user,
         )
 
+        utang.refresh_status()
+        utang.refresh_from_db()
+
         return Response({
-            'message': f'Retur sebesar Rp {nominal_retur:,.2f} berhasil dicatat dan masuk ke Deposit Vendor.',
+            'message': f'Retur sebesar Rp {nominal_retur:,.2f} berhasil dicatat pada faktur {utang.nomor_faktur or utang.nomor_spb}. Sisa utang kini menjadi Rp {utang.sisa_utang:,.2f}.',
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
-            'deposit': DepositVendorSerializer(deposit).data,
+            'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='bayar')

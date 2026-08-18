@@ -550,7 +550,7 @@ class UtangSupplier(models.Model):
 
     @property
     def total_dibayar(self):
-        return self.pembayaran.filter(status__in=['realisasi_sebagian', 'realisasi_lunas']).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
+        return self.pembayaran.filter(status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur']).aggregate(total=models.Sum('jumlah_bayar'))['total'] or Decimal('0')
 
     @property
     def total_pending(self):

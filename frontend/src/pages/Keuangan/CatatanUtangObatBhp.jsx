@@ -76,7 +76,7 @@ const TABS = [
     { id: 'menunggu', label: 'Menunggu Verifikasi', icon: FileClock },
     { id: 'aktif', label: 'Hutang Aktif', icon: ReceiptText },
     { id: 'pengajuan', label: 'Pengajuan Pembayaran', icon: ClipboardList },
-    { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },
+    // { id: 'deposit', label: 'Deposit Vendor', icon: Sparkles },
     { id: 'histori', label: 'Riwayat Pembayaran', icon: History },
 ];
 
@@ -449,20 +449,35 @@ export default function CatatanUtangObatBhp() {
     const submitRetur = async (event) => {
         event.preventDefault();
         if (!returTarget) return;
-        const nomRetur = parseMoneyInput(returForm.nominal_retur);
-        if (nomRetur <= 0) return toast.error('Nominal retur wajib lebih dari 0.');
-        if (!returForm.keterangan.trim()) return toast.error('Keterangan retur wajib diisi.');
+
+        const nominal = parseMoneyInput(returForm.nominal_retur);
+        if (nominal <= 0) {
+            toast.error('Nominal retur wajib lebih dari nol.');
+            return;
+        }
+        const sisaUtangSaatIni = Number(returTarget.sisa_utang || returTarget.nominal || 0);
+        if (nominal > sisaUtangSaatIni) {
+            toast.error(`Nominal retur (${money(nominal)}) tidak boleh melebihi sisa utang saat ini (${money(sisaUtangSaatIni)}).`);
+            return;
+        }
+        if (!returForm.keterangan?.trim()) {
+            toast.error('Nomor Nota Retur / Keterangan wajib diisi.');
+            return;
+        }
+
         setSaving(true);
         try {
             const res = await api.post(`/keuangan/utang-supplier/${returTarget.id}/input-retur/`, {
-                nominal_retur: nomRetur,
+                nominal_retur: nominal,
                 keterangan: returForm.keterangan.trim(),
             });
-            toast.success(res.data.message || `Retur sebesar ${money(nomRetur)} berhasil dicatat.`);
+            toast.success(res.data.message || 'Retur faktur berhasil dicatat.');
             setReturTarget(null);
+            setReturForm({ nominal_retur: '', keterangan: '' });
             await fetchData();
+            await fetchSummary();
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal mencatat retur barang.'));
+            toast.error(errorMessage(err, 'Gagal mencatat retur faktur.'));
         } finally {
             setSaving(false);
         }
@@ -1185,12 +1200,12 @@ export default function CatatanUtangObatBhp() {
 
             {returTarget && createPortal(
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setReturTarget(null)}>
-                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitRetur} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitRetur} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
                         <div className="utang-modal-head">
                             <span className="utang-modal-head-icon" style={{ background: '#e11d48', color: '#fff' }}><RotateCcw size={20} /></span>
                             <div>
-                                <h2>Input Retur Barang / Penyesuaian Faktur</h2>
-                                <p>{returTarget.nomor_faktur || '-'} — {returTarget.vendor_nama || '-'}</p>
+                                <h2>Input Retur / Potongan Faktur</h2>
+                                <p>{returTarget.nomor_faktur || '-'} — {returTarget.vendor_nama || '-'} <SumberBadge sumber={returTarget.sumber} /></p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setReturTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
@@ -1201,12 +1216,16 @@ export default function CatatanUtangObatBhp() {
                                     <span className="val bold">{returTarget.vendor_nama || '-'}</span>
                                 </div>
                                 <div className="utang-verify-row">
-                                    <span className="lbl">No. Faktur</span>
-                                    <span className="val mono">{returTarget.nomor_faktur || '-'}</span>
+                                    <span className="lbl">No. Faktur / SPB</span>
+                                    <span className="val mono">{returTarget.nomor_faktur || '-'} {returTarget.nomor_spb ? `(SPB: ${returTarget.nomor_spb})` : ''}</span>
                                 </div>
                                 <div className="utang-verify-row">
-                                    <span className="lbl">Nominal Faktur Saat Ini</span>
+                                    <span className="lbl">Total Nominal Faktur</span>
                                     <span className="val price">{money(returTarget.nominal)}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Sisa Utang Saat Ini</span>
+                                    <span className="val price" style={{ color: '#e11d48', fontWeight: 700 }}>{money(returTarget.sisa_utang)}</span>
                                 </div>
                             </div>
 
@@ -1222,13 +1241,38 @@ export default function CatatanUtangObatBhp() {
                                         onChange={(e) => setReturForm({ ...returForm, nominal_retur: formatMoneyInput(e.target.value) })}
                                     />
                                 </label>
+
+                                {parseMoneyInput(returForm.nominal_retur) > 0 && (
+                                    <div style={{
+                                        background: parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#fef2f2' : '#f0fdf4',
+                                        border: `1px solid ${parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#fecaca' : '#bbf7d0'}`,
+                                        borderRadius: 8,
+                                        padding: '10px 14px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        fontSize: '13px',
+                                    }}>
+                                        <span style={{ color: '#475569', fontWeight: 600 }}>Sisa Tagihan Setelah Retur:</span>
+                                        <strong style={{
+                                            fontSize: '15px',
+                                            color: parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#dc2626' : '#16a34a',
+                                        }}>
+                                            {parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) 
+                                                ? 'Nominal melebihi sisa utang!'
+                                                : money(Math.max(Number(returTarget.sisa_utang || 0) - parseMoneyInput(returForm.nominal_retur), 0))
+                                            }
+                                        </strong>
+                                    </div>
+                                )}
+
                                 <label>
-                                    <span>Keterangan Retur <span className="utang-req">*</span></span>
+                                    <span>Nomor Nota Retur / Keterangan <span className="utang-req">*</span></span>
                                     <textarea
                                         className="utang-input"
                                         required
                                         rows={3}
-                                        placeholder="Alasan retur barang / penyesuaian (misal: Obat kedaluwarsa 2 box)..."
+                                        placeholder="Contoh: Nota Retur No. NR-MPI/2026/0412 - Retur obat rusak/ED 2 box..."
                                         value={returForm.keterangan}
                                         onChange={(e) => setReturForm({ ...returForm, keterangan: e.target.value })}
                                     />
@@ -1238,7 +1282,7 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setReturTarget(null)}>Batal</button>
                             <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: '#e11d48' }}>
-                                <RotateCcw size={16} /> {saving ? 'Menyimpan...' : 'Simpan Retur Vendor'}
+                                <RotateCcw size={16} /> {saving ? 'Menyimpan...' : 'Simpan Retur Faktur'}
                             </button>
                         </div>
                     </form>
@@ -1758,30 +1802,31 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                             ) : '-'}
                         </td>
                         <td className="utang-right">
-                            {item.status === 'lunas' ? (
-                                <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
-                                    <button className="utang-btn soft mini" onClick={() => onRetur(item)} title="Input Retur Barang / Penyesuaian Faktur">
-                                        <RotateCcw size={15} /> Retur
-                                    </button>
-                                    <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
-                                        <Eye size={15} /> Lihat Detail
-                                    </button>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                                {item.status !== 'lunas' && (
                                     <button
                                         className="utang-btn primary mini"
                                         onClick={() => onPayment(item)}
                                         disabled={isPaymentDisabled}
                                         title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
                                     >
-                                        <HandCoins size={15} /> {isPendingApproval ? 'Sedang Diajukan' : 'Ajukan Pembayaran'}
+                                        <HandCoins size={14} /> {isPendingApproval ? 'Diajukan' : 'Bayar'}
                                     </button>
-                                    <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
-                                        <Eye size={15} />
+                                )}
+                                {item.status !== 'lunas' && !isPendingApproval && !isNoSisa && (
+                                    <button
+                                        className="utang-btn soft mini"
+                                        onClick={() => onRetur(item)}
+                                        title="Input Retur Barang / Potongan Nota Retur pada Faktur Ini"
+                                        style={{ color: '#e11d48', borderColor: '#fecdd3' }}
+                                    >
+                                        <RotateCcw size={14} /> Retur
                                     </button>
-                                </div>
-                            )}
+                                )}
+                                <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
+                                    <Eye size={14} /> {item.status === 'lunas' ? 'Detail' : ''}
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     );
