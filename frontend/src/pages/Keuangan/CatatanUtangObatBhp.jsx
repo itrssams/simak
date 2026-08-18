@@ -1732,9 +1732,16 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
                                 )}
                             </td>
                             <td className="utang-right">
-                                <button className="utang-btn primary mini" onClick={() => onVerify(item)}>
-                                    <CheckCircle2 size={15} /> Verifikasi
-                                </button>
+                                <div className="utang-action-group">
+                                    <button
+                                        className="utang-action-btn verify"
+                                        type="button"
+                                        onClick={() => onVerify(item)}
+                                        title="Verifikasi Faktur ke Utang SIMAK"
+                                    >
+                                        <CheckCircle2 size={16} />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     );
@@ -1802,29 +1809,35 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                             ) : '-'}
                         </td>
                         <td className="utang-right">
-                            <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                            <div className="utang-action-group">
                                 {item.status !== 'lunas' && (
                                     <button
-                                        className="utang-btn primary mini"
+                                        className="utang-action-btn pay"
+                                        type="button"
                                         onClick={() => onPayment(item)}
                                         disabled={isPaymentDisabled}
                                         title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
                                     >
-                                        <HandCoins size={14} /> {isPendingApproval ? 'Diajukan' : 'Bayar'}
+                                        <HandCoins size={16} />
                                     </button>
                                 )}
                                 {item.status !== 'lunas' && !isPendingApproval && !isNoSisa && (
                                     <button
-                                        className="utang-btn soft mini"
+                                        className="utang-action-btn retur"
+                                        type="button"
                                         onClick={() => onRetur(item)}
-                                        title="Input Retur Barang / Potongan Nota Retur pada Faktur Ini"
-                                        style={{ color: '#e11d48', borderColor: '#fecdd3' }}
+                                        title="Input Retur / Potongan Faktur"
                                     >
-                                        <RotateCcw size={14} /> Retur
+                                        <RotateCcw size={16} />
                                     </button>
                                 )}
-                                <button className="utang-btn soft mini" onClick={() => onDetail(item)} title="Lihat detail & riwayat pembayaran">
-                                    <Eye size={14} /> {item.status === 'lunas' ? 'Detail' : ''}
+                                <button
+                                    className="utang-action-btn detail"
+                                    type="button"
+                                    onClick={() => onDetail(item)}
+                                    title="Lihat Detail & Riwayat Pembayaran"
+                                >
+                                    <Eye size={16} />
                                 </button>
                             </div>
                         </td>
@@ -1886,11 +1899,21 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
                             </span>
                         </td>
                         <td className="utang-right" style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'center', width: '100%' }}>
-                                <button className="utang-btn primary mini" onClick={() => onRealisasi(item)} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '6px 8px' }} title="Verifikasi Pembayaran">
+                            <div className="utang-action-group" style={{ justifyContent: 'center', width: '100%' }}>
+                                <button
+                                    className="utang-action-btn realisasi"
+                                    type="button"
+                                    onClick={() => onRealisasi(item)}
+                                    title="Realisasi / Verifikasi Pembayaran"
+                                >
                                     <CheckCircle2 size={16} />
                                 </button>
-                                <button className="utang-btn soft mini danger" onClick={() => onCancel(item)} title="Hapus Pengajuan" style={{ color: '#ef4444', borderColor: '#fca5a5', padding: '6px 8px' }}>
+                                <button
+                                    className="utang-action-btn danger"
+                                    type="button"
+                                    onClick={() => onCancel(item)}
+                                    title="Batalkan Pengajuan Pembayaran"
+                                >
                                     <Trash2 size={16} />
                                 </button>
                             </div>
