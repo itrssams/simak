@@ -1771,6 +1771,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                     const isPendingApproval = item.status === 'diajukan' || item.status === 'sebagian_diajukan';
                     const isNoSisa = Number(item.sisa_utang || 0) <= 0;
                     const isPaymentDisabled = isPendingApproval || isNoSisa;
+                    const canRetur = item.status === 'belum_dibayar' && !isPendingApproval && Number(item.total_dibayar || 0) === 0;
 
                     return (
                     <tr key={item.id}>
@@ -1821,7 +1822,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                                         <HandCoins size={16} />
                                     </button>
                                 )}
-                                {item.status !== 'lunas' && !isPendingApproval && !isNoSisa && (
+                                {canRetur && (
                                     <button
                                         className="utang-action-btn retur"
                                         type="button"

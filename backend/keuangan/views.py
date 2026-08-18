@@ -4502,6 +4502,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if utang.status in [UtangSupplier.STATUS_DIAJUKAN, UtangSupplier.STATUS_SEBAGIAN_DIAJUKAN]:
             return Response({'error': 'Faktur ini sedang dalam proses pengajuan pembayaran. Batalkan pengajuan terlebih dahulu untuk mencatat retur.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        has_realisasi = utang.pembayaran.filter(status__in=['realisasi_sebagian', 'realisasi_lunas']).exists()
+        if utang.status not in [UtangSupplier.STATUS_BELUM_DIBAYAR] or has_realisasi:
+            return Response({'error': 'Fitur retur saat ini hanya berlaku untuk faktur yang belum pernah dibayar sama sekali.'}, status=status.HTTP_400_BAD_REQUEST)
+
         nominal_retur_raw = request.data.get('nominal_retur')
         keterangan = (request.data.get('keterangan') or '').strip()
 
