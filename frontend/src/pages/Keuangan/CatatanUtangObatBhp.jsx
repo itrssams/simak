@@ -624,9 +624,11 @@ export default function CatatanUtangObatBhp() {
         try {
             const res = await api.post('/keuangan/utang-supplier/reset-all/');
             toast.success(res.data.message || 'Berhasil mereset seluruh data utang dan verifikasi.');
-            await fetchData();
-            await fetchSummary();
+            resetFilters();
+            setSearchParams({ tab: 'menunggu' });
             await fetchPendingSummary();
+            await fetchSummary();
+            await fetchData();
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal mereset data utang.'));
         } finally {
