@@ -1506,7 +1506,7 @@ export default function CatatanUtangObatBhp() {
 
             {detailTarget && createPortal(
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
-                    <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 680 }}>
+                    <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 960, width: '92vw' }}>
                         <div className="utang-modal-head">
                             <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)', color: '#fff' }}><Eye size={20} /></span>
                             <div className="utang-modal-head-text">
@@ -1519,84 +1519,103 @@ export default function CatatanUtangObatBhp() {
                             <button className="utang-confirm-close" type="button" onClick={() => setDetailTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
                         <div className="utang-modal-body">
-                            <section className="utang-payment-section">
-                                <SectionTitle>Ringkasan Faktur</SectionTitle>
-                                <div className="utang-pay-summary">
-                                    <Info label="Total Nominal" value={money(detailTarget.nominal)} />
-                                    <Info label="Sudah Dibayar" value={money(detailTarget.total_dibayar)} />
-                                    <Info label="Sisa Utang" value={money(detailTarget.sisa_utang)} />
-                                </div>
-                            </section>
-
-                            <section className="utang-payment-section">
-                                <SectionTitle>Informasi Faktur</SectionTitle>
-                                <div className="utang-verify-card">
-                                    <div className="utang-verify-row">
-                                        <span className="lbl">Status</span>
-                                        <span className="val"><StatusBadge status={detailTarget.status} label={detailTarget.status_label} /></span>
-                                    </div>
-                                    <div className="utang-verify-row">
-                                        <span className="lbl">No. Ref / SPB</span>
-                                        <span className="val">{getRefNo(detailTarget)}</span>
-                                    </div>
-                                    <div className="utang-verify-row">
-                                        <span className="lbl">Tgl. Faktur</span>
-                                        <span className="val">{dateLabel(detailTarget.tanggal_faktur)}</span>
-                                    </div>
-                                    <div className="utang-verify-row">
-                                        <span className="lbl">Jatuh Tempo</span>
-                                        <span className="val">{dateLabel(detailTarget.tanggal_jatuh_tempo)}</span>
-                                    </div>
-                                    <div className="utang-verify-row">
-                                        <span className="lbl">Tgl. Titip</span>
-                                        <span className="val">{dateLabel(detailTarget.tanggal_titip)} ({calcUmurUtang(detailTarget.tanggal_titip)})</span>
-                                    </div>
-                                    {detailTarget.verified_by_name && (
-                                        <div className="utang-verify-row">
-                                            <span className="lbl">Verifikator</span>
-                                            <span className="val bold">{detailTarget.verified_by_name}</span>
+                            <div className="utang-detail-split-grid">
+                                {/* Left Column: Ringkasan & Informasi Faktur */}
+                                <div className="utang-detail-col-left">
+                                    <section className="utang-payment-section">
+                                        <SectionTitle>Ringkasan Faktur</SectionTitle>
+                                        <div className="utang-pay-summary">
+                                            <Info label="Total Nominal" value={money(detailTarget.nominal)} />
+                                            <Info label="Sudah Dibayar" value={money(detailTarget.total_dibayar)} />
+                                            <Info label="Sisa Utang" value={money(detailTarget.sisa_utang)} />
                                         </div>
-                                    )}
-                                    {detailTarget.keterangan_titip && (
-                                        <div className="utang-verify-row">
-                                            <span className="lbl">Keterangan Titip</span>
-                                            <span className="val">{detailTarget.keterangan_titip}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
+                                    </section>
 
-                            <section className="utang-payment-section">
-                                <SectionTitle icon={History}>Riwayat Pembayaran (Realisasi &amp; Pengajuan)</SectionTitle>
-                                {detailHistory.length > 0 ? (
-                                    <div className="utang-history-wrap">
-                                        <table className="utang-history-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Tgl Bayar / Rencana</th>
-                                                    <th>Jumlah Bayar</th>
-                                                    <th>Status</th>
-                                                    <th>Keterangan</th>
-                                                    <th>Operator</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {detailHistory.map((item, idx) => (
-                                                    <tr key={item.id || idx}>
-                                                        <td>{dateLabel(item.tanggal_realisasi || item.tanggal_proses || item.tanggal_rencana_bayar)}</td>
-                                                        <td className="utang-mono">{money(item.jumlah_bayar)}</td>
-                                                        <td><StatusBadge status={item.status} label={item.status_label || item.status} /></td>
-                                                        <td>{item.keterangan || '-'}</td>
-                                                        <td>{item.created_by_name || item.realized_by_name || '-'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <div className="utang-history-empty">Belum ada riwayat pembayaran untuk faktur ini.</div>
-                                )}
-                            </section>
+                                    <section className="utang-payment-section">
+                                        <SectionTitle>Informasi Faktur</SectionTitle>
+                                        <div className="utang-verify-card">
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">Status</span>
+                                                <span className="val"><StatusBadge status={detailTarget.status} label={detailTarget.status_label} /></span>
+                                            </div>
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">No. Faktur</span>
+                                                <span className="val mono" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{detailTarget.nomor_faktur || '-'}</span>
+                                            </div>
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">No. Ref / SPB</span>
+                                                <span className="val mono">{getRefNo(detailTarget)}</span>
+                                            </div>
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">Tgl. Faktur</span>
+                                                <span className="val">{dateLabel(detailTarget.tanggal_faktur)}</span>
+                                            </div>
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">Jatuh Tempo</span>
+                                                <span className="val">{dateLabel(detailTarget.tanggal_jatuh_tempo)}</span>
+                                            </div>
+                                            <div className="utang-verify-row">
+                                                <span className="lbl">Tgl. Titip</span>
+                                                <span className="val">{dateLabel(detailTarget.tanggal_titip)} ({calcUmurUtang(detailTarget.tanggal_titip)})</span>
+                                            </div>
+                                            {detailTarget.verified_by_name && (
+                                                <div className="utang-verify-row">
+                                                    <span className="lbl">Verifikator</span>
+                                                    <span className="val bold">{detailTarget.verified_by_name}</span>
+                                                </div>
+                                            )}
+                                            {detailTarget.keterangan_titip && (
+                                                <div className="utang-verify-row">
+                                                    <span className="lbl">Keterangan Titip</span>
+                                                    <span className="val" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{detailTarget.keterangan_titip}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                </div>
+
+                                {/* Right Column: Riwayat Pembayaran & Retur */}
+                                <div className="utang-detail-col-right">
+                                    <section className="utang-payment-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <SectionTitle icon={History}>Riwayat Transaksi (Realisasi &amp; Retur)</SectionTitle>
+                                        {detailHistory.length > 0 ? (
+                                            <div className="utang-history-wrap" style={{ flex: 1, maxHeight: 420, overflowY: 'auto' }}>
+                                                <table className="utang-history-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Tgl Proses</th>
+                                                            <th style={{ textAlign: 'right' }}>Nominal</th>
+                                                            <th>Status</th>
+                                                            <th>Keterangan</th>
+                                                            <th>Operator</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {detailHistory.map((item, idx) => (
+                                                            <tr key={item.id || idx}>
+                                                                <td>{dateLabel(item.tanggal_realisasi || item.tanggal_proses || item.tanggal_rencana_bayar)}</td>
+                                                                <td className={`utang-mono ${item.status === 'retur' ? 'utang-nominal-retur' : ''}`} style={{ textAlign: 'right', fontWeight: 700, color: item.status === 'retur' ? '#e11d48' : undefined }}>
+                                                                    {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
+                                                                </td>
+                                                                <td><StatusBadge status={item.status} label={item.status_label || item.status} /></td>
+                                                                <td style={{ maxWidth: 160, wordBreak: 'break-word' }}>{item.keterangan || '-'}</td>
+                                                                <td>{item.created_by_name || item.realized_by_name || '-'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="utang-history-empty" style={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 200, border: '1px dashed #cbd5e1', borderRadius: 12, background: '#f8fafc', color: '#64748b', padding: '24px 16px', textAlign: 'center' }}>
+                                                <div>
+                                                    <FileClock size={28} style={{ opacity: 0.4, margin: '0 auto 8px', display: 'block' }} />
+                                                    <span>Belum ada riwayat pembayaran atau retur untuk faktur ini.</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </section>
+                                </div>
+                            </div>
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" onClick={() => setDetailTarget(null)}>Tutup</button>

@@ -2585,3 +2585,43 @@ textarea.utang-input {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* =========================
+   SPLIT DETAIL MODAL LAYOUT
+========================= */
+.utang-detail-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 880px) {
+  .utang-detail-split-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+.utang-detail-col-left,
+.utang-detail-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.utang-nominal-retur {
+  color: #e11d48 !important;
+  font-weight: 750 !important;
+}
+
+[data-theme="dark"] .utang-nominal-retur {
+  color: #fda4af !important;
+}
+
+[data-theme="dark"] .utang-history-empty {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+
+
