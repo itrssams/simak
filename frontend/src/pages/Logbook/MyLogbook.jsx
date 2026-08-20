@@ -368,7 +368,10 @@ export default function MyLogbook() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
+                        {/* Date Filter & Search toolbar on the right */}
+                        <div className="logbook-filter-toolbar">
                             <div className="logbook-date-picker-group">
                                 <input
                                     type="date"
@@ -386,20 +389,19 @@ export default function MyLogbook() {
                                     </button>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Search Filter */}
-                        <div className="logbook-search-bar">
-                            <Search size={15} className="logbook-search-icon" />
-                            <input
-                                type="text"
-                                placeholder="Cari uraian pekerjaan..."
-                                value={mySearch}
-                                onChange={(e) => setMySearch(e.target.value)}
-                            />
-                            {mySearch && (
-                                <button className="logbook-clear-btn" onClick={() => setMySearch('')}>✕</button>
-                            )}
+                            <div className="logbook-search-bar">
+                                <Search size={15} className="logbook-search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Cari uraian pekerjaan..."
+                                    value={mySearch}
+                                    onChange={(e) => setMySearch(e.target.value)}
+                                />
+                                {mySearch && (
+                                    <button className="logbook-clear-btn" onClick={() => setMySearch('')}>✕</button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
