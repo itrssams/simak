@@ -308,8 +308,8 @@ function SidebarItem({ item, location, onClose, collapsed, index }) {
 }
 
 // ── Odoo-Style Active Module & Horizontal Submenus Config ─────────────────
-const getActiveModuleConfig = (pathname) => {
-    // Akuntansi & Keuangan Umum
+const getActiveModuleConfig = (pathname, user) => {
+    // 1. Akuntansi & Keuangan Umum
     if (
         pathname.startsWith('/akuntansi') ||
         pathname.startsWith('/pelanggan') ||
@@ -339,125 +339,128 @@ const getActiveModuleConfig = (pathname) => {
         };
     }
 
-    // Catatan Utang
-    if (pathname.startsWith('/keuangan/catatan-utang')) {
+    // 2. Catatan Utang (sama persis dengan sidebar sebelumnya)
+    if (pathname.startsWith('/keuangan/catatan-utang') || (pathname.startsWith('/logistik/vendor') && location.search.includes('sumber=semua'))) {
         return {
             id: 'catatan-utang',
             title: 'Catatan Utang',
             iconColor: '#10b981',
             menus: [
-                { label: 'Faktur Obat & BHP', path: '/keuangan/catatan-utang/obat-bhp?tab=faktur' },
-                { label: 'Pengajuan Pembayaran', path: '/keuangan/catatan-utang/obat-bhp?tab=pengajuan' },
-                { label: 'Riwayat Pembayaran', path: '/keuangan/catatan-utang/obat-bhp?tab=history' },
+                { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
+                { label: 'Master Vendor', path: '/logistik/vendor?sumber=semua' },
                 { label: 'Import Saldo OTS', path: '/keuangan/catatan-utang/import-ots' },
             ],
         };
     }
 
-    // Penagihan & Invoice
+    // 3. Penagihan & Invoice (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/keuangan')) {
         return {
             id: 'penagihan-invoice',
-            title: 'Penagihan & Invoice',
+            title: 'Penagihan',
             iconColor: '#06b6d4',
             menus: [
-                { label: 'Daftar Kunjungan', path: '/keuangan/kunjungan-invoice' },
                 { label: 'Dashboard Invoice', path: '/keuangan/invoices/dashboard' },
+                { label: 'Daftar Kunjungan', path: '/keuangan/kunjungan-invoice' },
                 { label: 'Daftar Invoice', path: '/keuangan/invoices' },
                 { label: 'Verifikasi Pembayaran', path: '/keuangan/invoices/verifikasi' },
-                { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
                 { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
+                { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
             ],
         };
     }
 
-    // Gudang Logistik
+    // 4. Gudang Logistik (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/logistik')) {
         return {
             id: 'gudang-logistik',
             title: 'Gudang Logistik',
             iconColor: '#f59e0b',
             menus: [
-                { label: 'Data Barang', path: '/logistik/barang' },
-                { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
+                { label: 'Daftar Barang', path: '/logistik/barang' },
+                { label: 'Master Vendor', path: '/logistik/vendor?sumber=logistik' },
+                { label: 'SPB', path: '/logistik/spb' },
                 { label: 'Penerimaan', path: '/logistik/penerimaan' },
-                { label: 'Pengeluaran', path: '/logistik/pengeluaran' },
-                { label: 'Laporan & Mutasi', path: '/logistik/laporan' },
+                { label: 'Permintaan & Barang Keluar', path: '/logistik/permintaan' },
+                { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
+                { label: 'Kartu Stok', path: '/logistik/kartu-stok' },
+                { label: 'Opname', path: '/logistik/opname' },
             ],
         };
     }
 
-    // Petty Cash
+    // 5. Petty Cash (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/petty-cash') || pathname.startsWith('/laporan/petty-cash')) {
+        const menus = [
+            { label: 'Petty Cash', path: '/petty-cash' },
+        ];
+        if (isManajerUp(user)) {
+            menus.push({ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' });
+        }
         return {
             id: 'petty-cash',
             title: 'Petty Cash',
             iconColor: '#22c55e',
-            menus: [
-                { label: 'Pengajuan & Kasbon', path: '/petty-cash' },
-                { label: 'Laporan Petty Cash', path: '/laporan/petty-cash' },
-            ],
+            menus,
         };
     }
 
-    // Driver & Armada
+    // 6. Driver (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/driver')) {
         return {
             id: 'driver',
-            title: 'Driver & Armada',
+            title: 'Driver',
             iconColor: '#6366f1',
             menus: [
-                { label: 'Logbook Perjalanan Driver', path: '/driver' },
+                { label: 'Driver', path: '/driver' },
             ],
         };
     }
 
-    // Manajemen Sistem
+    // 7. Manajemen Sistem (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/admin/system-maintenance')) {
         return {
             id: 'system-maintenance',
             title: 'Manajemen Sistem',
             iconColor: '#10b981',
             menus: [
-                { label: 'Health & Storage Metrics', path: '/admin/system-maintenance' },
-                { label: 'Backup & Restore DB', path: '/admin/system-maintenance' },
-                { label: 'Optimasi Tabel MySQL', path: '/admin/system-maintenance' },
+                { label: 'Manajemen Sistem', path: '/admin/system-maintenance' },
             ],
         };
     }
 
-    // Manajemen User
+    // 8. Manajemen User (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/admin/users')) {
         return {
             id: 'users',
             title: 'Manajemen User',
             iconColor: '#0ea5e9',
             menus: [
-                { label: 'Daftar Pengguna & Role', path: '/admin/users' },
+                { label: 'Manajemen User', path: '/admin/users' },
             ],
         };
     }
 
-    // Pengumuman
+    // 9. Pengumuman (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/pengumuman')) {
         return {
             id: 'pengumuman',
             title: 'Pengumuman',
             iconColor: '#f43f5e',
             menus: [
-                { label: 'Daftar Pengumuman Internal', path: '/pengumuman' },
+                { label: 'Pengumuman', path: '/pengumuman' },
             ],
         };
     }
 
-    // Audit Log
+    // 10. Audit Log (sama persis dengan sidebar sebelumnya)
     if (pathname.startsWith('/audit-log')) {
         return {
             id: 'audit-log',
             title: 'Audit Log',
             iconColor: '#64748b',
             menus: [
-                { label: 'Riwayat Aktivitas User', path: '/audit-log' },
+                { label: 'Audit Log', path: '/audit-log' },
             ],
         };
     }
@@ -501,7 +504,7 @@ export default function Layout({ children }) {
     const profileRef = useRef(null);
     const announcementRef = useRef(null);
 
-    const activeModuleConfig = useMemo(() => getActiveModuleConfig(location.pathname), [location.pathname]);
+    const activeModuleConfig = useMemo(() => getActiveModuleConfig(location.pathname, user), [location.pathname, user]);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
