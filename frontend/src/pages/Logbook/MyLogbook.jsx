@@ -726,10 +726,8 @@ export default function MyLogbook() {
                                         <tr>
                                             <th style={{ width: '60px' }}>No</th>
                                             <th>Nama Pegawai</th>
-                                            <th>Unit / Bagian</th>
+                                            <th style={{ width: '220px' }}>Unit / Bagian</th>
                                             <th style={{ width: '180px' }}>Jumlah Pekerjaan</th>
-                                            <th style={{ width: '180px' }}>Total Jam Kerja</th>
-                                            <th style={{ width: '170px', textAlign: 'right' }}>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -756,35 +754,13 @@ export default function MyLogbook() {
                                                 </td>
                                                 <td>
                                                     <span className="logbook-unit-tag">
-                                                        <Building2 size={12} />
                                                         {u.userUnit}
                                                     </span>
                                                 </td>
                                                 <td>
                                                     <span className="logbook-pill-count">
-                                                        <Briefcase size={12} />
                                                         <strong>{u.totalEntries}</strong> Pekerjaan
                                                     </span>
-                                                </td>
-                                                <td>
-                                                    <span className="logbook-pill-duration">
-                                                        <Clock size={12} />
-                                                        <strong>{u.durasiFormat}</strong>
-                                                    </span>
-                                                </td>
-                                                <td style={{ textAlign: 'right' }}>
-                                                    <button
-                                                        type="button"
-                                                        className="logbook-btn-view-act"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedUserDetail(u);
-                                                        }}
-                                                    >
-                                                        <Eye size={13} />
-                                                        <span>Lihat Aktivitas</span>
-                                                        <ChevronRight size={13} />
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
