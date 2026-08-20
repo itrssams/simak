@@ -1,18 +1,23 @@
 // SIMAK PWA Service Worker (with Luxury Offline Fallback Screen)
-const CACHE_NAME = 'simak-offline-v2';
+const CACHE_NAME = 'simak-offline-v3';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to pre-cache for offline fallback
 const STATIC_ASSETS = [
-  OFFLINE_URL,
+  OFFLINE_URL + '?v=3',
   '/logo.png',
   '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Precache offline page without query params mapping
+      const response = await fetch(OFFLINE_URL + '?t=' + Date.now());
+      if (response.ok) {
+        await cache.put(OFFLINE_URL, response);
+      }
+      return cache.addAll(['/logo.png', '/manifest.json']);
     })
   );
   self.skipWaiting();
