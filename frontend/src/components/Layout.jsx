@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     Bell,
@@ -307,6 +307,270 @@ function SidebarItem({ item, location, onClose, collapsed, index }) {
     );
 }
 
+// ── Odoo-Style Active Module & Horizontal Submenus Config ─────────────────
+const getActiveModuleConfig = (pathname) => {
+    // Akuntansi & Keuangan Umum
+    if (
+        pathname.startsWith('/akuntansi') ||
+        pathname.startsWith('/pelanggan') ||
+        pathname.startsWith('/pemasok') ||
+        pathname.startsWith('/transaksi') ||
+        pathname.startsWith('/laporan/arus-kas') ||
+        pathname.startsWith('/rekening-bank') ||
+        pathname.startsWith('/dashboard-analytics')
+    ) {
+        return {
+            id: 'akuntansi',
+            title: 'Akuntansi',
+            iconColor: '#a855f7',
+            menus: [
+                { label: 'Dashboard', path: '/dashboard-analytics' },
+                {
+                    label: 'Pelanggan',
+                    children: [
+                        { label: 'Data Pelanggan', path: '/pelanggan' },
+                        { label: 'Faktur Pelanggan', path: '/pelanggan/faktur' },
+                    ],
+                },
+                {
+                    label: 'Pemasok',
+                    children: [
+                        { label: 'Data Pemasok', path: '/pemasok' },
+                        { label: 'Tagihan Pemasok', path: '/pemasok/tagihan' },
+                    ],
+                },
+                {
+                    label: 'Akuntansi',
+                    children: [
+                        { label: 'Bagan Akun (COA)', path: '/akuntansi/bagan-akun' },
+                        { label: 'Entri Jurnal', path: '/akuntansi/entri-jurnal' },
+                    ],
+                },
+                {
+                    label: 'Transaksi',
+                    children: [
+                        { label: 'Input Transaksi', path: '/transaksi/input' },
+                        { label: 'Daftar Transaksi', path: '/transaksi/list' },
+                    ],
+                },
+                {
+                    label: 'Laporan',
+                    children: [
+                        { label: 'Laporan Arus Kas', path: '/laporan/arus-kas' },
+                    ],
+                },
+                { label: 'Rekening Bank', path: '/rekening-bank' },
+            ],
+        };
+    }
+
+    // Catatan Utang
+    if (pathname.startsWith('/keuangan/catatan-utang')) {
+        return {
+            id: 'catatan-utang',
+            title: 'Catatan Utang',
+            iconColor: '#10b981',
+            menus: [
+                { label: 'Faktur Obat & BHP', path: '/keuangan/catatan-utang/obat-bhp?tab=faktur' },
+                { label: 'Pengajuan Pembayaran', path: '/keuangan/catatan-utang/obat-bhp?tab=pengajuan' },
+                { label: 'Riwayat Pembayaran', path: '/keuangan/catatan-utang/obat-bhp?tab=history' },
+                { label: 'Import Saldo OTS', path: '/keuangan/catatan-utang/import-ots' },
+            ],
+        };
+    }
+
+    // Penagihan & Invoice
+    if (pathname.startsWith('/keuangan')) {
+        return {
+            id: 'penagihan-invoice',
+            title: 'Penagihan & Invoice',
+            iconColor: '#06b6d4',
+            menus: [
+                { label: 'Daftar Kunjungan', path: '/keuangan/kunjungan-invoice' },
+                { label: 'Dashboard Invoice', path: '/keuangan/invoices/dashboard' },
+                { label: 'Daftar Invoice', path: '/keuangan/invoices' },
+                { label: 'Verifikasi Pembayaran', path: '/keuangan/invoices/verifikasi' },
+                {
+                    label: 'Master & Alokasi',
+                    children: [
+                        { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
+                        { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
+                    ],
+                },
+            ],
+        };
+    }
+
+    // Gudang Logistik
+    if (pathname.startsWith('/logistik')) {
+        return {
+            id: 'gudang-logistik',
+            title: 'Gudang Logistik',
+            iconColor: '#f59e0b',
+            menus: [
+                { label: 'Data Barang', path: '/logistik/barang' },
+                { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
+                { label: 'Penerimaan', path: '/logistik/penerimaan' },
+                { label: 'Pengeluaran', path: '/logistik/pengeluaran' },
+                { label: 'Laporan & Mutasi', path: '/logistik/laporan' },
+            ],
+        };
+    }
+
+    // Petty Cash
+    if (pathname.startsWith('/petty-cash') || pathname.startsWith('/laporan/petty-cash')) {
+        return {
+            id: 'petty-cash',
+            title: 'Petty Cash',
+            iconColor: '#22c55e',
+            menus: [
+                { label: 'Pengajuan & Kasbon', path: '/petty-cash' },
+                { label: 'Laporan Petty Cash', path: '/laporan/petty-cash' },
+            ],
+        };
+    }
+
+    // Driver & Armada
+    if (pathname.startsWith('/driver')) {
+        return {
+            id: 'driver',
+            title: 'Driver & Armada',
+            iconColor: '#6366f1',
+            menus: [
+                { label: 'Logbook Perjalanan Driver', path: '/driver' },
+            ],
+        };
+    }
+
+    // Manajemen Sistem
+    if (pathname.startsWith('/admin/system-maintenance')) {
+        return {
+            id: 'system-maintenance',
+            title: 'Manajemen Sistem',
+            iconColor: '#10b981',
+            menus: [
+                { label: 'Health & Storage Metrics', path: '/admin/system-maintenance' },
+                { label: 'Backup & Restore DB', path: '/admin/system-maintenance' },
+                { label: 'Optimasi Tabel MySQL', path: '/admin/system-maintenance' },
+            ],
+        };
+    }
+
+    // Manajemen User
+    if (pathname.startsWith('/admin/users')) {
+        return {
+            id: 'users',
+            title: 'Manajemen User',
+            iconColor: '#0ea5e9',
+            menus: [
+                { label: 'Daftar Pengguna & Role', path: '/admin/users' },
+            ],
+        };
+    }
+
+    // Pengumuman
+    if (pathname.startsWith('/pengumuman')) {
+        return {
+            id: 'pengumuman',
+            title: 'Pengumuman',
+            iconColor: '#f43f5e',
+            menus: [
+                { label: 'Daftar Pengumuman Internal', path: '/pengumuman' },
+            ],
+        };
+    }
+
+    // Audit Log
+    if (pathname.startsWith('/audit-log')) {
+        return {
+            id: 'audit-log',
+            title: 'Audit Log',
+            iconColor: '#64748b',
+            menus: [
+                { label: 'Riwayat Aktivitas User', path: '/audit-log' },
+            ],
+        };
+    }
+
+    return null;
+};
+
+// ── Topbar Submenu Item & Dropdown ────────────────────────────────────────
+function TopNavSubmenuItem({ item, location, navigate }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        if (open) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [open]);
+
+    const hasChildren = Boolean(item.children?.length);
+    const isCurrentActive = hasChildren
+        ? item.children.some((c) => {
+            if (c.path.includes('?')) {
+                return (location.pathname + location.search) === c.path;
+            }
+            return location.pathname === c.path || location.pathname.startsWith(c.path + '/');
+        })
+        : (item.path.includes('?') ? (location.pathname + location.search) === item.path : location.pathname === item.path);
+
+    if (!hasChildren) {
+        return (
+            <button
+                type="button"
+                className={`topbar-menu-item ${isCurrentActive ? 'active' : ''}`}
+                onClick={() => navigate(item.path)}
+            >
+                {item.label}
+            </button>
+        );
+    }
+
+    return (
+        <div ref={ref} className={`topbar-menu-dropdown-wrap ${open ? 'open' : ''}`}>
+            <button
+                type="button"
+                className={`topbar-menu-item dropdown-toggle ${isCurrentActive ? 'active' : ''}`}
+                onClick={() => setOpen((o) => !o)}
+            >
+                <span>{item.label}</span>
+                <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+            </button>
+
+            {open && (
+                <div className="topbar-dropdown-menu">
+                    {item.children.map((child, cIdx) => {
+                        const isChildActive = child.path.includes('?')
+                            ? (location.pathname + location.search) === child.path
+                            : location.pathname === child.path;
+                        return (
+                            <button
+                                key={cIdx}
+                                type="button"
+                                className={`topbar-dropdown-link ${isChildActive ? 'active' : ''}`}
+                                onClick={() => {
+                                    setOpen(false);
+                                    navigate(child.path);
+                                }}
+                            >
+                                {child.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Layout({ children }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -325,6 +589,8 @@ export default function Layout({ children }) {
     const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
     const profileRef = useRef(null);
     const announcementRef = useRef(null);
+
+    const activeModuleConfig = useMemo(() => getActiveModuleConfig(location.pathname), [location.pathname]);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -613,6 +879,140 @@ export default function Layout({ children }) {
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
+
+                /* ── Odoo-Style Topbar Horizontal Submenus ── */
+                .topbar-odoo-nav {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-left: 12px;
+                    padding-left: 12px;
+                    border-left: 1px solid rgba(255, 255, 255, 0.12);
+                    min-width: 0;
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                }
+                .topbar-odoo-nav::-webkit-scrollbar { display: none; }
+                [data-theme="light"] .topbar-odoo-nav { border-left-color: rgba(0, 0, 0, 0.12); }
+                .odoo-module-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 3px 8px;
+                    border-radius: 7px;
+                    background: rgba(255, 255, 255, 0.08);
+                    font-size: 11.5px;
+                    font-weight: 800;
+                    color: #f8fafc;
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                }
+                [data-theme="light"] .odoo-module-badge { background: rgba(0, 0, 0, 0.06); color: #0f172a; }
+                .odoo-module-dot {
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                }
+                .odoo-horizontal-submenus {
+                    display: flex;
+                    align-items: center;
+                    gap: 2px;
+                }
+                .topbar-menu-item {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 5px 9px;
+                    border-radius: 7px;
+                    border: none;
+                    background: transparent;
+                    color: rgba(255, 255, 255, 0.72);
+                    font-size: 12px;
+                    font-weight: 650;
+                    cursor: pointer;
+                    transition: all 0.14s ease;
+                    white-space: nowrap;
+                    font-family: inherit;
+                }
+                [data-theme="light"] .topbar-menu-item { color: #475569; }
+                .topbar-menu-item:hover {
+                    color: #ffffff;
+                    background: rgba(255, 255, 255, 0.1);
+                }
+                [data-theme="light"] .topbar-menu-item:hover {
+                    color: #0f172a;
+                    background: rgba(0, 0, 0, 0.05);
+                }
+                .topbar-menu-item.active {
+                    color: #38bdf8;
+                    background: rgba(56, 189, 248, 0.14);
+                    font-weight: 750;
+                }
+                [data-theme="light"] .topbar-menu-item.active {
+                    color: #0284c7;
+                    background: rgba(2, 132, 199, 0.12);
+                }
+                .topbar-menu-dropdown-wrap { position: relative; }
+                .topbar-dropdown-menu {
+                    position: absolute;
+                    top: calc(100% + 6px);
+                    left: 0;
+                    min-width: 170px;
+                    background: rgba(15, 23, 42, 0.96);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.14);
+                    border-radius: 11px;
+                    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+                    padding: 6px;
+                    z-index: 500;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    animation: fadeInDown 0.15s ease both;
+                }
+                [data-theme="light"] .topbar-dropdown-menu {
+                    background: rgba(255, 255, 255, 0.98);
+                    border-color: rgba(226, 232, 240, 0.95);
+                    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+                }
+                .topbar-dropdown-link {
+                    display: flex;
+                    align-items: center;
+                    padding: 6.5px 11px;
+                    border-radius: 7px;
+                    border: none;
+                    background: transparent;
+                    color: #e2e8f0;
+                    font-size: 12px;
+                    font-weight: 600;
+                    text-align: left;
+                    cursor: pointer;
+                    transition: all 0.12s ease;
+                    white-space: nowrap;
+                    width: 100%;
+                    font-family: inherit;
+                }
+                [data-theme="light"] .topbar-dropdown-link { color: #334155; }
+                .topbar-dropdown-link:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #38bdf8;
+                    padding-left: 14px;
+                }
+                [data-theme="light"] .topbar-dropdown-link:hover {
+                    background: #f1f5f9;
+                    color: #0284c7;
+                }
+                .topbar-dropdown-link.active {
+                    color: #38bdf8;
+                    background: rgba(56, 189, 248, 0.14);
+                    font-weight: 750;
+                }
+                [data-theme="light"] .topbar-dropdown-link.active {
+                    color: #0284c7;
+                    background: rgba(2, 132, 199, 0.12);
+                }
+
                 .topbar-clock {
                     width: min(100%, 280px);
                     min-height: 32px;
@@ -1169,6 +1569,27 @@ export default function Layout({ children }) {
                             <div className="topbar-subtitle">Sistem Manajemen Aset & Keuangan</div>
                         </div>
                     </div>
+
+                    {/* Odoo-style Horizontal Submenus Bar */}
+                    {activeModuleConfig && (
+                        <div className="topbar-odoo-nav">
+                            <div className="odoo-module-badge" style={{ '--mod-color': activeModuleConfig.iconColor }}>
+                                <span className="odoo-module-dot" style={{ background: activeModuleConfig.iconColor }}></span>
+                                <span className="odoo-module-title">{activeModuleConfig.title}</span>
+                            </div>
+
+                            <nav className="odoo-horizontal-submenus">
+                                {activeModuleConfig.menus.map((item, idx) => (
+                                    <TopNavSubmenuItem
+                                        key={idx}
+                                        item={item}
+                                        location={location}
+                                        navigate={navigate}
+                                    />
+                                ))}
+                            </nav>
+                        </div>
+                    )}
                 </div>
 
                 <div className="topbar-center">

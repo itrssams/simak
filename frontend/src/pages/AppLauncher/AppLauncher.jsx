@@ -386,19 +386,14 @@ export default function AppLauncher() {
                 <div className="odoo-app-grid">
                     {visibleApps.map((app) => {
                         const IconComp = app.iconComponent;
-                        const isHovered = activeHoverApp === app.id;
 
                         return (
                             <div
                                 key={app.id}
-                                className={`odoo-app-item ${isHovered ? 'hovered' : ''}`}
-                                onMouseEnter={() => setActiveHoverApp(app.id)}
-                                onMouseLeave={() => setActiveHoverApp(null)}
+                                className="odoo-app-item"
+                                onClick={() => handleAppClick(app)}
                             >
-                                <div
-                                    className="odoo-app-tile-wrapper"
-                                    onClick={() => handleAppClick(app)}
-                                >
+                                <div className="odoo-app-tile-wrapper">
                                     <div
                                         className="odoo-app-tile"
                                         style={{
@@ -412,30 +407,6 @@ export default function AppLauncher() {
                                     <span className="odoo-app-name">{app.name}</span>
                                     <span className="odoo-app-sub">{app.subtitle}</span>
                                 </div>
-
-                                {/* Flyout Quick Submenu on Hover */}
-                                {app.submenus && app.submenus.length > 1 && (
-                                    <div className="odoo-submenus-flyout">
-                                        <div className="odoo-flyout-header">
-                                            <Sparkles size={13} style={{ color: '#38bdf8' }} /> {app.name}
-                                        </div>
-                                        <div className="odoo-flyout-list">
-                                            {app.submenus.map((sub, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    className="odoo-flyout-item"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(sub.path);
-                                                    }}
-                                                >
-                                                    <span>{sub.label}</span>
-                                                    <ChevronRight size={13} className="arrow" />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
