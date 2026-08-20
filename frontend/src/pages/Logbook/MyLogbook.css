@@ -819,10 +819,93 @@
   color: #cbd5e1;
 }
 
-.logbook-table-desc {
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+.logbook-clickable-row {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.logbook-clickable-row:hover td {
+  background: rgba(2, 132, 199, 0.05) !important;
+}
+
+[data-theme="dark"] .logbook-clickable-row:hover td {
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+.logbook-row-idx {
+  font-weight: 750;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.logbook-pill-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(2, 132, 199, 0.08);
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .logbook-pill-count {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+
+.logbook-pill-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .logbook-pill-duration {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.logbook-btn-view-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .logbook-btn-view-act {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #38bdf8;
+}
+
+.logbook-btn-view-act:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+[data-theme="dark"] .logbook-btn-view-act:hover {
+  background: #38bdf8;
+  color: #0f172a;
+  border-color: #38bdf8;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -859,6 +942,30 @@
 
 .logbook-modal-card.sm {
   max-width: 420px;
+}
+
+.logbook-modal-card.lg {
+  max-width: 680px;
+}
+
+.logbook-emp-avatar.lg {
+  width: 42px;
+  height: 42px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+.logbook-modal-user-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+[data-theme="dark"] .logbook-modal-user-sub {
+  color: #94a3b8;
 }
 
 [data-theme="dark"] .logbook-modal-card {

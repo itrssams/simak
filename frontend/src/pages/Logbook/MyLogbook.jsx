@@ -17,6 +17,9 @@ import {
     Timer,
     CalendarDays,
     TrendingUp,
+    Eye,
+    ChevronRight,
+    Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
@@ -275,6 +278,9 @@ export default function MyLogbook() {
     const [unitList, setUnitList] = useState([]);
     const [userList, setUserList] = useState([]);
 
+    // Detail Pop-up / Drawer for specific employee
+    const [selectedUserDetail, setSelectedUserDetail] = useState(null);
+
     // Filter Monitoring
     const [monStartDate, setMonStartDate] = useState(getTodayString());
     const [monEndDate, setMonEndDate] = useState(getTodayString());
@@ -335,6 +341,43 @@ export default function MyLogbook() {
             fetchMonitoringData();
         }
     }, [isDirekturUp, isMonitoringView, fetchMonitoringSummary, fetchMonitoringData]);
+
+    // Grouping by Employee for the Monitoring Table
+    const groupedUsers = useMemo(() => {
+        const map = new Map();
+        monitorLogbooks.forEach((item) => {
+            const uid = item.user;
+            if (!map.has(uid)) {
+                map.set(uid, {
+                    userId: uid,
+                    userName: item.user_full_name || item.user_username,
+                    userUsername: item.user_username,
+                    userRole: item.user_role || 'Staff',
+                    userUnit: item.user_unit_name || 'Tidak ada unit',
+                    totalEntries: 0,
+                    totalMinutes: 0,
+                    lastDate: item.tanggal,
+                    items: [],
+                });
+            }
+            const u = map.get(uid);
+            u.totalEntries += 1;
+            u.totalMinutes += (item.durasi_menit || 0);
+            u.items.push(item);
+        });
+
+        return Array.from(map.values()).map(u => {
+            const hours = Math.floor(u.totalMinutes / 60);
+            const mins = u.totalMinutes % 60;
+            const durasiFormat = hours > 0 ? `${hours} jam ${mins > 0 ? `${mins} mnt` : ''}` : `${mins} menit`;
+            const durasiShort = hours > 0 ? `${hours}j ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`;
+            return {
+                ...u,
+                durasiFormat,
+                durasiShort,
+            };
+        });
+    }, [monitorLogbooks]);
 
     const handleResetMonitoringFilter = () => {
         setMonStartDate(getTodayString());
@@ -572,12 +615,12 @@ export default function MyLogbook() {
                         </div>
                     )}
 
-                    {/* Monitoring Data Card */}
+                    {/* Monitoring Data Card (Daftar Karyawan) */}
                     <div className="logbook-card">
                         <div className="logbook-card-head">
                             <div className="logbook-card-title">
-                                <h2>Rekap Aktivitas Pekerjaan</h2>
-                                <p>{monitorLogbooks.length} data tercatat sesuai filter.</p>
+                                <h2>Daftar Aktivitas Karyawan</h2>
+                                <p>Menampilkan {groupedUsers.length} karyawan aktif yang mencatat pekerjaan pada periode ini.</p>
                             </div>
                             <div className="logbook-card-actions">
                                 <button type="button" className="logbook-btn-secondary" onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }}>
@@ -645,7 +688,7 @@ export default function MyLogbook() {
                                     <Search size={14} className="logbook-search-icon" />
                                     <input
                                         type="text"
-                                        placeholder="Cari kata kunci deskripsi atau staf..."
+                                        placeholder="Cari uraian atau nama pegawai..."
                                         value={monSearch}
                                         onChange={(e) => setMonSearch(e.target.value)}
                                     />
@@ -662,71 +705,155 @@ export default function MyLogbook() {
                             </div>
                         </div>
 
-                        {/* Table */}
+                        {/* Table (Grouped by Employee) */}
                         <div className="logbook-table-wrap">
                             {loadingMonitor ? (
                                 <div className="logbook-loading-box">
                                     <RefreshCw size={26} className="logbook-spinner" />
                                     <p>Memuat rekap data monitoring...</p>
                                 </div>
-                            ) : monitorLogbooks.length === 0 ? (
+                            ) : groupedUsers.length === 0 ? (
                                 <div className="logbook-empty-box">
                                     <div className="logbook-empty-icon-wrap">
                                         <Filter size={32} />
                                     </div>
-                                    <h3>Tidak Ada Data Logbook</h3>
-                                    <p>Tidak ditemukan data aktivitas pekerjaan pada rentang tanggal atau filter yang dipilih.</p>
+                                    <h3>Tidak Ada Data Logbook Karyawan</h3>
+                                    <p>Tidak ditemukan data catatan pekerjaan karyawan pada rentang tanggal atau filter yang dipilih.</p>
                                 </div>
                             ) : (
                                 <table className="logbook-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ width: '130px' }}>Tanggal</th>
-                                            <th style={{ width: '150px' }}>Jam &amp; Durasi</th>
-                                            <th style={{ width: '220px' }}>Pegawai</th>
-                                            <th style={{ width: '170px' }}>Unit / Bagian</th>
-                                            <th>Deskripsi Pekerjaan</th>
+                                            <th style={{ width: '60px' }}>No</th>
+                                            <th>Nama Pegawai</th>
+                                            <th>Unit / Bagian</th>
+                                            <th style={{ width: '180px' }}>Jumlah Pekerjaan</th>
+                                            <th style={{ width: '180px' }}>Total Jam Kerja</th>
+                                            <th style={{ width: '170px', textAlign: 'right' }}>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {monitorLogbooks.map((row) => (
-                                            <tr key={row.id}>
+                                        {groupedUsers.map((u, idx) => (
+                                            <tr
+                                                key={u.userId}
+                                                className="logbook-clickable-row"
+                                                onClick={() => setSelectedUserDetail(u)}
+                                                title="Klik untuk melihat rincian aktivitas pekerjaan"
+                                            >
                                                 <td>
-                                                    <span className="logbook-table-date">
-                                                        {formatTanggalShort(row.tanggal)}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div className="logbook-table-time-cell">
-                                                        <strong>{formatWaktu(row.jam_mulai)} – {formatWaktu(row.jam_selesai)}</strong>
-                                                        <span className="logbook-table-duration">({row.durasi_format || `${row.durasi_menit} mnt`})</span>
-                                                    </div>
+                                                    <span className="logbook-row-idx">{idx + 1}</span>
                                                 </td>
                                                 <td>
                                                     <div className="logbook-emp-cell">
                                                         <div className="logbook-emp-avatar">
-                                                            {(row.user_full_name || row.user_username || 'U').charAt(0).toUpperCase()}
+                                                            {u.userName.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div>
-                                                            <div className="logbook-emp-name">{row.user_full_name || row.user_username}</div>
-                                                            <div className="logbook-emp-role">{row.user_role || 'Staff'}</div>
+                                                            <div className="logbook-emp-name">{u.userName}</div>
+                                                            <div className="logbook-emp-role">{u.userRole}</div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <span className="logbook-unit-tag">
                                                         <Building2 size={12} />
-                                                        {row.user_unit_name || 'Tidak ada unit'}
+                                                        {u.userUnit}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div className="logbook-table-desc">{row.deskripsi}</div>
+                                                    <span className="logbook-pill-count">
+                                                        <Briefcase size={12} />
+                                                        <strong>{u.totalEntries}</strong> Pekerjaan
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="logbook-pill-duration">
+                                                        <Clock size={12} />
+                                                        <strong>{u.durasiFormat}</strong>
+                                                    </span>
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="logbook-btn-view-act"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedUserDetail(u);
+                                                        }}
+                                                    >
+                                                        <Eye size={13} />
+                                                        <span>Lihat Aktivitas</span>
+                                                        <ChevronRight size={13} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════════ */}
+            {/* MODAL: DETAIL AKTIVITAS PEGAWAI (DIREKSI VIEW)                      */}
+            {/* ══════════════════════════════════════════════════════════════════ */}
+            {selectedUserDetail && (
+                <div className="logbook-modal-overlay" onClick={() => setSelectedUserDetail(null)}>
+                    <div className="logbook-modal-card lg" onClick={(e) => e.stopPropagation()}>
+                        <div className="logbook-modal-header">
+                            <div className="logbook-modal-title-wrap">
+                                <div className="logbook-emp-avatar lg">
+                                    {selectedUserDetail.userName.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0 }}>{selectedUserDetail.userName}</h3>
+                                    <p className="logbook-modal-user-sub">
+                                        <span>{selectedUserDetail.userUnit} ({selectedUserDetail.userRole})</span>
+                                        <span className="logbook-sub-dot">•</span>
+                                        <span>Total: <strong>{selectedUserDetail.totalEntries} Pekerjaan</strong> ({selectedUserDetail.durasiFormat})</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" className="logbook-modal-close-btn" onClick={() => setSelectedUserDetail(null)}>
+                                <X size={17} />
+                            </button>
+                        </div>
+
+                        <div className="logbook-modal-body" style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+                            <div className="logbook-timeline-list">
+                                {selectedUserDetail.items.map((act) => (
+                                    <div key={act.id} className="logbook-item-card">
+                                        <div className="logbook-item-header">
+                                            <div className="logbook-table-date">
+                                                <CalendarDays size={13} />
+                                                <span>{formatTanggalIndo(act.tanggal)}</span>
+                                            </div>
+                                            <div className="logbook-item-time-pill">
+                                                <Clock size={12} />
+                                                <span>{formatWaktu(act.jam_mulai)} – {formatWaktu(act.jam_selesai)}</span>
+                                            </div>
+                                            <span className="logbook-item-durasi-badge">
+                                                ({act.durasi_format || `${act.durasi_menit} mnt`})
+                                            </span>
+                                        </div>
+                                        <div className="logbook-item-body">
+                                            <p className="logbook-item-text">{act.deskripsi}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="logbook-modal-footer">
+                            <button
+                                type="button"
+                                className="logbook-btn-primary"
+                                onClick={() => setSelectedUserDetail(null)}
+                            >
+                                Tutup Rincian
+                            </button>
                         </div>
                     </div>
                 </div>
