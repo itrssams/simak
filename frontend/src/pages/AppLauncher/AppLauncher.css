@@ -3,8 +3,9 @@
    ========================================================================== */
 
 .odoo-launcher-page {
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
+  min-height: calc(100vh / 0.88);
+  height: 100%;
   width: 100%;
   background: #080c16;
   background-image: 

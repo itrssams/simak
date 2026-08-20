@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Search,
@@ -119,13 +119,18 @@ export default function AppLauncher() {
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeHoverApp, setActiveHoverApp] = useState(null);
-    const [theme, setTheme] = useState(() => localStorage.getItem('simak_theme') || 'dark');
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark');
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('simak_theme', theme);
+    }, [theme]);
 
     const toggleTheme = () => {
         const next = theme === 'dark' ? 'light' : 'dark';
         setTheme(next);
-        localStorage.setItem('simak_theme', next);
-        document.documentElement.setAttribute('data-theme', next);
     };
 
     const isManajerUp = user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role);

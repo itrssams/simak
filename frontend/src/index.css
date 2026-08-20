@@ -165,7 +165,8 @@ textarea {
   .audit-page, .audit-page-wrap,
   .pengumuman-page, .pg-page,
   .laporan-page, .lp-page,
-  .it-page, .it-page-wrap
+  .it-page, .it-page-wrap,
+  .odoo-launcher-page
 ) {
   background-color: #0b0f19 !important;
   background-image:
