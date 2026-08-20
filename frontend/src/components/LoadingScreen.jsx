@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import './LoadingScreen.css';
 
-export default function LoadingScreen({ text = 'Memuat sistem...', isFadingOut = false }) {
+export default function LoadingScreen({ text = 'Memuat sistem...' }) {
     const content = (
-        <div className={`simak-loading-screen ${isFadingOut ? 'fade-out' : ''}`}>
+        <div className="simak-loading-screen">
             <div className="simak-loading-container">
                 {/* Glowing Orbital Ring */}
                 <div className="simak-loading-ring-wrap">
@@ -30,7 +30,6 @@ export default function LoadingScreen({ text = 'Memuat sistem...', isFadingOut =
         </div>
     );
 
-    // Mount directly to document.body via Portal to bypass any #root zoom and cover 100% full screen
     if (typeof document !== 'undefined' && document.body) {
         return createPortal(content, document.body);
     }
