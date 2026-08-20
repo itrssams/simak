@@ -44,6 +44,7 @@ export default function AppLauncher() {
     const isKeuangan = user?.is_superuser || user?.is_keuangan;
     const isLogistik = user?.is_superuser || user?.is_logistik || isManajerUp;
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
+    const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
     const isDriverAccess = user?.is_driver || isManajerUp;
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
@@ -147,7 +148,7 @@ export default function AppLauncher() {
             glassGlow: 'rgba(168, 85, 247, 0.22)',
             glassGlowLight: 'rgba(168, 85, 247, 0.15)',
             path: '/dashboard-analytics',
-            allowed: Boolean(isManajerUp),
+            allowed: Boolean(canAkuntansi),
             submenus: [
                 { label: 'Dashboard', path: '/dashboard-analytics' },
                 { label: 'Data Pelanggan', path: '/pelanggan' },
@@ -234,12 +235,12 @@ export default function AppLauncher() {
             glassGlow: 'rgba(168, 85, 247, 0.22)',
             glassGlowLight: 'rgba(168, 85, 247, 0.15)',
             path: '/dashboard-analytics',
-            allowed: Boolean(isManajerUp),
+            allowed: Boolean(canAkuntansi || isManajerUp),
             submenus: [
                 { label: 'Dashboard Analytics', path: '/dashboard-analytics' },
             ],
         },
-    ], [canCatatanUtang, isKeuangan, isLogistik, isDriverAccess, isManajerUp, isIT, isDirekturUp, user]);
+    ], [canCatatanUtang, canAkuntansi, isKeuangan, isLogistik, isDriverAccess, isManajerUp, isIT, isDirekturUp, user]);
 
     // Filter apps based on search & permissions
     const visibleApps = useMemo(() => {

@@ -311,6 +311,8 @@ function SidebarItem({ item, location, onClose, collapsed, index }) {
 
 // ── Odoo-Style Active Module & Horizontal Submenus Config ─────────────────
 const getActiveModuleConfig = (pathname, user) => {
+    const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
+
     // 1. Akuntansi & Keuangan Umum
     if (
         pathname.startsWith('/akuntansi') ||
@@ -318,8 +320,7 @@ const getActiveModuleConfig = (pathname, user) => {
         pathname.startsWith('/pemasok') ||
         pathname.startsWith('/transaksi') ||
         pathname.startsWith('/laporan/arus-kas') ||
-        pathname.startsWith('/rekening-bank') ||
-        pathname.startsWith('/dashboard-analytics')
+        pathname.startsWith('/rekening-bank')
     ) {
         return {
             id: 'akuntansi',
@@ -338,6 +339,30 @@ const getActiveModuleConfig = (pathname, user) => {
                 { label: 'Daftar Transaksi', path: '/transaksi/list' },
                 { label: 'Laporan Arus Kas', path: '/laporan/arus-kas' },
                 { label: 'Rekening Bank', path: '/rekening-bank' },
+            ],
+        };
+    }
+
+    if (pathname.startsWith('/dashboard-analytics')) {
+        return {
+            id: 'akuntansi',
+            title: 'Akuntansi',
+            icon: Landmark,
+            iconColor: '#c084fc',
+            menus: [
+                { label: 'Dashboard', path: '/dashboard-analytics' },
+                ...(canAkuntansi ? [
+                    { label: 'Data Pelanggan', path: '/pelanggan' },
+                    { label: 'Faktur Pelanggan', path: '/pelanggan/faktur' },
+                    { label: 'Data Pemasok', path: '/pemasok' },
+                    { label: 'Tagihan Pemasok', path: '/pemasok/tagihan' },
+                    { label: 'Bagan Akun (COA)', path: '/akuntansi/bagan-akun' },
+                    { label: 'Entri Jurnal', path: '/akuntansi/entri-jurnal' },
+                    { label: 'Input Transaksi', path: '/transaksi/input' },
+                    { label: 'Daftar Transaksi', path: '/transaksi/list' },
+                    { label: 'Laporan Arus Kas', path: '/laporan/arus-kas' },
+                    { label: 'Rekening Bank', path: '/rekening-bank' },
+                ] : []),
             ],
         };
     }

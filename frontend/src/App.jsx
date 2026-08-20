@@ -44,6 +44,7 @@ const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
 const isLogistik = (u) => u?.is_superuser || u?.is_logistik || isManajerUp(u);
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
+const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isManajerUp(u);
 const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
@@ -118,22 +119,22 @@ const AppRoutes = () => {
             {/* Home & Apps */}
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/apps" element={<ProtectedRoute><AppLauncher /></ProtectedRoute>} />
-            <Route path="/dashboard-analytics" element={<ProtectedRoute allow={isManajerUp}><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard-analytics" element={<ProtectedRoute allow={(u) => canAkuntansi(u) || isManajerUp(u)}><Dashboard /></ProtectedRoute>} />
 
             {/* Semua role */}
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
 
-            {/* Manajer ke atas */}
-            <Route path="/pelanggan" element={<ProtectedRoute allow={isManajerUp}><DataPelanggan /></ProtectedRoute>} />
-            <Route path="/pelanggan/faktur" element={<ProtectedRoute allow={isManajerUp}><FakturPelanggan /></ProtectedRoute>} />
-            <Route path="/pemasok" element={<ProtectedRoute allow={isManajerUp}><DataPemasok /></ProtectedRoute>} />
-            <Route path="/pemasok/tagihan" element={<ProtectedRoute allow={isManajerUp}><TagihanPemasok /></ProtectedRoute>} />
-            <Route path="/akuntansi/bagan-akun" element={<ProtectedRoute allow={isManajerUp}><BaganAkun /></ProtectedRoute>} />
-            <Route path="/akuntansi/entri-jurnal" element={<ProtectedRoute allow={isManajerUp}><EntriJurnal /></ProtectedRoute>} />
-            <Route path="/transaksi/input" element={<ProtectedRoute allow={isManajerUp}><InputTransaksi /></ProtectedRoute>} />
-            <Route path="/transaksi/list" element={<ProtectedRoute allow={isManajerUp}><ListTransaksi /></ProtectedRoute>} />
-            <Route path="/laporan/arus-kas" element={<ProtectedRoute allow={isManajerUp}><ArusKas /></ProtectedRoute>} />
-            <Route path="/rekening-bank" element={<ProtectedRoute allow={isManajerUp}><RekeningBank /></ProtectedRoute>} />
+            {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
+            <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />
+            <Route path="/pelanggan/faktur" element={<ProtectedRoute allow={canAkuntansi}><FakturPelanggan /></ProtectedRoute>} />
+            <Route path="/pemasok" element={<ProtectedRoute allow={canAkuntansi}><DataPemasok /></ProtectedRoute>} />
+            <Route path="/pemasok/tagihan" element={<ProtectedRoute allow={canAkuntansi}><TagihanPemasok /></ProtectedRoute>} />
+            <Route path="/akuntansi/bagan-akun" element={<ProtectedRoute allow={canAkuntansi}><BaganAkun /></ProtectedRoute>} />
+            <Route path="/akuntansi/entri-jurnal" element={<ProtectedRoute allow={canAkuntansi}><EntriJurnal /></ProtectedRoute>} />
+            <Route path="/transaksi/input" element={<ProtectedRoute allow={canAkuntansi}><InputTransaksi /></ProtectedRoute>} />
+            <Route path="/transaksi/list" element={<ProtectedRoute allow={canAkuntansi}><ListTransaksi /></ProtectedRoute>} />
+            <Route path="/laporan/arus-kas" element={<ProtectedRoute allow={canAkuntansi}><ArusKas /></ProtectedRoute>} />
+            <Route path="/rekening-bank" element={<ProtectedRoute allow={canAkuntansi}><RekeningBank /></ProtectedRoute>} />
 
             {/* Keuangan */}
             <Route path="/keuangan/alokasi-pembiayaan" element={<ProtectedRoute allow={isKeuangan}><AlokasiPembiayaan /></ProtectedRoute>} />

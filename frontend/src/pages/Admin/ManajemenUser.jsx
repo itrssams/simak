@@ -54,6 +54,7 @@ const initialForm = {
     is_petty_cash_cashier: false,
     akses_catatan_utang: false,
     is_logistik: false,
+    is_akuntansi: false,
     unit: '',
     password: '',
     is_active: true,
@@ -184,6 +185,7 @@ export default function ManajemenUser() {
             is_petty_cash_cashier: Boolean(u.is_petty_cash_cashier),
             akses_catatan_utang: Boolean(u.akses_catatan_utang),
             is_logistik: Boolean(u.is_logistik),
+            is_akuntansi: Boolean(u.is_akuntansi),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -237,6 +239,7 @@ export default function ManajemenUser() {
                 is_petty_cash_cashier: form.is_petty_cash_cashier,
                 akses_catatan_utang: form.akses_catatan_utang,
                 is_logistik: form.is_logistik,
+                is_akuntansi: form.is_akuntansi,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -720,6 +723,7 @@ function RoleBadge({ user }) {
             {user?.is_petty_cash_cashier && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>Kas Petty Cash</span>}
             {user?.akses_catatan_utang && <span className="mu-badge" style={{ background: '#fef9c3', color: '#854d0e', borderColor: '#fde68a' }}>Catatan Utang</span>}
             {user?.is_logistik && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Logistik</span>}
+            {user?.is_akuntansi && <span className="mu-badge" style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}>Akuntansi</span>}
         </div>
     );
 }
@@ -832,6 +836,7 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                     <PermissionToggle label="Kas Petty Cash" description="Petugas kas petty cash" checked={form.is_petty_cash_cashier} onChange={(checked) => setForm({ ...form, is_petty_cash_cashier: checked })} />
                                     <PermissionToggle label="Catatan Utang" description="Akses seluruh modul Catatan Utang" checked={form.akses_catatan_utang} onChange={(checked) => setForm({ ...form, akses_catatan_utang: checked })} />
                                     <PermissionToggle label="Logistik" description="Akses fitur Gudang Logistik" checked={form.is_logistik} onChange={(checked) => setForm({ ...form, is_logistik: checked })} />
+                                    <PermissionToggle label="Akuntansi" description="Akses seluruh modul Akuntansi & Kas" checked={form.is_akuntansi} onChange={(checked) => setForm({ ...form, is_akuntansi: checked })} />
                                 </div>
                             </aside>
                         </div>

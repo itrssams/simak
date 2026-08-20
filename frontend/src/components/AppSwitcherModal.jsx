@@ -40,6 +40,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
     const isKeuangan = user?.is_superuser || user?.is_keuangan;
     const isLogistik = user?.is_superuser || user?.is_logistik || isManajerUp;
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
+    const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
     const isDriverAccess = user?.is_driver || isManajerUp;
 
     const allApps = useMemo(() => [
@@ -89,7 +90,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             icon: BookOpen,
             gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
             path: '/akuntansi/bagan-akun',
-            allowed: Boolean(isManajerUp),
+            allowed: Boolean(canAkuntansi),
         },
         {
             id: 'pengumuman',
@@ -119,19 +120,19 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             id: 'manajemen-sistem',
             name: 'Manajemen Sistem',
             icon: ShieldCheck,
-            gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+            gradient: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
             path: '/admin/system-maintenance',
             allowed: Boolean(user?.is_superuser),
         },
         {
-            id: 'dashboard-stat',
+            id: 'statistik-analitik',
             name: 'Statistik & Analitik',
             icon: LayoutDashboard,
-            gradient: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+            gradient: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
             path: '/dashboard-analytics',
-            allowed: Boolean(isManajerUp),
+            allowed: Boolean(canAkuntansi || isManajerUp),
         },
-    ], [canCatatanUtang, isKeuangan, isLogistik, isDriverAccess, isManajerUp, isIT, isDirekturUp, user?.is_superuser]);
+    ], [canCatatanUtang, canAkuntansi, isKeuangan, isLogistik, isDriverAccess, isManajerUp, isIT, isDirekturUp, user]);
 
     const visibleApps = useMemo(() => {
         return allApps
