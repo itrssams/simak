@@ -880,43 +880,79 @@ export default function Layout({ children }) {
                     text-overflow: ellipsis;
                 }
 
-                /* ── Odoo-Style Topbar Horizontal Submenus ── */
-                .topbar-odoo-nav {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-left: 12px;
-                    padding-left: 12px;
-                    border-left: 1px solid rgba(255, 255, 255, 0.12);
-                    min-width: 0;
-                    overflow-x: auto;
-                    scrollbar-width: none;
-                }
-                .topbar-odoo-nav::-webkit-scrollbar { display: none; }
-                [data-theme="light"] .topbar-odoo-nav { border-left-color: rgba(0, 0, 0, 0.12); }
-                .odoo-module-badge {
+                /* ── Odoo-Style Topbar App Header & Horizontal Submenus ── */
+                .topbar-app-switcher-btn {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    border: 1px solid rgba(56, 189, 248, 0.25);
+                    background: rgba(56, 189, 248, 0.08);
+                    color: #38bdf8;
                     display: inline-flex;
                     align-items: center;
-                    gap: 6px;
-                    padding: 3px 8px;
-                    border-radius: 7px;
-                    background: rgba(255, 255, 255, 0.08);
-                    font-size: 11.5px;
-                    font-weight: 800;
-                    color: #f8fafc;
-                    white-space: nowrap;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
                     flex-shrink: 0;
                 }
-                [data-theme="light"] .odoo-module-badge { background: rgba(0, 0, 0, 0.06); color: #0f172a; }
-                .odoo-module-dot {
-                    width: 7px;
-                    height: 7px;
+                .topbar-app-switcher-btn:hover {
+                    background: rgba(56, 189, 248, 0.22);
+                    color: #ffffff;
+                    transform: scale(1.05);
+                }
+
+                .topbar-app-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 0;
+                }
+
+                .topbar-app-title-wrap {
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    cursor: pointer;
+                    padding-right: 12px;
+                    border-right: 1px solid rgba(255, 255, 255, 0.14);
+                    flex-shrink: 0;
+                }
+                [data-theme="light"] .topbar-app-title-wrap {
+                    border-right-color: rgba(0, 0, 0, 0.12);
+                }
+
+                .app-title-dot {
+                    width: 8px;
+                    height: 8px;
                     border-radius: 50%;
                 }
+
+                .app-title-text {
+                    font-size: 14.5px;
+                    font-weight: 850;
+                    color: #f8fafc;
+                    letter-spacing: -0.2px;
+                    white-space: nowrap;
+                }
+                [data-theme="light"] .app-title-text {
+                    color: #0f172a;
+                }
+
                 .odoo-horizontal-submenus {
                     display: flex;
                     align-items: center;
-                    gap: 2px;
+                    gap: 3px;
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                }
+                .odoo-horizontal-submenus::-webkit-scrollbar { display: none; }
+
+                .content-shell.full-width {
+                    width: 100%;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 0;
                 }
                 .topbar-menu-item {
                     display: inline-flex;
@@ -1548,34 +1584,24 @@ export default function Layout({ children }) {
 
             <header className="topbar">
                 <div className="topbar-left">
-                    <button className="topbar-btn" onClick={() => setSidebarOpen(o => !o)} aria-label={sidebarOpen ? 'Tutup sidebar' : 'Buka sidebar'}>
-                        <Menu size={22} strokeWidth={2.4} />
-                    </button>
-
                     <button
-                        className="topbar-btn"
+                        className="topbar-app-switcher-btn"
                         onClick={() => setAppSwitcherOpen(true)}
-                        title="App Launcher / Pilih Modul Aplikasi"
-                        style={{ color: '#38bdf8' }}
+                        title="Pilih Modul Aplikasi (App Switcher)"
                         type="button"
                     >
-                        <LayoutGrid size={20} strokeWidth={2.3} />
+                        <LayoutGrid size={19} strokeWidth={2.4} />
                     </button>
 
-                    <div className="topbar-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Ke Home App Hub">
-                        <img src="/logo.png" alt="Logo" className="topbar-logo" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                        <div style={{ minWidth: 0 }}>
-                            <div className="topbar-title">SIMAK</div>
-                            <div className="topbar-subtitle">Sistem Manajemen Aset & Keuangan</div>
-                        </div>
-                    </div>
-
-                    {/* Odoo-style Horizontal Submenus Bar */}
-                    {activeModuleConfig && (
-                        <div className="topbar-odoo-nav">
-                            <div className="odoo-module-badge" style={{ '--mod-color': activeModuleConfig.iconColor }}>
-                                <span className="odoo-module-dot" style={{ background: activeModuleConfig.iconColor }}></span>
-                                <span className="odoo-module-title">{activeModuleConfig.title}</span>
+                    {activeModuleConfig ? (
+                        <div className="topbar-app-header">
+                            <div
+                                className="topbar-app-title-wrap"
+                                onClick={() => navigate(activeModuleConfig.menus[0]?.path || '/')}
+                                title={`Modul ${activeModuleConfig.title}`}
+                            >
+                                <span className="app-title-dot" style={{ background: activeModuleConfig.iconColor }}></span>
+                                <span className="app-title-text">{activeModuleConfig.title}</span>
                             </div>
 
                             <nav className="odoo-horizontal-submenus">
@@ -1589,14 +1615,11 @@ export default function Layout({ children }) {
                                 ))}
                             </nav>
                         </div>
+                    ) : (
+                        <div className="topbar-app-header">
+                            <span className="app-title-text">SIMAK</span>
+                        </div>
                     )}
-                </div>
-
-                <div className="topbar-center">
-                    <div className="topbar-clock" title={`${formatTopbarDate(currentTime)} ${formatTopbarTime(currentTime)}`}>
-                        <span className="topbar-date">{formatTopbarDate(currentTime)}</span>
-                        <span className="topbar-time">{formatTopbarTime(currentTime)}</span>
-                    </div>
                 </div>
 
                 <div className="topbar-right">
@@ -1606,11 +1629,11 @@ export default function Layout({ children }) {
                         title={theme === 'dark' ? 'Ganti ke Mode Terang (Light)' : 'Ganti ke Mode Gelap (Dark)'}
                         type="button"
                     >
-                        {theme === 'dark' ? <Sun size={18} strokeWidth={2.4} /> : <Moon size={18} strokeWidth={2.4} />}
+                        {theme === 'dark' ? <Sun size={17} strokeWidth={2.4} /> : <Moon size={17} strokeWidth={2.4} />}
                     </button>
                     <div ref={announcementRef} className="notify-wrap">
                         <button className="notify-btn" onClick={openAnnouncements} title="Pengumuman">
-                            <Bell size={18} strokeWidth={2.4} />
+                            <Bell size={17} strokeWidth={2.4} />
                             {announcementUnread > 0 && <span className="notify-badge">{announcementUnread > 9 ? '9+' : announcementUnread}</span>}
                         </button>
                         {announcementOpen && (
@@ -1688,31 +1711,7 @@ export default function Layout({ children }) {
             </header>
 
             <div className="body-shell">
-                {isMobile && sidebarOpen && <div className="mobile-overlay" onClick={() => setSidebarOpen(false)} />}
-
-                <aside
-                    className={`sidebar${collapsed ? ' collapsed' : ''}${isMobile && sidebarOpen ? ' mobile-open' : ''}`}
-                    style={{ '--sidebar-w': `${sidebarWidth}px` }}
-                >
-                    <div className="sidebar-inner">
-                        <div className="sidebar-section-label">Menu</div>
-                        <nav className="sidebar-nav">
-                            {menuItems.map((item, index) => (
-                                <SidebarItem
-                                    key={item.label}
-                                    item={item}
-                                    location={location}
-                                    onClose={closeMobileSidebar}
-                                    collapsed={collapsed}
-                                    index={index}
-                                />
-                            ))}
-                        </nav>
-
-                    </div>
-                </aside>
-
-                <div className="content-shell">
+                <div className="content-shell full-width">
                     <main className="main-content">
                         {children}
                     </main>
