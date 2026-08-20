@@ -1,17 +1,61 @@
-// SIMAK PWA Service Worker (Network-First to ensure hot-reloading & live updates work seamlessly)
-const CACHE_NAME = 'simak-pwa-v1';
+// SIMAK PWA Service Worker (with Luxury Offline Fallback Screen)
+const CACHE_NAME = 'simak-offline-v2';
+const OFFLINE_URL = '/offline.html';
+
+// Assets to pre-cache for offline fallback
+const STATIC_ASSETS = [
+  OFFLINE_URL,
+  '/logo.png',
+  '/manifest.json'
+];
 
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
-  // Always fetch fresh network content so dev server live reloads & server updates are immediate
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request)
+      .catch(async (error) => {
+        // If network request failed (server is down or client is offline)
+        // Check if the user is trying to navigate to a page/route
+        if (event.request.mode === 'navigate') {
+          const cache = await caches.open(CACHE_NAME);
+          const cachedResponse = await cache.match(OFFLINE_URL);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+        }
+
+        // Check if asset is cached (e.g. logo.png)
+        const cachedAsset = await caches.match(event.request);
+        if (cachedAsset) {
+          return cachedAsset;
+        }
+
+        throw error;
+      })
   );
 });
