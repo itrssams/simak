@@ -33,6 +33,7 @@ import Logistik from './pages/Logistik/Logistik';
 import SystemMaintenance from './pages/System/SystemMaintenance';
 import AppLauncher from './pages/AppLauncher/AppLauncher';
 import MyLogbook from './pages/Logbook/MyLogbook';
+import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
@@ -55,7 +56,7 @@ const FEATURE_IT_ENABLED = false;
 // ── Protected route dengan role guard ─────────────────────
 const ProtectedRoute = ({ children, allow }) => {
     const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to="/login" />;
     if (allow && !allow(user)) return <Navigate to="/petty-cash" />;
     return <Layout>{children}</Layout>;
@@ -64,7 +65,7 @@ const ProtectedRoute = ({ children, allow }) => {
 // ── Home redirect berdasar role ────────────────────────────
 const HomeRedirect = () => {
     const { user, loading } = useAuth();
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to="/login" />;
     return <AppLauncher />;
 };

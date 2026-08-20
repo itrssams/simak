@@ -11,6 +11,42 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SIMAK" />
     <title>SIMAK - Sistem Manajemen Aset & Keuangan</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #080c16;
+      }
+      [data-theme="light"] body {
+        background: #f8fafc;
+      }
+      .pre-loading-wrap {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #080c16;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      [data-theme="light"] .pre-loading-wrap {
+        background: #f8fafc;
+      }
+      .pre-spinner {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 3px solid rgba(56, 189, 248, 0.15);
+        border-top-color: #38bdf8;
+        border-right-color: #6366f1;
+        animation: preSpin 0.9s linear infinite;
+      }
+      @keyframes preSpin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
     <script>
       (function() {
         var theme = localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -27,7 +63,11 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="pre-loading-wrap">
+        <div class="pre-spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
