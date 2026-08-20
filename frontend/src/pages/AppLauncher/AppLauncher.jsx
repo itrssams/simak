@@ -46,15 +46,17 @@ export default function AppLauncher() {
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
     const isDriverAccess = user?.is_driver || isManajerUp;
 
-    // Master App List with Rich Color Palettes & Pure Lucide Vector Icons
+    // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
     const allApps = useMemo(() => [
         {
             id: 'catatan-utang',
             name: 'Catatan Utang',
             subtitle: 'Obat, BHP & Vendor',
             icon: FileSpreadsheet,
-            gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: '#10b981',
             glowColor: 'rgba(16, 185, 129, 0.45)',
+            glassGlow: 'rgba(16, 185, 129, 0.22)',
+            glassGlowLight: 'rgba(16, 185, 129, 0.15)',
             path: '/keuangan/catatan-utang/obat-bhp',
             allowed: Boolean(canCatatanUtang),
             submenus: [
@@ -67,8 +69,10 @@ export default function AppLauncher() {
             name: 'Penagihan & Invoice',
             subtitle: 'Piutang & Verifikasi',
             icon: ReceiptText,
-            gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)',
+            color: '#06b6d4',
             glowColor: 'rgba(6, 182, 212, 0.45)',
+            glassGlow: 'rgba(6, 182, 212, 0.22)',
+            glassGlowLight: 'rgba(6, 182, 212, 0.15)',
             path: '/keuangan/invoices/dashboard',
             allowed: Boolean(isKeuangan),
             submenus: [
@@ -85,8 +89,10 @@ export default function AppLauncher() {
             name: 'Gudang Logistik',
             subtitle: 'Stok & Distribusi Barang',
             icon: Package,
-            gradient: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+            color: '#f59e0b',
             glowColor: 'rgba(245, 158, 11, 0.45)',
+            glassGlow: 'rgba(245, 158, 11, 0.22)',
+            glassGlowLight: 'rgba(245, 158, 11, 0.15)',
             path: '/logistik/barang',
             allowed: Boolean(isLogistik),
             submenus: [
@@ -105,8 +111,10 @@ export default function AppLauncher() {
             name: 'Petty Cash',
             subtitle: 'Kas Kecil & Pengeluaran',
             icon: WalletCards,
-            gradient: 'linear-gradient(135deg, #22c55e 0%, #059669 100%)',
+            color: '#22c55e',
             glowColor: 'rgba(34, 197, 94, 0.45)',
+            glassGlow: 'rgba(34, 197, 94, 0.22)',
+            glassGlowLight: 'rgba(34, 197, 94, 0.15)',
             path: '/petty-cash',
             allowed: true,
             submenus: [
@@ -119,8 +127,10 @@ export default function AppLauncher() {
             name: 'Driver & Armada',
             subtitle: 'Operasional Kendaraan',
             icon: CarFront,
-            gradient: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
+            color: '#818cf8',
             glowColor: 'rgba(99, 102, 241, 0.45)',
+            glassGlow: 'rgba(99, 102, 241, 0.22)',
+            glassGlowLight: 'rgba(99, 102, 241, 0.15)',
             path: '/driver',
             allowed: Boolean(isDriverAccess),
             submenus: [
@@ -132,8 +142,10 @@ export default function AppLauncher() {
             name: 'Akuntansi & Kas',
             subtitle: 'COA, Jurnal & Arus Kas',
             icon: Landmark,
-            gradient: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+            color: '#c084fc',
             glowColor: 'rgba(168, 85, 247, 0.45)',
+            glassGlow: 'rgba(168, 85, 247, 0.22)',
+            glassGlowLight: 'rgba(168, 85, 247, 0.15)',
             path: '/dashboard-analytics',
             allowed: Boolean(isManajerUp),
             submenus: [
@@ -155,8 +167,10 @@ export default function AppLauncher() {
             name: 'Pengumuman',
             subtitle: 'Broadcast Berita Internal',
             icon: Megaphone,
-            gradient: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+            color: '#fb7185',
             glowColor: 'rgba(244, 63, 94, 0.45)',
+            glassGlow: 'rgba(244, 63, 94, 0.22)',
+            glassGlowLight: 'rgba(244, 63, 94, 0.15)',
             path: '/pengumuman',
             allowed: Boolean(isManajerUp),
             submenus: [
@@ -168,8 +182,10 @@ export default function AppLauncher() {
             name: 'Audit Log',
             subtitle: 'Riwayat Aktivitas User',
             icon: ShieldCheck,
-            gradient: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
-            glowColor: 'rgba(100, 116, 139, 0.45)',
+            color: '#cbd5e1',
+            glowColor: 'rgba(148, 163, 184, 0.45)',
+            glassGlow: 'rgba(148, 163, 184, 0.22)',
+            glassGlowLight: 'rgba(148, 163, 184, 0.15)',
             path: '/audit-log',
             allowed: Boolean(isManajerUp || isIT),
             submenus: [
@@ -181,8 +197,10 @@ export default function AppLauncher() {
             name: 'Manajemen User',
             subtitle: 'Kelola Akun & Hak Akses',
             icon: Users,
-            gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+            color: '#38bdf8',
             glowColor: 'rgba(14, 165, 233, 0.45)',
+            glassGlow: 'rgba(14, 165, 233, 0.22)',
+            glassGlowLight: 'rgba(14, 165, 233, 0.15)',
             path: '/admin/users',
             allowed: Boolean(isDirekturUp),
             submenus: [
@@ -194,8 +212,10 @@ export default function AppLauncher() {
             name: 'Manajemen Sistem',
             subtitle: 'Backup Database & Health',
             icon: Server,
-            gradient: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+            color: '#2dd4bf',
             glowColor: 'rgba(20, 184, 166, 0.45)',
+            glassGlow: 'rgba(20, 184, 166, 0.22)',
+            glassGlowLight: 'rgba(20, 184, 166, 0.15)',
             path: '/admin/system-maintenance',
             allowed: Boolean(user?.is_superuser),
             submenus: [
@@ -209,8 +229,10 @@ export default function AppLauncher() {
             name: 'Statistik & Analitik',
             subtitle: 'Executive Summary',
             icon: BarChart3,
-            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-            glowColor: 'rgba(139, 92, 246, 0.45)',
+            color: '#a855f7',
+            glowColor: 'rgba(168, 85, 247, 0.45)',
+            glassGlow: 'rgba(168, 85, 247, 0.22)',
+            glassGlowLight: 'rgba(168, 85, 247, 0.15)',
             path: '/dashboard-analytics',
             allowed: Boolean(isManajerUp),
             submenus: [
@@ -306,15 +328,16 @@ export default function AppLauncher() {
                                     <div
                                         className="odoo-app-tile"
                                         style={{
-                                            background: app.gradient,
                                             '--glow-color': app.glowColor,
+                                            '--glass-glow': app.glassGlow,
+                                            '--glass-glow-light': app.glassGlowLight,
                                         }}
                                     >
                                         <div className="odoo-tile-shine"></div>
                                         <IconComponent
                                             size={38}
-                                            color="#ffffff"
-                                            strokeWidth={2.0}
+                                            color={app.color}
+                                            strokeWidth={2.1}
                                             className="odoo-tile-icon"
                                         />
                                     </div>
