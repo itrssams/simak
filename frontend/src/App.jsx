@@ -30,10 +30,12 @@ import MasterPembiayaan from './pages/Keuangan/MasterPembiayaan';
 import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
 import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
+import SystemMaintenance from './pages/System/SystemMaintenance';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
 // ── Helper cek role ────────────────────────────────────────
+const isSuperuserOnly = (u) => u?.is_superuser;
 const isManajerUp = (u) => u?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(u?.role);
 const isKepalaSeksiUp = (u) => u?.is_superuser || ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'].includes(u?.role);
 const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].includes(u?.role);
@@ -158,6 +160,7 @@ const AppRoutes = () => {
             <Route path="/inventaris" element={FEATURE_INVENTARIS_ENABLED ? <ProtectedRoute allow={isKepalaSeksiUp}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/admin/users" element={<ProtectedRoute allow={isDirekturUp}><ManajemenUser /></ProtectedRoute>} />
+            <Route path="/admin/system-maintenance" element={<ProtectedRoute allow={isSuperuserOnly}><SystemMaintenance /></ProtectedRoute>} />
             <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={isManajerUp}><LaporanPettyCash /></ProtectedRoute>} />
             <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />

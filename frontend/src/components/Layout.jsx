@@ -23,6 +23,7 @@ import {
     ReceiptText,
     Sun,
     Moon,
+    ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -37,6 +38,7 @@ const IconConfig = {
     pettycash: { icon: WalletCards, size: 18 },
     rekening: { icon: Landmark, size: 18 },
     users: { icon: UserCog, size: 18 },
+    system: { icon: ShieldCheck, size: 18 },
     chevron: { icon: ChevronDown, size: 15 },
     logout: { icon: LogOut, size: 16 },
     menu: { icon: Menu, size: 20 },
@@ -56,6 +58,10 @@ const renderIcon = (iconKey, overrideSize) => {
     const IconComponent = config.icon;
     return <IconComponent size={overrideSize || config.size} strokeWidth={2.15} />;
 };
+
+const MENU_SUPERUSER_ONLY = [
+    { label: 'Manajemen Sistem', path: '/admin/system-maintenance', icon: 'system' },
+];
 
 const MENU_MANAJER_DIREKTUR = [
     { label: 'Dashboard', path: '/', icon: 'dashboard' },
@@ -131,7 +137,7 @@ const MENU_LOGISTIK = [
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = false;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
 
 function uniqueMenus(items) {
     const result = [];
@@ -177,7 +183,7 @@ function orderMenus(items) {
 function getMenuItems(user) {
     const role = user?.role;
     const base = [];
-    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK])));
+    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK])));
     if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
     else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
     else if (role === 'kepala_seksi') base.push(...MENU_KEPALA_SEKSI);
