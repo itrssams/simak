@@ -802,24 +802,20 @@ export default function Layout({ children }) {
                     flex-shrink: 0;
                 }
                 .topbar-left,
-                .topbar-center,
                 .topbar-right {
                     display: flex;
                     align-items: center;
                     min-width: 0;
                 }
                 .topbar-left {
-                    gap: 9px;
-                    flex: 1 1 320px;
-                }
-                .topbar-center {
-                    flex: 0 1 280px;
-                    justify-content: center;
+                    gap: 10px;
+                    flex: 1 1 auto;
+                    min-width: 0;
                 }
                 .topbar-right {
                     gap: 8px;
                     justify-content: flex-end;
-                    flex: 1 1 320px;
+                    flex: 0 0 auto;
                 }
                 .topbar-btn {
                     width: 32px;
@@ -1530,18 +1526,11 @@ export default function Layout({ children }) {
                     .app-shell { font-size: 13px; }
                     .main-content { padding: 14px; }
                     .topbar { padding: 0 12px; }
-                    .topbar-center { flex-basis: 250px; }
-                    .sb-link { min-height: 34px; font-size: 11.8px; padding: 6px 8px; }
-                    .sb-child { font-size: 11.2px; padding: 6px 8px 6px 10px; }
-                    .sidebar-section-label { padding-top: 10px; }
                 }
 
                 @media (max-width: 1200px) {
                     .app-shell { font-size: 12.5px; }
                     .main-content { padding: 12px; }
-                    .topbar-center { display: none; }
-                    .topbar-logo { height: 28px; max-width: 66px; }
-                    .topbar-title { font-size: 12px; }
                     .profile-role { display: none; }
                 }
 
@@ -1551,7 +1540,6 @@ export default function Layout({ children }) {
                         gap: 10px;
                     }
                     .topbar-left { flex: 1 1 auto; gap: 9px; }
-                    .topbar-center { display: none; }
                     .topbar-right { flex: 0 0 auto; gap: 8px; }
                     .topbar-subtitle { display: none; }
                     .topbar-logo { height: 32px; max-width: 70px; }
