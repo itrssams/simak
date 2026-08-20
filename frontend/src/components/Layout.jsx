@@ -348,7 +348,6 @@ const getActiveModuleConfig = (pathname, user) => {
             menus: [
                 { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
                 { label: 'Master Vendor', path: '/logistik/vendor?sumber=semua' },
-                { label: 'Import Saldo OTS', path: '/keuangan/catatan-utang/import-ots' },
             ],
         };
     }
