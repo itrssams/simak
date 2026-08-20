@@ -608,13 +608,6 @@ export default function MyLogbook() {
 
                     {/* Monitoring Data Card (Daftar Karyawan) */}
                     <div className="logbook-card">
-                        <div className="logbook-card-head">
-                            <div className="logbook-card-title">
-                                <h2>Daftar Aktivitas Karyawan</h2>
-                                <p>Menampilkan {groupedUsers.length} karyawan aktif yang mencatat pekerjaan pada periode ini.</p>
-                            </div>
-                        </div>
-
                         {/* Filter Bar with Action Buttons */}
                         <div className="logbook-filter-bar">
                             <div className="logbook-filter-item">
