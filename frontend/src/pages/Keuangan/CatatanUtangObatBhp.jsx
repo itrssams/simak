@@ -255,6 +255,11 @@ export default function CatatanUtangObatBhp() {
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
     const [selectedKeys, setSelectedKeys] = useState([]);
+    const [selectedPengajuanIds, setSelectedPengajuanIds] = useState([]);
+    const [showBulkRealisasiModal, setShowBulkRealisasiModal] = useState(false);
+    const [bulkRealisasiDate, setBulkRealisasiDate] = useState(todayISO());
+    const [editTanggalTarget, setEditTanggalTarget] = useState(null);
+    const [editTanggalForm, setEditTanggalForm] = useState({ tanggal_realisasi: todayISO() });
     const [depositData, setDepositData] = useState({ summary: { total_vendor: 0, total_retur: 0, total_terpakai: 0, total_sisa_deposit: 0 }, vendors: [] });
     const [selectedDepositVendor, setSelectedDepositVendor] = useState(null);
 
@@ -352,11 +357,18 @@ export default function CatatanUtangObatBhp() {
     useEffect(() => { fetchPendingSummary(); }, [fetchPendingSummary]);
     useEffect(() => {
         setPage(1);
+        setSelectedKeys([]);
+        setSelectedPengajuanIds([]);
         setFilters(prev => ({
             ...prev,
             ordering: getDefaultOrdering(mode)
         }));
     }, [mode]);
+
+    useEffect(() => {
+        setSelectedKeys([]);
+        setSelectedPengajuanIds([]);
+    }, [page]);
 
     useEffect(() => {
         if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !showManual && !selectedDepositVendor) return undefined;
@@ -411,8 +423,7 @@ export default function CatatanUtangObatBhp() {
         setVendorDepositInfo(null);
         const katLabel = row.kategori_vendor || row.kategori || (row.sumber === 'logistik' ? 'Logistik' : 'Obat & BHP');
         const fakturNo = row.nomor_faktur || row.nomor_spb || '';
-        const vendorStr = row.vendor_nama ? ` (${row.vendor_nama})` : '';
-        const defaultKet = `Pembayaran ${katLabel}${vendorStr} Faktur ${fakturNo}`.trim();
+        const defaultKet = `Pembayaran ${katLabel} ${fakturNo}`.replace(/\s+/g, ' ').trim();
 
         setPaymentForm({
             ...initialPaymentForm,
@@ -704,6 +715,95 @@ export default function CatatanUtangObatBhp() {
         );
     };
 
+    const toggleSelectPengajuan = (id) => {
+        setSelectedPengajuanIds((prev) => 
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAllPengajuan = (checked, pageItems) => {
+        if (checked) {
+            setSelectedPengajuanIds(pageItems.map((i) => i.id).filter(Boolean));
+        } else {
+            setSelectedPengajuanIds([]);
+        }
+    };
+
+    const submitBulkRealisasi = async (event) => {
+        event.preventDefault();
+        if (selectedPengajuanIds.length === 0) return;
+        setSaving(true);
+        try {
+            const res = await api.post('/keuangan/pembayaran-utang/bulk-realisasi/', {
+                ids: selectedPengajuanIds,
+                tanggal_realisasi: bulkRealisasiDate,
+            });
+            toast.success(res.data.message || 'Realisasi massal berhasil.');
+            setShowBulkRealisasiModal(false);
+            setSelectedPengajuanIds([]);
+            await fetchData();
+            await fetchSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal merealisasikan pengajuan terdaftar.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const selectedPengajuanItems = useMemo(() => {
+        return items.filter((item) => selectedPengajuanIds.includes(item.id));
+    }, [items, selectedPengajuanIds]);
+
+    const totalBulkNominal = useMemo(() => {
+        return selectedPengajuanItems.reduce((acc, item) => acc + Number(item.jumlah_bayar || 0), 0);
+    }, [selectedPengajuanItems]);
+
+    const openEditTanggal = (item) => {
+        setEditTanggalTarget(item);
+        setEditTanggalForm({
+            tanggal_realisasi: item.tanggal_proses || item.tanggal_realisasi || todayISO()
+        });
+    };
+
+    const submitEditTanggal = async (event) => {
+        event.preventDefault();
+        if (!editTanggalTarget) return;
+        if (!editTanggalForm.tanggal_realisasi) {
+            return toast.error('Tanggal realisasi baru wajib diisi.');
+        }
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/pembayaran-utang/${editTanggalTarget.id}/edit-tanggal/`, {
+                tanggal_realisasi: editTanggalForm.tanggal_realisasi,
+            });
+            toast.success(res.data.message || 'Tanggal realisasi berhasil diperbarui.');
+            setEditTanggalTarget(null);
+            await fetchData();
+            await fetchSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal memperbarui tanggal realisasi.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleBatalRealisasi = async (item) => {
+        const confirmMsg = `KONFIRMASI BATALKAN REALISASI:\n\nApakah Anda yakin ingin membatalkan realisasi pembayaran ${money(item.jumlah_bayar)} untuk faktur '${item.nomor_faktur || item.vendor_nama}'?\n\n- Transaksi pembayaran ini akan dihapus.\n- Sisa utang faktur akan dikembalikan seperti semula.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/pembayaran-utang/${item.id}/batal-realisasi/`);
+            toast.success(res.data.message || 'Realisasi pembayaran berhasil dibatalkan.');
+            await fetchData();
+            await fetchSummary();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal membatalkan realisasi pembayaran.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleBulkPelunasanSelected = async () => {
         if (selectedKeys.length === 0) return;
         if (!window.confirm(`KONFIRMASI PELUNASAN TERPILIH:\n\nApakah Anda yakin ingin melunaskan ${selectedKeys.length} faktur yang dipilih?`)) return;
@@ -837,6 +937,20 @@ export default function CatatanUtangObatBhp() {
                         <p>{total} data tercatat sesuai filter.</p>
                     </div>
                     <div className="utang-card-actions">
+                        {mode === 'pengajuan' && selectedPengajuanIds.length > 0 && (
+                            <button
+                                className="utang-btn primary"
+                                type="button"
+                                onClick={() => {
+                                    setBulkRealisasiDate(todayISO());
+                                    setShowBulkRealisasiModal(true);
+                                }}
+                                style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}
+                                title="Realisasi beberapa pengajuan pembayaran sekaligus"
+                            >
+                                <CheckCheck size={16} /> Realisasi ({selectedPengajuanIds.length}) Terpilih
+                            </button>
+                        )}
                         {(mode === 'pengajuan' || mode === 'aktif' || mode === 'semua') && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
@@ -929,9 +1043,19 @@ export default function CatatanUtangObatBhp() {
                             />
                         )}
                         {(mode === 'aktif' || mode === 'semua') && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
-                        {mode === 'pengajuan' && <PendingSubmissionTable items={items} onRealisasi={openRealisasi} onCancel={cancelPengajuan} onSort={setOrdering} />}
+                        {mode === 'pengajuan' && (
+                            <PendingSubmissionTable
+                                items={items}
+                                onRealisasi={openRealisasi}
+                                onCancel={cancelPengajuan}
+                                onSort={setOrdering}
+                                selectedIds={selectedPengajuanIds}
+                                onToggleAll={toggleSelectAllPengajuan}
+                                onToggleItem={toggleSelectPengajuan}
+                            />
+                        )}
                         {mode === 'deposit' && <DepositVendorTable summary={depositData.summary} vendors={items} onDetail={setSelectedDepositVendor} />}
-                        {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} />}
+                        {mode === 'histori' && <HistoryTable items={items} onSort={setOrdering} onEditTanggal={openEditTanggal} onBatalRealisasi={handleBatalRealisasi} />}
                     </div>
                 )}
 
@@ -1628,6 +1752,212 @@ export default function CatatanUtangObatBhp() {
                 </div>,
                 document.body,
             )}
+
+            {showBulkRealisasiModal && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setShowBulkRealisasiModal(false)}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitBulkRealisasi} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 820, width: '92vw' }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}>
+                                <CheckCheck size={22} />
+                            </span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Realisasi Massal Pembayaran Utang</h2>
+                                </div>
+                                <p className="utang-modal-head-subtitle">Memproses <strong>{selectedPengajuanItems.length} pengajuan pembayaran</strong> sekaligus ke status Realisasi.</p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setShowBulkRealisasiModal(false)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+
+                        <div className="utang-modal-body" style={{ padding: '20px 24px' }}>
+                            {/* Summary Cards Banner */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: 14,
+                                marginBottom: 18,
+                            }}>
+                                <div style={{
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 10,
+                                    padding: '14px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 14,
+                                }}>
+                                    <div style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 10,
+                                        background: '#e0f2fe',
+                                        color: '#0284c7',
+                                        display: 'grid',
+                                        placeItems: 'center',
+                                        flexShrink: 0,
+                                    }}>
+                                        <ClipboardList size={22} />
+                                    </div>
+                                    <div>
+                                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
+                                            Total Pengajuan
+                                        </span>
+                                        <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
+                                            {selectedPengajuanItems.length} <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>Item Terpilih</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    background: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: 10,
+                                    padding: '14px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 14,
+                                }}>
+                                    <div style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 10,
+                                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                                        color: '#ffffff',
+                                        display: 'grid',
+                                        placeItems: 'center',
+                                        flexShrink: 0,
+                                        boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
+                                    }}>
+                                        <CircleDollarSign size={22} />
+                                    </div>
+                                    <div>
+                                        <span style={{ fontSize: 11, color: '#047857', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
+                                            Total Realisasi Kas Keluar
+                                        </span>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#047857', letterSpacing: '-0.3px', marginTop: 2 }}>
+                                            {money(totalBulkNominal)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Date Picker Input */}
+                            <div className="utang-field-block" style={{ marginBottom: 20, background: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                                <label className="utang-field-lbl" style={{ fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <CalendarDays size={16} style={{ color: '#10b981' }} /> Tanggal Realisasi Pembayaran <span className="utang-req">*</span>
+                                </label>
+                                <div style={{ maxWidth: 280 }}>
+                                    <DateInput value={bulkRealisasiDate} onChange={(v) => setBulkRealisasiDate(v)} />
+                                </div>
+                                <small style={{ color: '#64748b', fontSize: 12, marginTop: 6, display: 'block', lineHeight: 1.4 }}>
+                                    💡 Tanggal ini akan dicatat sebagai <strong>Tanggal Efektif Pencairan / Realisasi Kas Keluar</strong> untuk seluruh {selectedPengajuanItems.length} item yang dipilih.
+                                </small>
+                            </div>
+
+                            {/* Table List of Selected Items */}
+                            <section className="utang-payment-section">
+                                <SectionTitle icon={ClipboardList}>Rincian Pengajuan Pembayaran Terpilih ({selectedPengajuanItems.length} Item)</SectionTitle>
+                                <div className="utang-history-wrap" style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                                    <table className="utang-history-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+                                        <colgroup>
+                                            <col style={{ width: '30%' }} />
+                                            <col style={{ width: '22%' }} />
+                                            <col style={{ width: '23%' }} />
+                                            <col style={{ width: '25%' }} />
+                                        </colgroup>
+                                        <thead>
+                                            <tr style={{ background: '#f1f5f9' }}>
+                                                <th style={{ padding: '10px 12px' }}>Vendor</th>
+                                                <th style={{ padding: '10px 12px' }}>No. SPB</th>
+                                                <th style={{ padding: '10px 12px' }}>No. Faktur</th>
+                                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Nominal Realisasi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedPengajuanItems.map((item, idx) => (
+                                                <tr key={item.id || idx}>
+                                                    <td style={{ padding: '10px 12px', wordBreak: 'break-word' }}>
+                                                        <strong>{item.vendor_nama || '-'}</strong>
+                                                    </td>
+                                                    <td className="utang-mono" style={{ padding: '10px 12px', fontSize: 12, color: '#475569' }}>
+                                                        {item.nomor_spb ? item.nomor_spb : (item.app_siaga_faktur_id ? `RJ-${item.app_siaga_faktur_id}` : '-')}
+                                                    </td>
+                                                    <td className="utang-mono" style={{ padding: '10px 12px', fontSize: 12 }}>
+                                                        {item.nomor_faktur || '-'}
+                                                    </td>
+                                                    <td className="utang-mono bold" style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: 13 }}>
+                                                        {money(item.jumlah_bayar)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div className="utang-modal-actions" style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setShowBulkRealisasiModal(false)}>Batal</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', borderColor: '#059669', padding: '9px 20px', fontWeight: 600 }}>
+                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : `Konfirmasi Realisasi (${selectedPengajuanItems.length} Item)`}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
+            {editTanggalTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setEditTanggalTarget(null)}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitEditTanggal} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)' }}>
+                                <CalendarDays size={20} />
+                            </span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Ubah Tanggal Realisasi</h2>
+                                    {editTanggalTarget.sumber && <SumberBadge sumber={editTanggalTarget.sumber} />}
+                                </div>
+                                <p className="utang-modal-head-subtitle">Vendor: <strong>{editTanggalTarget.vendor_nama || '-'}</strong></p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setEditTanggalTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-verify-card">
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Vendor</span>
+                                    <span className="val bold">{editTanggalTarget.vendor_nama || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono">{editTanggalTarget.nomor_faktur || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Nominal Terbayar</span>
+                                    <span className="val price">{money(editTanggalTarget.jumlah_bayar)}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Tanggal Realisasi Saat Ini</span>
+                                    <span className="val bold">{dateLabel(editTanggalTarget.tanggal_proses || editTanggalTarget.tanggal_realisasi)}</span>
+                                </div>
+                            </div>
+
+                            <div className="utang-field-block" style={{ marginTop: 16 }}>
+                                <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Realisasi Pembayaran Baru <span className="utang-req">*</span></label>
+                                <DateInput value={editTanggalForm.tanggal_realisasi} onChange={(v) => setEditTanggalForm({ tanggal_realisasi: v })} />
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setEditTanggalTarget(null)}>Batal</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: '#0284c7', borderColor: '#0369a1' }}>
+                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : 'Simpan Tanggal Baru'}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
         </div>
     );
 }
@@ -1895,19 +2225,30 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
     );
 }
 
-function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
+function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selectedIds = [], onToggleAll, onToggleItem }) {
+    const isAllChecked = items.length > 0 && items.every((i) => selectedIds.includes(i.id));
+
     return (
         <table className="utang-table" style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '18%' }} />
+                <col style={{ width: '4%' }} />
+                <col style={{ width: '21%' }} />
+                <col style={{ width: '17%' }} />
                 <col style={{ width: '15%' }} />
-                <col style={{ width: '23%' }} />
+                <col style={{ width: '21%' }} />
                 <col style={{ width: '14%' }} />
                 <col style={{ width: '8%' }} />
             </colgroup>
             <thead>
                 <tr>
+                    <th style={{ textAlign: 'center' }}>
+                        <input
+                            type="checkbox"
+                            checked={isAllChecked}
+                            onChange={(e) => onToggleAll && onToggleAll(e.target.checked, items)}
+                            title="Pilih Semua di Halaman Ini"
+                        />
+                    </th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} align="left" />
                     <SortTh label="No Faktur & Tgl Rencana" field="nomor_faktur" onSort={onSort} align="left" />
                     <SortTh label="Nominal Pengajuan" field="jumlah_bayar" onSort={onSort} align="right" />
@@ -1917,8 +2258,17 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item, idx) => (
-                    <tr key={item.id || item.app_siaga_faktur_id || idx}>
+                {items.map((item, idx) => {
+                    const isChecked = selectedIds.includes(item.id);
+                    return (
+                    <tr key={item.id || item.app_siaga_faktur_id || idx} style={isChecked ? { background: '#f0fdf4' } : undefined}>
+                        <td style={{ textAlign: 'center' }}>
+                            <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => onToggleItem && onToggleItem(item.id)}
+                            />
+                        </td>
                         <td className="utang-name-cell" style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong>{item.vendor_nama || '-'}</strong>
                             <small className="utang-subtext">
@@ -1965,13 +2315,14 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort }) {
                             </div>
                         </td>
                     </tr>
-                ))}
+                    );
+                })}
             </tbody>
         </table>
     );
 }
 
-function HistoryTable({ items, onSort }) {
+function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
     return (
         <table className="utang-table">
             <thead>
@@ -1983,6 +2334,7 @@ function HistoryTable({ items, onSort }) {
                     <th className="utang-right">Sisa Utang</th>
                     <th>Keterangan</th>
                     <th>Operator</th>
+                    <th style={{ textAlign: 'center' }}>Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -1994,16 +2346,21 @@ function HistoryTable({ items, onSort }) {
                             <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
                         </td>
                         <td>
-                            <strong>{dateLabel(item.tanggal_proses)}</strong>
-                            {item.tanggal_rencana_bayar && <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>}
+                            <strong>{dateLabel(item.tanggal_proses || item.tanggal_realisasi)}</strong>
+                            {item.tanggal_rencana_bayar && item.tanggal_rencana_bayar !== (item.tanggal_proses || item.tanggal_realisasi) && (
+                                <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>
+                            )}
                         </td>
-                        <td className={`utang-right utang-mono ${item.status === 'retur' ? '' : item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`} style={item.status === 'retur' ? { color: '#e11d48', fontWeight: 'bold' } : undefined}>
+                        <td className={`utang-right utang-mono ${item.status === 'retur' ? '' : item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`} style={item.status === 'retur' ? { color: '#e11d48', fontWeight: 'bold' } : item.status === 'batal' ? { color: '#94a3b8', textDecoration: 'line-through' } : undefined}>
                             {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
                         </td>
                         <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
                         <td>
                             {item.status === 'retur' && (
                                 <span style={{ marginRight: 6 }}><StatusBadge status="retur" label="Retur Barang" /></span>
+                            )}
+                            {item.status === 'batal' && (
+                                <span style={{ marginRight: 6, background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Dibatalkan</span>
                             )}
                             {item.keterangan || '-'}
                         </td>
@@ -2012,6 +2369,30 @@ function HistoryTable({ items, onSort }) {
                                 <User size={13} style={{ opacity: 0.7 }} />
                                 {item.created_by_name || '-'}
                             </span>
+                        </td>
+                        <td className="utang-right" style={{ textAlign: 'center' }}>
+                            <div className="utang-action-group" style={{ justifyContent: 'center' }}>
+                                {onEditTanggal && item.status !== 'batal' && (
+                                    <button
+                                        className="utang-action-btn detail"
+                                        type="button"
+                                        onClick={() => onEditTanggal(item)}
+                                        title="Ubah Tanggal Realisasi Pembayaran"
+                                    >
+                                        <CalendarDays size={15} />
+                                    </button>
+                                )}
+                                {onBatalRealisasi && item.status !== 'batal' && (
+                                    <button
+                                        className="utang-action-btn danger"
+                                        type="button"
+                                        onClick={() => onBatalRealisasi(item)}
+                                        title="Batalkan Realisasi & Restorasi Utang"
+                                    >
+                                        <RotateCcw size={15} />
+                                    </button>
+                                )}
+                            </div>
                         </td>
                     </tr>
                 ))}

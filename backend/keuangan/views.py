@@ -1,32 +1,61 @@
 from rest_framework import viewsets, status
+
 from rest_framework.decorators import action, permission_classes, api_view
+
 from rest_framework.response import Response
+
 from rest_framework.permissions import BasePermission, IsAuthenticated, AllowAny, SAFE_METHODS
+
 from rest_framework.viewsets import ModelViewSet
+
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 from rest_framework.pagination import PageNumberPagination
+
 from rest_framework.exceptions import PermissionDenied, ValidationError
+
 from django.db.models import Sum
+
 from django.db.models.functions import Coalesce
+
 from django.db import connection, transaction, models
+
 from django.db.models.deletion import ProtectedError
+
 from decimal import Decimal, InvalidOperation
+
 from rest_framework.views import APIView
+
 from django.http import HttpResponse
+
 from django.shortcuts import get_object_or_404
+
 from django.utils.html import escape
+
 from django.db.models import Sum, Count, Q, F
+
 from collections import defaultdict
+
 import calendar
+
 import re
+
 from django.utils import timezone
+
 from datetime import datetime, date, time, timedelta
+
 import openpyxl
+
 from openpyxl import Workbook
+
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
 from openpyxl.utils import get_column_letter
+
 from fpdf import FPDF
+
 import os
+
 from django.conf import settings
 
 from .models import (
@@ -36,14 +65,12 @@ from .models import (
     UtangSupplier, PembayaranUtang, DepositVendor,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
-    AuditLog,
+    
     PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
-    Kendaraan, LogPerjalanan, LaporanPerjalanan, FotoLaporanPerjalanan, LogBBM, LogMaintenance,
-    ITBackupRecord, ITRepairRequest, ITCredentialNote, ITRemoteAccess, ITSubscription,
-    Announcement, AnnouncementRead,
-    InventoryOption, InventoryAsset,
-    LogistikBarang, LogistikPembelian, LogistikBatch, LogistikMutasi, LogistikPermintaan, LogistikOpname
+         
+     
 )
+
 from .serializers import (
     AkunSerializer, TransaksiSerializer, TransaksiInputSerializer,
     JurnalSerializer, JurnalInputSerializer,
@@ -56,26 +83,16 @@ from .serializers import (
     PembayaranTagihanSerializer, PembayaranTagihanInputSerializer,
     RekeningBankSerializer, RekeningBankInputSerializer,
     RiwayatSaldoRekeningSerializer, UpdateSaldoSerializer,
-    AuditLogSerializer,
+    
     PettyCashSerializer, PettyCashInputSerializer,
     LaporanPenggunaanSerializer, LaporanPenggunaanInputSerializer,
     ReimbursementSerializer, ReimbursementInputSerializer, SaldoPettyCashSerializer, RiwayatSaldoPettyCashSerializer,
     PengajuanPenambahanSaldoSerializer, PengajuanPenambahanSaldoInputSerializer,
-    KendaraanSerializer,
-    LogPerjalananSerializer, LogPerjalananInputSerializer, LaporanPerjalananSerializer, LaporanPerjalananInputSerializer, FotoLaporanPerjalananSerializer,
-    LogBBMSerializer, LogBBMInputSerializer,
-    LogMaintenanceSerializer, LogMaintenanceInputSerializer,
-    ITBackupRecordSerializer, ITRepairRequestSerializer,
-    ITCredentialNoteSerializer, ITCredentialNoteDetailSerializer,
-    ITRemoteAccessSerializer, ITRemoteAccessDetailSerializer,
-    ITSubscriptionSerializer,
-    AnnouncementSerializer,
-    InventoryOptionSerializer, InventoryAssetSerializer,
-    LogistikBarangSerializer, LogistikPembelianSerializer, LogistikBatchSerializer,
-    LogistikMutasiSerializer, LogistikPermintaanSerializer, LogistikOpnameSerializer,
+    
+                
 )
-from .audit import can_view_audit
 
+from system.audit import can_view_audit
 
 class OptionalPageNumberPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
@@ -88,10 +105,8 @@ class OptionalPageNumberPagination(PageNumberPagination):
             return super().get_page_size(request)
         return 10
 
-
 class OptionalPaginationMixin:
     pagination_class = OptionalPageNumberPagination
-
 
 def is_direktur_or_wadir(user):
     return user.is_authenticated and (user.role in ('direktur', 'wakil_direktur') or user.is_superuser)
@@ -102,16 +117,8 @@ def is_manajer_or_above(user):
 def is_kepala_seksi_or_above(user):
     return user.is_authenticated and (user.role in ('kepala_seksi', 'manajer', 'wakil_direktur', 'direktur') or user.is_superuser)
 
-def is_it(user):
-    return user.is_authenticated and (getattr(user, 'is_it', False) or user.is_superuser)
-
 def is_keuangan(user):
     return user.is_authenticated and (getattr(user, 'is_keuangan', False) or user.is_superuser)
-
-
-def is_logistik(user):
-    return user.is_authenticated and (getattr(user, 'is_logistik', False) or user.is_superuser or is_manajer_or_above(user))
-
 
 def can_access_catatan_utang_obat_bhp(user):
     return user.is_authenticated and (
@@ -119,17 +126,14 @@ def can_access_catatan_utang_obat_bhp(user):
         or getattr(user, 'akses_catatan_utang', False)
     )
 
-
 def is_petty_cash_cashier(user):
     return user.is_authenticated and (getattr(user, 'is_petty_cash_cashier', False) or user.is_superuser)
-
 
 def is_manajer_keuangan(user):
     return user.is_authenticated and (
         user.is_superuser
         or (getattr(user, 'is_keuangan', False) and user.role in ('manajer', 'wakil_direktur', 'direktur'))
     )
-
 
 def laporan_unit_label(user):
     if not user:
@@ -148,7 +152,6 @@ def laporan_unit_label(user):
         'karyawan': 'Karyawan Tanpa Unit',
     }
     return role_labels.get(user.role, 'Tanpa Unit')
-
 
 def user_display_name(user):
     if not user:
@@ -198,74 +201,39 @@ def generate_nomor_faktur(tanggal):
 
     return nomor
 
-
 class IsManajerOrAbovePermission(BasePermission):
     def has_permission(self, request, view):
         return is_manajer_or_above(request.user)
-
 
 class IsDirekturOrWadirPermission(BasePermission):
     def has_permission(self, request, view):
         return is_direktur_or_wadir(request.user)
 
-
-class IsInventoryPermission(BasePermission):
-    def has_permission(self, request, view):
-        return is_kepala_seksi_or_above(request.user)
-
-
-class IsLogistikPermission(BasePermission):
-    def has_permission(self, request, view):
-        return is_logistik(request.user)
-
-
-class IsITPermission(BasePermission):
-    def has_permission(self, request, view):
-        return is_it(request.user)
-
-
 class IsKeuanganPermission(BasePermission):
     def has_permission(self, request, view):
         return is_keuangan(request.user)
-
 
 class IsCatatanUtangObatBhpPermission(BasePermission):
     def has_permission(self, request, view):
         return can_access_catatan_utang_obat_bhp(request.user)
 
-
-class IsLogistikOrCatatanUtangPermission(BasePermission):
-    def has_permission(self, request, view):
-        return is_logistik(request.user) or can_access_catatan_utang_obat_bhp(request.user)
-
-
 class IsPettyCashSaldoPermission(BasePermission):
     def has_permission(self, request, view):
         return is_manajer_or_above(request.user) or is_petty_cash_cashier(request.user)
-
 
 class IsKeuanganOrManajerPermission(BasePermission):
     def has_permission(self, request, view):
         return is_keuangan(request.user) or is_manajer_or_above(request.user)
 
 
-class AnnouncementPermission(BasePermission):
-    def has_permission(self, request, view):
-        if request.method in SAFE_METHODS or getattr(view, 'action', '') in ('mark_read', 'mark_all_read', 'unread_count'):
-            return request.user and request.user.is_authenticated
-        return is_manajer_or_above(request.user)
-
-
 def _normalize_pembiayaan_name(value):
     return ' '.join(str(value or '').strip().lower().split())
-
 
 def _normalize_logistik_name(value):
     text = str(value or '').strip()
     if not text:
         return ''
     return ' '.join(text.split())
-
 
 class PembiayaanListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -348,7 +316,6 @@ class PembiayaanListView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class PembiayaanDetailView(APIView):
     permission_classes = [IsKeuanganPermission]
 
@@ -424,7 +391,6 @@ class PembiayaanDetailView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 KUNJUNGAN_TYPE_FILTERS = {
     'rawat_jalan': "substr(a.j_lay,18,1)='1'",
     'rawat_inap': "substr(a.j_lay,17,1)='1'",
@@ -432,7 +398,6 @@ KUNJUNGAN_TYPE_FILTERS = {
     'vk': "substr(a.j_lay,19,1)='1'",
     'ok': "substr(a.j_lay,20,1)='1'",
 }
-
 
 KUNJUNGAN_TYPE_LABELS = {
     'rawat_jalan': 'Rawat Jalan',
@@ -442,22 +407,18 @@ KUNJUNGAN_TYPE_LABELS = {
     'ok': 'OK',
 }
 
-
 KUNJUNGAN_TOTAL_SQL = """
     COALESCE(a.adm,0)+COALESCE(a.jasa,0)+COALESCE(a.farmasi,0)+COALESCE(a.tindakan,0)+
     COALESCE(a.fisio,0)+COALESCE(a.lab,0)+COALESCE(a.lab_pa,0)+COALESCE(a.kamar,0)+
     COALESCE(a.rad,0)+COALESCE(a.bhp,0)+COALESCE(a.lainnya,0)+COALESCE(a.ambulan,0)+COALESCE(a.alat,0)
 """
 
-
 def _dict_fetchall(cursor):
     columns = [col[0] for col in cursor.description]
     return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-
 def _decimal_from_row(row, key):
     return Decimal(str(row.get(key) or 0))
-
 
 def _get_pembiayaan_name(id_pembiayaan):
     if not id_pembiayaan:
@@ -471,7 +432,6 @@ def _get_pembiayaan_name(id_pembiayaan):
         """, [id_pembiayaan])
         row = cursor.fetchone()
     return row[0] if row else ''
-
 
 def _legacy_kunjungan_where(params):
     kunjungan_type = params.get('jenis') or 'semua'
@@ -522,7 +482,6 @@ def _legacy_kunjungan_where(params):
 
     return " AND ".join(where) if where else "1=1", values, kunjungan_type
 
-
 def _detect_type_from_j_lay(j_lay):
     value = str(j_lay or '')
     if len(value) >= 20 and value[19:20] == '1':
@@ -536,7 +495,6 @@ def _detect_type_from_j_lay(j_lay):
     if len(value) >= 16 and value[15:16] == '1':
         return 'UGD'
     return 'Kunjungan'
-
 
 class KunjunganInvoiceView(APIView):
     permission_classes = [IsKeuanganPermission]
@@ -882,7 +840,6 @@ class KunjunganInvoiceView(APIView):
             return 'OK'
         return 'Rawat Jalan'
 
-
 class InvoiceDashboardView(APIView):
     permission_classes = [IsKeuanganOrManajerPermission]
 
@@ -1012,7 +969,6 @@ class InvoiceDashboardView(APIView):
         }
         return Response(response, status=status.HTTP_200_OK)
 
-
 class InvoiceVerificationView(APIView):
     permission_classes = [IsKeuanganOrManajerPermission]
 
@@ -1090,110 +1046,10 @@ class InvoiceVerificationView(APIView):
             'results': results,
         }, status=status.HTTP_200_OK)
 
-
-class AnnouncementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    serializer_class = AnnouncementSerializer
-    permission_classes = [IsAuthenticated, AnnouncementPermission]
-
-    def get_queryset(self):
-        qs = Announcement.objects.select_related('created_by').all()
-        manager_access = is_manajer_or_above(self.request.user)
-        manage_view = self.request.query_params.get('manage') == '1' and manager_access
-        manager_object_action = manager_access and self.action in ('retrieve', 'update', 'partial_update', 'destroy')
-        if not manage_view and not manager_object_action:
-            now = timezone.now()
-            qs = qs.filter(is_active=True, publish_at__lte=now).filter(Q(expires_at__isnull=True) | Q(expires_at__gte=now))
-            role = getattr(self.request.user, 'role', '')
-            qs = qs.filter(Q(audience__icontains='all') | Q(audience__icontains=role))
-        search = self.request.query_params.get('search')
-        unread = self.request.query_params.get('unread')
-        if search:
-            qs = qs.filter(Q(title__icontains=search) | Q(message__icontains=search))
-        if unread == '1':
-            qs = qs.exclude(reads__user=self.request.user)
-        return qs
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-
-    @action(detail=True, methods=['post'], url_path='mark-read')
-    def mark_read(self, request, pk=None):
-        announcement = self.get_object()
-        AnnouncementRead.objects.get_or_create(announcement=announcement, user=request.user)
-        return Response({'message': 'Pengumuman ditandai sudah dibaca.'})
-
-    @action(detail=False, methods=['post'], url_path='mark-all-read')
-    def mark_all_read(self, request):
-        created = 0
-        for announcement in self.get_queryset():
-            _, was_created = AnnouncementRead.objects.get_or_create(announcement=announcement, user=request.user)
-            if was_created:
-                created += 1
-        return Response({'message': f'{created} pengumuman ditandai sudah dibaca.'})
-
-    @action(detail=False, methods=['get'], url_path='unread-count')
-    def unread_count(self, request):
-        count = self.get_queryset().exclude(reads__user=request.user).count()
-        return Response({'unread': count})
-
-
-class AuditLogViewSet(OptionalPaginationMixin, viewsets.ReadOnlyModelViewSet):
-    serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        if not can_view_audit(self.request.user):
-            return AuditLog.objects.none()
-
-        qs = AuditLog.objects.select_related('user').all()
-        action_name = self.request.query_params.get('action')
-        entity = self.request.query_params.get('entity')
-        user_id = self.request.query_params.get('user')
-        search = self.request.query_params.get('search')
-        dari = self.request.query_params.get('dari')
-        sampai = self.request.query_params.get('sampai')
-        limit = self.request.query_params.get('limit')
-
-        if action_name:
-            qs = qs.filter(action=action_name)
-        if entity:
-            qs = qs.filter(entity_type=entity)
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        if search:
-            qs = qs.filter(
-                Q(description__icontains=search)
-                | Q(user__username__icontains=search)
-                | Q(entity_type__icontains=search)
-                | Q(entity_display__icontains=search)
-            )
-        if dari:
-            qs = qs.filter(created_at__date__gte=dari)
-        if sampai:
-            qs = qs.filter(created_at__date__lte=sampai)
-        if limit and str(limit).isdigit():
-            qs = qs[:min(int(limit), 100)]
-        return qs
-
-    def list(self, request, *args, **kwargs):
-        if not can_view_audit(request.user):
-            return Response({'error': 'Akses audit log ditolak.'}, status=403)
-        return super().list(request, *args, **kwargs)
-
-
-# ══════════════════════════════════════════════════════════════
-# AKUN
-# ══════════════════════════════════════════════════════════════
-
 class AkunViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Akun.objects.filter(is_active=True)
     serializer_class   = AkunSerializer
     permission_classes = [IsManajerOrAbovePermission]
-
-
-# ══════════════════════════════════════════════════════════════
-# PELANGGAN & PEMASOK
-# ══════════════════════════════════════════════════════════════
 
 class PelangganViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Pelanggan.objects.all()
@@ -1208,7 +1064,6 @@ class PelangganViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if tipe:   qs = qs.filter(tipe=tipe)
         return qs
 
-
 class PemasokViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Pemasok.objects.all()
     serializer_class   = PemasokSerializer
@@ -1221,11 +1076,6 @@ class PemasokViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if search: qs = qs.filter(nama__icontains=search) | qs.filter(kode__icontains=search)
         if tipe:   qs = qs.filter(tipe=tipe)
         return qs
-
-
-# ══════════════════════════════════════════════════════════════
-# JURNAL
-# ══════════════════════════════════════════════════════════════
 
 class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Jurnal.objects.prefetch_related('items__akun').select_related('created_by').all()
@@ -1254,11 +1104,6 @@ class JurnalViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         jurnal.status = 'draft'
         jurnal.save()
         return Response({'message': 'Jurnal dikembalikan ke draft.'})
-
-
-# ══════════════════════════════════════════════════════════════
-# TRANSAKSI
-# ══════════════════════════════════════════════════════════════
 
 class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Transaksi.objects.select_related('akun', 'created_by').all()
@@ -1364,11 +1209,6 @@ class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'tidak_diklasifikasi': {'per_akun': tidak_per_akun, 'total_masuk': total_tidak_masuk, 'total_keluar': total_tidak_keluar, 'total': total_tidak},
             'kas_akhir': {'per_akun': kas_akhir_per_akun, 'total': kas_akhir_total},
         })
-
-
-# ══════════════════════════════════════════════════════════════
-# FAKTUR
-# ══════════════════════════════════════════════════════════════
 
 class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Faktur.objects.select_related('pelanggan', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -1696,8 +1536,6 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         return Response(FakturSerializer(faktur, context={'view': self}).data, status=status.HTTP_200_OK)
 
-
-# ══════════════════════════════════════════════════════════════
 _ROMAN_MONTHS = {
     1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI',
     7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X', 11: 'XI', 12: 'XII',
@@ -1709,29 +1547,24 @@ _ID_MONTHS = {
     9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
 }
 
-
 def _invoice_money(value, decimals=2):
     amount = Decimal(value or 0)
     return f"{amount:,.{decimals}f}"
-
 
 def _invoice_date(value):
     if not value:
         return ''
     return f"{value.day:02d} {_ID_MONTHS[value.month]} {value.year}"
 
-
 def _legacy_invoice_number(faktur):
     tanggal = faktur.tanggal or timezone.localdate()
     return f"{faktur.nomor_faktur}/Keu-02/RS-SAMS/{_ROMAN_MONTHS[tanggal.month]}/{tanggal.year}"
-
 
 def _invoice_total_tagihan(faktur):
     if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
         total_real = Decimal(faktur.total_real_rs or 0) or Decimal(faktur.total_tagihan or 0)
         return max(Decimal('0'), total_real - Decimal(str(faktur.tanggungan_bpjs)))
     return Decimal(faktur.total_tagihan or 0)
-
 
 def _invoice_print_amounts(faktur):
     rows = get_invoice_kunjungan_rows(faktur)
@@ -1744,7 +1577,6 @@ def _invoice_print_amounts(faktur):
             total = total_real
         return total, jumlah_bayar
     return _invoice_total_tagihan(faktur), Decimal('0')
-
 
 def _legacy_words(number):
     units = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas']
@@ -1766,7 +1598,6 @@ def _legacy_words(number):
     if number < 1000000000:
         return f"{_legacy_words(number // 1000000)} juta {_legacy_words(number % 1000000)}".strip()
     return f"{_legacy_words(number // 1000000000)} milyar {_legacy_words(number % 1000000000)}".strip()
-
 
 def _invoice_print_rows(faktur, ppn=False):
     farmasi = Decimal(faktur.farmasi or 0)
@@ -1793,7 +1624,6 @@ def _invoice_print_rows(faktur, ppn=False):
     if not ppn and ppn_obat > 0:
         rows.append(('-  PPN OBAT', ppn_obat))
     return rows
-
 
 def _invoice_pembiayaan_name(faktur):
     # Debug: log what we're getting
@@ -1955,7 +1785,7 @@ class InvoicePDF(FPDF):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        
+
 def render_invoice_pdf_response(faktur, mode='invoice'):
     pdf = InvoicePDF()
     pdf.alias_nb_pages()
@@ -2550,11 +2380,9 @@ def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
     response['Content-Disposition'] = f'inline; filename="Rincian_Invoice_PPN_{faktur.nomor_faktur}.pdf"'
     return response
 
-
 def _kwitansi_rupiah(value):
     amount = Decimal(value or 0).quantize(Decimal('1'))
     return f"Rp {int(amount):,}".replace(',', '.') + ",-"
-
 
 def _pdf_wrap_line(pdf, text, max_width):
     words = str(text or '').split()
@@ -2571,7 +2399,6 @@ def _pdf_wrap_line(pdf, text, max_width):
             current = word
     lines.append(current)
     return lines
-
 
 def render_kwitansi_pdf_response(faktur):
     pdf = FPDF('P', 'mm', 'A4')
@@ -2727,7 +2554,6 @@ def render_kwitansi_pdf_response(faktur):
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="Kwitansi_{faktur.nomor_faktur}.pdf"'
     return response
-
 
 def _render_legacy_invoice(faktur, mode):
     """Replicate exact FPDF output from app_siaga print_invoice.php"""
@@ -2940,8 +2766,6 @@ def _render_legacy_invoice(faktur, mode):
 </body>
 </html>"""
 
-
-
 def _render_legacy_rincian(faktur, mode):
     """Replicate exact FPDF rincian output from app_siaga"""
     rows = _invoice_print_rows(faktur, ppn=mode == 'rincian_ppn')
@@ -3077,9 +2901,6 @@ def _render_legacy_rincian(faktur, mode):
 </body>
 </html>"""
 
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def faktur_legacy_print_view(request, pk):
     faktur = get_object_or_404(Faktur.objects.select_related('pelanggan'), pk=pk)
     mode = request.GET.get('mode', 'invoice')
@@ -3101,7 +2922,6 @@ def faktur_legacy_print_view(request, pk):
 
     return HttpResponse(html)
 
-
 def _receipt_display_date(value):
     value = (value or '').strip()
     if not value:
@@ -3111,7 +2931,6 @@ def _receipt_display_date(value):
         return _invoice_date(parsed)
     except ValueError:
         return value
-
 
 def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
     logo_url = "/logo.png"
@@ -3440,9 +3259,6 @@ def _render_tanda_terima_invoice(fakturs, company_name, tanggal):
 """
     return html
 
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def faktur_tanda_terima_print_view(request):
     raw_ids = request.GET.get('ids', '')
     ids = [item.strip() for item in raw_ids.split(',') if item.strip()]
@@ -4065,12 +3881,8 @@ def faktur_rekap_excel_view(request):
     wb.save(response)
     return response
 
-# ALOKASI DANA
-# ══════════════════════════════════════════════════════════════
-
 def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
-
 
 def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
@@ -4100,7 +3912,6 @@ def _build_pending_where(params):
         where.append('t.tgl_faktur <= %s')
         values.append(sampai)
     return ' AND '.join(where), values
-
 
 def _build_pending_where_logistik(params):
     """WHERE builder untuk tabel logistik (tran_beli_brg_log)."""
@@ -4134,7 +3945,6 @@ def _build_pending_where_logistik(params):
         values.append(sampai)
     return ' AND '.join(where), values
 
-
 def _pending_base_sql():
     """FROM clause untuk farmasi — JOIN ke utang_supplier by app_siaga_faktur_id."""
     return """
@@ -4142,7 +3952,6 @@ def _pending_base_sql():
         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
         LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
     """
-
 
 def _pending_base_sql_logistik():
     """FROM clause untuk logistik — JOIN ke utang_supplier by app_siaga_faktur_id."""
@@ -4152,7 +3961,6 @@ def _pending_base_sql_logistik():
         LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
         LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
     """
-
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
     """Fetch 1 baris faktur farmasi dari tran_beli_brg_farmasi."""
@@ -4181,7 +3989,6 @@ def _fetch_app_siaga_faktur(app_siaga_faktur_id):
             return None
         columns = [col[0] for col in cursor.description]
         return dict(zip(columns, row))
-
 
 def _fetch_logistik_pembelian(pembelian_id):
     """Fetch 1 baris dari tran_beli_brg_log + best-effort JOIN rekanan by-nama."""
@@ -4213,7 +4020,6 @@ def _fetch_logistik_pembelian(pembelian_id):
             return None
         columns = [col[0] for col in cursor.description]
         return dict(zip(columns, row))
-
 
 def parse_lenient_date(val):
     if not val:
@@ -4254,7 +4060,6 @@ def parse_lenient_date(val):
     except Exception:
         return None
 
-
 def _clean_vendor_name(name):
     if not name:
         return ''
@@ -4262,7 +4067,6 @@ def _clean_vendor_name(name):
     s = re.sub(r'\b(PT|CV|PD|UD|TB|NV)\b', '', s)
     s = re.sub(r'[^A-Z0-9]', '', s)
     return s
-
 
 class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     serializer_class = UtangSupplierSerializer
@@ -5515,7 +5319,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         wb.save(response)
         return response
 
-
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
     serializer_class = PembayaranUtangSerializer
@@ -5636,6 +5439,117 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
         }, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='edit-tanggal')
+    def edit_tanggal(self, request, pk=None):
+        pembayaran = self.get_object()
+        tanggal_baru = request.data.get('tanggal_realisasi') or request.data.get('tanggal_proses')
+        if not tanggal_baru:
+            return Response({'error': 'Tanggal realisasi baru wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        pembayaran.tanggal_proses = tanggal_baru
+        pembayaran.tanggal_app = tanggal_baru
+        pembayaran.save(update_fields=['tanggal_proses', 'tanggal_app'])
+        
+        utang = pembayaran.utang
+        utang.refresh_status()
+        return Response({
+            'message': f'Tanggal realisasi pembayaran berhasil diperbarui.',
+            'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
+            'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='batal-realisasi')
+    def batal_realisasi(self, request, pk=None):
+        pembayaran = self.get_object()
+        utang = pembayaran.utang
+        jumlah_bayar = pembayaran.jumlah_bayar
+        
+        with transaction.atomic():
+            if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
+                sisa_kembali = pembayaran.potongan_deposit
+                deposits = DepositVendor.objects.filter(vendor_id=utang.vendor_id, terpakai__gt=0).order_by('-created_at')
+                for dep in deposits:
+                    kembali = min(sisa_kembali, dep.terpakai)
+                    dep.terpakai -= kembali
+                    dep.save(update_fields=['terpakai', 'updated_at'])
+                    sisa_kembali -= kembali
+                    if sisa_kembali <= 0:
+                        break
+            
+            pembayaran.status = 'batal'
+            pembayaran.keterangan = f"{pembayaran.keterangan or ''} [DIBATALKAN REALISASI]".strip()
+            pembayaran.save(update_fields=['status', 'keterangan', 'updated_at'])
+            
+            utang.refresh_status()
+            
+        return Response({
+            'message': f'Realisasi pembayaran Rp {jumlah_bayar:,.0f} berhasil dibatalkan dan sisa utang telah dipulihkan.'
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='bulk-realisasi')
+    def bulk_realisasi(self, request):
+        ids = request.data.get('ids', [])
+        if not ids or not isinstance(ids, list):
+            return Response({'error': 'Daftar ID pengajuan pembayaran (ids) wajib dikirim.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        tanggal_realisasi = request.data.get('tanggal_realisasi') or timezone.localdate().isoformat()
+
+        pembayaran_list = list(
+            PembayaranUtang.objects.filter(
+                id__in=ids,
+                status=PembayaranUtang.STATUS_PENDING
+            ).select_related('utang')
+        )
+
+        if not pembayaran_list:
+            return Response({'error': 'Tidak ada pengajuan pembayaran pending yang valid untuk direalisasikan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        realized_count = 0
+        total_nominal = Decimal('0')
+
+        with transaction.atomic():
+            for pembayaran in pembayaran_list:
+                total_realisasi_lainnya = pembayaran.utang.pembayaran.filter(
+                    status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
+                ).exclude(pk=pembayaran.pk).aggregate(total=Sum('jumlah_bayar'))['total'] or Decimal('0')
+                
+                sisa_sebelumnya = pembayaran.utang.nominal - total_realisasi_lainnya
+                
+                if pembayaran.jumlah_bayar >= sisa_sebelumnya:
+                    pembayaran.status = PembayaranUtang.STATUS_REALISASI_LUNAS
+                else:
+                    pembayaran.status = PembayaranUtang.STATUS_REALISASI_SEBAGIAN
+
+                pembayaran.tanggal_proses = tanggal_realisasi
+                if not pembayaran.tanggal_app:
+                    pembayaran.tanggal_app = tanggal_realisasi
+                pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app'])
+
+                if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
+                    sisa_potong = pembayaran.potongan_deposit
+                    active_deposits = DepositVendor.objects.filter(vendor_id=pembayaran.utang.vendor_id).order_by('created_at')
+                    for dep in active_deposits:
+                        sisa_dep = dep.sisa_deposit
+                        if sisa_dep <= 0:
+                            continue
+                        potong_dep = min(sisa_potong, sisa_dep)
+                        dep.terpakai += potong_dep
+                        dep.save(update_fields=['terpakai', 'updated_at'])
+                        sisa_potong -= potong_dep
+                        if sisa_potong <= 0:
+                            break
+
+                utang = pembayaran.utang
+                utang.refresh_status()
+                realized_count += 1
+                total_nominal += pembayaran.jumlah_bayar
+
+        return Response({
+            'message': f'Berhasil merealisasikan {realized_count} pengajuan pembayaran sekaligus.',
+            'realized_count': realized_count,
+            'total_nominal': float(total_nominal)
+        }, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=['get'], url_path='export-excel')
     def export_excel(self, request):
         from itertools import groupby
@@ -5711,13 +5625,22 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 sumber_label = utang.get_sumber_display() if utang else '-'
                 operator = item.created_by.username if item.created_by else '-'
 
+                clean_ket = item.keterangan or ''
+                if utang and utang.vendor_nama:
+                    v_name = utang.vendor_nama.strip()
+                    if v_name:
+                        clean_ket = clean_ket.replace(f"({v_name})", "").replace(f"({v_name.upper()})", "").replace(f"({v_name.lower()})", "")
+                clean_ket = re.sub(r'\s*\([^)]+\)\s*(?=Faktur|\b)', ' ', clean_ket, flags=re.IGNORECASE)
+                clean_ket = re.sub(r'\bFaktur\s+', '', clean_ket, flags=re.IGNORECASE)
+                clean_ket = re.sub(r'\s+', ' ', clean_ket).strip()
+
                 ws.append([
                     global_index,
                     sumber_label,
                     utang.vendor_nama if utang else '-',
                     umur_utang_str,
                     float(jumlah),
-                    item.keterangan or '',
+                    clean_ket,
                     operator,
                 ])
                 global_index += 1
@@ -5808,7 +5731,6 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 item['running_total_dibayar'] = prior_cache[utang_id] + running[utang_id]
                 item['running_sisa_utang'] = max(Decimal(str(item.get('nominal') or 0)) - item['running_total_dibayar'], Decimal('0'))
         return response
-
 
 class UtangMenungguVerifikasiView(APIView):
     permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
@@ -6059,14 +5981,12 @@ class UtangMenungguVerifikasiView(APIView):
 
         return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
-
 def _normalize_vendor_name_key(name):
     if not name:
         return ""
     s = str(name).upper().strip()
     s = re.sub(r'\b(PT|CV|UD|PD|NV|TBK)\b', '', s)
     return re.sub(r'[^A-Z0-9]', '', s)
-
 
 class UtangPelunasanDataLamaView(APIView):
     permission_classes = [IsAuthenticated]
@@ -6271,7 +6191,6 @@ class UtangPelunasanDataLamaView(APIView):
             'message': f'Berhasil membatalkan (Undo) pelunasan {count} faktur sisa data lama. Data dikembalikan ke status Menunggu Verifikasi.'
         })
 
-
 class UtangVendorOptionsView(APIView):
     permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
 
@@ -6288,7 +6207,6 @@ class UtangVendorOptionsView(APIView):
             )
             columns = [col[0] for col in cursor.description]
             return Response([dict(zip(columns, row)) for row in cursor.fetchall()])
-
 
 class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = AlokasiDana.objects.select_related('created_by').prefetch_related('pembayaran__faktur', 'pembayaran__created_by').all()
@@ -6315,11 +6233,6 @@ class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if instance.digunakan > 0:
             return Response({'error': 'Alokasi yang sudah dipakai tidak bisa dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
         return super().destroy(request, *args, **kwargs)
-
-
-# ══════════════════════════════════════════════════════════════
-# TAGIHAN
-# ══════════════════════════════════════════════════════════════
 
 class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Tagihan.objects.select_related('pemasok', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
@@ -6386,11 +6299,6 @@ class TagihanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         tagihan.save()
         return Response({'message': 'Tagihan berhasil dibatalkan.'})
 
-
-# ══════════════════════════════════════════════════════════════
-# REKENING BANK
-# ══════════════════════════════════════════════════════════════
-
 class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = RekeningBank.objects.prefetch_related('riwayat__updated_by').select_related('updated_by').all()
     permission_classes = [IsManajerOrAbovePermission]
@@ -6429,11 +6337,6 @@ class RekeningBankViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 keterangan=keterangan, updated_by=request.user,
             )
         return Response(RekeningBankSerializer(rekening, context={'request': request}).data)
-
-
-# ══════════════════════════════════════════════════════════════
-# PETTY CASH
-# ══════════════════════════════════════════════════════════════
 
 class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -6645,11 +6548,6 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 return Response({'error': 'Hanya pengajuan pending yang dapat dihapus.'}, status=400)
         return super().destroy(request, *args, **kwargs)
 
-
-# ══════════════════════════════════════════════════════════════
-# REIMBURSEMENT
-# ══════════════════════════════════════════════════════════════
-
 class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
@@ -6769,8 +6667,7 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 def get_or_create_saldo():
     saldo, _ = SaldoPettyCash.objects.get_or_create(pk=1, defaults={'saldo': 0})
     return saldo
- 
- 
+
 class SaldoPettyCashViewSet(viewsets.ViewSet):
     permission_classes = [IsPettyCashSaldoPermission]
  
@@ -6784,8 +6681,7 @@ class SaldoPettyCashViewSet(viewsets.ViewSet):
             'saldo': SaldoPettyCashSerializer(saldo).data,
             'riwayat': RiwayatSaldoPettyCashSerializer(riwayat, many=True).data,
         })
- 
- 
+
 class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsManajerOrAbovePermission]
  
@@ -7043,581 +6939,16 @@ class LaporanPettyCashView(APIView):
             'grafik':           grafik,
             'rekap_mutasi':     rekap_mutasi,
         })
-    
-# driver
 
 def is_driver(user):
     return user.is_authenticated and getattr(user, 'is_driver', False)
- 
+
 def is_admin_driver(user):
     """Yang bisa lihat semua data driver dan kelola kendaraan"""
     return user.role in ('direktur', 'wakil_direktur', 'manajer') or user.is_superuser
 
 def has_driver_access(user):
     return is_driver(user) or is_admin_driver(user)
- 
- 
-class KendaraanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    queryset           = Kendaraan.objects.all()
-    serializer_class   = KendaraanSerializer
-    permission_classes = [IsAuthenticated]
- 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        if not has_driver_access(self.request.user):
-            return qs.none()
-        # Driver hanya lihat kendaraan aktif
-        if is_driver(self.request.user):
-            qs = qs.filter(is_active=True)
-        aktif = self.request.query_params.get('aktif')
-        if aktif == '1':
-            qs = qs.filter(is_active=True)
-        return qs
- 
-    def create(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat menambah kendaraan.'}, status=403)
-        return super().create(request, *args, **kwargs)
- 
-    def update(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat mengubah log.'}, status=403)
-        return super().update(request, *args, **kwargs)
- 
-    def destroy(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat menghapus log.'}, status=403)
-        return super().destroy(request, *args, **kwargs)
- 
- 
-class LogPerjalananViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    parser_classes     = [MultiPartParser, FormParser, JSONParser]
- 
-    def get_serializer_class(self):
-        if self.action == 'laporan':
-            return LaporanPerjalananInputSerializer
-        elif self.action == 'detail_laporan':
-            return LaporanPerjalananSerializer
-        elif self.action in ['create', 'update', 'partial_update']:
-            return LogPerjalananInputSerializer
-        return LogPerjalananSerializer
- 
-    def get_serializer_context(self):
-        return {'request': self.request}
- 
-    def get_queryset(self):
-        qs = LogPerjalanan.objects.select_related('driver', 'kendaraan', 'disetujui_oleh').prefetch_related('laporan').all()
-        if not has_driver_access(self.request.user):
-            return qs.none()
-        if not is_admin_driver(self.request.user):
-            qs = qs.filter(driver=self.request.user)
-        # Optional filters
-        kendaraan = self.request.query_params.get('kendaraan')
-        driver_id = self.request.query_params.get('driver')
-        status = self.request.query_params.get('status')
-        dari      = self.request.query_params.get('dari')
-        sampai    = self.request.query_params.get('sampai')
-        if kendaraan: qs = qs.filter(kendaraan_id=kendaraan)
-        if driver_id: qs = qs.filter(driver_id=driver_id)
-        if status: qs = qs.filter(status=status)
-        if dari:      qs = qs.filter(tanggal__gte=dari)
-        if sampai:    qs = qs.filter(tanggal__lte=sampai)
-        return qs
- 
-    def perform_create(self, serializer):
-        if not has_driver_access(self.request.user):
-            raise PermissionDenied('Anda tidak memiliki akses fitur driver.')
-        serializer.save(driver=self.request.user)
- 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        # Driver hanya bisa edit milik sendiri & status pending
-        if not is_admin_driver(request.user):
-            if instance.driver != request.user or instance.status != 'pending':
-                return Response({'error': 'Tidak dapat mengubah log ini.'}, status=403)
-        return super().update(request, *args, **kwargs)
- 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        # Permission check:
-        # - Admin: bisa delete semua status
-        # - Driver: hanya bisa delete status 'pending' milik sendiri
-        if is_admin_driver(request.user):
-            # Admin bisa delete semua status
-            pass
-        else:
-            # Driver/User biasa: hanya bisa delete status pending milik sendiri
-            if instance.driver != request.user or instance.status != 'pending':
-                return Response({'error': 'Anda hanya dapat menghapus log perjalanan status pending milik sendiri.'}, status=403)
-        return super().destroy(request, *args, **kwargs)
-
-    # POST /{id}/approval/ — manajer/direktur setujui atau tolak
-    @action(detail=True, methods=['post'], url_path='approval')
-    def approval(self, request, pk=None):
-        if not is_direktur_or_wadir(request.user):
-            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat memproses approval.'}, status=403)
-        instance = self.get_object()
-        if instance.status != 'pending':
-            return Response({'error': 'Hanya laporan berstatus pending yang dapat diproses.'}, status=400)
-        aksi   = request.data.get('aksi')
-        catatan = request.data.get('catatan_tolak', '')
-        if aksi not in ('setujui', 'tolak'):
-            return Response({'error': 'aksi harus setujui atau tolak.'}, status=400)
-        if aksi == 'setujui':
-            instance.status         = 'disetujui'
-            instance.disetujui_oleh = request.user
-            instance.catatan_tolak  = ''
-        else:
-            if not catatan:
-                return Response({'error': 'Catatan tolak wajib diisi.'}, status=400)
-            instance.status       = 'ditolak'
-            instance.catatan_tolak = catatan
-        instance.save()
-        return Response({'message': f'Laporan berhasil {"disetujui" if aksi == "setujui" else "ditolak"}.', 'status': instance.status}, status=200)
-
-    # POST /{id}/laporan/ — driver submit laporan dengan foto
-    @action(detail=True, methods=['post'], url_path='laporan')
-    def laporan(self, request, pk=None):
-        instance = self.get_object()
-        
-        # Check permission - driver hanya bisa submit laporan milik sendiri, admin bisa submit untuk semua
-        if not is_admin_driver(request.user):
-            if instance.driver != request.user:
-                return Response({'error': 'Anda hanya dapat submit laporan log milik sendiri.'}, status=403)
-        
-        # Check status
-        if instance.status != 'disetujui':
-            return Response({'error': 'Hanya log yang sudah disetujui yang dapat dilaporkan.'}, status=400)
-        
-        # Check if laporan sudah pernah di-submit
-        if hasattr(instance, 'laporan') and instance.laporan:
-            return Response({'error': 'Laporan sudah pernah disubmit untuk log perjalanan ini.'}, status=400)
-        
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response({'error': 'Data tidak valid.', 'details': serializer.errors}, status=400)
-        
-        try:
-            # Create laporan
-            laporan = serializer.save(log_perjalanan=instance)
-            
-            # Update km_akhir dan hitung jarak otomatis
-            km_akhir = request.data.get('km_akhir')
-            if km_akhir:
-                try:
-                    instance.km_akhir = int(float(km_akhir))
-                except (ValueError, TypeError):
-                    return Response({'error': 'KM Akhir harus berupa angka yang valid.'}, status=400)
-                if instance.km_akhir < instance.km_awal:
-                    return Response({'error': 'KM akhir tidak boleh lebih kecil dari KM awal.'}, status=400)
-            
-            # Update status Log Perjalanan to dilaporkan
-            instance.status = 'dilaporkan'
-            instance.save()
-            
-            return Response({
-                'message': 'Laporan berhasil disubmit.',
-                'data': LogPerjalananSerializer(instance, context={'request': request}).data,
-                'status': instance.status
-            }, status=201)
-        except Exception as e:
-            return Response({'error': f'Gagal menyimpan laporan: {str(e)}'}, status=400)
-
-    # POST /{id}/selesaikan/ — tandai sebagai selesai (setelah laporan submitted)
-    @action(detail=True, methods=['post'], url_path='selesaikan')
-    def selesaikan(self, request, pk=None):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat menyelesaikan laporan.'}, status=403)
-        instance = self.get_object()
-        if instance.status != 'dilaporkan':
-            return Response({'error': 'Hanya log yang sudah dilaporkan yang dapat diselesaikan.'}, status=400)
-        instance.status = 'selesai'
-        instance.save()
-        return Response({'message': 'Laporan berhasil diselesaikan.', 'status': instance.status})
- 
- 
- 
-class LogBBMViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    parser_classes     = [MultiPartParser, FormParser, JSONParser]
- 
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return LogBBMInputSerializer
-        return LogBBMSerializer
- 
-    def get_serializer_context(self):
-        return {'request': self.request}
- 
-    def get_queryset(self):
-        qs = LogBBM.objects.select_related('driver', 'kendaraan').all()
-        if not has_driver_access(self.request.user):
-            return qs.none()
-        if not is_admin_driver(self.request.user):
-            qs = qs.filter(driver=self.request.user)
-        # Optional filters
-        kendaraan = self.request.query_params.get('kendaraan')
-        driver_id = self.request.query_params.get('driver')
-        dari      = self.request.query_params.get('dari')
-        sampai    = self.request.query_params.get('sampai')
-        if kendaraan: qs = qs.filter(kendaraan_id=kendaraan)
-        if driver_id: qs = qs.filter(driver_id=driver_id)
-        if dari:      qs = qs.filter(tanggal__gte=dari)
-        if sampai:    qs = qs.filter(tanggal__lte=sampai)
-        return qs
- 
-    def perform_create(self, serializer):
-        if not has_driver_access(self.request.user):
-            raise PermissionDenied('Anda tidak memiliki akses fitur driver.')
-        serializer.save(driver=self.request.user)
-
-    def update(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat mengubah log.'}, status=403)
-        return super().update(request, *args, **kwargs)
-    
-    def destroy(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat menghapus log.'}, status=403)
-        return super().destroy(request, *args, **kwargs)
- 
- 
-class LogMaintenanceViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    parser_classes     = [MultiPartParser, FormParser, JSONParser]
-
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return LogMaintenanceInputSerializer
-        return LogMaintenanceSerializer
-
-    def get_queryset(self):
-        qs = LogMaintenance.objects.select_related('kendaraan', 'dilaporkan_oleh').all()
-        if not has_driver_access(self.request.user):
-            return qs.none()
-        if not is_admin_driver(self.request.user):
-            qs = qs.filter(dilaporkan_oleh=self.request.user)
-        kendaraan = self.request.query_params.get('kendaraan')
-        dari      = self.request.query_params.get('dari')
-        sampai    = self.request.query_params.get('sampai')
-        if kendaraan: qs = qs.filter(kendaraan_id=kendaraan)
-        if dari:      qs = qs.filter(tanggal__gte=dari)
-        if sampai:    qs = qs.filter(tanggal__lte=sampai)
-        return qs
-
-    def perform_create(self, serializer):
-        if not has_driver_access(self.request.user):
-            raise PermissionDenied('Anda tidak memiliki akses fitur driver.')
-        serializer.save(dilaporkan_oleh=self.request.user)
-
-    def update(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat mengubah log.'}, status=403)
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        if not is_admin_driver(request.user):
-            return Response({'error': 'Hanya admin yang dapat menghapus log.'}, status=403)
-        return super().destroy(request, *args, **kwargs)
- 
- 
-# ── Rekap bulanan ──────────────────────────────────────────
-class ITBaseViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsITPermission]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-
-
-class ITBackupRecordViewSet(ITBaseViewSet):
-    serializer_class = ITBackupRecordSerializer
-
-    def get_queryset(self):
-        qs = ITBackupRecord.objects.select_related('created_by').all()
-        status_param = self.request.query_params.get('status')
-        backup_type = self.request.query_params.get('backup_type')
-        search = self.request.query_params.get('search')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        if backup_type:
-            qs = qs.filter(backup_type=backup_type)
-        if search:
-            qs = qs.filter(
-                Q(file_name__icontains=search)
-                | Q(storage_path__icontains=search)
-                | Q(notes__icontains=search)
-            )
-        return qs
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.get_queryset()
-        latest = qs.order_by('-created_at').first()
-        return Response({
-            'total': qs.count(),
-            'success': qs.filter(status__in=['success', 'verified']).count(),
-            'failed': qs.filter(status='failed').count(),
-            'scheduled': qs.filter(status='scheduled').count(),
-            'latest': ITBackupRecordSerializer(latest).data if latest else None,
-        })
-
-
-class ITRepairRequestViewSet(ITBaseViewSet):
-    serializer_class = ITRepairRequestSerializer
-
-    def get_serializer_context(self):
-        return {'request': self.request}
-
-    def get_queryset(self):
-        qs = ITRepairRequest.objects.select_related('created_by', 'requester_user', 'requester_user__unit').all()
-        status_param = self.request.query_params.get('status')
-        priority = self.request.query_params.get('priority')
-        category = self.request.query_params.get('category')
-        search = self.request.query_params.get('search')
-        dari = self.request.query_params.get('dari')
-        sampai = self.request.query_params.get('sampai')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        if priority:
-            qs = qs.filter(priority=priority)
-        if category:
-            qs = qs.filter(category=category)
-        if dari:
-            qs = qs.filter(requested_at__date__gte=dari)
-        if sampai:
-            qs = qs.filter(requested_at__date__lte=sampai)
-        if search:
-            qs = qs.filter(
-                Q(title__icontains=search)
-                | Q(requester_name__icontains=search)
-                | Q(unit__icontains=search)
-                | Q(description__icontains=search)
-                | Q(resolution__icontains=search)
-                | Q(sparepart__icontains=search)
-            )
-        return qs
-
-    def perform_update(self, serializer):
-        instance = self.get_object()
-        status_param = serializer.validated_data.get('status', instance.status)
-        completed_at = serializer.validated_data.get('completed_at', instance.completed_at)
-        if status_param == 'done' and not completed_at:
-            serializer.save(completed_at=timezone.now())
-        elif status_param != 'done':
-            serializer.save(completed_at=None)
-        else:
-            serializer.save()
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.get_queryset()
-        return Response({
-            'total': qs.count(),
-            'open': qs.filter(status='open').count(),
-            'in_progress': qs.filter(status='in_progress').count(),
-            'urgent': qs.exclude(status__in=['done', 'cancelled']).filter(priority='urgent').count(),
-            'done': qs.filter(status='done').count(),
-        })
-
-    @action(detail=True, methods=['post'], url_path='selesai')
-    def selesai(self, request, pk=None):
-        instance = self.get_object()
-        completed_at = request.data.get('completed_at') or timezone.now()
-        serializer = self.get_serializer(instance, data={
-            'status': 'done',
-            'completed_at': completed_at,
-            'resolution': request.data.get('resolution', instance.resolution),
-            'sparepart': request.data.get('sparepart', instance.sparepart),
-            'cost': request.data.get('cost', instance.cost),
-        }, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'message': 'Catatan perbaikan ditandai selesai.', 'data': serializer.data})
-
-
-class ITCredentialNoteViewSet(ITBaseViewSet):
-    def get_serializer_class(self):
-        if self.action in ['retrieve', 'reveal']:
-            return ITCredentialNoteDetailSerializer
-        return ITCredentialNoteSerializer
-
-    def get_queryset(self):
-        qs = ITCredentialNote.objects.select_related('created_by').all()
-        category = self.request.query_params.get('category')
-        active = self.request.query_params.get('active')
-        search = self.request.query_params.get('search')
-        if category:
-            qs = qs.filter(category=category)
-        if active in ('true', 'false'):
-            qs = qs.filter(is_active=(active == 'true'))
-        if search:
-            qs = qs.filter(
-                Q(name__icontains=search)
-                | Q(url__icontains=search)
-                | Q(username__icontains=search)
-                | Q(owner__icontains=search)
-                | Q(notes__icontains=search)
-            )
-        return qs
-
-    @action(detail=True, methods=['get'], url_path='reveal')
-    def reveal(self, request, pk=None):
-        return Response(self.get_serializer(self.get_object()).data)
-
-
-class ITRemoteAccessViewSet(ITBaseViewSet):
-    def get_serializer_class(self):
-        if self.action in ['retrieve', 'reveal']:
-            return ITRemoteAccessDetailSerializer
-        return ITRemoteAccessSerializer
-
-    def get_queryset(self):
-        qs = ITRemoteAccess.objects.select_related('created_by').all()
-        status_param = self.request.query_params.get('status')
-        search = self.request.query_params.get('search')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        if search:
-            qs = qs.filter(
-                Q(device_name__icontains=search)
-                | Q(user_owner__icontains=search)
-                | Q(unit__icontains=search)
-                | Q(location__icontains=search)
-                | Q(anydesk_id__icontains=search)
-                | Q(rustdesk_id__icontains=search)
-                | Q(notes__icontains=search)
-            )
-        return qs
-
-    @action(detail=True, methods=['get'], url_path='reveal')
-    def reveal(self, request, pk=None):
-        return Response(self.get_serializer(self.get_object()).data)
-
-
-class ITSubscriptionViewSet(ITBaseViewSet):
-    serializer_class = ITSubscriptionSerializer
-
-    def get_queryset(self):
-        qs = ITSubscription.objects.select_related('created_by').all()
-        status_param = self.request.query_params.get('status')
-        service_type = self.request.query_params.get('service_type')
-        search = self.request.query_params.get('search')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        if service_type:
-            qs = qs.filter(service_type=service_type)
-        if search:
-            qs = qs.filter(
-                Q(name__icontains=search)
-                | Q(vendor__icontains=search)
-                | Q(account_ref__icontains=search)
-                | Q(pic__icontains=search)
-                | Q(url__icontains=search)
-                | Q(notes__icontains=search)
-            )
-        return qs
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.get_queryset()
-        today = timezone.localdate()
-        soon = today + timezone.timedelta(days=30)
-        return Response({
-            'total': qs.count(),
-            'active': qs.filter(status='active').count(),
-            'expiring': qs.exclude(status__in=['expired', 'cancelled']).filter(end_date__gte=today, end_date__lte=soon).count(),
-            'expired': qs.filter(Q(status='expired') | Q(end_date__lt=today)).count(),
-            'yearly_cost': float(qs.exclude(status='cancelled').aggregate(t=Sum('cost'))['t'] or 0),
-        })
-
-
-class InventoryOptionViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    serializer_class = InventoryOptionSerializer
-    permission_classes = [IsAuthenticated, IsInventoryPermission]
-
-    def get_queryset(self):
-        qs = InventoryOption.objects.all()
-        option_type = self.request.query_params.get('option_type')
-        active = self.request.query_params.get('active')
-        search = self.request.query_params.get('search')
-        if option_type:
-            qs = qs.filter(option_type=option_type)
-        if active in ('true', 'false'):
-            qs = qs.filter(is_active=(active == 'true'))
-        if search:
-            qs = qs.filter(name__icontains=search)
-        return qs
-
-    def destroy(self, request, *args, **kwargs):
-        try:
-            return super().destroy(request, *args, **kwargs)
-        except ProtectedError:
-            return Response({'error': 'Dropdown tidak bisa dihapus karena sudah dipakai aset.'}, status=400)
-
-
-class InventoryAssetViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    serializer_class = InventoryAssetSerializer
-    permission_classes = [IsAuthenticated, IsInventoryPermission]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_serializer_context(self):
-        return {'request': self.request}
-
-    def get_queryset(self):
-        qs = InventoryAsset.objects.select_related(
-            'unit', 'category', 'condition_status', 'ownership_status', 'created_by'
-        ).all()
-        unit = self.request.query_params.get('unit')
-        category = self.request.query_params.get('category')
-        condition = self.request.query_params.get('condition_status')
-        ownership = self.request.query_params.get('ownership_status')
-        search = self.request.query_params.get('search')
-        year = self.request.query_params.get('purchase_year')
-        if unit:
-            qs = qs.filter(unit_id=unit)
-        if category:
-            qs = qs.filter(category_id=category)
-        if condition:
-            qs = qs.filter(condition_status_id=condition)
-        if ownership:
-            qs = qs.filter(ownership_status_id=ownership)
-        if year:
-            qs = qs.filter(purchase_year=year)
-        if search:
-            qs = qs.filter(
-                Q(description__icontains=search)
-                | Q(brand__icontains=search)
-                | Q(location__icontains=search)
-                | Q(recommended_action__icontains=search)
-                | Q(unit__name__icontains=search)
-                | Q(category__name__icontains=search)
-            )
-        return qs
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        qs = self.get_queryset()
-        total_value = qs.aggregate(total=Sum('purchase_price'))['total'] or 0
-        by_condition = qs.values('condition_status__name').annotate(total=Count('id')).order_by('-total')
-        by_category = qs.values('category__name').annotate(total=Count('id')).order_by('-total')[:8]
-        return Response({
-            'total': qs.count(),
-            'total_value': float(total_value),
-            'by_condition': [
-                {'name': item['condition_status__name'] or 'Tanpa status', 'total': item['total']}
-                for item in by_condition
-            ],
-            'by_category': [
-                {'name': item['category__name'] or 'Tanpa kategori', 'total': item['total']}
-                for item in by_category
-            ],
-        })
-
 
 def legacy_fetchall(sql, params=None):
     with connection.cursor() as cursor:
@@ -7625,11 +6956,9 @@ def legacy_fetchall(sql, params=None):
         cols = [col[0] for col in cursor.description]
         return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
-
 def legacy_fetchone(sql, params=None):
     rows = legacy_fetchall(sql, params)
     return rows[0] if rows else None
-
 
 def legacy_paginated(request, base_sql, count_sql, params=None):
     page = int(request.query_params.get('page') or 1)
@@ -7639,9 +6968,7 @@ def legacy_paginated(request, base_sql, count_sql, params=None):
     rows = legacy_fetchall(f'{base_sql} LIMIT %s OFFSET %s', [*(params or []), page_size, offset])
     return Response({'count': count, 'results': rows})
 
-
 _rekanan_columns_cache = None
-
 
 def _get_rekanan_columns():
     global _rekanan_columns_cache
@@ -7679,1044 +7006,7 @@ def _get_rekanan_columns():
     _rekanan_columns_cache = cols
     return _rekanan_columns_cache
 
-
 _dafbrg_log_columns_cache = None
-
-
-def _get_dafbrg_log_columns():
-    global _dafbrg_log_columns_cache
-    if _dafbrg_log_columns_cache is not None:
-        return _dafbrg_log_columns_cache
-
-    cols = set()
-    table_name = "rssams.dafbrg_log"
-    with connection.cursor() as cursor:
-        try:
-            cursor.execute("SHOW COLUMNS FROM rssams.dafbrg_log")
-            cols = {row[0].lower() for row in cursor.fetchall()}
-        except Exception:
-            try:
-                cursor.execute("SHOW COLUMNS FROM dafbrg_log")
-                cols = {row[0].lower() for row in cursor.fetchall()}
-                table_name = "dafbrg_log"
-            except Exception:
-                pass
-
-        if cols:
-            if 'kode_material' not in cols:
-                try:
-                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN kode_material VARCHAR(50) DEFAULT ''")
-                    cols.add('kode_material')
-                except Exception:
-                    pass
-            if 'gol_baru' not in cols:
-                try:
-                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN gol_baru VARCHAR(50) DEFAULT ''")
-                    cols.add('gol_baru')
-                except Exception:
-                    pass
-            if 'stock_buffer' not in cols:
-                try:
-                    cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN stock_buffer INT DEFAULT 0")
-                    cols.add('stock_buffer')
-                except Exception:
-                    pass
-
-    _dafbrg_log_columns_cache = cols
-    return _dafbrg_log_columns_cache
-
-
-def legacy_stock(id_brg):
-    row = legacy_fetchone(
-        """
-        SELECT
-            COALESCE((SELECT SUM(qty * isi) FROM rssams.item_logistik WHERE id_brg = %s), 0)
-            - COALESCE((SELECT SUM(qty) FROM rssams.item_out_log WHERE id_brg = %s), 0) AS stock
-        """,
-        [id_brg, id_brg],
-    )
-    stock = row['stock'] or 0
-    with connection.cursor() as cursor:
-        cursor.execute('UPDATE rssams.dafbrg_log SET stock = %s WHERE id_brg = %s', [stock, id_brg])
-    return stock
-
-
-def legacy_next_logistik_id(width=4, where_prefix=True):
-    prefix = timezone.localdate().strftime('%y')
-    where = 'WHERE LEFT(id,2) = %s' if where_prefix else ''
-    q1 = f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) AS max_id FROM rssams.tran_beli_brg_log {where}"
-    q2 = f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) AS max_id FROM rssams.logistik_spb {where}"
-    
-    r1 = legacy_fetchone(q1, [prefix] if where_prefix else [])
-    r2 = legacy_fetchone(q2, [prefix] if where_prefix else [])
-    
-    max_id = max(int(r1['max_id'] if r1 else 0), int(r2['max_id'] if r2 else 0)) + 1
-    return f"{prefix}{max_id:0{width}d}"
-
-
-def legacy_next_year_id(table, width=4, where_prefix=True):
-    prefix = timezone.localdate().strftime('%y')
-    where = 'WHERE LEFT(id,2) = %s' if where_prefix else ''
-    row = legacy_fetchone(
-        f"SELECT COALESCE(MAX(CAST(SUBSTR(id,3,{width}) AS UNSIGNED)), 0) + 1 AS next_id FROM rssams.{table} {where}",
-        [prefix] if where_prefix else [],
-    )
-    return f"{prefix}{int(row['next_id']):0{width}d}"
-
-
-def legacy_next_item_out_id(master_id):
-    row = legacy_fetchone(
-        "SELECT COALESCE(MAX(CAST(SUBSTR(id,8,3) AS UNSIGNED)), 0) + 1 AS next_id FROM rssams.item_out_log WHERE LEFT(id,6) = %s",
-        [master_id],
-    )
-    return f"{master_id}-{int(row['next_id'])}"
-
-
-class LogistikBarangViewSet(viewsets.ViewSet):
-    serializer_class = LogistikBarangSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        minimum = request.query_params.get('minimum')
-        positive_only = str(request.query_params.get('positive_only') or '').lower() in ('1', 'true', 'yes')
-        golongan_filter = request.query_params.get('golongan') or ''
-        show_all = str(request.query_params.get('show_all') or '').lower() in ('1', 'true', 'yes')
-        where = ["del = 'N'"]
-        params = []
-        if search:
-            where.append('(nama_barang LIKE %s OR merk LIKE %s OR kode_material LIKE %s)')
-            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
-        if golongan_filter:
-            where.append('(gol_baru = %s OR id_gol = %s)')
-            params.extend([golongan_filter, golongan_filter])
-        if minimum == 'true':
-            where.append('stock_buffer > 0 AND stock < stock_buffer')
-        elif positive_only:
-            where.append('stock > 0')
-        where_sql = ' AND '.join(where)
-        base = f"""
-            SELECT id_brg AS id, id_brg, kode_material, nama_barang, kemasan, satuan, isi, merk,
-                COALESCE(NULLIF(gol_baru, ''), CAST(id_gol AS CHAR)) AS golongan, gol_baru,
-                stock AS stok, stock_buffer AS stok_minimum,
-                del = 'N' AS is_active,
-                stock_buffer > 0 AND stock < stock_buffer AS stok_minimum_alert
-            FROM rssams.dafbrg_log
-            WHERE {where_sql}
-            ORDER BY nama_barang
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.dafbrg_log WHERE {where_sql}"
-        return legacy_paginated(request, base, count, params)
-
-    @action(detail=False, methods=['get'], url_path='generate-kode')
-    def generate_kode(self, request):
-        golongan = (request.query_params.get('golongan') or '').strip()
-        prefix = 'B8'
-        match = re.search(r'([A-Za-z]\d+)', golongan)
-        if match:
-            prefix = match.group(1).upper()
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT kode_material FROM rssams.dafbrg_log WHERE kode_material LIKE %s",
-                [f'{prefix}%']
-            )
-            rows = cursor.fetchall()
-        
-        max_num = 0
-        for r in rows:
-            code = r[0] or ''
-            num_part = re.sub(r'[^\d]', '', code[len(prefix):]) if code.startswith(prefix) else ''
-            if num_part and num_part.isdigit():
-                max_num = max(max_num, int(num_part))
-
-        next_code = f"{prefix}{max_num + 1:03d}"
-        return Response({'kode_material': next_code, 'prefix': prefix, 'next_num': max_num + 1})
-
-    def create(self, request):
-        data = request.data
-        row = legacy_fetchone('SELECT COALESCE(MAX(id_brg), 0) + 1 AS next_id FROM rssams.dafbrg_log')
-        id_brg = row['next_id']
-        nama_barang = _normalize_logistik_name(data.get('nama_barang', ''))
-        merk = _normalize_logistik_name(data.get('merk'))
-        golongan = (data.get('golongan') or '').strip()
-        kode_material = (data.get('kode_material') or '').strip()
-
-        if not kode_material and golongan:
-            match = re.search(r'([A-Za-z]\d+)', golongan)
-            prefix = match.group(1).upper() if match else 'B8'
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT kode_material FROM rssams.dafbrg_log WHERE kode_material LIKE %s", [f'{prefix}%'])
-                rows = cursor.fetchall()
-            max_num = 0
-            for r in rows:
-                c = r[0] or ''
-                num_part = re.sub(r'[^\d]', '', c[len(prefix):]) if c.startswith(prefix) else ''
-                if num_part and num_part.isdigit():
-                    max_num = max(max_num, int(num_part))
-            kode_material = f"{prefix}{max_num + 1:03d}"
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.dafbrg_log(id_brg, kode_material, nama_barang, kemasan, satuan, isi, merk, id_gol, gol_baru, stock_buffer)
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                [
-                    id_brg,
-                    kode_material or None,
-                    str(nama_barang).upper(),
-                    data.get('kemasan') or '',
-                    data.get('satuan') or '',
-                    data.get('isi') or 1,
-                    str(merk).upper(),
-                    None,
-                    golongan or None,
-                    data.get('stok_minimum') or 0,
-                ],
-            )
-        return Response({'id': id_brg, 'kode_material': kode_material}, status=201)
-
-    def update(self, request, pk=None):
-        data = request.data
-        nama_barang = _normalize_logistik_name(data.get('nama_barang', ''))
-        merk = _normalize_logistik_name(data.get('merk'))
-        golongan = (data.get('golongan') or '').strip()
-        kode_material = (data.get('kode_material') or '').strip()
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE rssams.dafbrg_log
-                SET kode_material = %s,
-                    nama_barang = %s,
-                    kemasan = %s,
-                    satuan = %s,
-                    isi = %s,
-                    merk = %s,
-                    gol_baru = %s,
-                    stock_buffer = %s
-                WHERE id_brg = %s
-                """,
-                [
-                    kode_material or None,
-                    str(nama_barang).upper(),
-                    data.get('kemasan') or '',
-                    data.get('satuan') or '',
-                    data.get('isi') or 1,
-                    str(merk).upper(),
-                    golongan or None,
-                    data.get('stok_minimum') or 0,
-                    pk,
-                ],
-            )
-        return Response({'id': pk, 'kode_material': kode_material}, status=200)
-
-    def partial_update(self, request, pk=None):
-        return self.update(request, pk)
-
-    def destroy(self, request, pk=None):
-        with connection.cursor() as cursor:
-            cursor.execute("UPDATE rssams.dafbrg_log SET del = 'Y' WHERE id_brg = %s", [pk])
-        return Response(status=204)
-
-    @action(detail=False, methods=['get'], url_path='summary')
-    def summary(self, request):
-        row = legacy_fetchone(
-            """
-            SELECT COUNT(*) AS total_barang,
-                COALESCE(SUM(stock), 0) AS total_stok,
-                SUM(CASE WHEN stock_buffer > 0 AND stock < stock_buffer THEN 1 ELSE 0 END) AS stok_minimum,
-                SUM(CASE WHEN del = 'Y' THEN 1 ELSE 0 END) AS nonaktif
-            FROM rssams.dafbrg_log
-            """
-        )
-        return Response(row)
-
-    @action(detail=False, methods=['get'], url_path='ruang-options')
-    def ruang_options(self, request):
-        return Response({
-            'results': legacy_fetchall("SELECT id_ruang AS id, ruangan AS nama FROM rssams.kode_ruang ORDER BY ruangan")
-        })
-
-    @action(detail=True, methods=['get'], url_path='kartu-stok')
-    def kartu_stok(self, request, pk=None):
-        masuk = legacy_fetchall(
-            """
-            SELECT DATE(i.tgl_entri) AS tanggal, 'Masuk' AS jenis, i.id AS nomor, t.rekanan AS ruang,
-                   i.qty * i.isi AS masuk, 0 AS keluar, i.harga AS harga
-            FROM rssams.item_logistik i
-            LEFT JOIN rssams.tran_beli_brg_log t ON t.id = i.id
-            WHERE i.id_brg = %s AND (i.qty * i.isi > 0 OR COALESCE(t.rekanan, '') != 'STOCK OPNAME')
-            """,
-            [pk],
-        )
-        keluar = legacy_fetchall(
-            """
-            SELECT DATE(o.tgl) AS tanggal, 'Keluar' AS jenis, o.id AS nomor, COALESCE(r.ruangan, 'STOCK OPNAME') AS ruang,
-                   0 AS masuk, o.qty AS keluar, o.harga AS harga
-            FROM rssams.item_out_log o
-            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
-            WHERE o.id_brg = %s AND o.qty > 0
-            """,
-            [pk],
-        )
-        rows = sorted(masuk + keluar, key=lambda x: (str(x['tanggal']), str(x['nomor'])))
-        saldo = 0
-        for row in rows:
-            saldo += float(row['masuk'] or 0) - float(row['keluar'] or 0)
-            row['saldo'] = saldo
-        rows.reverse()
-        return Response(rows)
-
-
-class LogistikVendorViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsLogistikOrCatatanUtangPermission]
-
-    def list(self, request):
-        cols = _get_rekanan_columns()
-        has_sumber = 'sumber' in cols
-        has_kategori = 'kategori' in cols
-
-        search = request.query_params.get('search') or ''
-        sumber = (request.query_params.get('sumber') or 'semua').strip().lower()
-        kategori = (request.query_params.get('kategori') or '').strip()
-        where = "WHERE del = 'N'"
-        params = []
-
-        if has_sumber and sumber not in ['semua', 'all', '']:
-            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
-            params.extend([sumber, sumber])
-        if has_kategori and kategori:
-            where += " AND kategori = %s"
-            params.append(kategori)
-
-        if search:
-            search_conds = ['nama LIKE %s', 'alamat LIKE %s', 'telp LIKE %s', 'kc LIKE %s']
-            if has_kategori:
-                search_conds.append('kategori LIKE %s')
-            where += ' AND (' + ' OR '.join(search_conds) + ')'
-            params.extend([f'%{search}%'] * len(search_conds))
-
-        kategori_expr = "COALESCE(kategori, '') AS kategori" if has_kategori else "'' AS kategori"
-        sumber_expr = "COALESCE(sumber, 'farmasi') AS sumber" if has_sumber else "'farmasi' AS sumber"
-
-        base = f"""
-            SELECT id_rekanan AS id, id_rekanan, nama, alamat, telp, kc, {kategori_expr}, {sumber_expr}, del
-            FROM rssams.rekanan
-            {where}
-            ORDER BY nama
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.rekanan {where}"
-        return legacy_paginated(request, base, count, params)
-
-    def create(self, request):
-        cols = _get_rekanan_columns()
-        has_sumber = 'sumber' in cols
-        has_kategori = 'kategori' in cols
-
-        data = request.data
-        row = legacy_fetchone('SELECT COALESCE(MAX(id_rekanan), 0) + 1 AS next_id FROM rssams.rekanan')
-        vendor_id = row['next_id']
-        nama_vendor = _normalize_logistik_name(data.get('nama') or '')
-        sumber = data.get('sumber') or 'logistik'
-
-        insert_cols = ['id_rekanan', 'nama', 'alamat', 'telp', 'kc', 'del']
-        val_placeholders = ['%s', '%s', '%s', '%s', '%s', "'N'"]
-        params = [
-            vendor_id,
-            str(nama_vendor).upper(),
-            data.get('alamat') or '',
-            data.get('telp') or '',
-            data.get('kc') or '',
-        ]
-
-        if has_kategori:
-            insert_cols.append('kategori')
-            val_placeholders.append('%s')
-            params.append(data.get('kategori') or '')
-        if has_sumber:
-            insert_cols.append('sumber')
-            val_placeholders.append('%s')
-            params.append(sumber)
-
-        sql = f"""
-            INSERT INTO rssams.rekanan({', '.join(insert_cols)})
-            VALUES({', '.join(val_placeholders)})
-        """
-        with connection.cursor() as cursor:
-            cursor.execute(sql, params)
-        return Response({'id': vendor_id, 'id_rekanan': vendor_id}, status=201)
-
-    def partial_update(self, request, pk=None):
-        cols = _get_rekanan_columns()
-        has_sumber = 'sumber' in cols
-        has_kategori = 'kategori' in cols
-
-        data = request.data
-        nama_vendor = _normalize_logistik_name(data.get('nama') or '')
-        updates = ['nama = %s', 'alamat = %s', 'telp = %s', 'kc = %s']
-        params = [
-            str(nama_vendor).upper(),
-            data.get('alamat') or '',
-            data.get('telp') or '',
-            data.get('kc') or '',
-        ]
-        if has_kategori and 'kategori' in data:
-            updates.append('kategori = %s')
-            params.append(data.get('kategori') or '')
-        if has_sumber and 'sumber' in data:
-            updates.append('sumber = %s')
-            params.append(data.get('sumber') or 'logistik')
-        params.append(pk)
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"""
-                UPDATE rssams.rekanan
-                SET {', '.join(updates)}
-                WHERE id_rekanan = %s
-                """,
-                params,
-            )
-        return Response({'detail': 'OK'})
-
-    def destroy(self, request, pk=None):
-        with connection.cursor() as cursor:
-            cursor.execute("UPDATE rssams.rekanan SET del = 'Y' WHERE id_rekanan = %s", [pk])
-        return Response(status=204)
-
-    @action(detail=False, methods=['get'], url_path='options')
-    def options(self, request):
-        cols = _get_rekanan_columns()
-        has_sumber = 'sumber' in cols
-
-        sumber = request.query_params.get('sumber') or 'all'
-        where = "WHERE del = 'N'"
-        params = []
-        if has_sumber and sumber != 'all' and sumber != 'semua':
-            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
-            params.extend([sumber, sumber])
-        rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama FROM rssams.rekanan {where} ORDER BY nama", params)
-        return Response({'results': rows})
-
-
-
-class LogistikPembelianViewSet(viewsets.ViewSet):
-    serializer_class = LogistikPembelianSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        where = ''
-        params = []
-        if search:
-            where_sql = "WHERE (t.rekanan LIKE %s OR t.no_spk LIKE %s OR t.id LIKE %s) AND COALESCE(t.rekanan, '') != 'STOCK OPNAME' AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'"
-            params = [f'%{search}%', f'%{search}%', f'%{search}%']
-        else:
-            where_sql = "WHERE COALESCE(t.rekanan, '') != 'STOCK OPNAME' AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'" 
-        base = f"""
-            SELECT t.id, t.id AS nomor, t.tgl_spk AS tanggal, t.rekanan AS pemasok,
-                   t.no_spk AS no_faktur, t.nilai, t.done AS status, t.tgl_entri AS created_at, t.id_spb, t.metode_pembayaran,
-                   CASE
-                     WHEN t.id_spb IS NULL OR t.id_spb = '' THEN 'Tanpa SPB'
-                     WHEN s.id IS NOT NULL THEN 'Ada SPB'
-                     ELSE 'SPB Terhapus'
-                   END AS spb_status_label,
-                   CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END AS has_spb
-            FROM rssams.tran_beli_brg_log t
-            LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
-            {where_sql}
-            ORDER BY t.tgl_spk DESC, t.id DESC
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.tran_beli_brg_log t {where_sql}" 
-        
-        res = legacy_paginated(request, base, count, params)
-        for item in res.data['results']:
-            item['items'] = legacy_fetchall(
-                """
-                SELECT i.id, i.id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
-                       b.satuan, i.qty_pesan, i.qty, i.isi, i.harga, i.jml_mutasi,
-                       i.qty * i.isi - i.jml_mutasi AS stok_batch
-                FROM rssams.item_logistik i
-                INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
-                WHERE i.id = %s
-                ORDER BY b.nama_barang
-                """,
-                [item['id']],
-            )
-        return res
-
-    def create(self, request):
-        data = request.data
-        xid = data.get('id_spb') or legacy_next_logistik_id()
-        vendor_name = data.get('pemasok') or ''
-        if data.get('id_rekanan'):
-            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
-            vendor_name = vendor['nama'] if vendor else vendor_name
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.tran_beli_brg_log(id, rekanan, tgl_spk, no_spk, nilai, id_spb, metode_pembayaran)
-                VALUES(%s, %s, %s, %s, %s, %s, %s)
-                """,
-                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_faktur') or data.get('no_spb') or '', 0, data.get('id_spb'), data.get('metode_pembayaran') or 'Kredit']
-            )
-            
-            if data.get('id_spb'):
-                # Copy items from SPB to Penerimaan
-                cursor.execute(
-                    """
-                    INSERT INTO rssams.item_logistik(id, id_brg, qty, qty_pesan, isi, harga, jml_mutasi)
-                    SELECT %s, id_brg, qty, qty, isi, harga, 0
-                    FROM rssams.logistik_spb_item
-                    WHERE spb_id = %s
-                    """,
-                    [xid, data.get('id_spb')]
-                )
-                _refresh_pembelian_total(xid)
-                # Update SPB status
-                cursor.execute("UPDATE rssams.logistik_spb SET status = 'Selesai' WHERE id = %s", [data.get('id_spb')])
-
-        return Response({'id': xid, 'nomor': xid}, status=201)
-
-    def retrieve(self, request, pk=None):
-        item = legacy_fetchone(
-            """
-            SELECT t.id, t.id AS nomor, t.tgl_spk AS tanggal, t.rekanan AS pemasok,
-                   t.no_spk AS no_faktur, t.nilai, t.done AS status, t.tgl_entri AS created_at, t.id_spb, t.metode_pembayaran,
-                   CASE
-                     WHEN t.id_spb IS NULL OR t.id_spb = '' THEN 'Tanpa SPB'
-                     WHEN s.id IS NOT NULL THEN 'Ada SPB'
-                     ELSE 'SPB Terhapus'
-                   END AS spb_status_label,
-                   CASE WHEN s.id IS NOT NULL THEN 1 ELSE 0 END AS has_spb
-            FROM rssams.tran_beli_brg_log t
-            LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
-            WHERE t.id = %s
-            """,
-            [pk]
-        )
-        if not item:
-            return Response({'detail': 'Not found.'}, status=404)
-        
-        item['items'] = legacy_fetchall(
-            """
-            SELECT i.id, i.id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
-                   b.satuan, i.qty_pesan, i.qty, i.isi, i.harga, i.jml_mutasi,
-                   i.qty * i.isi - i.jml_mutasi AS stok_batch
-            FROM rssams.item_logistik i
-            INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
-            WHERE i.id = %s
-            ORDER BY b.nama_barang
-            """,
-            [pk]
-        )
-        return Response(item)
-
-    def partial_update(self, request, pk=None):
-        data = request.data
-        updates = []
-        values = []
-        if 'tanggal' in data:
-            updates.append('tgl_spk = %s')
-            values.append(data.get('tanggal') or timezone.localdate())
-        if 'id_rekanan' in data or 'pemasok' in data:
-            vendor_name = data.get('pemasok') or ''
-            if data.get('id_rekanan'):
-                vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
-                vendor_name = vendor['nama'] if vendor else vendor_name
-            updates.append('rekanan = %s')
-            values.append(str(vendor_name or '').upper())
-        if 'no_faktur' in data or 'no_spb' in data:
-            updates.append('no_spk = %s')
-            values.append(data.get('no_faktur') or data.get('no_spb') or '')
-        if 'metode_pembayaran' in data:
-            updates.append('metode_pembayaran = %s')
-            values.append(data.get('metode_pembayaran') or 'Kredit')
-        if not updates:
-            return Response({'detail': 'Tidak ada data yang diubah.'}, status=400)
-        values.append(pk)
-        with connection.cursor() as cursor:
-            cursor.execute(f"UPDATE rssams.tran_beli_brg_log SET {', '.join(updates)} WHERE id = %s", values)
-        return Response({'detail': 'OK'})
-
-    @action(detail=True, methods=['post'], url_path='submit')
-    def submit(self, request, pk=None):
-        existing = legacy_fetchone("SELECT id, done FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
-        if not existing:
-            return Response({'detail': 'Penerimaan tidak ditemukan.'}, status=404)
-        count = legacy_fetchone("SELECT COUNT(*) AS total FROM rssams.item_logistik WHERE id = %s", [pk])
-        if not count or count['total'] == 0:
-            return Response({'detail': 'Tidak dapat mengirim penerimaan kosong. Tambahkan barang terlebih dahulu.'}, status=400)
-        with connection.cursor() as cursor:
-            cursor.execute("UPDATE rssams.tran_beli_brg_log SET done = 'Y' WHERE id = %s", [pk])
-        return Response({'detail': 'Penerimaan berhasil dikirim ke Keuangan.'})
-
-    def destroy(self, request, pk=None):
-        existing = legacy_fetchone("SELECT id, done, id_spb FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
-        if not existing:
-            return Response({'detail': 'Penerimaan tidak ditemukan.'}, status=404)
-        if str(existing.get('done') or '').upper() == 'Y':
-            return Response({'detail': 'Penerimaan ini telah dikirim ke Keuangan dan statusnya Terkunci. Data tidak dapat dihapus.'}, status=400)
-        
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM rssams.item_logistik WHERE id = %s", [pk])
-            cursor.execute("DELETE FROM rssams.tran_beli_brg_log WHERE id = %s", [pk])
-            spb_target_id = existing.get('id_spb') or pk
-            cursor.execute("UPDATE rssams.logistik_spb SET status = 'Draft' WHERE id = %s", [spb_target_id])
-        return Response(status=204)
-
-
-
-class LogistikBatchViewSet(viewsets.ViewSet):
-    serializer_class = LogistikBatchSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def _check_not_submitted(self, pembelian_id):
-        row = legacy_fetchone("SELECT done FROM rssams.tran_beli_brg_log WHERE id = %s", [pembelian_id])
-        if row and str(row.get('done') or '').upper() == 'Y':
-            raise ValidationError('Penerimaan ini sudah dikirim ke Keuangan dan tidak dapat diubah.')
-
-    def _refresh_pembelian_total(self, pembelian_id, no_invoice=None):
-        with connection.cursor() as cursor:
-            if no_invoice is not None:
-                cursor.execute(
-                    "UPDATE rssams.tran_beli_brg_log SET no_spk = %s WHERE id = %s",
-                    [no_invoice or '', pembelian_id],
-                )
-            cursor.execute(
-                """
-                UPDATE rssams.tran_beli_brg_log
-                SET nilai = COALESCE((SELECT SUM(qty * harga) FROM rssams.item_logistik WHERE id = %s), 0)
-                WHERE id = %s
-                """,
-                [pembelian_id, pembelian_id],
-            )
-
-    def create(self, request):
-        data = request.data
-        pembelian_id = data.get('pembelian')
-        self._check_not_submitted(pembelian_id)
-        barang = legacy_fetchone('SELECT isi FROM rssams.dafbrg_log WHERE id_brg = %s', [data.get('barang')])
-        if not barang:
-            return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
-        qty = data.get('qty') or 0
-        qty_pesan = data.get('qty_pesan') or 0
-        harga = data.get('harga') or 0
-        isi = data.get('isi') or barang['isi'] or 1
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.item_logistik(id, id_brg, qty, qty_pesan, harga, isi)
-                VALUES(%s, %s, %s, %s, %s, %s)
-                """,
-                [pembelian_id, data.get('barang'), qty, qty_pesan, harga, isi],
-            )
-        _refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
-        legacy_stock(data.get('barang'))
-        return Response({'detail': 'OK'}, status=201)
-
-    def partial_update(self, request, pk=None):
-        data = request.data
-        pembelian_id = pk
-        self._check_not_submitted(pembelian_id)
-        original_barang = data.get('original_barang') or data.get('barang')
-        next_barang = data.get('barang')
-        if not original_barang or not next_barang:
-            return Response({'detail': 'Barang wajib dipilih.'}, status=400)
-        barang = legacy_fetchone('SELECT isi FROM rssams.dafbrg_log WHERE id_brg = %s', [next_barang])
-        if not barang:
-            return Response({'detail': 'Barang tidak ditemukan.'}, status=400)
-        existing = legacy_fetchone(
-            'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
-            [pembelian_id, original_barang],
-        )
-        if not existing:
-            return Response({'detail': 'Item barang masuk tidak ditemukan.'}, status=404)
-        if str(original_barang) != str(next_barang):
-            duplicate = legacy_fetchone(
-                'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
-                [pembelian_id, next_barang],
-            )
-            if duplicate:
-                return Response({'detail': 'Barang tersebut sudah ada di invoice/SPB ini.'}, status=400)
-        qty = data.get('qty') or 0
-        qty_pesan = data.get('qty_pesan') or 0
-        harga = data.get('harga') or 0
-        isi = data.get('isi') or barang['isi'] or 1
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE rssams.item_logistik
-                SET id_brg = %s, qty = %s, qty_pesan = %s, harga = %s, isi = %s
-                WHERE id = %s AND id_brg = %s
-                """,
-                [next_barang, qty, qty_pesan, harga, isi, pembelian_id, original_barang],
-            )
-        _refresh_pembelian_total(pembelian_id, data.get('no_invoice') if data.get('no_invoice') is not None else None)
-        legacy_stock(original_barang)
-        if str(original_barang) != str(next_barang):
-            legacy_stock(next_barang)
-        return Response({'detail': 'OK'})
-
-    def destroy(self, request, pk=None):
-        pembelian_id = pk
-        self._check_not_submitted(pembelian_id)
-        barang_id = request.query_params.get('barang')
-        if not barang_id:
-            return Response({'detail': 'ID Barang wajib disertakan.'}, status=400)
-        
-        existing = legacy_fetchone(
-            'SELECT id, id_brg FROM rssams.item_logistik WHERE id = %s AND id_brg = %s LIMIT 1',
-            [pembelian_id, barang_id],
-        )
-        if not existing:
-            return Response({'detail': 'Item barang tidak ditemukan.'}, status=404)
-        
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                DELETE FROM rssams.item_logistik
-                WHERE id = %s AND id_brg = %s
-                """,
-                [pembelian_id, barang_id],
-            )
-        
-        _refresh_pembelian_total(pembelian_id)
-        legacy_stock(barang_id)
-        return Response(status=204)
-
-
-def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, keterangan=''):
-    stock = legacy_stock(id_brg)
-    qty = float(qty)
-    if stock < qty:
-        raise ValidationError('Stok barang tidak cukup.')
-    master_id = legacy_next_year_id('tran_out_brg_log')
-    tgl = f"{tanggal or timezone.localdate()} {timezone.localtime().strftime('%H:%M:%S')}"
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO rssams.tran_out_brg_log(id, tgl, id_ruang, pemberi, penerima)
-            VALUES(%s, %s, %s, %s, %s)
-            """,
-            [master_id, tgl, id_ruang, '', keterangan or 'SIMAK'],
-        )
-    remaining = qty
-    for batch in legacy_fetchall("SELECT * FROM rssams.item_logistik WHERE id_brg = %s ORDER BY id", [id_brg]):
-        tersedia = float(batch['qty'] or 0) * float(batch['isi'] or 0) - float(batch['jml_mutasi'] or 0)
-        if tersedia <= 0:
-            continue
-        ambil = min(remaining, tersedia)
-        harga = float(batch['harga'] or 0) / (float(batch['isi'] or 1) or 1)
-        item_id = legacy_next_item_out_id(master_id)
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
-                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, 'Sudah Diberikan')
-                """,
-                [item_id, id_brg, ambil, ambil, harga, tgl, id_ruang, batch['id']],
-            )
-            cursor.execute(
-                """
-                UPDATE rssams.item_logistik
-                SET jml_mutasi = COALESCE((SELECT SUM(qty) FROM rssams.item_out_log WHERE id_brg = %s AND id_item_logistik = %s), 0)
-                WHERE id = %s AND id_brg = %s
-                """,
-                [id_brg, batch['id'], batch['id'], id_brg],
-            )
-        remaining -= ambil
-        if remaining == 0:
-            break
-    if remaining > 0:
-        raise ValidationError('Stok batch tidak cukup.')
-    total = legacy_fetchone("SELECT COALESCE(SUM(qty),0) AS jmlbrg, COALESCE(SUM(qty*harga),0) AS nilai FROM rssams.item_out_log WHERE LEFT(id,6) = %s", [master_id])
-    with connection.cursor() as cursor:
-        cursor.execute("UPDATE rssams.tran_out_brg_log SET jmlbrg = %s, nilai = %s, done = 'Y' WHERE id = %s", [total['jmlbrg'], total['nilai'], master_id])
-    legacy_stock(id_brg)
-    return master_id
-
-
-class LogistikMutasiViewSet(viewsets.ViewSet):
-    serializer_class = LogistikMutasiSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        where = 'WHERE o.qty > 0'
-        params = []
-        if search:
-            where += ' AND (b.nama_barang LIKE %s OR r.ruangan LIKE %s OR o.id LIKE %s)'
-            params = [f'%{search}%', f'%{search}%', f'%{search}%']
-        base = f"""
-            SELECT o.id, o.id AS nomor, o.id_brg AS barang, b.nama_barang AS barang_nama, b.satuan,
-                   DATE(o.tgl) AS tanggal, o.id_ruang, r.ruangan AS ruang, o.qty, o.harga, o.status
-            FROM rssams.item_out_log o
-            INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
-            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
-            {where}
-            ORDER BY o.tgl DESC, o.id DESC
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.item_out_log o INNER JOIN rssams.dafbrg_log b ON b.id_brg=o.id_brg LEFT JOIN rssams.kode_ruang r ON r.id_ruang=o.id_ruang {where}"
-        return legacy_paginated(request, base, count, params)
-
-    @transaction.atomic
-    def create(self, request):
-        master_id = create_logistik_mutasi_fifo_legacy(
-            request.data.get('barang'),
-            request.data.get('ruang'),
-            request.data.get('qty') or 0,
-            request.data.get('tanggal'),
-            request.data.get('keterangan') or '',
-        )
-        return Response({'id': master_id, 'nomor': master_id}, status=201)
-
-
-class LogistikPermintaanViewSet(viewsets.ViewSet):
-    serializer_class = LogistikPermintaanSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        status_param = request.query_params.get('status')
-        where = 'WHERE o.qty_minta > 0'
-        params = []
-        if status_param == 'menunggu':
-            where += " AND o.status = 'Belum Ditanggapi'"
-        elif status_param == 'disetujui':
-            where += " AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan','Sudah Diterima'))"
-        elif status_param == 'ditolak':
-            where += " AND o.status NOT IN ('Belum Ditanggapi', 'Sudah Diberikan', 'Sudah Diterima') AND o.status NOT LIKE 'Disetujui%%'" 
-        if search:
-            where += ' AND (b.nama_barang LIKE %s OR r.ruangan LIKE %s OR o.id LIKE %s)'
-            params = [f'%{search}%', f'%{search}%', f'%{search}%']
-        base = f"""
-            SELECT o.id, o.id_brg AS barang, b.nama_barang AS barang_nama, b.satuan,
-                   DATE(o.tgl) AS tanggal, o.id_ruang, r.ruangan AS ruang,
-                   o.qty_minta, o.qty AS qty_setuju,
-                   CASE WHEN o.status = 'Belum Ditanggapi' THEN 'menunggu'
-                        WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan','Sudah Diterima') THEN 'disetujui'
-                        ELSE 'ditolak' END AS status,
-                   o.status AS status_label, o.tgl_verif AS verified_at
-            FROM rssams.item_out_log o
-            INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
-            LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
-            {where}
-            ORDER BY o.tgl DESC, o.id DESC
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.item_out_log o INNER JOIN rssams.dafbrg_log b ON b.id_brg=o.id_brg LEFT JOIN rssams.kode_ruang r ON r.id_ruang=o.id_ruang {where}"
-        return legacy_paginated(request, base, count, params)
-
-    def create(self, request):
-        prefix = timezone.localdate().strftime('%y')
-        next_row = legacy_fetchone(
-            "SELECT COALESCE(MAX(CAST(SUBSTR(id,4,6) AS UNSIGNED)),0)+1 AS next_id FROM rssams.item_out_log WHERE LEFT(id,2) = %s",
-            [prefix],
-        )
-        xid = f"{prefix}-{int(next_row['next_id']):06d}"
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
-                VALUES(%s, %s, %s, 0, 0, NOW(), %s, '', 'Belum Ditanggapi')
-                """,
-                [xid, request.data.get('barang'), request.data.get('qty_minta') or 0, request.data.get('ruang')],
-            )
-        return Response({'id': xid}, status=201)
-
-    @action(detail=True, methods=['post'], url_path='verifikasi')
-    @transaction.atomic
-    def verifikasi(self, request, pk=None):
-        item = legacy_fetchone('SELECT * FROM rssams.item_out_log WHERE id = %s', [pk])
-        if not item:
-            return Response({'error': 'Permintaan tidak ditemukan.'}, status=404)
-        if item['status'] != 'Belum Ditanggapi':
-            return Response({'error': 'Permintaan sudah diverifikasi.'}, status=400)
-        status_baru = request.data.get('status')
-        qty_setuju = int(request.data.get('qty_setuju') or 0)
-        if status_baru not in ('disetujui', 'ditolak'):
-            return Response({'error': 'Status verifikasi tidak valid.'}, status=400)
-        if status_baru == 'disetujui':
-            if qty_setuju <= 0 or qty_setuju > int(item['qty_minta'] or 0):
-                return Response({'error': 'Qty disetujui harus lebih dari 0 dan tidak melebihi permintaan.'}, status=400)
-            with connection.cursor() as cursor:
-                cursor.execute("UPDATE rssams.item_out_log SET qty = %s, status = 'Disetujui', tgl_verif = NOW() WHERE id = %s", [qty_setuju, pk])
-        else:
-            with connection.cursor() as cursor:
-                cursor.execute("UPDATE rssams.item_out_log SET qty = 0, status = 'Tidak Disetujui', tgl_verif = NOW() WHERE id = %s", [pk])
-        return Response({'detail': 'OK'})
-
-
-class LogistikOpnameViewSet(viewsets.ViewSet):
-    serializer_class = LogistikOpnameSerializer
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        where = ''
-        params = []
-        if search:
-            where = 'WHERE b.nama_barang LIKE %s'
-            params = [f'%{search}%']
-        base = f"""
-            SELECT o.id, o.id_brg AS barang, b.nama_barang AS barang_nama,
-                   o.tgl AS tanggal, o.stock_komp AS stok_sistem, o.real_stock,
-                   o.real_stock - o.stock_komp AS selisih, '' AS keterangan
-            FROM rssams.opname_brg_log o
-            LEFT JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
-            {where}
-            ORDER BY o.tgl DESC, o.id DESC
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.opname_brg_log o LEFT JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg {where}"
-        return legacy_paginated(request, base, count, params)
-
-    def create(self, request):
-        data = request.data
-        id_brg = data.get('barang')
-        real_stock = float(data.get('real_stock') or 0)
-        tanggal = data.get('tanggal') or timezone.localdate()
-
-        # 1. Hitung stok sistem terkini dan catat opname
-        stock_sistem = float(legacy_stock(id_brg) or 0)
-        selisih = real_stock - stock_sistem
-
-        opname_row = legacy_fetchone('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM rssams.opname_brg_log')
-        opname_id = opname_row['next_id']
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.opname_brg_log(id, id_brg, real_stock, stock_komp, harga, tgl)
-                VALUES(%s, %s, %s, %s, 0, %s)
-                """,
-                [opname_id, id_brg, real_stock, stock_sistem, tanggal],
-            )
-
-        # 2. Terapkan penyesuaian stok jika ada selisih
-        if abs(selisih) >= 0.01:
-            opname_spb_id = legacy_next_logistik_id()
-            tgl_dt = f"{tanggal} {timezone.localtime().strftime('%H:%M:%S')}"
-
-            # Buat SPB OPNAME sebagai referensi
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO rssams.tran_beli_brg_log(id, tgl_spk, no_spk, rekanan, nilai, done)
-                    VALUES(%s, %s, %s, 'STOCK OPNAME', 0, 'Y')
-                    """,
-                    [opname_spb_id, tanggal, f'OPNAME-{opname_id}'],
-                )
-
-            if selisih > 0:
-                # Stok sistem lebih rendah dari real: tambah stok masuk
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO rssams.item_logistik(id, id_brg, qty, isi, harga)
-                        VALUES(%s, %s, %s, 1, 0)
-                        """,
-                        [opname_spb_id, id_brg, selisih],
-                    )
-            else:
-                # Stok sistem lebih tinggi dari real: kurangi dengan out record
-                # Dummy batch masuk (qty=0) sebagai referensi id_item_logistik
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO rssams.item_logistik(id, id_brg, qty, isi, harga)
-                        VALUES(%s, %s, 0, 1, 0)
-                        """,
-                        [opname_spb_id, id_brg],
-                    )
-
-                # Master tran_out_brg_log untuk opname
-                opname_out_id = legacy_next_year_id('tran_out_brg_log')
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO rssams.tran_out_brg_log(id, tgl, id_ruang, pemberi, penerima, done)
-                        VALUES(%s, %s, 1, 'SIMAK', 'STOCK OPNAME', 'Y')
-                        """,
-                        [opname_out_id, tgl_dt],
-                    )
-
-                # Item out yang mengurangi stok, referensi ke dummy batch
-                out_item_id = legacy_next_item_out_id(opname_out_id)
-                qty_kurang = abs(selisih)
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        INSERT INTO rssams.item_out_log(id, id_brg, qty_minta, qty, harga, tgl, id_ruang, id_item_logistik, status)
-                        VALUES(%s, %s, %s, %s, 0, %s, 1, %s, 'Sudah Diberikan')
-                        """,
-                        [out_item_id, id_brg, qty_kurang, qty_kurang, tgl_dt, opname_spb_id],
-                    )
-
-            # Refresh cache stok di dafbrg_log
-            legacy_stock(id_brg)
-
-        return Response({'id': opname_id}, status=201)
-
-
-class RekapDriverView(APIView):
-    permission_classes = [IsAuthenticated]
- 
-    def get(self, request):
-        dari   = request.query_params.get('dari')
-        sampai = request.query_params.get('sampai')
-        driver_id = request.query_params.get('driver')
- 
-        if not dari or not sampai:
-            return Response({'error': 'Parameter dari dan sampai wajib diisi.'}, status=400)
- 
-        # Driver hanya bisa lihat rekap diri sendiri
-        if not is_admin_driver(request.user):
-            driver_id = request.user.id
- 
-        # Filter perjalanan
-        qs_perjalanan = LogPerjalanan.objects.filter(tanggal__gte=dari, tanggal__lte=sampai)
-        qs_bbm        = LogBBM.objects.filter(tanggal__gte=dari, tanggal__lte=sampai)
-        qs_maintenance = LogMaintenance.objects.filter(tanggal__gte=dari, tanggal__lte=sampai)
- 
-        if driver_id:
-            qs_perjalanan  = qs_perjalanan.filter(driver_id=driver_id)
-            qs_bbm         = qs_bbm.filter(driver_id=driver_id)
- 
-        total_jarak  = qs_perjalanan.aggregate(t=Sum('jarak_km'))['t'] or 0
-        total_bbm    = qs_bbm.aggregate(t=Sum('total_biaya'))['t'] or 0
-        total_maint  = qs_maintenance.aggregate(t=Sum('biaya'))['t'] or 0
- 
-        # Per kendaraan
-        from django.db.models import Count
-        per_kendaraan = []
-        kendaraan_ids = qs_perjalanan.values_list('kendaraan_id', flat=True).distinct()
-        for kid in kendaraan_ids:
-            k = Kendaraan.objects.get(id=kid)
-            qs_k = qs_perjalanan.filter(kendaraan_id=kid)
-            jarak = qs_k.aggregate(t=Sum('jarak_km'))['t'] or 0
-            trip  = qs_k.count()
-            per_kendaraan.append({
-                'kendaraan': str(k),
-                'plat_nomor': k.plat_nomor,
-                'jenis': k.get_jenis_display(),
-                'total_trip': trip,
-                'total_jarak_km': jarak,
-            })
- 
-        return Response({
-            'periode':       {'dari': dari, 'sampai': sampai},
-            'total_trip':    qs_perjalanan.count(),
-            'total_jarak_km': total_jarak,
-            'total_biaya_bbm': float(total_bbm),
-            'total_biaya_maintenance': float(total_maint),
-            'per_kendaraan': per_kendaraan,
-            'log_perjalanan': LogPerjalananSerializer(qs_perjalanan.select_related('driver','kendaraan'), many=True, context={'request': request}).data,
-            'log_bbm':        LogBBMSerializer(qs_bbm.select_related('driver','kendaraan'), many=True, context={'request': request}).data,
-            'log_maintenance': LogMaintenanceSerializer(qs_maintenance.select_related('kendaraan','dilaporkan_oleh'), many=True).data,
-        })
-
-
 
 def _refresh_pembelian_total(pembelian_id, no_invoice=None):
     from django.db import connection
@@ -8735,7 +7025,6 @@ def _refresh_pembelian_total(pembelian_id, no_invoice=None):
             [pembelian_id, pembelian_id],
         )
 
-
 def _refresh_spb_total(spb_id):
     from django.db import connection
     with connection.cursor() as cursor:
@@ -8749,160 +7038,3 @@ def _refresh_spb_total(spb_id):
             """,
             [spb_id]
         )
-
-class LogistikSpbViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def retrieve(self, request, pk=None):
-        item = legacy_fetchone(
-            """
-            SELECT id, id AS nomor, tanggal, rekanan AS pemasok,
-                   no_spb, nilai, status, tgl_entri AS created_at, metode_pembayaran
-            FROM rssams.logistik_spb
-            WHERE id = %s
-            """,
-            [pk]
-        )
-        if not item:
-            return Response({'detail': 'SPB tidak ditemukan.'}, status=404)
-        item['items'] = legacy_fetchall(
-            """
-            SELECT i.id, i.spb_id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
-                   b.satuan, i.qty AS qty_pesan, 0 AS qty, i.isi, i.harga, 0 AS jml_mutasi,
-                   i.qty * i.isi AS stok_batch
-            FROM rssams.logistik_spb_item i
-            INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
-            WHERE i.spb_id = %s
-            ORDER BY b.nama_barang
-            """,
-            [pk]
-        )
-        return Response(item)
-
-    def list(self, request):
-        search = request.query_params.get('search') or ''
-        where = ''
-        params = []
-        if search:
-            where = 'WHERE rekanan LIKE %s OR no_spb LIKE %s OR id LIKE %s'
-            params = [f'%{search}%', f'%{search}%', f'%{search}%']
-        base = f"""
-            SELECT id, id AS nomor, tanggal, rekanan AS pemasok,
-                   no_spb, nilai, status, tgl_entri AS created_at, metode_pembayaran
-            FROM rssams.logistik_spb {where}
-            ORDER BY tanggal DESC, id DESC
-        """
-        count = f"SELECT COUNT(*) AS total FROM rssams.logistik_spb {where}"
-        res = legacy_paginated(request, base, count, params)
-        for item in res.data['results']:
-            item['items'] = legacy_fetchall(
-                """
-                SELECT i.id, i.spb_id AS pembelian, i.id_brg AS barang, b.nama_barang AS barang_nama,
-                       b.satuan, i.qty AS qty_pesan, 0 AS qty, i.isi, i.harga, 0 AS jml_mutasi,
-                       i.qty * i.isi AS stok_batch
-                FROM rssams.logistik_spb_item i
-                INNER JOIN rssams.dafbrg_log b ON b.id_brg = i.id_brg
-                WHERE i.spb_id = %s
-                ORDER BY b.nama_barang
-                """,
-                [item['id']],
-            )
-        return res
-
-    def create(self, request):
-        data = request.data
-        xid = data.get('id_spb') or legacy_next_logistik_id() # Keep same numbering sequence as pembelian
-        vendor_name = data.get('pemasok') or ''
-        if data.get('id_rekanan'):
-            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
-            vendor_name = vendor['nama'] if vendor else vendor_name
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.logistik_spb(id, rekanan, tanggal, no_spb, nilai, metode_pembayaran)
-                VALUES(%s, %s, %s, %s, %s, %s)
-                """,
-                [xid, str(vendor_name or '').upper(), data.get('tanggal') or timezone.localdate(), data.get('no_spb') or '', 0, data.get('metode_pembayaran') or 'Kredit'],
-            )
-        return self.retrieve(request, pk=xid)
-
-    def partial_update(self, request, pk=None):
-        data = request.data
-        vendor_name = data.get('pemasok') or ''
-        if data.get('id_rekanan'):
-            vendor = legacy_fetchone('SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s', [data.get('id_rekanan')])
-            vendor_name = vendor['nama'] if vendor else vendor_name
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE rssams.logistik_spb
-                SET rekanan = %s, tanggal = %s, no_spb = %s, metode_pembayaran = %s
-                WHERE id = %s
-                """,
-                [str(vendor_name or '').upper(), data.get('tanggal'), data.get('no_spb') or '', data.get('metode_pembayaran') or 'Kredit', pk]
-            )
-        return Response({'status': 'ok'})
-
-    def destroy(self, request, pk=None):
-        penerimaan = legacy_fetchone(
-            "SELECT id FROM rssams.tran_beli_brg_log WHERE id = %s OR id_spb = %s LIMIT 1",
-            [pk, pk]
-        )
-        if penerimaan:
-            return Response(
-                {'detail': 'SPB ini sudah diproses menjadi Penerimaan Gudang dan tidak dapat dihapus.'},
-                status=400
-            )
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE spb_id = %s", [pk])
-            cursor.execute("DELETE FROM rssams.logistik_spb WHERE id = %s", [pk])
-        return Response(status=204)
-
-class LogistikSpbItemViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated, IsLogistikPermission]
-
-    def create(self, request):
-        data = request.data
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO rssams.logistik_spb_item(spb_id, id_brg, qty, isi, harga)
-                VALUES(%s, %s, %s, %s, %s)
-                """,
-                [data.get('pembelian'), data.get('barang'), data.get('qty_pesan') or data.get('qty') or 0, data.get('isi', 1), data.get('harga', 0)]
-            )
-        _refresh_spb_total(data.get('pembelian'))
-        return Response({'status': 'created'}, status=201)
-
-    def partial_update(self, request, pk=None):
-        data = request.data
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE rssams.logistik_spb_item
-                SET qty = %s, isi = %s, harga = %s
-                WHERE id = %s
-                """,
-                [data.get('qty_pesan') or data.get('qty') or 0, data.get('isi', 1), data.get('harga', 0), pk]
-            )
-            # Fetch spb_id
-            cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
-            row = cursor.fetchone()
-        if row:
-            _refresh_spb_total(row[0])
-        return Response({'status': 'updated'})
-
-    def destroy(self, request, pk=None):
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
-            row = cursor.fetchone()
-            cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE id = %s", [pk])
-        if row:
-            _refresh_spb_total(row[0])
-        return Response(status=204)
