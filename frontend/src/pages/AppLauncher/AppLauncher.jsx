@@ -17,6 +17,7 @@ import {
     Server,
     BarChart3,
     ClipboardList,
+    Download,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
@@ -28,6 +29,51 @@ export default function AppLauncher() {
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark');
     });
+
+    // PWA Desktop Installation Support
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [isStandalone, setIsStandalone] = useState(() => {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    });
+
+    useEffect(() => {
+        const handleBeforeInstall = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+
+        const handleAppInstalled = () => {
+            setIsStandalone(true);
+            setDeferredPrompt(null);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+        window.addEventListener('appinstalled', handleAppInstalled);
+
+        const mediaQuery = window.matchMedia('(display-mode: standalone)');
+        const handleDisplayModeChange = (e) => {
+            if (e.matches) setIsStandalone(true);
+        };
+        mediaQuery.addEventListener('change', handleDisplayModeChange);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+            window.removeEventListener('appinstalled', handleAppInstalled);
+            mediaQuery.removeEventListener('change', handleDisplayModeChange);
+        };
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                setDeferredPrompt(null);
+            }
+        } else {
+            alert('Untuk memasang SIMAK di Desktop / PC:\n\n1. Klik ikon "Install / Pasang Aplikasi" (ikon komputer dengan panah ke bawah) di bilah alamat browser Anda (kanan atas URL).\n2. Atau klik menu browser (titik tiga) > pilih "Install SIMAK" / "Pasang Aplikasi".');
+        }
+    };
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -304,6 +350,18 @@ export default function AppLauncher() {
                 </div>
 
                 <div className="odoo-top-actions">
+                    {!isStandalone && (
+                        <button
+                            type="button"
+                            className="odoo-install-btn"
+                            onClick={handleInstallClick}
+                            title="Pasang SIMAK di Desktop / PC"
+                        >
+                            <Download size={14} />
+                            <span>Install App</span>
+                        </button>
+                    )}
+
                     <button className="odoo-icon-btn" onClick={toggleTheme} title="Ganti Tema">
                         {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
                     </button>

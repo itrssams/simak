@@ -28,6 +28,7 @@ import {
     FileSpreadsheet,
     Server,
     ClipboardList,
+    Download,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -563,6 +564,51 @@ export default function Layout({ children }) {
     const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
     const profileRef = useRef(null);
     const announcementRef = useRef(null);
+
+    // PWA Installation Support
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [isStandalone, setIsStandalone] = useState(() => {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    });
+
+    useEffect(() => {
+        const handleBeforeInstall = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+
+        const handleAppInstalled = () => {
+            setIsStandalone(true);
+            setDeferredPrompt(null);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+        window.addEventListener('appinstalled', handleAppInstalled);
+
+        const mediaQuery = window.matchMedia('(display-mode: standalone)');
+        const handleDisplayModeChange = (e) => {
+            if (e.matches) setIsStandalone(true);
+        };
+        mediaQuery.addEventListener('change', handleDisplayModeChange);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+            window.removeEventListener('appinstalled', handleAppInstalled);
+            mediaQuery.removeEventListener('change', handleDisplayModeChange);
+        };
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                setDeferredPrompt(null);
+            }
+        } else {
+            alert('Untuk memasang SIMAK di Desktop / PC:\n\n1. Klik ikon "Install / Pasang Aplikasi" di bilah alamat (URL) browser Anda.\n2. Atau klik menu browser (titik 3) > pilih "Install SIMAK" / "Pasang Aplikasi".');
+        }
+    };
 
     const activeModuleConfig = useMemo(() => getActiveModuleConfig(location.pathname, user), [location.pathname, user]);
 
@@ -1595,6 +1641,22 @@ export default function Layout({ children }) {
                 </div>
 
                 <div className="topbar-right">
+                    {!isStandalone && (
+                        <button
+                            className="notify-btn"
+                            onClick={handleInstallClick}
+                            title="Pasang SIMAK di Desktop / PC"
+                            type="button"
+                            style={{
+                                color: '#0284c7',
+                                borderColor: 'rgba(2, 132, 199, 0.3)',
+                                background: 'rgba(2, 132, 199, 0.08)',
+                            }}
+                        >
+                            <Download size={16} strokeWidth={2.4} />
+                        </button>
+                    )}
+
                     <button
                         className="notify-btn theme-toggle-btn"
                         onClick={toggleTheme}
