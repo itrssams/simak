@@ -334,7 +334,7 @@ export default function MyLogbook() {
             {/* ══════════════════════════════════════════════════════════════════ */}
             {!isMonitoringView && (
                 <div className="logbook-content-section">
-                    {/* Header Banner */}
+                    {/* Header Banner with Integrated Controls */}
                     <div className="logbook-header-banner">
                         <div className="logbook-banner-left">
                             <div className="logbook-banner-icon">
@@ -343,37 +343,14 @@ export default function MyLogbook() {
                             <div>
                                 <h1 className="logbook-banner-title">Logbook Saya</h1>
                                 <p className="logbook-banner-sub">
-                                    Pencatatan aktivitas pekerjaan & akumulasi jam kerja harian Anda
+                                    <span className="logbook-sub-date">{formatTanggalIndo(myFilterDate || getTodayString())}</span>
+                                    <span className="logbook-sub-dot">•</span>
+                                    <span>Total: <strong>{myStats.totalEntries} pekerjaan</strong> ({myStats.formattedTotal})</span>
                                 </p>
                             </div>
                         </div>
 
                         <div className="logbook-banner-right">
-                            <button className="logbook-hero-add-btn" onClick={openCreateModal}>
-                                <Plus size={17} strokeWidth={2.4} />
-                                <span>Tambah Pekerjaan</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Stats & Date Filter Bar */}
-                    <div className="logbook-control-card">
-                        <div className="logbook-date-selector">
-                            <div className="logbook-date-label">
-                                <CalendarDays size={18} className="logbook-cal-icon" />
-                                <div>
-                                    <span className="logbook-date-heading">
-                                        {formatTanggalIndo(myFilterDate || getTodayString())}
-                                    </span>
-                                    <div className="logbook-date-stats">
-                                        Total Tercatat: <strong>{myStats.totalEntries} pekerjaan</strong> ({myStats.formattedTotal})
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Date Filter & Search toolbar on the right */}
-                        <div className="logbook-filter-toolbar">
                             <div className="logbook-date-picker-group">
                                 <DateField
                                     value={myFilterDate}
@@ -403,6 +380,11 @@ export default function MyLogbook() {
                                     <button className="logbook-clear-btn" onClick={() => setMySearch('')}>✕</button>
                                 )}
                             </div>
+
+                            <button className="logbook-hero-add-btn" onClick={openCreateModal}>
+                                <Plus size={17} strokeWidth={2.4} />
+                                <span>Tambah Pekerjaan</span>
+                            </button>
                         </div>
                     </div>
 
