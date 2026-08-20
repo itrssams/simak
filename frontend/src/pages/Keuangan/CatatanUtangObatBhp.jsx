@@ -2074,7 +2074,7 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
                     const key = `${item.sumber}-${item.app_siaga_faktur_id}`;
                     const isSelected = selectedKeys.includes(key);
                     return (
-                        <tr key={key} style={isSelected ? { backgroundColor: '#f0fdf4' } : {}}>
+                        <tr key={key} className={isSelected ? 'utang-row-selected' : ''}>
                             <td style={{ textAlign: 'center' }}>
                                 <input
                                     type="checkbox"
@@ -2261,7 +2261,7 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                 {items.map((item, idx) => {
                     const isChecked = selectedIds.includes(item.id);
                     return (
-                    <tr key={item.id || item.app_siaga_faktur_id || idx} style={isChecked ? { background: '#f0fdf4' } : undefined}>
+                    <tr key={item.id || item.app_siaga_faktur_id || idx} className={isChecked ? 'utang-row-selected' : ''}>
                         <td style={{ textAlign: 'center' }}>
                             <input
                                 type="checkbox"
