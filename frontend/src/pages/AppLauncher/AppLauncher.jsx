@@ -386,7 +386,7 @@ export default function AppLauncher() {
                         return (
                             <div
                                 key={app.id}
-                                className={`odoo-app-card ${isHovered ? 'hovered' : ''}`}
+                                className={`odoo-app-item ${isHovered ? 'hovered' : ''}`}
                                 onMouseEnter={() => setActiveHoverApp(app.id)}
                                 onMouseLeave={() => setActiveHoverApp(null)}
                             >
