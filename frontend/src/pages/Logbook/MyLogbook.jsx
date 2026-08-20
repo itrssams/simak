@@ -663,25 +663,6 @@ export default function MyLogbook() {
                                 </select>
                             </div>
 
-                            <div className="logbook-filter-item">
-                                <label>Nama Pegawai</label>
-                                <select
-                                    value={monUserId}
-                                    onChange={(e) => setMonUserId(e.target.value)}
-                                    className="logbook-select"
-                                >
-                                    <option value="">Semua Pegawai</option>
-                                    {userList.map(u => {
-                                        const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
-                                        return (
-                                            <option key={u.id} value={u.id}>
-                                                {name} ({u.unit_nama || 'Tanpa Unit'})
-                                            </option>
-                                        );
-                                    })}
-                                </select>
-                            </div>
-
                             <div className="logbook-filter-item flex-1">
                                 <label>Pencarian</label>
                                 <div className="logbook-search-input">
