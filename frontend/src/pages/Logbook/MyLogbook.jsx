@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import {
     ClipboardList,
     Plus,
-    Calendar,
     Clock,
     Search,
     Download,
@@ -16,9 +15,7 @@ import {
     X,
     Filter,
     Timer,
-    Sparkles,
     CalendarDays,
-    Briefcase,
     TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -43,12 +40,28 @@ const formatWaktu = (timeStr) => {
 const formatTanggalIndo = (dateStr) => {
     if (!dateStr) return '';
     try {
-        const d = new Date(dateStr + 'T00:00:00');
-        return d.toLocaleDateString('id-ID', {
+        const [y, m, d] = dateStr.split('-');
+        const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+        return date.toLocaleDateString('id-ID', {
             weekday: 'long',
-            year: 'numeric',
-            month: 'long',
             day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    } catch {
+        return dateStr;
+    }
+};
+
+const formatTanggalShort = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const [y, m, d] = dateStr.split('-');
+        const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
         });
     } catch {
         return dateStr;
@@ -58,16 +71,19 @@ const formatTanggalIndo = (dateStr) => {
 export default function MyLogbook() {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
-    const tabParam = searchParams.get('tab');
 
-    const isDirekturUp = Boolean(
-        user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)
-    );
+    // Check Role: Direktur or Wakil Direktur
+    const isDirekturUp = useMemo(() => {
+        if (!user) return false;
+        if (user.is_superuser) return true;
+        const r = (user.role || '').toLowerCase();
+        return r === 'direktur' || r === 'wakil_direktur';
+    }, [user]);
 
-    // Mode ditentukan dari query params di topbar menu
-    const isMonitoringView = isDirekturUp && tabParam === 'monitoring';
+    // Read view from Topbar query param (?tab=monitoring)
+    const isMonitoringView = isDirekturUp && searchParams.get('tab') === 'monitoring';
 
-    // ── Toast Notification ──────────────────────────────────────────
+    // Toast Notification
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -75,29 +91,30 @@ export default function MyLogbook() {
     };
 
     // ══════════════════════════════════════════════════════════════════
-    // VIEW 1: LOGBOOK SAYA (PERSONAL LOGBOOK)
+    // VIEW 1: LOGBOOK SAYA (STAFF VIEW)
     // ══════════════════════════════════════════════════════════════════
     const [myLogbooks, setMyLogbooks] = useState([]);
     const [loadingMy, setLoadingMy] = useState(false);
     const [myFilterDate, setMyFilterDate] = useState(getTodayString());
     const [mySearch, setMySearch] = useState('');
 
-    // Modal Form State
-    const [modalOpen, setModalOpen] = useState(false);
+    // Modal Form State (Create / Edit)
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({
         tanggal: getTodayString(),
-        jam_mulai: '08:00',
-        jam_selesai: '10:00',
+        jam_mulai: '',
+        jam_selesai: '',
         deskripsi: '',
     });
-    const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
-    // Delete Confirmation State
-    const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
+    // Modal Delete State
+    const [deleteItem, setDeleteItem] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Fetch My Logbook
     const fetchMyLogbooks = useCallback(async () => {
         setLoadingMy(true);
         try {
@@ -109,8 +126,8 @@ export default function MyLogbook() {
             const data = Array.isArray(res.data) ? res.data : (res.data?.results || []);
             setMyLogbooks(data);
         } catch (err) {
-            console.error('Failed to fetch my logbooks:', err);
-            showToast('Gagal memuat daftar logbook Anda.', 'error');
+            console.error('Error fetching logbooks:', err);
+            showToast('Gagal memuat logbook.', 'error');
         } finally {
             setLoadingMy(false);
         }
@@ -120,36 +137,18 @@ export default function MyLogbook() {
         if (!isMonitoringView) {
             fetchMyLogbooks();
         }
-    }, [isMonitoringView, fetchMyLogbooks]);
-
-    // Live calculated duration for form
-    const calculatedFormDuration = useMemo(() => {
-        if (!formData.jam_mulai || !formData.jam_selesai) return '';
-        const [h1, m1] = formData.jam_mulai.split(':').map(Number);
-        const [h2, m2] = formData.jam_selesai.split(':').map(Number);
-        if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return '';
-
-        let diffMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (diffMins < 0) diffMins += 24 * 60; // Cross midnight
-        if (diffMins === 0) return '0 menit';
-
-        const hours = Math.floor(diffMins / 60);
-        const mins = diffMins % 60;
-        if (hours > 0 && mins > 0) return `${hours} jam ${mins} menit`;
-        if (hours > 0) return `${hours} jam`;
-        return `${mins} menit`;
-    }, [formData.jam_mulai, formData.jam_selesai]);
+    }, [fetchMyLogbooks, isMonitoringView]);
 
     const openCreateModal = () => {
         setEditingItem(null);
         setFormData({
             tanggal: myFilterDate || getTodayString(),
-            jam_mulai: '08:00',
-            jam_selesai: '09:00',
+            jam_mulai: '',
+            jam_selesai: '',
             deskripsi: '',
         });
         setFormError('');
-        setModalOpen(true);
+        setIsModalOpen(true);
     };
 
     const openEditModal = (item) => {
@@ -158,56 +157,95 @@ export default function MyLogbook() {
             tanggal: item.tanggal,
             jam_mulai: formatWaktu(item.jam_mulai),
             jam_selesai: formatWaktu(item.jam_selesai),
-            deskripsi: item.deskripsi,
+            deskripsi: item.deskripsi || '',
         });
         setFormError('');
-        setModalOpen(true);
+        setIsModalOpen(true);
     };
 
-    const handleSaveLogbook = async (e) => {
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingItem(null);
+        setFormError('');
+    };
+
+    const calculatedFormDuration = useMemo(() => {
+        if (!formData.jam_mulai || !formData.jam_selesai) return null;
+        try {
+            const [h1, m1] = formData.jam_mulai.split(':').map(Number);
+            const [h2, m2] = formData.jam_selesai.split(':').map(Number);
+            let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+            if (totalMins <= 0) return 'Jam selesai harus lebih besar dari jam mulai';
+            const hours = Math.floor(totalMins / 60);
+            const mins = totalMins % 60;
+            if (hours > 0) {
+                return `${hours} jam ${mins > 0 ? `${mins} menit` : ''}`;
+            }
+            return `${mins} menit`;
+        } catch {
+            return null;
+        }
+    }, [formData.jam_mulai, formData.jam_selesai]);
+
+    const handleFormSubmit = async (e) => {
         e.preventDefault();
         setFormError('');
 
-        if (!formData.deskripsi.trim()) {
-            setFormError('Uraian / deskripsi pekerjaan wajib diisi.');
-            return;
+        if (!formData.tanggal) return setFormError('Tanggal pekerjaan wajib diisi.');
+        if (!formData.jam_mulai) return setFormError('Jam mulai wajib diisi.');
+        if (!formData.jam_selesai) return setFormError('Jam selesai wajib diisi.');
+        if (!formData.deskripsi.trim()) return setFormError('Deskripsi pekerjaan wajib diisi.');
+
+        const [h1, m1] = formData.jam_mulai.split(':').map(Number);
+        const [h2, m2] = formData.jam_selesai.split(':').map(Number);
+        const totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (totalMins <= 0) {
+            return setFormError('Jam selesai harus lebih besar dari jam mulai.');
         }
 
-        if (formData.jam_mulai === formData.jam_selesai) {
-            setFormError('Jam selesai tidak boleh sama persis dengan jam mulai.');
-            return;
-        }
-
-        setSaving(true);
+        setSubmitting(true);
         try {
+            const payload = {
+                tanggal: formData.tanggal,
+                jam_mulai: formData.jam_mulai.length === 5 ? `${formData.jam_mulai}:00` : formData.jam_mulai,
+                jam_selesai: formData.jam_selesai.length === 5 ? `${formData.jam_selesai}:00` : formData.jam_selesai,
+                deskripsi: formData.deskripsi.trim(),
+            };
+
             if (editingItem) {
-                await api.put(`/logbook/${editingItem.id}/`, formData);
+                await api.put(`/logbook/${editingItem.id}/`, payload);
                 showToast('Catatan pekerjaan berhasil diperbarui.');
             } else {
-                await api.post('/logbook/', formData);
-                showToast('Catatan pekerjaan baru berhasil ditambahkan.');
+                await api.post('/logbook/', payload);
+                showToast('Catatan pekerjaan berhasil ditambahkan.');
             }
-            setModalOpen(false);
+            closeModal();
             fetchMyLogbooks();
         } catch (err) {
             console.error('Error saving logbook:', err);
-            const msg = err.response?.data?.deskripsi?.[0] ||
-                        err.response?.data?.jam_selesai?.[0] ||
-                        err.response?.data?.detail ||
-                        'Gagal menyimpan logbook. Silakan coba lagi.';
-            setFormError(msg);
+            const resErr = err.response?.data;
+            const errMsg = resErr?.deskripsi?.[0] || resErr?.jam_selesai?.[0] || resErr?.non_field_errors?.[0] || resErr?.detail || 'Gagal menyimpan catatan pekerjaan.';
+            setFormError(errMsg);
         } finally {
-            setSaving(false);
+            setSubmitting(false);
         }
     };
 
-    const handleDeleteLogbook = async () => {
-        if (!deleteModal.item) return;
+    const openDeleteConfirm = (item) => {
+        setDeleteItem(item);
+    };
+
+    const closeDeleteConfirm = () => {
+        setDeleteItem(null);
+    };
+
+    const handleDeleteSubmit = async () => {
+        if (!deleteItem) return;
         setDeleting(true);
         try {
-            await api.delete(`/logbook/${deleteModal.item.id}/`);
+            await api.delete(`/logbook/${deleteItem.id}/`);
             showToast('Catatan pekerjaan berhasil dihapus.');
-            setDeleteModal({ open: false, item: null });
+            closeDeleteConfirm();
             fetchMyLogbooks();
         } catch (err) {
             console.error('Error deleting logbook:', err);
@@ -285,31 +323,18 @@ export default function MyLogbook() {
             setMonitorLogbooks(data);
         } catch (err) {
             console.error('Failed to fetch monitoring data:', err);
-            showToast('Gagal memuat data monitoring karyawan.', 'error');
+            showToast('Gagal memuat monitoring logbook.', 'error');
         } finally {
             setLoadingMonitor(false);
         }
     }, [isDirekturUp, monStartDate, monEndDate, monUnitId, monUserId, monSearch]);
 
     useEffect(() => {
-        if (isMonitoringView) {
-            fetchMonitoringData();
+        if (isDirekturUp && isMonitoringView) {
             fetchMonitoringSummary();
+            fetchMonitoringData();
         }
-    }, [isMonitoringView, fetchMonitoringData, fetchMonitoringSummary]);
-
-    const handleExportExcel = () => {
-        const params = new URLSearchParams();
-        if (monStartDate) params.append('start_date', monStartDate);
-        if (monEndDate) params.append('end_date', monEndDate);
-        if (monUnitId) params.append('unit_id', monUnitId);
-        if (monUserId) params.append('user_id', monUserId);
-        if (monSearch.trim()) params.append('q', monSearch.trim());
-
-        const downloadUrl = `/api/logbook/export_excel/?${params.toString()}`;
-        window.open(downloadUrl, '_blank');
-        showToast('Mengunduh rekap Excel logbook...', 'success');
-    };
+    }, [isDirekturUp, isMonitoringView, fetchMonitoringSummary, fetchMonitoringData]);
 
     const handleResetMonitoringFilter = () => {
         setMonStartDate(getTodayString());
@@ -317,6 +342,39 @@ export default function MyLogbook() {
         setMonUnitId('');
         setMonUserId('');
         setMonSearch('');
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            showToast('Menyiapkan file Excel...', 'success');
+            const params = {};
+            if (monStartDate) params.start_date = monStartDate;
+            if (monEndDate) params.end_date = monEndDate;
+            if (monUnitId) params.unit_id = monUnitId;
+            if (monUserId) params.user_id = monUserId;
+            if (monSearch.trim()) params.q = monSearch.trim();
+
+            const res = await api.get('/logbook/export_excel/', {
+                params,
+                responseType: 'blob',
+            });
+
+            const blob = new Blob([res.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Logbook_Karyawan_${monStartDate || 'all'}_to_${monEndDate || 'all'}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            showToast('File Excel berhasil diunduh.', 'success');
+        } catch (err) {
+            console.error('Error downloading Excel:', err);
+            showToast('Gagal mengunduh Excel.', 'error');
+        }
     };
 
     return (
@@ -334,202 +392,207 @@ export default function MyLogbook() {
             {/* ══════════════════════════════════════════════════════════════════ */}
             {!isMonitoringView && (
                 <div className="logbook-content-section">
-                    {/* Header Banner with Integrated Controls */}
-                    <div className="logbook-header-banner">
-                        <div className="logbook-banner-left">
-                            <div className="logbook-banner-icon">
-                                <ClipboardList size={26} color="#38bdf8" />
-                            </div>
+                    {/* Standard SIMAK Hero Header */}
+                    <div className="logbook-hero">
+                        <div className="logbook-title">
+                            <span><ClipboardList size={22} /></span>
                             <div>
-                                <h1 className="logbook-banner-title">Logbook Saya</h1>
-                                <p className="logbook-banner-sub">
-                                    <span className="logbook-sub-date">{formatTanggalIndo(myFilterDate || getTodayString())}</span>
-                                    <span className="logbook-sub-dot">•</span>
-                                    <span>Total: <strong>{myStats.totalEntries} pekerjaan</strong> ({myStats.formattedTotal})</span>
-                                </p>
+                                <h1>Logbook Saya</h1>
+                                <p>Pencatatan aktivitas pekerjaan &amp; akumulasi jam kerja harian Anda.</p>
                             </div>
-                        </div>
-
-                        <div className="logbook-banner-right">
-                            <div className="logbook-date-picker-group">
-                                <DateField
-                                    value={myFilterDate}
-                                    onChange={(val) => setMyFilterDate(val || getTodayString())}
-                                    placeholder="Pilih Tanggal"
-                                />
-                                {myFilterDate !== getTodayString() && (
-                                    <button
-                                        className="logbook-pill-today"
-                                        onClick={() => setMyFilterDate(getTodayString())}
-                                        title="Kembali ke Hari Ini"
-                                    >
-                                        Hari Ini
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="logbook-search-bar">
-                                <Search size={15} className="logbook-search-icon" />
-                                <input
-                                    type="text"
-                                    placeholder="Cari uraian pekerjaan..."
-                                    value={mySearch}
-                                    onChange={(e) => setMySearch(e.target.value)}
-                                />
-                                {mySearch && (
-                                    <button className="logbook-clear-btn" onClick={() => setMySearch('')}>✕</button>
-                                )}
-                            </div>
-
-                            <button className="logbook-hero-add-btn" onClick={openCreateModal}>
-                                <Plus size={17} strokeWidth={2.4} />
-                                <span>Tambah Pekerjaan</span>
-                            </button>
                         </div>
                     </div>
 
-                    {/* Logbook Items Timeline / List */}
-                    {loadingMy ? (
-                        <div className="logbook-loading-box">
-                            <RefreshCw size={26} className="logbook-spinner" />
-                            <p>Memuat catatan pekerjaan...</p>
-                        </div>
-                    ) : myLogbooks.length === 0 ? (
-                        <div className="logbook-empty-box">
-                            <div className="logbook-empty-icon-wrap">
-                                <Timer size={36} />
+                    {/* Main Card */}
+                    <div className="logbook-card">
+                        <div className="logbook-card-head">
+                            <div className="logbook-card-title">
+                                <h2>{formatTanggalIndo(myFilterDate || getTodayString())}</h2>
+                                <p>Total Tercatat: <strong>{myStats.totalEntries} pekerjaan</strong> ({myStats.formattedTotal})</p>
                             </div>
-                            <h3>Belum Ada Catatan Pekerjaan</h3>
-                            <p>
-                                {mySearch
-                                    ? `Tidak ditemukan pekerjaan yang cocok dengan "${mySearch}".`
-                                    : 'Anda belum mencatat aktivitas pekerjaan untuk tanggal ini. Klik tombol di bawah untuk mulai mengisi.'}
-                            </p>
-                            <button className="logbook-hero-add-btn" onClick={openCreateModal}>
-                                <Plus size={16} /> Catat Pekerjaan Sekarang
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="logbook-list-grid">
-                            {myLogbooks.map((item, idx) => (
-                                <div key={item.id} className="logbook-item-card">
-                                    <div className="logbook-item-header">
-                                        <div className="logbook-item-time-pill">
-                                            <Clock size={14} />
-                                            <span>
-                                                {formatWaktu(item.jam_mulai)} – {formatWaktu(item.jam_selesai)}
-                                            </span>
-                                        </div>
-                                        <span className="logbook-item-durasi-badge">
-                                            {item.durasi_format}
-                                        </span>
-                                        <div className="logbook-item-actions">
-                                            <button
-                                                className="logbook-icon-btn edit"
-                                                onClick={() => openEditModal(item)}
-                                                title="Edit pekerjaan"
-                                            >
-                                                <Edit3 size={15} />
-                                            </button>
-                                            <button
-                                                className="logbook-icon-btn delete"
-                                                onClick={() => setDeleteModal({ open: true, item })}
-                                                title="Hapus pekerjaan"
-                                            >
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    <div className="logbook-item-body">
-                                        <p className="logbook-item-text">{item.deskripsi}</p>
-                                    </div>
+                            <div className="logbook-card-actions">
+                                <div className="logbook-date-wrap">
+                                    <DateField
+                                        value={myFilterDate}
+                                        onChange={(val) => setMyFilterDate(val || getTodayString())}
+                                        placeholder="Pilih Tanggal"
+                                    />
+                                    {myFilterDate !== getTodayString() && (
+                                        <button
+                                            type="button"
+                                            className="logbook-btn-today"
+                                            onClick={() => setMyFilterDate(getTodayString())}
+                                            title="Kembali ke Hari Ini"
+                                        >
+                                            Hari Ini
+                                        </button>
+                                    )}
                                 </div>
-                            ))}
+
+                                <div className="logbook-search-input">
+                                    <Search size={15} className="logbook-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari uraian..."
+                                        value={mySearch}
+                                        onChange={(e) => setMySearch(e.target.value)}
+                                    />
+                                    {mySearch && (
+                                        <button type="button" className="logbook-clear-btn" onClick={() => setMySearch('')}>✕</button>
+                                    )}
+                                </div>
+
+                                <button type="button" className="logbook-btn-primary" onClick={openCreateModal}>
+                                    <Plus size={16} strokeWidth={2.4} />
+                                    <span>Tambah Pekerjaan</span>
+                                </button>
+                            </div>
                         </div>
-                    )}
+
+                        {/* Card Body */}
+                        <div className="logbook-card-body">
+                            {loadingMy ? (
+                                <div className="logbook-loading-box">
+                                    <RefreshCw size={24} className="logbook-spinner" />
+                                    <p>Memuat catatan pekerjaan...</p>
+                                </div>
+                            ) : myLogbooks.length === 0 ? (
+                                <div className="logbook-empty-box">
+                                    <div className="logbook-empty-icon-wrap">
+                                        <Timer size={36} />
+                                    </div>
+                                    <h3>Belum Ada Catatan Pekerjaan</h3>
+                                    <p>
+                                        {mySearch
+                                            ? `Tidak ditemukan pekerjaan yang cocok dengan "${mySearch}".`
+                                            : 'Anda belum mencatat aktivitas pekerjaan untuk tanggal ini. Klik tombol di bawah untuk mulai mengisi.'}
+                                    </p>
+                                    <button type="button" className="logbook-btn-primary" onClick={openCreateModal}>
+                                        <Plus size={15} /> Catat Pekerjaan Sekarang
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="logbook-timeline-list">
+                                    {myLogbooks.map((item) => (
+                                        <div key={item.id} className="logbook-item-card">
+                                            <div className="logbook-item-header">
+                                                <div className="logbook-item-time-pill">
+                                                    <Clock size={13} />
+                                                    <span>{formatWaktu(item.jam_mulai)} – {formatWaktu(item.jam_selesai)}</span>
+                                                </div>
+                                                <span className="logbook-item-durasi-badge">
+                                                    ({item.durasi_format || `${item.durasi_menit} menit`})
+                                                </span>
+                                                <div className="logbook-item-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="logbook-icon-btn edit"
+                                                        onClick={() => openEditModal(item)}
+                                                        title="Edit Catatan"
+                                                    >
+                                                        <Edit3 size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="logbook-icon-btn delete"
+                                                        onClick={() => openDeleteConfirm(item)}
+                                                        title="Hapus Catatan"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="logbook-item-body">
+                                                <p className="logbook-item-text">{item.deskripsi}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {/* VIEW 2: MONITORING KARYAWAN (DIREKSI ONLY)                          */}
+            {/* VIEW 2: MONITORING KARYAWAN (DIREKSI VIEW)                          */}
             {/* ══════════════════════════════════════════════════════════════════ */}
             {isMonitoringView && (
                 <div className="logbook-content-section">
-                    {/* Header Banner */}
-                    <div className="logbook-header-banner">
-                        <div className="logbook-banner-left">
-                            <div className="logbook-banner-icon monitoring">
-                                <Users size={26} color="#38bdf8" />
-                            </div>
+                    {/* Standard SIMAK Hero Header */}
+                    <div className="logbook-hero">
+                        <div className="logbook-title">
+                            <span><Users size={22} /></span>
                             <div>
-                                <h1 className="logbook-banner-title">Monitoring Logbook Karyawan</h1>
-                                <p className="logbook-banner-sub">
-                                    Pemantauan dan rekap aktivitas harian seluruh staf rumah sakit
-                                </p>
+                                <h1>Monitoring Logbook Karyawan</h1>
+                                <p>Pantau catatan aktivitas harian seluruh karyawan dan akumulasi jam kerja.</p>
                             </div>
-                        </div>
-
-                        <div className="logbook-banner-right">
-                            <button className="logbook-btn-refresh" onClick={() => { fetchMonitoringData(); fetchMonitoringSummary(); }} title="Segarkan Data">
-                                <RefreshCw size={15} />
-                                <span>Segarkan</span>
-                            </button>
-                            <button className="logbook-btn-export" onClick={handleExportExcel}>
-                                <Download size={15} />
-                                <span>Export Excel</span>
-                            </button>
                         </div>
                     </div>
 
                     {/* Executive KPI Summary Cards */}
                     {summaryStats && (
-                        <div className="logbook-kpi-container">
-                            <div className="logbook-kpi-tile blue">
-                                <div className="logbook-kpi-icon-wrap">
-                                    <ClipboardList size={22} />
+                        <div className="logbook-summary-cards">
+                            <div className="logbook-summary-card blue">
+                                <div className="card-info">
+                                    <span className="card-label">Total Kegiatan Hari Ini</span>
+                                    <span className="card-value">{summaryStats.today_total_entries}</span>
+                                    <span className="card-subtext">Aktivitas diinput pegawai</span>
                                 </div>
-                                <div className="logbook-kpi-meta">
-                                    <span className="logbook-kpi-number">{summaryStats.today_total_entries}</span>
-                                    <span className="logbook-kpi-title">Total Kegiatan Hari Ini</span>
-                                </div>
+                                <span className="card-icon"><ClipboardList size={22} /></span>
                             </div>
 
-                            <div className="logbook-kpi-tile emerald">
-                                <div className="logbook-kpi-icon-wrap">
-                                    <Users size={22} />
+                            <div className="logbook-summary-card emerald">
+                                <div className="card-info">
+                                    <span className="card-label">Staf Mengisi Hari Ini</span>
+                                    <span className="card-value">{summaryStats.today_active_users}</span>
+                                    <span className="card-subtext">Pegawai aktif mencatat</span>
                                 </div>
-                                <div className="logbook-kpi-meta">
-                                    <span className="logbook-kpi-number">{summaryStats.today_active_users}</span>
-                                    <span className="logbook-kpi-title">Staf Mengisi Hari Ini</span>
-                                </div>
+                                <span className="card-icon"><Users size={22} /></span>
                             </div>
 
-                            <div className="logbook-kpi-tile purple">
-                                <div className="logbook-kpi-icon-wrap">
-                                    <Clock size={22} />
+                            <div className="logbook-summary-card purple">
+                                <div className="card-info">
+                                    <span className="card-label">Total Jam Kerja Terakumulasi</span>
+                                    <span className="card-value">{summaryStats.today_durasi_format}</span>
+                                    <span className="card-subtext">Akumulasi hari ini</span>
                                 </div>
-                                <div className="logbook-kpi-meta">
-                                    <span className="logbook-kpi-number">{summaryStats.today_durasi_format}</span>
-                                    <span className="logbook-kpi-title">Total Jam Kerja Terakumulasi</span>
-                                </div>
+                                <span className="card-icon"><Clock size={22} /></span>
                             </div>
 
-                            <div className="logbook-kpi-tile amber">
-                                <div className="logbook-kpi-icon-wrap">
-                                    <TrendingUp size={22} />
+                            <div className="logbook-summary-card amber">
+                                <div className="card-info">
+                                    <span className="card-label">Total Kegiatan Bulan Ini</span>
+                                    <span className="card-value">{summaryStats.month_total_entries}</span>
+                                    <span className="card-subtext">Akumulasi bulan berjalan</span>
                                 </div>
-                                <div className="logbook-kpi-meta">
-                                    <span className="logbook-kpi-number">{summaryStats.month_total_entries}</span>
-                                    <span className="logbook-kpi-title">Total Kegiatan Bulan Ini</span>
-                                </div>
+                                <span className="card-icon"><TrendingUp size={22} /></span>
                             </div>
                         </div>
                     )}
 
-                    {/* Filter Panel */}
-                    <div className="logbook-filter-container">
-                        <div className="logbook-filter-fields">
+                    {/* Monitoring Data Card */}
+                    <div className="logbook-card">
+                        <div className="logbook-card-head">
+                            <div className="logbook-card-title">
+                                <h2>Rekap Aktivitas Pekerjaan</h2>
+                                <p>{monitorLogbooks.length} data tercatat sesuai filter.</p>
+                            </div>
+                            <div className="logbook-card-actions">
+                                <button type="button" className="logbook-btn-secondary" onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }}>
+                                    <RefreshCw size={14} className={loadingMonitor ? 'logbook-spinner' : ''} />
+                                    <span>Segarkan</span>
+                                </button>
+                                <button type="button" className="logbook-btn-export" onClick={handleExportExcel}>
+                                    <Download size={14} />
+                                    <span>Export Excel</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Filter Bar */}
+                        <div className="logbook-filter-bar">
                             <div className="logbook-filter-item">
                                 <label>Periode Tanggal</label>
                                 <DateRangePicker
@@ -548,7 +611,7 @@ export default function MyLogbook() {
                                 <select
                                     value={monUnitId}
                                     onChange={(e) => setMonUnitId(e.target.value)}
-                                    className="logbook-form-control-sm"
+                                    className="logbook-select"
                                 >
                                     <option value="">Semua Unit</option>
                                     {unitList.map(u => (
@@ -562,7 +625,7 @@ export default function MyLogbook() {
                                 <select
                                     value={monUserId}
                                     onChange={(e) => setMonUserId(e.target.value)}
-                                    className="logbook-form-control-sm"
+                                    className="logbook-select"
                                 >
                                     <option value="">Semua Pegawai</option>
                                     {userList.map(u => {
@@ -575,193 +638,192 @@ export default function MyLogbook() {
                                     })}
                                 </select>
                             </div>
-                        </div>
 
-                        <div className="logbook-filter-bottom">
-                            <div className="logbook-search-bar flex-1">
-                                <Search size={14} className="logbook-search-icon" />
-                                <input
-                                    type="text"
-                                    placeholder="Cari kata kunci deskripsi atau nama staf..."
-                                    value={monSearch}
-                                    onChange={(e) => setMonSearch(e.target.value)}
-                                />
-                                {monSearch && (
-                                    <button className="logbook-clear-btn" onClick={() => setMonSearch('')}>✕</button>
-                                )}
-                            </div>
-
-                            <button className="logbook-btn-reset" onClick={handleResetMonitoringFilter} title="Kembalikan Filter Default">
-                                Reset Filter
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Monitoring Data Table */}
-                    <div className="logbook-table-card">
-                        {loadingMonitor ? (
-                            <div className="logbook-loading-box">
-                                <RefreshCw size={26} className="logbook-spinner" />
-                                <p>Memuat data monitoring pegawai...</p>
-                            </div>
-                        ) : monitorLogbooks.length === 0 ? (
-                            <div className="logbook-empty-box">
-                                <div className="logbook-empty-icon-wrap">
-                                    <Filter size={32} />
+                            <div className="logbook-filter-item flex-1">
+                                <label>Pencarian</label>
+                                <div className="logbook-search-input">
+                                    <Search size={14} className="logbook-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari kata kunci deskripsi atau staf..."
+                                        value={monSearch}
+                                        onChange={(e) => setMonSearch(e.target.value)}
+                                    />
+                                    {monSearch && (
+                                        <button type="button" className="logbook-clear-btn" onClick={() => setMonSearch('')}>✕</button>
+                                    )}
                                 </div>
-                                <h3>Tidak Ada Data Logbook</h3>
-                                <p>Tidak ditemukan catatan logbook sesuai filter yang Anda terapkan.</p>
                             </div>
-                        ) : (
-                            <div className="logbook-table-wrapper">
-                                <table className="logbook-data-table">
+
+                            <div className="logbook-filter-item" style={{ alignSelf: 'flex-end' }}>
+                                <button type="button" className="logbook-btn-reset" onClick={handleResetMonitoringFilter}>
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="logbook-table-wrap">
+                            {loadingMonitor ? (
+                                <div className="logbook-loading-box">
+                                    <RefreshCw size={26} className="logbook-spinner" />
+                                    <p>Memuat rekap data monitoring...</p>
+                                </div>
+                            ) : monitorLogbooks.length === 0 ? (
+                                <div className="logbook-empty-box">
+                                    <div className="logbook-empty-icon-wrap">
+                                        <Filter size={32} />
+                                    </div>
+                                    <h3>Tidak Ada Data Logbook</h3>
+                                    <p>Tidak ditemukan data aktivitas pekerjaan pada rentang tanggal atau filter yang dipilih.</p>
+                                </div>
+                            ) : (
+                                <table className="logbook-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ width: '45px', textAlign: 'center' }}>No</th>
-                                            <th style={{ width: '115px' }}>Tanggal</th>
-                                            <th style={{ width: '135px' }}>Jam & Durasi</th>
-                                            <th style={{ width: '210px' }}>Pegawai</th>
-                                            <th style={{ width: '160px' }}>Unit / Bagian</th>
-                                            <th>Uraian / Deskripsi Pekerjaan</th>
+                                            <th style={{ width: '130px' }}>Tanggal</th>
+                                            <th style={{ width: '150px' }}>Jam &amp; Durasi</th>
+                                            <th style={{ width: '220px' }}>Pegawai</th>
+                                            <th style={{ width: '170px' }}>Unit / Bagian</th>
+                                            <th>Deskripsi Pekerjaan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {monitorLogbooks.map((item, idx) => (
-                                            <tr key={item.id}>
-                                                <td style={{ textAlign: 'center', color: '#94a3b8' }}>{idx + 1}</td>
+                                        {monitorLogbooks.map((row) => (
+                                            <tr key={row.id}>
                                                 <td>
                                                     <span className="logbook-table-date">
-                                                        {item.tanggal}
+                                                        {formatTanggalShort(row.tanggal)}
                                                     </span>
                                                 </td>
                                                 <td>
                                                     <div className="logbook-table-time-cell">
-                                                        <strong>{formatWaktu(item.jam_mulai)} – {formatWaktu(item.jam_selesai)}</strong>
-                                                        <span className="logbook-table-duration">{item.durasi_format}</span>
+                                                        <strong>{formatWaktu(row.jam_mulai)} – {formatWaktu(row.jam_selesai)}</strong>
+                                                        <span className="logbook-table-duration">({row.durasi_format || `${row.durasi_menit} mnt`})</span>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div className="logbook-emp-cell">
                                                         <div className="logbook-emp-avatar">
-                                                            {item.user_nama?.[0]?.toUpperCase() || 'U'}
+                                                            {(row.user_full_name || row.user_username || 'U').charAt(0).toUpperCase()}
                                                         </div>
                                                         <div>
-                                                            <div className="logbook-emp-name">{item.user_nama}</div>
-                                                            <div className="logbook-emp-role">{item.user_role_label || item.user_role}</div>
+                                                            <div className="logbook-emp-name">{row.user_full_name || row.user_username}</div>
+                                                            <div className="logbook-emp-role">{row.user_role || 'Staff'}</div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <span className="logbook-unit-tag">
-                                                        <Building2 size={12} /> {item.unit_nama || '-'}
+                                                        <Building2 size={12} />
+                                                        {row.user_unit_name || 'Tidak ada unit'}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <div className="logbook-table-desc">
-                                                        {item.deskripsi}
-                                                    </div>
+                                                    <div className="logbook-table-desc">{row.deskripsi}</div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {/* MODAL FORM TAMBAH / EDIT LOGBOOK                                   */}
+            {/* MODAL 1: TAMBAH / EDIT LOGBOOK                                      */}
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {modalOpen && (
-                <div className="logbook-modal-overlay" onClick={() => setModalOpen(false)}>
+            {isModalOpen && (
+                <div className="logbook-modal-overlay" onClick={closeModal}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
                             <div className="logbook-modal-title-wrap">
-                                <ClipboardList size={20} color="#38bdf8" />
-                                <h3>{editingItem ? 'Edit Catatan Pekerjaan' : 'Catat Pekerjaan Baru'}</h3>
+                                <h3>{editingItem ? 'Edit Catatan Pekerjaan' : 'Tambah Catatan Pekerjaan'}</h3>
                             </div>
-                            <button className="logbook-modal-close-btn" onClick={() => setModalOpen(false)}>
-                                <X size={18} />
+                            <button type="button" className="logbook-modal-close-btn" onClick={closeModal}>
+                                <X size={17} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveLogbook} className="logbook-modal-body">
-                            {formError && (
-                                <div className="logbook-form-alert">
-                                    <X size={15} />
-                                    <span>{formError}</span>
-                                </div>
-                            )}
+                        <form onSubmit={handleFormSubmit}>
+                            <div className="logbook-modal-body">
+                                {formError && (
+                                    <div className="logbook-form-alert">
+                                        <X size={15} />
+                                        <span>{formError}</span>
+                                    </div>
+                                )}
 
-                            <div className="logbook-field-group">
-                                <label>Tanggal Pekerjaan *</label>
-                                <DateField
-                                    value={formData.tanggal}
-                                    onChange={(val) => setFormData({ ...formData, tanggal: val || getTodayString() })}
-                                    placeholder="Pilih Tanggal"
-                                />
-                            </div>
-
-                            <div className="logbook-field-row">
-                                <div className="logbook-field-group flex-1">
-                                    <label>Jam Mulai *</label>
-                                    <input
-                                        type="time"
-                                        value={formData.jam_mulai}
-                                        onChange={(e) => setFormData({ ...formData, jam_mulai: e.target.value })}
-                                        required
-                                        className="logbook-input"
+                                <div className="logbook-field-group">
+                                    <label>Tanggal Pekerjaan *</label>
+                                    <DateField
+                                        value={formData.tanggal}
+                                        onChange={(val) => setFormData({ ...formData, tanggal: val || getTodayString() })}
+                                        placeholder="Pilih Tanggal"
                                     />
                                 </div>
 
-                                <div className="logbook-field-group flex-1">
-                                    <label>Jam Selesai *</label>
-                                    <input
-                                        type="time"
-                                        value={formData.jam_selesai}
-                                        onChange={(e) => setFormData({ ...formData, jam_selesai: e.target.value })}
+                                <div className="logbook-field-row">
+                                    <div className="logbook-field-group flex-1">
+                                        <label>Jam Mulai *</label>
+                                        <input
+                                            type="time"
+                                            value={formData.jam_mulai}
+                                            onChange={(e) => setFormData({ ...formData, jam_mulai: e.target.value })}
+                                            required
+                                            className="logbook-input"
+                                        />
+                                    </div>
+
+                                    <div className="logbook-field-group flex-1">
+                                        <label>Jam Selesai *</label>
+                                        <input
+                                            type="time"
+                                            value={formData.jam_selesai}
+                                            onChange={(e) => setFormData({ ...formData, jam_selesai: e.target.value })}
+                                            required
+                                            className="logbook-input"
+                                        />
+                                    </div>
+                                </div>
+
+                                {calculatedFormDuration && (
+                                    <div className="logbook-duration-indicator">
+                                        <Clock size={13} />
+                                        <span>Durasi Terhitung: <strong>{calculatedFormDuration}</strong></span>
+                                    </div>
+                                )}
+
+                                <div className="logbook-field-group">
+                                    <label>Uraian / Deskripsi Pekerjaan *</label>
+                                    <textarea
+                                        rows={4}
+                                        placeholder="Tuliskan secara jelas pekerjaan apa yang Anda selesaikan..."
+                                        value={formData.deskripsi}
+                                        onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
                                         required
-                                        className="logbook-input"
+                                        className="logbook-textarea"
                                     />
                                 </div>
-                            </div>
-
-                            {calculatedFormDuration && (
-                                <div className="logbook-duration-indicator">
-                                    <Clock size={13} />
-                                    <span>Durasi Terhitung: <strong>{calculatedFormDuration}</strong></span>
-                                </div>
-                            )}
-
-                            <div className="logbook-field-group">
-                                <label>Uraian / Deskripsi Pekerjaan *</label>
-                                <textarea
-                                    rows={4}
-                                    placeholder="Tuliskan pekerjaan yang telah Anda selesaikan..."
-                                    value={formData.deskripsi}
-                                    onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
-                                    required
-                                    className="logbook-textarea"
-                                />
                             </div>
 
                             <div className="logbook-modal-footer">
                                 <button
                                     type="button"
                                     className="logbook-btn-cancel"
-                                    onClick={() => setModalOpen(false)}
-                                    disabled={saving}
+                                    onClick={closeModal}
+                                    disabled={submitting}
                                 >
                                     Batal
                                 </button>
                                 <button
                                     type="submit"
-                                    className="logbook-btn-submit"
-                                    disabled={saving}
+                                    className="logbook-btn-primary"
+                                    disabled={submitting}
                                 >
-                                    {saving ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Catat Pekerjaan')}
+                                    {submitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Simpan Pekerjaan'}
                                 </button>
                             </div>
                         </form>
@@ -770,38 +832,33 @@ export default function MyLogbook() {
             )}
 
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {/* MODAL KONFIRMASI HAPUS                                             */}
+            {/* MODAL 2: KONFIRMASI HAPUS                                          */}
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {deleteModal.open && (
-                <div className="logbook-modal-overlay" onClick={() => setDeleteModal({ open: false, item: null })}>
+            {deleteItem && (
+                <div className="logbook-modal-overlay" onClick={closeDeleteConfirm}>
                     <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
                             <div className="logbook-modal-title-wrap">
-                                <Trash2 size={19} color="#ef4444" />
                                 <h3>Hapus Catatan Pekerjaan</h3>
                             </div>
-                            <button className="logbook-modal-close-btn" onClick={() => setDeleteModal({ open: false, item: null })}>
-                                <X size={18} />
+                            <button type="button" className="logbook-modal-close-btn" onClick={closeDeleteConfirm}>
+                                <X size={17} />
                             </button>
                         </div>
 
                         <div className="logbook-delete-body">
-                            <p>
-                                Apakah Anda yakin ingin menghapus catatan pekerjaan ini? Tindakan ini tidak dapat dibatalkan.
-                            </p>
-                            {deleteModal.item && (
-                                <div className="logbook-delete-item-preview">
-                                    <small>{formatWaktu(deleteModal.item.jam_mulai)} – {formatWaktu(deleteModal.item.jam_selesai)}</small>
-                                    <div>{deleteModal.item.deskripsi}</div>
-                                </div>
-                            )}
+                            <p>Apakah Anda yakin ingin menghapus catatan pekerjaan ini?</p>
+                            <div className="logbook-delete-item-preview">
+                                <small>{formatTanggalShort(deleteItem.tanggal)} • {formatWaktu(deleteItem.jam_mulai)} - {formatWaktu(deleteItem.jam_selesai)}</small>
+                                <div>"{deleteItem.deskripsi}"</div>
+                            </div>
                         </div>
 
                         <div className="logbook-modal-footer">
                             <button
                                 type="button"
                                 className="logbook-btn-cancel"
-                                onClick={() => setDeleteModal({ open: false, item: null })}
+                                onClick={closeDeleteConfirm}
                                 disabled={deleting}
                             >
                                 Batal
@@ -809,7 +866,7 @@ export default function MyLogbook() {
                             <button
                                 type="button"
                                 className="logbook-btn-danger"
-                                onClick={handleDeleteLogbook}
+                                onClick={handleDeleteSubmit}
                                 disabled={deleting}
                             >
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}

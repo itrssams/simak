@@ -166,6 +166,7 @@ textarea {
   .pengumuman-page, .pg-page,
   .laporan-page, .lp-page,
   .it-page, .it-page-wrap,
+  .logbook-page, .logbook-page-wrap,
   .odoo-launcher-page
 ) {
   background-color: #0b0f19 !important;
@@ -265,6 +266,7 @@ textarea {
   .pg-card, .pg-list-card,
   .lp-card, .lp-table-wrap,
   .it-card, .it-table-wrap,
+  .logbook-card, .logbook-summary-card, .logbook-table-wrap,
   .card, [class$="-card"], [class*="-card "]
 ) {
   background-color: #151c2c !important;
@@ -280,6 +282,7 @@ textarea {
   .log-summary-card > span,
   .pc-summary-card > span,
   .inv-summary-card > span,
+  .logbook-summary-card > span,
   .dash-stat-icon
 ) {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -289,14 +292,14 @@ textarea {
 
 /* Card Headers & Banner Overrides */
 [data-theme="dark"] :where(
-  .inv-card-head, .dki-card-head, .ap-card-head, .log-card-head, .pc-card-head, .mu-card-head, .it-card-head, .card-header
+  .inv-card-head, .dki-card-head, .ap-card-head, .log-card-head, .pc-card-head, .mu-card-head, .it-card-head, .logbook-card-head, .card-header
 ) {
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(21, 28, 44, 0.98)) !important;
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-theme="dark"] :where(
-  .inv-hero, .dki-hero, .ap-hero, .mp-hero, .iv-hero, .utang-hero, .log-hero, .pc-hero, .mu-hero, .driver-hero, .audit-hero, .dash-hero, .db-hero, .idash-head, .pg-hero, .lp-hero, .it-hero
+  .inv-hero, .dki-hero, .ap-hero, .mp-hero, .iv-hero, .utang-hero, .log-hero, .pc-hero, .mu-hero, .driver-hero, .audit-hero, .dash-hero, .db-hero, .idash-head, .pg-hero, .lp-hero, .it-hero, .logbook-hero
 ) {
   background: transparent !important;
   border: none !important;
