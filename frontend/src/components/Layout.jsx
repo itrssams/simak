@@ -1532,6 +1532,17 @@ export default function Layout({ children }) {
                         radial-gradient(circle at 18% 10%, rgba(99,102,241,.12), transparent 28%),
                         radial-gradient(circle at 88% 0%, rgba(6,182,212,.10), transparent 24%),
                         transparent;
+                    animation: moduleContentFadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                @keyframes moduleContentFadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
                 }
                 .app-footer {
                     background: linear-gradient(135deg, #101632, #161b3f);
@@ -1746,7 +1757,7 @@ export default function Layout({ children }) {
 
             <div className="body-shell">
                 <div className="content-shell full-width">
-                    <main className="main-content">
+                    <main className="main-content" key={location.pathname}>
                         {children}
                     </main>
                     <footer className="app-footer">
