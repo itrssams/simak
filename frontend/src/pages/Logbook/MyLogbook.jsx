@@ -595,15 +595,6 @@ export default function MyLogbook() {
                                 <span className="card-icon"><Users size={22} /></span>
                             </div>
 
-                            <div className="logbook-summary-card purple">
-                                <div className="card-info">
-                                    <span className="card-label">Total Jam Kerja Terakumulasi</span>
-                                    <span className="card-value">{summaryStats.today_durasi_format}</span>
-                                    <span className="card-subtext">Akumulasi hari ini</span>
-                                </div>
-                                <span className="card-icon"><Clock size={22} /></span>
-                            </div>
-
                             <div className="logbook-summary-card amber">
                                 <div className="card-info">
                                     <span className="card-label">Total Kegiatan Bulan Ini</span>
