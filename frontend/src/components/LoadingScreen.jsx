@@ -1,7 +1,8 @@
+import { createPortal } from 'react-dom';
 import './LoadingScreen.css';
 
 export default function LoadingScreen({ text = 'Memuat sistem...' }) {
-    return (
+    const content = (
         <div className="simak-loading-screen">
             <div className="simak-loading-container">
                 {/* Glowing Orbital Ring */}
@@ -28,4 +29,11 @@ export default function LoadingScreen({ text = 'Memuat sistem...' }) {
             </div>
         </div>
     );
+
+    // Mount directly to document.body via Portal to bypass any #root zoom and cover 100% full screen
+    if (typeof document !== 'undefined' && document.body) {
+        return createPortal(content, document.body);
+    }
+
+    return content;
 }
