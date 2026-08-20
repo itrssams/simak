@@ -1,81 +1,12 @@
 from django.db import connection, models
+
 from django.conf import settings
+
 from django.core.exceptions import ValidationError
+
 from django.utils import timezone
+
 from decimal import Decimal
-
-
-class AuditLog(models.Model):
-    ACTION_CHOICES = [
-        ('create', 'Create'),
-        ('update', 'Update'),
-        ('delete', 'Delete'),
-        ('action', 'Action'),
-        ('login', 'Login'),
-    ]
-
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='audit_logs',
-    )
-    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
-    entity_type = models.CharField(max_length=30)
-    entity_id = models.IntegerField(default=0)
-    entity_display = models.CharField(max_length=255, blank=True)
-    old_values = models.JSONField(default=dict, blank=True)
-    new_values = models.JSONField(default=dict, blank=True)
-    description = models.TextField()
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.TextField(blank=True)
-    status = models.CharField(max_length=20, default='success')
-    error_message = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'system_audit_log'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['entity_type', 'entity_id'], name='keuangan_au_entity__f2af1e_idx'),
-            models.Index(fields=['user', '-created_at'], name='keuangan_au_user_id_bcbc70_idx'),
-            models.Index(fields=['action', '-created_at'], name='keuangan_au_action_191ccc_idx'),
-            models.Index(fields=['-created_at'], name='keuangan_au_created_b5330a_idx'),
-        ]
-        verbose_name = 'Audit Log'
-        verbose_name_plural = 'Audit Logs'
-
-    def __str__(self):
-        actor = self.user.username if self.user else 'System'
-        return f'{self.created_at:%Y-%m-%d %H:%M} | {actor} | {self.action} | {self.entity_type}'
-
-
-class IdempotencyLog(models.Model):
-    idempotency_key = models.CharField(max_length=120)
-    request_path = models.CharField(max_length=500, blank=True)
-    response_status = models.PositiveSmallIntegerField(null=True, blank=True)
-    response_body = models.JSONField(default=dict, blank=True)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='idempotency_logs',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'system_idempotency_log'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['idempotency_key', 'user'], name='keuangan_id_idempot_f20424_idx'),
-            models.Index(fields=['-created_at'], name='keuangan_id_created_80e4ee_idx'),
-        ]
-
-    def __str__(self):
-        return self.idempotency_key
-
 
 class Akun(models.Model):
     TIPE_CHOICES = [
@@ -111,7 +42,6 @@ class Akun(models.Model):
     def __str__(self):
         return f"{self.kode_akun} - {self.nama_akun}"
 
-
 class Pelanggan(models.Model):
     TIPE_CHOICES = [
         ('umum', 'Umum'),
@@ -139,7 +69,6 @@ class Pelanggan(models.Model):
 
     def __str__(self):
         return f"{self.kode} - {self.nama}"
-
 
 class Pemasok(models.Model):
     TIPE_CHOICES = [
@@ -169,7 +98,6 @@ class Pemasok(models.Model):
 
     def __str__(self):
         return f"{self.kode} - {self.nama}"
-
 
 class Jurnal(models.Model):
     STATUS_CHOICES = [('draft', 'Draft'), ('posted', 'Diposting')]
@@ -203,7 +131,6 @@ class Jurnal(models.Model):
     def is_balanced(self):
         return self.total_debit == self.total_kredit
 
-
 class JurnalItem(models.Model):
     jurnal     = models.ForeignKey(Jurnal, on_delete=models.CASCADE, related_name='items')
     akun       = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='jurnal_items')
@@ -216,7 +143,6 @@ class JurnalItem(models.Model):
 
     def __str__(self):
         return f"{self.akun} | D:{self.debit} K:{self.kredit}"
-
 
 class Transaksi(models.Model):
     JENIS_CHOICES = [('masuk', 'Kas Masuk'), ('keluar', 'Kas Keluar')]
@@ -259,7 +185,6 @@ class Transaksi(models.Model):
 
     def __str__(self):
         return f"{self.tanggal} | {self.jenis} | {self.jumlah}"
-
 
 class Faktur(models.Model):
     STATUS_CHOICES = [
@@ -415,7 +340,6 @@ class Faktur(models.Model):
         effective_total = self._get_effective_total_tagihan()
         return effective_total - self._get_verified_total_dibayar()
 
-
 class FakturItem(models.Model):
     faktur       = models.ForeignKey(Faktur, on_delete=models.CASCADE, related_name='items')
     deskripsi    = models.CharField(max_length=200)
@@ -432,7 +356,6 @@ class FakturItem(models.Model):
 
     def __str__(self):
         return f"{self.deskripsi} - {self.subtotal}"
-
 
 class PembayaranFaktur(models.Model):
     METODE_CHOICES = [
@@ -494,7 +417,6 @@ class PembayaranFaktur(models.Model):
         verified_total = faktur._get_verified_total_dibayar()
         faktur.total_dibayar = verified_total
         faktur.save()
-
 
 class UtangSupplier(models.Model):
     STATUS_BELUM_DIBAYAR = 'belum_dibayar'
@@ -597,7 +519,6 @@ class UtangSupplier(models.Model):
             self.save(update_fields=['status', 'updated_at'])
         return self.status
 
-
 class DepositVendor(models.Model):
     vendor_id = models.IntegerField(db_index=True, help_text='ID rssams.rekanan.id_rekanan')
     vendor_nama = models.CharField(max_length=150, blank=True)
@@ -622,7 +543,6 @@ class DepositVendor(models.Model):
     def sisa_deposit(self):
         sisa = self.nominal_retur - (self.terpakai or Decimal('0'))
         return max(sisa, Decimal('0'))
-
 
 class PembayaranUtang(models.Model):
     STATUS_PENDING = 'pending'
@@ -678,7 +598,6 @@ class PembayaranUtang(models.Model):
         utang = self.utang
         super().delete(*args, **kwargs)
         utang.refresh_status()
-
 
 class AlokasiDana(models.Model):
     BANK_CHOICES = [
@@ -738,7 +657,6 @@ class AlokasiDana(models.Model):
         )['total'] or 0
         return legacy_digunakan + wallet_digunakan
 
-
 class AlokasiDanaPemakaian(models.Model):
     alokasi_dana = models.ForeignKey(AlokasiDana, on_delete=models.CASCADE, related_name='pemakaian_alokasi')
     pembayaran   = models.ForeignKey(PembayaranFaktur, on_delete=models.CASCADE, related_name='pemakaian_alokasi')
@@ -753,7 +671,6 @@ class AlokasiDanaPemakaian(models.Model):
 
     def __str__(self):
         return f"{self.alokasi_dana_id} -> {self.pembayaran_id}: {self.jumlah}"
-
 
 class Tagihan(models.Model):
     STATUS_CHOICES = [
@@ -790,7 +707,6 @@ class Tagihan(models.Model):
     def sisa_tagihan(self):
         return self.total_tagihan - self.total_dibayar
 
-
 class TagihanItem(models.Model):
     tagihan      = models.ForeignKey(Tagihan, on_delete=models.CASCADE, related_name='items')
     deskripsi    = models.CharField(max_length=200)
@@ -807,7 +723,6 @@ class TagihanItem(models.Model):
 
     def __str__(self):
         return f"{self.deskripsi} - {self.subtotal}"
-
 
 class PembayaranTagihan(models.Model):
     METODE_CHOICES = [
@@ -834,7 +749,6 @@ class PembayaranTagihan(models.Model):
 
     def __str__(self):
         return f"{self.tagihan.nomor_tagihan} - {self.jumlah}"
-
 
 class RekeningBank(models.Model):
     BANK_CHOICES = [
@@ -869,7 +783,6 @@ class RekeningBank(models.Model):
             return self.nama_bank or 'Bank Lainnya'
         return self.get_bank_display()
 
-
 class RiwayatSaldoRekening(models.Model):
     rekening      = models.ForeignKey(RekeningBank, on_delete=models.CASCADE, related_name='riwayat')
     saldo_sebelum = models.DecimalField(max_digits=18, decimal_places=2)
@@ -886,11 +799,6 @@ class RiwayatSaldoRekening(models.Model):
 
     def __str__(self):
         return f"{self.rekening.nomor_rekening} | {self.saldo_sebelum} → {self.saldo_sesudah}"
-
-
-# ══════════════════════════════════════════════════════════════
-# PETTY CASH
-# ══════════════════════════════════════════════════════════════
 
 def berkas_pc_path(instance, filename):
     return f'petty_cash/{instance.no_pengajuan}/{filename}'
@@ -909,7 +817,6 @@ def foto_petty_cash_path(instance, filename):
 
 def foto_laporan_penggunaan_path(instance, filename):
     return f'petty_cash/laporan/{instance.laporan.petty_cash.no_pengajuan}/foto/{filename}'
-
 
 class PettyCash(models.Model):
     STATUS_CHOICES = [
@@ -957,7 +864,6 @@ class PettyCash(models.Model):
     def __str__(self):
         return f"{self.no_pengajuan} - {self.status}"
 
-
 class LaporanPenggunaan(models.Model):
     petty_cash           = models.OneToOneField(PettyCash, on_delete=models.CASCADE, related_name='laporan')
     tanggal_laporan      = models.DateField()
@@ -977,11 +883,6 @@ class LaporanPenggunaan(models.Model):
 
     def __str__(self):
         return f"Laporan {self.petty_cash.no_pengajuan}"
-
-
-# ══════════════════════════════════════════════════════════════
-# REIMBURSEMENT
-# ══════════════════════════════════════════════════════════════
 
 class Reimbursement(models.Model):
     STATUS_CHOICES = [
@@ -1023,7 +924,6 @@ class Reimbursement(models.Model):
     def __str__(self):
         return f"{self.no_reimbursement} - {self.status}"
 
-
 class FotoReimbursement(models.Model):
     reimbursement = models.ForeignKey(Reimbursement, on_delete=models.CASCADE, related_name='foto_list')
     foto = models.ImageField(upload_to=foto_reimbursement_path)
@@ -1048,7 +948,6 @@ class FotoReimbursement(models.Model):
 
         super().save(*args, **kwargs)
 
-
 class FotoPettyCash(models.Model):
     petty_cash = models.ForeignKey(PettyCash, on_delete=models.CASCADE, related_name='foto_list')
     foto = models.ImageField(upload_to=foto_petty_cash_path)
@@ -1072,7 +971,6 @@ class FotoPettyCash(models.Model):
             compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
 
         super().save(*args, **kwargs)
-
 
 class FotoLaporanPenggunaan(models.Model):
     laporan = models.ForeignKey(LaporanPenggunaan, on_delete=models.CASCADE, related_name='foto_list')
@@ -1191,672 +1089,11 @@ class PengajuanPenambahanSaldo(models.Model):
     def __str__(self):
         return f'{self.no_pengajuan} - {self.status}'
 
-# ══════════════════════════════════════════════════════════════
-# Tambahkan ke keuangan/models.py
-# ══════════════════════════════════════════════════════════════
-
-class Kendaraan(models.Model):
-    JENIS_CHOICES = [
-        ('mobil',    'Mobil'),
-        ('motor',    'Motor'),
-        ('ambulans', 'Ambulans'),
-        ('pickup',   'Pickup'),
-        ('bus',      'Bus'),
-        ('lainnya',  'Lainnya'),
-    ]
-
-    plat_nomor  = models.CharField(max_length=20, unique=True)
-    nama        = models.CharField(max_length=100, help_text='Contoh: Avanza Putih, Ambulans 1')
-    jenis       = models.CharField(max_length=20, choices=JENIS_CHOICES, default='mobil')
-    is_active   = models.BooleanField(default=True)
-    keterangan  = models.TextField(blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'driver_kendaraan'
-        ordering     = ['jenis', 'nama']
-        verbose_name = 'Kendaraan'
-        verbose_name_plural = 'Daftar Kendaraan'
-
-    def __str__(self):
-        return f"{self.plat_nomor} - {self.nama} ({self.get_jenis_display()})"
-
-
-def foto_perjalanan_path(instance, filename):
-    return f'driver/perjalanan/{instance.driver.username}/{filename}'
-
-def foto_bbm_path(instance, filename):
-    return f'driver/bbm/{instance.driver.username}/{filename}'
-
-def foto_maintenance_path(instance, filename):
-        return f'driver/maintenance/{instance.kendaraan.plat_nomor}/{filename}'
-
-
-class LogPerjalanan(models.Model):
-    STATUS_CHOICES = [
-        ('pending',    'Pending'),
-        ('disetujui',  'Disetujui'),
-        ('ditolak',    'Ditolak'),
-        ('dilaporkan', 'Dilaporkan'),
-        ('selesai',    'Selesai'),
-    ]
-
-    no_perjalanan = models.CharField(max_length=25, unique=True, editable=False, blank=True)
-    driver      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='log_perjalanan')
-    kendaraan   = models.ForeignKey(Kendaraan, on_delete=models.PROTECT, related_name='log_perjalanan')
-    tanggal     = models.DateField()
-    jam_berangkat = models.TimeField()
-    jam_kembali   = models.TimeField(null=True, blank=True)
-    tujuan      = models.CharField(max_length=255)
-    km_awal     = models.PositiveIntegerField(help_text='KM odometer saat berangkat')
-    km_akhir    = models.PositiveIntegerField(null=True, blank=True, help_text='KM odometer saat kembali')
-    jarak_km    = models.PositiveIntegerField(null=True, blank=True, help_text='Otomatis dihitung')
-    penumpang   = models.CharField(max_length=255, blank=True, help_text='Nama penumpang jika ada')
-    keterangan  = models.TextField(blank=True)
-    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    catatan_tolak = models.TextField(blank=True)
-    disetujui_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approval_log_perjalanan')
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'driver_log_perjalanan'
-        ordering     = ['-tanggal', '-jam_berangkat']
-        verbose_name = 'Log Perjalanan'
-        verbose_name_plural = 'Log Perjalanan'
-
-    def save(self, *args, **kwargs):
-        if self.km_akhir and self.km_awal:
-            if self.km_akhir < self.km_awal:
-                raise ValidationError('KM akhir tidak boleh lebih kecil dari KM awal.')
-            self.jarak_km = self.km_akhir - self.km_awal
-        if not self.no_perjalanan:
-            from datetime import date
-            today  = date.today()
-            prefix = f"LP-{today.strftime('%Y%m')}-"
-            last   = LogPerjalanan.objects.filter(no_perjalanan__startswith=prefix).order_by('no_perjalanan').last()
-            if last:
-                last_num = int(last.no_perjalanan.split('-')[-1])
-                self.no_perjalanan = f"{prefix}{str(last_num + 1).zfill(3)}"
-            else:
-                self.no_perjalanan = f"{prefix}001"
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.no_perjalanan} | {self.driver.username} | {self.tanggal}"
-
-
-def foto_laporan_perjalanan_path(instance, filename):
-    return f'driver/perjalanan/{instance.laporan.log_perjalanan.no_perjalanan}/{filename}'
-
-
-class LaporanPerjalanan(models.Model):
-    log_perjalanan = models.OneToOneField(LogPerjalanan, on_delete=models.CASCADE, related_name='laporan')
-    tanggal_laporan = models.DateField()
-    deskripsi     = models.TextField(help_text='Deskripsi perjalanan dan aktivitas')
-    tujuan_tercapai = models.BooleanField(default=True)
-    keterangan    = models.TextField(blank=True)
-    created_at    = models.DateTimeField(auto_now_add=True)
-    updated_at    = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'driver_laporan_perjalanan'
-        verbose_name = 'Laporan Perjalanan'
-        verbose_name_plural = 'Laporan Perjalanan'
-
-    def __str__(self):
-        return f"Laporan {self.log_perjalanan.no_perjalanan}"
-
-
-class FotoLaporanPerjalanan(models.Model):
-    laporan = models.ForeignKey(LaporanPerjalanan, on_delete=models.CASCADE, related_name='foto')
-    foto    = models.ImageField(upload_to=foto_laporan_perjalanan_path)
-    urutan  = models.PositiveIntegerField(default=1, help_text='Urutan foto')
-    keterangan = models.CharField(max_length=255, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'driver_foto_laporan'
-        ordering = ['urutan', 'created_at']
-        verbose_name = 'Foto Laporan Perjalanan'
-        verbose_name_plural = 'Foto Laporan Perjalanan'
-
-    def __str__(self):
-        return f"Foto {self.urutan} - {self.laporan.log_perjalanan.no_perjalanan}"
-
-    def save(self, *args, **kwargs):
-        # Auto-compress image on save
-        if self.foto:
-            from .utils_image import compress_image
-            compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
-
-        super().save(*args, **kwargs)
-
-
-class LogBBM(models.Model):
-    driver      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='log_bbm')
-    kendaraan   = models.ForeignKey(Kendaraan, on_delete=models.PROTECT, related_name='log_bbm')
-    tanggal     = models.DateField()
-    total_biaya = models.DecimalField(max_digits=12, decimal_places=2)
-    km_saat_isi = models.PositiveIntegerField(null=True, blank=True, help_text='KM odometer saat isi BBM')
-    keterangan  = models.TextField(blank=True)
-    foto        = models.ImageField(upload_to=foto_bbm_path, null=True, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'driver_log_bbm'
-        ordering     = ['-tanggal', '-created_at']
-        verbose_name = 'Log BBM'
-        verbose_name_plural = 'Log BBM'
-
-    def __str__(self):
-        return f"{self.driver.username} | {self.tanggal} | {self.kendaraan.plat_nomor} | Rp {self.total_biaya:,.0f}"
-
-
-class LogMaintenance(models.Model):
-    JENIS_CHOICES = [
-        ('servis_rutin', 'Servis Rutin'),
-        ('ganti_oli',    'Ganti Oli'),
-        ('ban',          'Ganti / Tambal Ban'),
-        ('aki',          'Ganti Aki'),
-        ('rem',          'Perbaikan Rem'),
-        ('ac',           'Servis AC'),
-        ('body',         'Perbaikan Body'),
-        ('lainnya',      'Lainnya'),
-    ]
-
-    kendaraan   = models.ForeignKey(Kendaraan, on_delete=models.PROTECT, related_name='log_maintenance')
-    dilaporkan_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='log_maintenance')
-    jenis       = models.CharField(max_length=30, choices=JENIS_CHOICES)
-    tanggal     = models.DateField()
-    biaya       = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    deskripsi   = models.TextField(blank=True)
-    foto        = models.ImageField(upload_to=foto_maintenance_path, null=True, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'driver_log_maintenance'
-        ordering     = ['-tanggal', '-created_at']
-        verbose_name = 'Log Maintenance'
-        verbose_name_plural = 'Log Maintenance'
-
-    def __str__(self):
-        return f"{self.kendaraan.plat_nomor} | {self.get_jenis_display()} | {self.tanggal}"
-
-
-class ITBackupRecord(models.Model):
-    BACKUP_TYPE_CHOICES = [
-        ('database', 'Database'),
-        ('media', 'Media Upload'),
-        ('full', 'Database + Media'),
-        ('config', 'Konfigurasi'),
-        ('other', 'Lainnya'),
-    ]
-    STATUS_CHOICES = [
-        ('scheduled', 'Terjadwal'),
-        ('running', 'Berjalan'),
-        ('success', 'Berhasil'),
-        ('failed', 'Gagal'),
-        ('verified', 'Terverifikasi'),
-    ]
-
-    backup_type = models.CharField(max_length=20, choices=BACKUP_TYPE_CHOICES, default='database')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='success')
-    file_name = models.CharField(max_length=255, blank=True)
-    storage_path = models.CharField(max_length=500, blank=True)
-    file_size_mb = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
-    notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_backup_records')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'it_backup_record'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['status', '-created_at'], name='it_backup_status_idx'),
-            models.Index(fields=['backup_type', '-created_at'], name='it_backup_type_idx'),
-        ]
-
-    def __str__(self):
-        return f"{self.get_backup_type_display()} - {self.get_status_display()}"
-
 
 def foto_it_repair_path(instance, filename):
     period = instance.created_at.strftime('%Y%m') if instance.created_at else timezone.now().strftime('%Y%m')
     return f'it/repair/{period}/{filename}'
 
-
-class ITRepairRequest(models.Model):
-    CATEGORY_CHOICES = [
-        ('hardware', 'Hardware'),
-        ('software', 'Software'),
-        ('network', 'Jaringan'),
-        ('printer', 'Printer'),
-        ('account', 'Akun / Akses'),
-        ('simak', 'SIMAK'),
-        ('other', 'Lainnya'),
-    ]
-    PRIORITY_CHOICES = [
-        ('low', 'Rendah'),
-        ('normal', 'Normal'),
-        ('high', 'Tinggi'),
-        ('urgent', 'Darurat'),
-    ]
-    STATUS_CHOICES = [
-        ('open', 'Baru'),
-        ('in_progress', 'Diproses'),
-        ('waiting', 'Menunggu'),
-        ('done', 'Selesai'),
-        ('cancelled', 'Dibatalkan'),
-    ]
-
-    title = models.CharField(max_length=180)
-    requester_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_reported_repairs')
-    requester_name = models.CharField(max_length=120, blank=True)
-    unit = models.CharField(max_length=120, blank=True)
-    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
-    description = models.TextField(blank=True)
-    resolution = models.TextField(blank=True)
-    sparepart = models.CharField(max_length=255, blank=True)
-    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    foto = models.ImageField(upload_to=foto_it_repair_path, null=True, blank=True)
-    requested_at = models.DateTimeField(default=timezone.now)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_repair_requests')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'it_repair_request'
-        ordering = ['-requested_at', '-created_at']
-        indexes = [
-            models.Index(fields=['status', 'priority'], name='it_ticket_status_idx'),
-            models.Index(fields=['requested_at'], name='it_ticket_requested_idx'),
-        ]
-
-    def __str__(self):
-        return self.title
-
-
-class ITCredentialNote(models.Model):
-    CATEGORY_CHOICES = [
-        ('website', 'Website'),
-        ('server', 'Server'),
-        ('database', 'Database'),
-        ('email', 'Email'),
-        ('device', 'Perangkat'),
-        ('vendor', 'Vendor'),
-        ('other', 'Lainnya'),
-    ]
-
-    name = models.CharField(max_length=160)
-    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='website')
-    url = models.URLField(max_length=500, blank=True)
-    username = models.CharField(max_length=180, blank=True)
-    password = models.TextField(blank=True)
-    owner = models.CharField(max_length=120, blank=True)
-    notes = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_credential_notes')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'it_credential_note'
-        ordering = ['name']
-        indexes = [
-            models.Index(fields=['category', 'is_active'], name='it_credential_cat_idx'),
-            models.Index(fields=['name'], name='it_credential_name_idx'),
-        ]
-
-    def __str__(self):
-        return self.name
-
-
-class ITRemoteAccess(models.Model):
-    STATUS_CHOICES = [
-        ('active', 'Aktif'),
-        ('inactive', 'Nonaktif'),
-        ('maintenance', 'Maintenance'),
-    ]
-
-    device_name = models.CharField(max_length=160)
-    user_owner = models.CharField(max_length=120, blank=True)
-    unit = models.CharField(max_length=120, blank=True)
-    location = models.CharField(max_length=180, blank=True)
-    anydesk_id = models.CharField(max_length=80, blank=True)
-    rustdesk_id = models.CharField(max_length=80, blank=True)
-    access_password = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_remote_access_notes')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'it_remote_access'
-        ordering = ['device_name']
-        indexes = [
-            models.Index(fields=['status', 'device_name'], name='it_remote_status_idx'),
-            models.Index(fields=['unit'], name='it_remote_unit_idx'),
-        ]
-
-    def __str__(self):
-        return self.device_name
-
-
-class ITSubscription(models.Model):
-    SERVICE_TYPE_CHOICES = [
-        ('domain', 'Domain'),
-        ('hosting', 'Hosting'),
-        ('ssl', 'SSL'),
-        ('internet', 'Internet'),
-        ('software', 'Software / Lisensi'),
-        ('vendor', 'Vendor / Support'),
-        ('other', 'Lainnya'),
-    ]
-    BILLING_CYCLE_CHOICES = [
-        ('monthly', 'Bulanan'),
-        ('quarterly', 'Triwulan'),
-        ('semester', 'Semester'),
-        ('yearly', 'Tahunan'),
-        ('one_time', 'Sekali Bayar'),
-    ]
-    STATUS_CHOICES = [
-        ('active', 'Aktif'),
-        ('expiring', 'Hampir Habis'),
-        ('expired', 'Expired'),
-        ('cancelled', 'Dibatalkan'),
-    ]
-
-    name = models.CharField(max_length=180)
-    service_type = models.CharField(max_length=30, choices=SERVICE_TYPE_CHOICES, default='software')
-    vendor = models.CharField(max_length=160, blank=True)
-    account_ref = models.CharField(max_length=180, blank=True)
-    url = models.URLField(max_length=500, blank=True)
-    pic = models.CharField(max_length=120, blank=True)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-    billing_cycle = models.CharField(max_length=20, choices=BILLING_CYCLE_CHOICES, default='yearly')
-    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    reminder_days = models.PositiveIntegerField(default=30)
-    notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='it_subscriptions')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'it_subscription'
-        ordering = ['end_date', 'name']
-        indexes = [
-            models.Index(fields=['status', 'end_date'], name='it_sub_status_end_idx'),
-            models.Index(fields=['service_type', 'end_date'], name='it_sub_type_end_idx'),
-        ]
-
-    def __str__(self):
-        return self.name
-
-
-class Announcement(models.Model):
-    PRIORITY_CHOICES = [
-        ('normal', 'Normal'),
-        ('important', 'Penting'),
-        ('urgent', 'Darurat'),
-    ]
-
-    title = models.CharField(max_length=180)
-    message = models.TextField()
-    audience = models.CharField(max_length=180, default='all')
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
-    is_active = models.BooleanField(default=True)
-    publish_at = models.DateTimeField(default=timezone.now)
-    expires_at = models.DateTimeField(null=True, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'system_announcement'
-        ordering = ['-publish_at', '-created_at']
-        indexes = [
-            models.Index(fields=['is_active', 'publish_at'], name='announce_active_pub_idx'),
-            models.Index(fields=['expires_at'], name='announce_expires_idx'),
-        ]
-
-    def __str__(self):
-        return self.title
-
-
-class AnnouncementRead(models.Model):
-    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name='reads')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='announcement_reads')
-    read_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'system_announcement_read'
-        unique_together = ('announcement', 'user')
-        ordering = ['-read_at']
-
-    def __str__(self):
-        return f'{self.user} read {self.announcement}'
-
-
-class InventoryOption(models.Model):
-    OPTION_TYPE_CHOICES = [
-        ('unit', 'Unit'),
-        ('category', 'Kategori Aset'),
-        ('condition', 'Status Kelayakan'),
-        ('ownership', 'Status Kepemilikan'),
-    ]
-
-    option_type = models.CharField(max_length=20, choices=OPTION_TYPE_CHOICES)
-    name = models.CharField(max_length=120)
-    is_active = models.BooleanField(default=True)
-    sort_order = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'inventaris_option'
-        ordering = ['option_type', 'sort_order', 'name']
-        unique_together = ('option_type', 'name')
-        indexes = [
-            models.Index(fields=['option_type', 'is_active'], name='inv_option_type_active_idx'),
-            models.Index(fields=['name'], name='inv_option_name_idx'),
-        ]
-
-    def __str__(self):
-        return f'{self.get_option_type_display()} - {self.name}'
-
-
 def foto_inventory_asset_path(instance, filename):
     period = instance.created_at.strftime('%Y%m') if instance.created_at else timezone.now().strftime('%Y%m')
     return f'inventaris/aset/{period}/{filename}'
-
-
-class InventoryAsset(models.Model):
-    description = models.TextField(verbose_name='Deskripsi Aset')
-    unit = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_unit_assets', limit_choices_to={'option_type': 'unit'})
-    brand = models.CharField(max_length=140, blank=True, verbose_name='Merek')
-    location = models.CharField(max_length=180, blank=True, verbose_name='Lokasi')
-    category = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_category_assets', limit_choices_to={'option_type': 'category'})
-    condition_status = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_condition_assets', limit_choices_to={'option_type': 'condition'})
-    foto = models.ImageField(upload_to=foto_inventory_asset_path, null=True, blank=True)
-    manufacture_year = models.PositiveIntegerField(null=True, blank=True, verbose_name='Tahun Pembuatan')
-    purchase_year = models.PositiveIntegerField(null=True, blank=True, verbose_name='Tahun Beli')
-    purchase_price = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name='Harga Beli')
-    recommended_action = models.TextField(blank=True, verbose_name='Rekomendasi Tindakan')
-    ownership_status = models.ForeignKey(InventoryOption, on_delete=models.PROTECT, related_name='inventory_ownership_assets', limit_choices_to={'option_type': 'ownership'})
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='inventory_assets')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'inventaris_asset'
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['unit', 'category'], name='inv_asset_unit_cat_idx'),
-            models.Index(fields=['condition_status'], name='inv_asset_condition_idx'),
-            models.Index(fields=['ownership_status'], name='inv_asset_owner_idx'),
-            models.Index(fields=['purchase_year'], name='inv_asset_purchase_year_idx'),
-        ]
-
-    def __str__(self):
-        return f'{self.description[:80]} - {self.unit.name}'
-
-
-class LogistikBarang(models.Model):
-    nama_barang = models.CharField(max_length=160)
-    kemasan = models.CharField(max_length=80, blank=True)
-    satuan = models.CharField(max_length=40)
-    isi = models.PositiveIntegerField(default=1)
-    merk = models.CharField(max_length=100, blank=True)
-    golongan = models.CharField(max_length=100, blank=True)
-    stok = models.IntegerField(default=0)
-    stok_minimum = models.PositiveIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_barang_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'logistik_barang'
-        ordering = ['nama_barang']
-        indexes = [
-            models.Index(fields=['nama_barang'], name='log_barang_nama_idx'),
-            models.Index(fields=['is_active', 'stok'], name='log_barang_active_stok_idx'),
-        ]
-
-    def __str__(self):
-        return self.nama_barang
-
-    def refresh_stok(self):
-        masuk = self.batch_logistik.aggregate(total=models.Sum(models.F('qty') * models.F('isi')))['total'] or 0
-        keluar = self.mutasi_logistik.aggregate(total=models.Sum('qty'))['total'] or 0
-        self.stok = masuk - keluar
-        self.save(update_fields=['stok', 'updated_at'])
-        return self.stok
-
-
-class LogistikPembelian(models.Model):
-    STATUS_CHOICES = [('draft', 'Draft'), ('selesai', 'Selesai')]
-
-    nomor = models.CharField(max_length=30, unique=True, blank=True)
-    tanggal = models.DateField(default=timezone.localdate)
-    pemasok = models.CharField(max_length=150, blank=True)
-    no_faktur = models.CharField(max_length=80, blank=True)
-    keterangan = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_pembelian_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-tanggal', '-created_at']
-
-    def save(self, *args, **kwargs):
-        if not self.nomor:
-            today = timezone.localdate()
-            prefix = f'GL-IN-{today:%Y%m}-'
-            last = LogistikPembelian.objects.filter(nomor__startswith=prefix).order_by('nomor').last()
-            num = int(last.nomor.split('-')[-1]) + 1 if last else 1
-            self.nomor = f'{prefix}{num:04d}'
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.nomor
-
-
-class LogistikBatch(models.Model):
-    pembelian = models.ForeignKey(LogistikPembelian, on_delete=models.CASCADE, related_name='items')
-    barang = models.ForeignKey(LogistikBarang, on_delete=models.PROTECT, related_name='batch_logistik')
-    qty_pesan = models.PositiveIntegerField(default=0)
-    qty = models.PositiveIntegerField(default=0)
-    isi = models.PositiveIntegerField(default=1)
-    harga = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    jml_mutasi = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'logistik_batch'
-        ordering = ['id']
-
-    @property
-    def stok_batch(self):
-        return (self.qty * self.isi) - self.jml_mutasi
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.barang.refresh_stok()
-
-    def delete(self, *args, **kwargs):
-        barang = self.barang
-        super().delete(*args, **kwargs)
-        barang.refresh_stok()
-
-
-class LogistikMutasi(models.Model):
-    nomor = models.CharField(max_length=30, blank=True)
-    barang = models.ForeignKey(LogistikBarang, on_delete=models.PROTECT, related_name='mutasi_logistik')
-    batch = models.ForeignKey(LogistikBatch, on_delete=models.PROTECT, related_name='mutasi_items', null=True, blank=True)
-    tanggal = models.DateField(default=timezone.localdate)
-    ruang = models.CharField(max_length=120)
-    qty = models.PositiveIntegerField()
-    harga = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    keterangan = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_mutasi_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'logistik_mutasi'
-        ordering = ['-tanggal', '-created_at']
-        indexes = [models.Index(fields=['barang', 'tanggal'], name='log_mutasi_barang_tgl_idx')]
-
-    def save(self, *args, **kwargs):
-        if not self.nomor:
-            today = timezone.localdate()
-            prefix = f'GL-OUT-{today:%Y%m}-'
-            last = LogistikMutasi.objects.filter(nomor__startswith=prefix).order_by('nomor').last()
-            num = int(last.nomor.split('-')[-1]) + 1 if last else 1
-            self.nomor = f'{prefix}{num:04d}'
-        super().save(*args, **kwargs)
-
-
-class LogistikPermintaan(models.Model):
-    STATUS_CHOICES = [('menunggu', 'Menunggu'), ('disetujui', 'Disetujui'), ('ditolak', 'Ditolak')]
-
-    barang = models.ForeignKey(LogistikBarang, on_delete=models.PROTECT, related_name='permintaan_logistik')
-    tanggal = models.DateField(default=timezone.localdate)
-    ruang = models.CharField(max_length=120)
-    qty_minta = models.PositiveIntegerField()
-    qty_setuju = models.PositiveIntegerField(default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='menunggu')
-    catatan = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_permintaan_created')
-    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_permintaan_verified')
-    verified_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'logistik_permintaan'
-        ordering = ['-tanggal', '-created_at']
-
-
-class LogistikOpname(models.Model):
-    barang = models.ForeignKey(LogistikBarang, on_delete=models.PROTECT, related_name='opname_logistik')
-    tanggal = models.DateField(default=timezone.localdate)
-    real_stock = models.IntegerField()
-    keterangan = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='logistik_opname_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'logistik_opname'
-        ordering = ['-tanggal', '-created_at']

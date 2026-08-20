@@ -3,10 +3,10 @@ from django.dispatch import receiver
 from django.core.files.storage import default_storage
 import os
 from .models import (
-    FotoLaporanPerjalanan, LaporanPerjalanan, LogBBM, LogMaintenance,
+    
     PettyCash, LaporanPenggunaan, Reimbursement,
     FotoPettyCash, FotoLaporanPenggunaan, FotoReimbursement,
-    ITRepairRequest, InventoryAsset,
+    
 )
 
 
@@ -72,16 +72,6 @@ def delete_reimbursement_file(sender, instance, **kwargs):
     delete_storage_file(instance.berkas)
 
 
-@receiver(pre_delete, sender=ITRepairRequest)
-def delete_it_repair_file(sender, instance, **kwargs):
-    delete_storage_file(instance.foto)
-
-
-@receiver(pre_delete, sender=InventoryAsset)
-def delete_inventory_asset_file(sender, instance, **kwargs):
-    delete_storage_file(instance.foto)
-
-
 @receiver(pre_delete, sender=FotoPettyCash)
 def delete_foto_petty_cash_file(sender, instance, **kwargs):
     delete_storage_file(instance.foto)
@@ -112,16 +102,6 @@ def delete_replaced_reimbursement_file(sender, instance, **kwargs):
     delete_replaced_file(instance, Reimbursement, 'berkas')
 
 
-@receiver(pre_save, sender=ITRepairRequest)
-def delete_replaced_it_repair_file(sender, instance, **kwargs):
-    delete_replaced_file(instance, ITRepairRequest, 'foto')
-
-
-@receiver(pre_save, sender=InventoryAsset)
-def delete_replaced_inventory_asset_file(sender, instance, **kwargs):
-    delete_replaced_file(instance, InventoryAsset, 'foto')
-
-
 @receiver(pre_save, sender=FotoPettyCash)
 def delete_replaced_foto_petty_cash_file(sender, instance, **kwargs):
     delete_replaced_file(instance, FotoPettyCash, 'foto')
@@ -137,57 +117,4 @@ def delete_replaced_foto_reimbursement_file(sender, instance, **kwargs):
     delete_replaced_file(instance, FotoReimbursement, 'foto')
 
 
-@receiver(pre_delete, sender=FotoLaporanPerjalanan)
-def delete_foto_file(sender, instance, **kwargs):
-    """
-    Hapus file fisik ketika FotoLaporanPerjalanan dihapus
-    """
-    delete_storage_file(instance.foto)
 
-
-@receiver(pre_delete, sender=LaporanPerjalanan)
-def delete_laporan_folder(sender, instance, **kwargs):
-    """
-    Hapus folder perjalanan ketika LaporanPerjalanan dihapus
-    """
-    try:
-        # Get folder path dari foto
-        if instance.foto.exists():
-            # Ambil path folder dari salah satu foto
-            first_foto = instance.foto.first()
-            if first_foto and first_foto.foto:
-                folder_path = os.path.dirname(first_foto.foto.name)
-                
-                # Delete all files in folder
-                try:
-                    folders, files = default_storage.listdir(folder_path)
-                    for file in files:
-                        file_path = os.path.join(folder_path, file)
-                        if default_storage.exists(file_path):
-                            default_storage.delete(file_path)
-                    
-                    # Try to delete empty folder (if filesystem supports it)
-                    try:
-                        default_storage.delete(folder_path)
-                    except:
-                        pass  # Folder might not be empty or not supported
-                except:
-                    pass
-    except Exception as e:
-        print(f"Error deleting laporan folder: {str(e)}")
-
-
-@receiver(pre_delete, sender=LogBBM)
-def delete_log_bbm_foto(sender, instance, **kwargs):
-    """
-    Hapus file foto ketika LogBBM dihapus
-    """
-    delete_storage_file(instance.foto)
-
-
-@receiver(pre_delete, sender=LogMaintenance)
-def delete_log_maintenance_foto(sender, instance, **kwargs):
-    """
-    Hapus file foto ketika LogMaintenance dihapus
-    """
-    delete_storage_file(instance.foto)

@@ -83,6 +83,11 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'keuangan',
+    'it',
+    'inventaris',
+    'logistik',
+    'driver',
+    'system',
 ]
 
 
@@ -98,7 +103,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'keuangan.middleware.AuditLogMiddleware',
+    'system.middleware.AuditLogMiddleware',
 ]
 
 
