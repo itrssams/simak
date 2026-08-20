@@ -169,16 +169,16 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
     if (!isOpen) return null;
 
     return (
-        <div className="odoo-modal-backdrop" onClick={onClose}>
-            <div className="odoo-modal-container" onClick={(e) => e.stopPropagation()}>
-                <div className="odoo-modal-header">
-                    <div className="odoo-modal-title">
+        <div className="app-switcher-backdrop" onClick={onClose}>
+            <div className="app-switcher-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="app-switcher-top">
+                    <div className="app-switcher-title">
                         <LayoutGrid size={20} color="#38bdf8" strokeWidth={2.3} />
                         <h3>Pilih Modul Aplikasi</h3>
                     </div>
-                    <div className="odoo-modal-actions-top">
+                    <div className="app-switcher-actions">
                         <button
-                            className="odoo-modal-home-btn"
+                            className="app-switcher-home-btn"
                             onClick={() => {
                                 onClose();
                                 navigate('/');
@@ -187,13 +187,13 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                         >
                             <Home size={15} /> Layar Utama
                         </button>
-                        <button className="odoo-modal-close-btn" onClick={onClose} title="Tutup">
+                        <button className="app-switcher-close-btn" onClick={onClose} title="Tutup">
                             <X size={18} />
                         </button>
                     </div>
                 </div>
 
-                <div className="odoo-modal-search">
+                <div className="app-switcher-search">
                     <Search size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     <input
                         type="text"
@@ -203,33 +203,33 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                         autoFocus
                     />
                     {searchQuery && (
-                        <button className="odoo-modal-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+                        <button className="app-switcher-search-clear" onClick={() => setSearchQuery('')}>✕</button>
                     )}
                 </div>
 
-                <div className="odoo-modal-grid">
+                <div className="app-switcher-grid">
                     {visibleApps.map((app) => {
                         const Icon = app.icon;
                         return (
                             <button
                                 key={app.id}
-                                className="odoo-modal-tile-btn"
+                                className="app-switcher-tile-btn"
                                 onClick={() => {
                                     onClose();
                                     navigate(app.path);
                                 }}
                             >
                                 <div
-                                    className="odoo-modal-tile-icon"
+                                    className="app-switcher-tile-icon"
                                     style={{
                                         '--glow-color': app.glowColor,
                                         '--glass-glow': app.glassGlow,
                                     }}
                                 >
-                                    <div className="odoo-tile-shine" />
+                                    <div className="app-switcher-tile-shine" />
                                     <Icon size={28} color={app.color} strokeWidth={2.1} />
                                 </div>
-                                <span className="odoo-modal-tile-name">{app.name}</span>
+                                <span className="app-switcher-tile-name">{app.name}</span>
                             </button>
                         );
                     })}
