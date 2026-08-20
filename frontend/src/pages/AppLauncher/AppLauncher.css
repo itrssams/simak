@@ -49,48 +49,37 @@
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
-.odoo-brand {
+.topbar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.odoo-logo-dots {
-  display: grid;
-  grid-template-columns: repeat(3, 4.5px);
-  grid-gap: 3.5px;
-  padding: 6px;
-  cursor: pointer;
+.topbar-logo {
+  height: 34px;
+  width: auto;
+  max-width: 80px;
+  object-fit: contain;
 }
 
-.odoo-logo-dots span {
-  width: 4.5px;
-  height: 4.5px;
-  border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
-}
-
-.odoo-hospital-name {
-  font-size: 14px;
-  font-weight: 850;
-  letter-spacing: 0.6px;
+.topbar-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: .02em;
   color: #f8fafc;
 }
 
-[data-theme="light"] .odoo-hospital-name {
+[data-theme="light"] .topbar-title {
   color: #0f172a;
 }
 
-.odoo-simak-badge {
-  font-size: 10.5px;
-  font-weight: 900;
-  padding: 2.5px 8px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, #6366f1, #3b82f6);
-  color: #ffffff;
-  letter-spacing: 0.6px;
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+.topbar-subtitle {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
 }
 
 /* ── Seamless Glass Search Bar ── */

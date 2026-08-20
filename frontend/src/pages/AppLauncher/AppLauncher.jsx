@@ -327,14 +327,12 @@ export default function AppLauncher() {
         <div className="odoo-launcher-page">
             {/* Minimalist Topbar */}
             <header className="odoo-topbar">
-                <div className="odoo-brand">
-                    <div className="odoo-logo-dots">
-                        <span></span><span></span><span></span>
-                        <span></span><span></span><span></span>
-                        <span></span><span></span><span></span>
+                <div className="topbar-brand">
+                    <img src="/logo.png" alt="Logo" className="topbar-logo" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    <div style={{ minWidth: 0 }}>
+                        <div className="topbar-title">SIMAK</div>
+                        <div className="topbar-subtitle">Sistem Manajemen Aset & Keuangan</div>
                     </div>
-                    <span className="odoo-hospital-name">RS SIAGA MEDIKA</span>
-                    <span className="odoo-simak-badge">SIMAK</span>
                 </div>
 
                 <div className="odoo-search-container">
