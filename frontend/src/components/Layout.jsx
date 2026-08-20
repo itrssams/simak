@@ -24,9 +24,11 @@ import {
     Sun,
     Moon,
     ShieldCheck,
+    LayoutGrid,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
+import AppSwitcherModal from './AppSwitcherModal';
 
 const IconConfig = {
     dashboard: { icon: LayoutDashboard, size: 18 },
@@ -320,6 +322,7 @@ export default function Layout({ children }) {
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     });
+    const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
     const profileRef = useRef(null);
     const announcementRef = useRef(null);
 
@@ -1149,7 +1152,17 @@ export default function Layout({ children }) {
                         <Menu size={22} strokeWidth={2.4} />
                     </button>
 
-                    <div className="topbar-brand">
+                    <button
+                        className="topbar-btn"
+                        onClick={() => setAppSwitcherOpen(true)}
+                        title="App Launcher / Pilih Modul Aplikasi"
+                        style={{ color: '#38bdf8' }}
+                        type="button"
+                    >
+                        <LayoutGrid size={20} strokeWidth={2.3} />
+                    </button>
+
+                    <div className="topbar-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Ke Home App Hub">
                         <img src="/logo.png" alt="Logo" className="topbar-logo" onError={e => { e.currentTarget.style.display = 'none'; }} />
                         <div style={{ minWidth: 0 }}>
                             <div className="topbar-title">SIMAK</div>
@@ -1287,6 +1300,9 @@ export default function Layout({ children }) {
                     </footer>
                 </div>
             </div>
+
+            {/* Odoo-style 9-Dots App Switcher Modal */}
+            <AppSwitcherModal isOpen={appSwitcherOpen} onClose={() => setAppSwitcherOpen(false)} />
         </div>
     );
 }

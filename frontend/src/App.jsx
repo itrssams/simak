@@ -31,6 +31,7 @@ import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
 import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
 import SystemMaintenance from './pages/System/SystemMaintenance';
+import AppLauncher from './pages/AppLauncher/AppLauncher';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
@@ -63,16 +64,7 @@ const HomeRedirect = () => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
     if (!user) return <Navigate to="/login" />;
-    if (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser) return <Navigate to="/it" />;
-    if (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user)) return <Navigate to="/keuangan/catatan-utang/obat-bhp" />;
-    if (user.is_logistik && !isManajerUp(user)) return <Navigate to="/logistik" />;
-    if (isKeuanganNonManajer(user)) return <Navigate to="/keuangan/kunjungan-invoice" />;
-    if (isBasicRole(user)) return <Navigate to="/petty-cash" />;
-    return (
-        <Layout>
-            <Dashboard />
-        </Layout>
-    );
+    return <AppLauncher />;
 };
 
 // ── Idle timeout wrapper — hanya aktif saat user login ────
@@ -123,8 +115,10 @@ const AppRoutes = () => {
                 element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user) ? <Navigate to="/keuangan/catatan-utang/obat-bhp" /> : (user.is_logistik && !isManajerUp(user) ? <Navigate to="/logistik" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />)))))}
             />
 
-            {/* Home */}
+            {/* Home & Apps */}
             <Route path="/" element={<HomeRedirect />} />
+            <Route path="/apps" element={<ProtectedRoute><AppLauncher /></ProtectedRoute>} />
+            <Route path="/dashboard-analytics" element={<ProtectedRoute allow={isManajerUp}><Dashboard /></ProtectedRoute>} />
 
             {/* Semua role */}
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
