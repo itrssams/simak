@@ -6,12 +6,13 @@ import {
     Package,
     WalletCards,
     CarFront,
-    BookOpen,
+    Landmark,
     Megaphone,
-    FileClock,
-    UserCog,
     ShieldCheck,
-    LayoutDashboard,
+    Users,
+    Server,
+    BarChart3,
+    LayoutGrid,
     Search,
     X,
     Home,
@@ -48,7 +49,9 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             id: 'catatan-utang',
             name: 'Catatan Utang',
             icon: FileSpreadsheet,
-            gradient: 'linear-gradient(135deg, #10b981 0%, #0d9488 100%)',
+            color: '#10b981',
+            glowColor: 'rgba(16, 185, 129, 0.45)',
+            glassGlow: 'rgba(16, 185, 129, 0.22)',
             path: '/keuangan/catatan-utang/obat-bhp',
             allowed: Boolean(canCatatanUtang),
         },
@@ -56,15 +59,19 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             id: 'penagihan-invoice',
             name: 'Penagihan & Invoice',
             icon: ReceiptText,
-            gradient: 'linear-gradient(135deg, #06b6d4 0%, #2563eb 100%)',
-            path: '/keuangan/kunjungan-invoice',
+            color: '#06b6d4',
+            glowColor: 'rgba(6, 182, 212, 0.45)',
+            glassGlow: 'rgba(6, 182, 212, 0.22)',
+            path: '/keuangan/invoices/dashboard',
             allowed: Boolean(isKeuangan),
         },
         {
             id: 'gudang-logistik',
             name: 'Gudang Logistik',
             icon: Package,
-            gradient: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
+            color: '#f59e0b',
+            glowColor: 'rgba(245, 158, 11, 0.45)',
+            glassGlow: 'rgba(245, 158, 11, 0.22)',
             path: '/logistik/barang',
             allowed: Boolean(isLogistik),
         },
@@ -72,7 +79,9 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             id: 'petty-cash',
             name: 'Petty Cash',
             icon: WalletCards,
-            gradient: 'linear-gradient(135deg, #22c55e 0%, #059669 100%)',
+            color: '#22c55e',
+            glowColor: 'rgba(34, 197, 94, 0.45)',
+            glassGlow: 'rgba(34, 197, 94, 0.22)',
             path: '/petty-cash',
             allowed: true,
         },
@@ -80,55 +89,69 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             id: 'driver',
             name: 'Driver & Armada',
             icon: CarFront,
-            gradient: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)',
+            color: '#818cf8',
+            glowColor: 'rgba(99, 102, 241, 0.45)',
+            glassGlow: 'rgba(99, 102, 241, 0.22)',
             path: '/driver',
             allowed: Boolean(isDriverAccess),
         },
         {
             id: 'akuntansi',
             name: 'Akuntansi & Kas',
-            icon: BookOpen,
-            gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
-            path: '/akuntansi/bagan-akun',
+            icon: Landmark,
+            color: '#c084fc',
+            glowColor: 'rgba(168, 85, 247, 0.45)',
+            glassGlow: 'rgba(168, 85, 247, 0.22)',
+            path: '/dashboard-analytics',
             allowed: Boolean(canAkuntansi),
         },
         {
             id: 'pengumuman',
             name: 'Pengumuman',
             icon: Megaphone,
-            gradient: 'linear-gradient(135deg, #f43f5e 0%, #db2777 100%)',
+            color: '#fb7185',
+            glowColor: 'rgba(244, 63, 94, 0.45)',
+            glassGlow: 'rgba(244, 63, 94, 0.22)',
             path: '/pengumuman',
             allowed: Boolean(isManajerUp),
         },
         {
             id: 'audit-log',
             name: 'Audit Log',
-            icon: FileClock,
-            gradient: 'linear-gradient(135deg, #64748b 0%, #334155 100%)',
+            icon: ShieldCheck,
+            color: '#cbd5e1',
+            glowColor: 'rgba(148, 163, 184, 0.45)',
+            glassGlow: 'rgba(148, 163, 184, 0.22)',
             path: '/audit-log',
             allowed: Boolean(isManajerUp || isIT),
         },
         {
             id: 'manajemen-user',
             name: 'Manajemen User',
-            icon: UserCog,
-            gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+            icon: Users,
+            color: '#38bdf8',
+            glowColor: 'rgba(14, 165, 233, 0.45)',
+            glassGlow: 'rgba(14, 165, 233, 0.22)',
             path: '/admin/users',
             allowed: Boolean(isDirekturUp),
         },
         {
             id: 'manajemen-sistem',
             name: 'Manajemen Sistem',
-            icon: ShieldCheck,
-            gradient: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+            icon: Server,
+            color: '#2dd4bf',
+            glowColor: 'rgba(20, 184, 166, 0.45)',
+            glassGlow: 'rgba(20, 184, 166, 0.22)',
             path: '/admin/system-maintenance',
             allowed: Boolean(user?.is_superuser),
         },
         {
             id: 'statistik-analitik',
             name: 'Statistik & Analitik',
-            icon: LayoutDashboard,
-            gradient: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+            icon: BarChart3,
+            color: '#a855f7',
+            glowColor: 'rgba(168, 85, 247, 0.45)',
+            glassGlow: 'rgba(168, 85, 247, 0.22)',
             path: '/dashboard-analytics',
             allowed: Boolean(canAkuntansi || isManajerUp),
         },
@@ -150,11 +173,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             <div className="odoo-modal-container" onClick={(e) => e.stopPropagation()}>
                 <div className="odoo-modal-header">
                     <div className="odoo-modal-title">
-                        <div className="odoo-modal-dots">
-                            <span></span><span></span><span></span>
-                            <span></span><span></span><span></span>
-                            <span></span><span></span><span></span>
-                        </div>
+                        <LayoutGrid size={20} color="#38bdf8" strokeWidth={2.3} />
                         <h3>Pilih Modul Aplikasi</h3>
                     </div>
                     <div className="odoo-modal-actions-top">
@@ -168,14 +187,14 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                         >
                             <Home size={15} /> Layar Utama
                         </button>
-                        <button className="odoo-modal-close-btn" onClick={onClose}>
+                        <button className="odoo-modal-close-btn" onClick={onClose} title="Tutup">
                             <X size={18} />
                         </button>
                     </div>
                 </div>
 
                 <div className="odoo-modal-search">
-                    <Search size={14} style={{ color: '#94a3b8' }} />
+                    <Search size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     <input
                         type="text"
                         placeholder="Ketik untuk mencari modul..."
@@ -183,6 +202,9 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoFocus
                     />
+                    {searchQuery && (
+                        <button className="odoo-modal-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+                    )}
                 </div>
 
                 <div className="odoo-modal-grid">
@@ -197,10 +219,17 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                                     navigate(app.path);
                                 }}
                             >
-                                <div className="odoo-modal-tile-icon" style={{ background: app.gradient }}>
-                                    <Icon size={26} color="#ffffff" strokeWidth={2} />
+                                <div
+                                    className="odoo-modal-tile-icon"
+                                    style={{
+                                        '--glow-color': app.glowColor,
+                                        '--glass-glow': app.glassGlow,
+                                    }}
+                                >
+                                    <div className="odoo-tile-shine" />
+                                    <Icon size={28} color={app.color} strokeWidth={2.1} />
                                 </div>
-                                <span>{app.name}</span>
+                                <span className="odoo-modal-tile-name">{app.name}</span>
                             </button>
                         );
                     })}

@@ -831,8 +831,8 @@ export default function Layout({ children }) {
                     width: 32px;
                     height: 32px;
                     border-radius: 8px;
-                    border: 1px solid rgba(56, 189, 248, 0.25);
-                    background: rgba(56, 189, 248, 0.08);
+                    border: none;
+                    background: transparent;
                     color: #38bdf8;
                     display: inline-flex;
                     align-items: center;
@@ -842,9 +842,9 @@ export default function Layout({ children }) {
                     flex-shrink: 0;
                 }
                 .topbar-app-switcher-btn:hover {
-                    background: rgba(56, 189, 248, 0.22);
-                    color: #ffffff;
-                    transform: scale(1.05);
+                    background: rgba(56, 189, 248, 0.14);
+                    color: #38bdf8;
+                    transform: scale(1.06);
                 }
 
                 .topbar-app-header {
