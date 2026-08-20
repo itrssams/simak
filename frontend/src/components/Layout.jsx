@@ -325,40 +325,15 @@ const getActiveModuleConfig = (pathname) => {
             iconColor: '#a855f7',
             menus: [
                 { label: 'Dashboard', path: '/dashboard-analytics' },
-                {
-                    label: 'Pelanggan',
-                    children: [
-                        { label: 'Data Pelanggan', path: '/pelanggan' },
-                        { label: 'Faktur Pelanggan', path: '/pelanggan/faktur' },
-                    ],
-                },
-                {
-                    label: 'Pemasok',
-                    children: [
-                        { label: 'Data Pemasok', path: '/pemasok' },
-                        { label: 'Tagihan Pemasok', path: '/pemasok/tagihan' },
-                    ],
-                },
-                {
-                    label: 'Akuntansi',
-                    children: [
-                        { label: 'Bagan Akun (COA)', path: '/akuntansi/bagan-akun' },
-                        { label: 'Entri Jurnal', path: '/akuntansi/entri-jurnal' },
-                    ],
-                },
-                {
-                    label: 'Transaksi',
-                    children: [
-                        { label: 'Input Transaksi', path: '/transaksi/input' },
-                        { label: 'Daftar Transaksi', path: '/transaksi/list' },
-                    ],
-                },
-                {
-                    label: 'Laporan',
-                    children: [
-                        { label: 'Laporan Arus Kas', path: '/laporan/arus-kas' },
-                    ],
-                },
+                { label: 'Data Pelanggan', path: '/pelanggan' },
+                { label: 'Faktur Pelanggan', path: '/pelanggan/faktur' },
+                { label: 'Data Pemasok', path: '/pemasok' },
+                { label: 'Tagihan Pemasok', path: '/pemasok/tagihan' },
+                { label: 'Bagan Akun (COA)', path: '/akuntansi/bagan-akun' },
+                { label: 'Entri Jurnal', path: '/akuntansi/entri-jurnal' },
+                { label: 'Input Transaksi', path: '/transaksi/input' },
+                { label: 'Daftar Transaksi', path: '/transaksi/list' },
+                { label: 'Laporan Arus Kas', path: '/laporan/arus-kas' },
                 { label: 'Rekening Bank', path: '/rekening-bank' },
             ],
         };
@@ -390,13 +365,8 @@ const getActiveModuleConfig = (pathname) => {
                 { label: 'Dashboard Invoice', path: '/keuangan/invoices/dashboard' },
                 { label: 'Daftar Invoice', path: '/keuangan/invoices' },
                 { label: 'Verifikasi Pembayaran', path: '/keuangan/invoices/verifikasi' },
-                {
-                    label: 'Master & Alokasi',
-                    children: [
-                        { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
-                        { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
-                    ],
-                },
+                { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
+                { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
             ],
         };
     }
@@ -495,79 +465,20 @@ const getActiveModuleConfig = (pathname) => {
     return null;
 };
 
-// ── Topbar Submenu Item & Dropdown ────────────────────────────────────────
+// ── Topbar Submenu Item (Direct Flat Links) ───────────────────────────────
 function TopNavSubmenuItem({ item, location, navigate }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) {
-                setOpen(false);
-            }
-        };
-        if (open) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
-        }
-    }, [open]);
-
-    const hasChildren = Boolean(item.children?.length);
-    const isCurrentActive = hasChildren
-        ? item.children.some((c) => {
-            if (c.path.includes('?')) {
-                return (location.pathname + location.search) === c.path;
-            }
-            return location.pathname === c.path || location.pathname.startsWith(c.path + '/');
-        })
-        : (item.path.includes('?') ? (location.pathname + location.search) === item.path : location.pathname === item.path);
-
-    if (!hasChildren) {
-        return (
-            <button
-                type="button"
-                className={`topbar-menu-item ${isCurrentActive ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
-            >
-                {item.label}
-            </button>
-        );
-    }
+    const isCurrentActive = item.path.includes('?')
+        ? (location.pathname + location.search) === item.path
+        : location.pathname === item.path;
 
     return (
-        <div ref={ref} className={`topbar-menu-dropdown-wrap ${open ? 'open' : ''}`}>
-            <button
-                type="button"
-                className={`topbar-menu-item dropdown-toggle ${isCurrentActive ? 'active' : ''}`}
-                onClick={() => setOpen((o) => !o)}
-            >
-                <span>{item.label}</span>
-                <ChevronDown size={13} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
-            </button>
-
-            {open && (
-                <div className="topbar-dropdown-menu">
-                    {item.children.map((child, cIdx) => {
-                        const isChildActive = child.path.includes('?')
-                            ? (location.pathname + location.search) === child.path
-                            : location.pathname === child.path;
-                        return (
-                            <button
-                                key={cIdx}
-                                type="button"
-                                className={`topbar-dropdown-link ${isChildActive ? 'active' : ''}`}
-                                onClick={() => {
-                                    setOpen(false);
-                                    navigate(child.path);
-                                }}
-                            >
-                                {child.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+        <button
+            type="button"
+            className={`topbar-menu-item ${isCurrentActive ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+        >
+            {item.label}
+        </button>
     );
 }
 
