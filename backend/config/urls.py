@@ -34,6 +34,7 @@ def me_view(request):
         'is_petty_cash_cashier': user.is_petty_cash_cashier,
         'akses_catatan_utang': user.akses_catatan_utang,
         'is_logistik': getattr(user, 'is_logistik', False),
+        'is_akuntansi': getattr(user, 'is_akuntansi', False),
         'unit': user.unit_id,
         'unit_nama': user.unit.nama if user.unit else None,
     })
@@ -90,6 +91,7 @@ urlpatterns = [
     path('api/driver/', include('driver.urls')),
     path('api/it/', include('it.urls')),
     path('api/inventaris/', include('inventaris.urls')),
+    path('api/logbook/', include('logbook.urls')),
     
     # Serve React assets explicitly
     re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),

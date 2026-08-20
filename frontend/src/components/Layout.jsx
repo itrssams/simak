@@ -27,6 +27,7 @@ import {
     LayoutGrid,
     FileSpreadsheet,
     Server,
+    ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -498,6 +499,26 @@ const getActiveModuleConfig = (pathname, user) => {
             menus: [
                 { label: 'Audit Log', path: '/audit-log' },
             ],
+        };
+    }
+
+    // 11. My-Logbook
+    if (pathname.startsWith('/logbook')) {
+        const isDirekturUp = Boolean(
+            user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)
+        );
+        const menus = [
+            { label: 'Logbook Saya', path: '/logbook' },
+        ];
+        if (isDirekturUp) {
+            menus.push({ label: 'Monitoring Karyawan', path: '/logbook?tab=monitoring' });
+        }
+        return {
+            id: 'logbook',
+            title: 'My-Logbook',
+            icon: ClipboardList,
+            iconColor: '#38bdf8',
+            menus,
         };
     }
 

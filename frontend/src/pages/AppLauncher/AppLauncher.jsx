@@ -16,6 +16,7 @@ import {
     Users,
     Server,
     BarChart3,
+    ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
@@ -121,6 +122,22 @@ export default function AppLauncher() {
             submenus: [
                 { label: 'Pengajuan & Kasbon', path: '/petty-cash' },
                 ...(isManajerUp ? [{ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' }] : []),
+            ],
+        },
+        {
+            id: 'logbook',
+            name: 'My-Logbook',
+            subtitle: 'Aktivitas Kerja Harian',
+            icon: ClipboardList,
+            color: '#38bdf8',
+            glowColor: 'rgba(56, 189, 248, 0.45)',
+            glassGlow: 'rgba(56, 189, 248, 0.22)',
+            glassGlowLight: 'rgba(56, 189, 248, 0.15)',
+            path: '/logbook',
+            allowed: true,
+            submenus: [
+                { label: 'Logbook Saya', path: '/logbook' },
+                ...(isDirekturUp ? [{ label: 'Monitoring Karyawan', path: '/logbook?tab=monitoring' }] : []),
             ],
         },
         {

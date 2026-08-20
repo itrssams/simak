@@ -32,6 +32,7 @@ import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
 import SystemMaintenance from './pages/System/SystemMaintenance';
 import AppLauncher from './pages/AppLauncher/AppLauncher';
+import MyLogbook from './pages/Logbook/MyLogbook';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
 
@@ -123,6 +124,7 @@ const AppRoutes = () => {
 
             {/* Semua role */}
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
+            <Route path="/logbook" element={<ProtectedRoute><MyLogbook /></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />

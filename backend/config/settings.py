@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'logistik',
     'driver',
     'system',
+    'logbook',
 ]
 
 
