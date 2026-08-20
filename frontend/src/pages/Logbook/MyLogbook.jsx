@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axiosConfig';
+import DateField from '../../components/DateField';
+import DateRangePicker from '../../components/DateRangePicker';
 import './MyLogbook.css';
 
 const getTodayString = () => {
@@ -373,11 +375,10 @@ export default function MyLogbook() {
                         {/* Date Filter & Search toolbar on the right */}
                         <div className="logbook-filter-toolbar">
                             <div className="logbook-date-picker-group">
-                                <input
-                                    type="date"
+                                <DateField
                                     value={myFilterDate}
-                                    onChange={(e) => setMyFilterDate(e.target.value)}
-                                    className="logbook-date-field"
+                                    onChange={(val) => setMyFilterDate(val || getTodayString())}
+                                    placeholder="Pilih Tanggal"
                                 />
                                 {myFilterDate !== getTodayString() && (
                                     <button
@@ -548,22 +549,15 @@ export default function MyLogbook() {
                     <div className="logbook-filter-container">
                         <div className="logbook-filter-fields">
                             <div className="logbook-filter-item">
-                                <label>Dari Tanggal</label>
-                                <input
-                                    type="date"
-                                    value={monStartDate}
-                                    onChange={(e) => setMonStartDate(e.target.value)}
-                                    className="logbook-form-control-sm"
-                                />
-                            </div>
-
-                            <div className="logbook-filter-item">
-                                <label>Sampai Tanggal</label>
-                                <input
-                                    type="date"
-                                    value={monEndDate}
-                                    onChange={(e) => setMonEndDate(e.target.value)}
-                                    className="logbook-form-control-sm"
+                                <label>Periode Tanggal</label>
+                                <DateRangePicker
+                                    dari={monStartDate}
+                                    sampai={monEndDate}
+                                    onChange={({ dari, sampai }) => {
+                                        setMonStartDate(dari);
+                                        setMonEndDate(sampai);
+                                    }}
+                                    placeholder="Pilih Periode"
                                 />
                             </div>
 
@@ -721,12 +715,10 @@ export default function MyLogbook() {
 
                             <div className="logbook-field-group">
                                 <label>Tanggal Pekerjaan *</label>
-                                <input
-                                    type="date"
+                                <DateField
                                     value={formData.tanggal}
-                                    onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
-                                    required
-                                    className="logbook-input"
+                                    onChange={(val) => setFormData({ ...formData, tanggal: val || getTodayString() })}
+                                    placeholder="Pilih Tanggal"
                                 />
                             </div>
 
