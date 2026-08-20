@@ -527,9 +527,12 @@ const getActiveModuleConfig = (pathname, user) => {
 
 // ── Topbar Submenu Item (Direct Flat Links) ───────────────────────────────
 function TopNavSubmenuItem({ item, location, navigate }) {
-    const isCurrentActive = item.path.includes('?')
-        ? (location.pathname + location.search) === item.path
-        : location.pathname === item.path;
+    let isCurrentActive = false;
+    if (item.path.includes('?')) {
+        isCurrentActive = (location.pathname + location.search) === item.path;
+    } else {
+        isCurrentActive = location.pathname === item.path && (!location.search || location.search === '');
+    }
 
     return (
         <button
