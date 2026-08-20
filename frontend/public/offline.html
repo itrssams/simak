@@ -236,24 +236,6 @@
       to { transform: rotate(360deg); }
     }
 
-    .btn-it {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: var(--text-muted);
-      height: 38px;
-      border-radius: 10px;
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-it:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.25);
-    }
-
     /* ── Auto-Reconnect Ticker ── */
     .ticker {
       margin-top: 18px;
@@ -333,10 +315,6 @@
         </svg>
         <span id="retry-text">Coba Hubungkan Kembali</span>
       </button>
-
-      <button class="btn-it" onclick="contactIT()">
-        📞 Bantuan / Hubungi Bagian IT
-      </button>
     </div>
 
     <!-- Auto-Reconnect Ticker -->
@@ -415,10 +393,6 @@
         countdownElem.textContent = `Mencoba menghubungkan ulang otomatis dalam ${countdown}s...`;
       }
     }, 1000);
-
-    function contactIT() {
-      alert('Informasi Bantuan IT:\n\n1. Pastikan server utama SIMAK (PC 116) sudah menyala.\n2. Pastikan file "RUN_APP.bat" di server sudah dijalankan.\n3. Hubungi Instalasi IT RS Siaga Al Munawwarah jika masalah berlanjut.');
-    }
   </script>
 </body>
 </html>
