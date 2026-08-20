@@ -848,7 +848,7 @@
 
 .logbook-modal-card {
   width: 100%;
-  max-width: 500px;
+  max-width: 580px;
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.22);
@@ -918,6 +918,19 @@
   display: flex;
   flex-direction: column;
   gap: 13px;
+}
+
+.logbook-modal-row-3 {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 540px) {
+  .logbook-modal-row-3 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .logbook-form-alert {

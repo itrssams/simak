@@ -756,17 +756,17 @@ export default function MyLogbook() {
                                     </div>
                                 )}
 
-                                <div className="logbook-field-group">
-                                    <label>Tanggal Pekerjaan *</label>
-                                    <DateField
-                                        value={formData.tanggal}
-                                        onChange={(val) => setFormData({ ...formData, tanggal: val || getTodayString() })}
-                                        placeholder="Pilih Tanggal"
-                                    />
-                                </div>
+                                <div className="logbook-modal-row-3">
+                                    <div className="logbook-field-group">
+                                        <label>Tanggal *</label>
+                                        <DateField
+                                            value={formData.tanggal}
+                                            onChange={(val) => setFormData({ ...formData, tanggal: val || getTodayString() })}
+                                            placeholder="Pilih Tanggal"
+                                        />
+                                    </div>
 
-                                <div className="logbook-field-row">
-                                    <div className="logbook-field-group flex-1">
+                                    <div className="logbook-field-group">
                                         <label>Jam Mulai *</label>
                                         <input
                                             type="time"
@@ -777,7 +777,7 @@ export default function MyLogbook() {
                                         />
                                     </div>
 
-                                    <div className="logbook-field-group flex-1">
+                                    <div className="logbook-field-group">
                                         <label>Jam Selesai *</label>
                                         <input
                                             type="time"
