@@ -613,19 +613,9 @@ export default function MyLogbook() {
                                 <h2>Daftar Aktivitas Karyawan</h2>
                                 <p>Menampilkan {groupedUsers.length} karyawan aktif yang mencatat pekerjaan pada periode ini.</p>
                             </div>
-                            <div className="logbook-card-actions">
-                                <button type="button" className="logbook-btn-secondary" onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }}>
-                                    <RefreshCw size={14} className={loadingMonitor ? 'logbook-spinner' : ''} />
-                                    <span>Segarkan</span>
-                                </button>
-                                <button type="button" className="logbook-btn-export" onClick={handleExportExcel}>
-                                    <Download size={14} />
-                                    <span>Export Excel</span>
-                                </button>
-                            </div>
                         </div>
 
-                        {/* Filter Bar */}
+                        {/* Filter Bar with Action Buttons */}
                         <div className="logbook-filter-bar">
                             <div className="logbook-filter-item">
                                 <label>Periode Tanggal</label>
@@ -670,9 +660,23 @@ export default function MyLogbook() {
                                 </div>
                             </div>
 
-                            <div className="logbook-filter-item" style={{ alignSelf: 'flex-end' }}>
-                                <button type="button" className="logbook-btn-reset" onClick={handleResetMonitoringFilter}>
+                            <div className="logbook-filter-item">
+                                <button type="button" className="logbook-btn-reset" onClick={handleResetMonitoringFilter} title="Reset Filter">
                                     Reset
+                                </button>
+                            </div>
+
+                            <div className="logbook-filter-item">
+                                <button type="button" className="logbook-btn-secondary" onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }} title="Segarkan Data">
+                                    <RefreshCw size={14} className={loadingMonitor ? 'logbook-spinner' : ''} />
+                                    <span>Segarkan</span>
+                                </button>
+                            </div>
+
+                            <div className="logbook-filter-item">
+                                <button type="button" className="logbook-btn-export" onClick={handleExportExcel} title="Export ke Excel">
+                                    <Download size={14} />
+                                    <span>Export Excel</span>
                                 </button>
                             </div>
                         </div>
