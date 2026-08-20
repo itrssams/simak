@@ -85,6 +85,11 @@ urlpatterns = [
     # Keuangan API
     path('api/keuangan/', include('keuangan.urls')),
     path('api/users/', include('users.urls')),
+    path('api/system/', include('system.urls')),
+    path('api/logistik/', include('logistik.urls')),
+    path('api/driver/', include('driver.urls')),
+    path('api/it/', include('it.urls')),
+    path('api/inventaris/', include('inventaris.urls')),
     
     # Serve React assets explicitly
     re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),
