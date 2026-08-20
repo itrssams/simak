@@ -25,6 +25,8 @@ import {
     Moon,
     ShieldCheck,
     LayoutGrid,
+    FileSpreadsheet,
+    Server,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -322,7 +324,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'akuntansi',
             title: 'Akuntansi',
-            iconColor: '#a855f7',
+            icon: Landmark,
+            iconColor: '#c084fc',
             menus: [
                 { label: 'Dashboard', path: '/dashboard-analytics' },
                 { label: 'Data Pelanggan', path: '/pelanggan' },
@@ -344,6 +347,7 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'catatan-utang',
             title: 'Catatan Utang',
+            icon: FileSpreadsheet,
             iconColor: '#10b981',
             menus: [
                 { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
@@ -357,6 +361,7 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'penagihan-invoice',
             title: 'Penagihan',
+            icon: ReceiptText,
             iconColor: '#06b6d4',
             menus: [
                 { label: 'Dashboard Invoice', path: '/keuangan/invoices/dashboard' },
@@ -374,6 +379,7 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'gudang-logistik',
             title: 'Gudang Logistik',
+            icon: Package,
             iconColor: '#f59e0b',
             menus: [
                 { label: 'Daftar Barang', path: '/logistik/barang' },
@@ -399,6 +405,7 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'petty-cash',
             title: 'Petty Cash',
+            icon: WalletCards,
             iconColor: '#22c55e',
             menus,
         };
@@ -409,7 +416,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'driver',
             title: 'Driver',
-            iconColor: '#6366f1',
+            icon: CarFront,
+            iconColor: '#818cf8',
             menus: [
                 { label: 'Driver', path: '/driver' },
             ],
@@ -421,7 +429,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'system-maintenance',
             title: 'Manajemen Sistem',
-            iconColor: '#10b981',
+            icon: Server,
+            iconColor: '#2dd4bf',
             menus: [
                 { label: 'Manajemen Sistem', path: '/admin/system-maintenance' },
             ],
@@ -433,7 +442,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'users',
             title: 'Manajemen User',
-            iconColor: '#0ea5e9',
+            icon: Users,
+            iconColor: '#38bdf8',
             menus: [
                 { label: 'Manajemen User', path: '/admin/users' },
             ],
@@ -445,7 +455,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'pengumuman',
             title: 'Pengumuman',
-            iconColor: '#f43f5e',
+            icon: Megaphone,
+            iconColor: '#fb7185',
             menus: [
                 { label: 'Pengumuman', path: '/pengumuman' },
             ],
@@ -457,7 +468,8 @@ const getActiveModuleConfig = (pathname, user) => {
         return {
             id: 'audit-log',
             title: 'Audit Log',
-            iconColor: '#64748b',
+            icon: ShieldCheck,
+            iconColor: '#cbd5e1',
             menus: [
                 { label: 'Audit Log', path: '/audit-log' },
             ],
@@ -1501,7 +1513,17 @@ export default function Layout({ children }) {
                                 onClick={() => navigate(activeModuleConfig.menus[0]?.path || '/')}
                                 title={`Modul ${activeModuleConfig.title}`}
                             >
-                                <span className="app-title-dot" style={{ background: activeModuleConfig.iconColor }}></span>
+                                {activeModuleConfig.icon && (
+                                    <activeModuleConfig.icon
+                                        size={17}
+                                        color={activeModuleConfig.iconColor}
+                                        strokeWidth={2.3}
+                                        style={{
+                                            flexShrink: 0,
+                                            filter: `drop-shadow(0 0 6px ${activeModuleConfig.iconColor}55)`,
+                                        }}
+                                    />
+                                )}
                                 <span className="app-title-text">{activeModuleConfig.title}</span>
                             </div>
 
