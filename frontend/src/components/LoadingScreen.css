@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════
-   SIMAK LUXURY LOADING SCREEN (TRUE EDGE-TO-EDGE FULLSCREEN)
+   SIMAK LUXURY LOADING SCREEN (SILKY SMOOTH TRANSITIONS)
    ══════════════════════════════════════════════════════════════════ */
 
 .simak-loading-screen {
@@ -25,7 +25,17 @@
   overflow: hidden;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   color: #f8fafc;
-  animation: simakFadeIn 0.2s ease-out;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.45s;
+  animation: simakFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.simak-loading-screen.fade-out {
+  opacity: 0 !important;
+  transform: scale(1.04) !important;
+  pointer-events: none !important;
+  visibility: hidden;
 }
 
 [data-theme="light"] .simak-loading-screen {
@@ -38,8 +48,8 @@
 }
 
 @keyframes simakFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .simak-loading-container {

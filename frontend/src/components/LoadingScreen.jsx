@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import './LoadingScreen.css';
 
-export default function LoadingScreen({ text = 'Memuat sistem...' }) {
+export default function LoadingScreen({ text = 'Memuat sistem...', isFadingOut = false }) {
     const content = (
-        <div className="simak-loading-screen">
+        <div className={`simak-loading-screen ${isFadingOut ? 'fade-out' : ''}`}>
             <div className="simak-loading-container">
                 {/* Glowing Orbital Ring */}
                 <div className="simak-loading-ring-wrap">

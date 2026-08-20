@@ -53,10 +53,33 @@ const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = false;
 
+// ── Smooth Global Loading Overlay ─────────────────────────
+function GlobalLoadingOverlay() {
+    const { loading } = useAuth();
+    const [visible, setVisible] = useState(true);
+    const [fading, setFading] = useState(false);
+
+    useEffect(() => {
+        if (!loading) {
+            setFading(true);
+            const timer = setTimeout(() => {
+                setVisible(false);
+            }, 450);
+            return () => clearTimeout(timer);
+        } else {
+            setVisible(true);
+            setFading(false);
+        }
+    }, [loading]);
+
+    if (!visible) return null;
+    return <LoadingScreen isFadingOut={fading} />;
+}
+
 // ── Protected route dengan role guard ─────────────────────
 const ProtectedRoute = ({ children, allow }) => {
     const { user, loading } = useAuth();
-    if (loading) return <LoadingScreen />;
+    if (loading) return null;
     if (!user) return <Navigate to="/login" />;
     if (allow && !allow(user)) return <Navigate to="/petty-cash" />;
     return <Layout>{children}</Layout>;
@@ -65,7 +88,7 @@ const ProtectedRoute = ({ children, allow }) => {
 // ── Home redirect berdasar role ────────────────────────────
 const HomeRedirect = () => {
     const { user, loading } = useAuth();
-    if (loading) return <LoadingScreen />;
+    if (loading) return null;
     if (!user) return <Navigate to="/login" />;
     return <AppLauncher />;
 };
@@ -174,6 +197,7 @@ function App() {
         <AuthProvider>
             <ToastProvider>
                 <BrowserRouter>
+                    <GlobalLoadingOverlay />
                     <IdleGuard />
                     <AppRoutes />
                 </BrowserRouter>
