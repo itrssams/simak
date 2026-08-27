@@ -11,29 +11,39 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-from .models import Logbook
-from .serializers import LogbookSerializer, LogbookInputSerializer
+from .models import Logbook, Task, SesiKerja
+from .serializers import LogbookSerializer, LogbookInputSerializer, TaskSerializer, TaskCreateSerializer
+from .utils import hitung_durasi_sesi
 
 
-def is_direktur_up(user):
-    return bool(
-        user and user.is_authenticated and (
-            user.is_superuser or user.role in ('direktur', 'wakil_direktur')
-        )
-    )
+def get_monitoring_level(user):
+    """Return: 'all' (direktur), 'unit' (kepala_seksi/manajer), atau None"""
+    if not user or not user.is_authenticated:
+        return None
+    if user.is_superuser or user.role in ('direktur', 'wakil_direktur'):
+        return 'all'
+    if user.role in ('kepala_seksi', 'manajer'):
+        return 'unit'
+    return None
 
 
 class LogbookViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
+    pagination_class = None
+
     def get_queryset(self):
         user = self.request.user
         qs = Logbook.objects.select_related('user', 'user__unit')
+        monitoring_level = get_monitoring_level(user)
 
         # Filter akses data
-        if not is_direktur_up(user):
-            # Karyawan & manajer biasa hanya melihat logbook miliknya sendiri
+        if monitoring_level is None:
+            # Karyawan biasa hanya melihat logbook miliknya sendiri
             qs = qs.filter(user=user)
+        elif monitoring_level == 'unit':
+            # Manajer/Kepala Seksi hanya melihat unitnya sendiri
+            qs = qs.filter(user__unit=user.unit)
         else:
             # Pimpinan (Direktur & Wadir) dapat memfilter berdasarkan user dan unit
             user_id = self.request.query_params.get('user_id')
@@ -84,18 +94,29 @@ class LogbookViewSet(viewsets.ModelViewSet):
         # Cegah user lain mengedit logbook orang lain (kecuali superuser)
         if instance.user != self.request.user and not self.request.user.is_superuser:
             raise PermissionDenied('Anda hanya dapat mengedit logbook milik Anda sendiri.')
+            
+        # Kunci retroaktif
+        if not self.request.user.is_superuser:
+            selisih = (timezone.localdate() - instance.tanggal).days
+            if selisih > 3:
+                raise PermissionDenied('Logbook lebih dari 3 hari yang lalu tidak dapat diubah.')
         serializer.save()
 
     def perform_destroy(self, instance):
         if instance.user != self.request.user and not self.request.user.is_superuser:
             raise PermissionDenied('Anda hanya dapat menghapus logbook milik Anda sendiri.')
+            
+        if not self.request.user.is_superuser:
+            selisih = (timezone.localdate() - instance.tanggal).days
+            if selisih > 3:
+                raise PermissionDenied('Logbook lebih dari 3 hari yang lalu tidak dapat dihapus.')
         instance.delete()
 
     @action(detail=False, methods=['get'])
     def monitoring_summary(self, request):
         """Ringkasan eksekutif khusus Wadir & Direktur"""
-        if not is_direktur_up(request.user):
-            raise PermissionDenied('Hanya Wakil Direktur dan Direktur yang dapat mengakses monitoring.')
+        if get_monitoring_level(request.user) is None:
+            raise PermissionDenied('Anda tidak memiliki akses ke monitoring.')
 
         today = timezone.localdate()
         first_day_of_month = today.replace(day=1)
@@ -241,3 +262,134 @@ class LogbookViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
+
+
+def _hitung_total_task(task):
+    sesi_selesai = task.sesi_list.filter(selesai__isnull=False)
+    total_kerja = sum(s.durasi_kerja for s in sesi_selesai)
+    total_lembur = sum(s.durasi_lembur for s in sesi_selesai)
+    task.total_menit_kerja = total_kerja
+    task.total_menit_lembur = total_lembur
+    task.save()
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Task.objects.select_related('user', 'user__unit').prefetch_related('sesi_list')
+        monitoring_level = get_monitoring_level(user)
+
+        # Filter akses data
+        if monitoring_level is None:
+            qs = qs.filter(user=user)
+        elif monitoring_level == 'unit':
+            qs = qs.filter(user__unit=user.unit)
+        else:
+            user_id = self.request.query_params.get('user_id')
+            if user_id and user_id.isdigit():
+                qs = qs.filter(user_id=int(user_id))
+
+            unit_id = self.request.query_params.get('unit_id')
+            if unit_id and unit_id.isdigit():
+                qs = qs.filter(user__unit_id=int(unit_id))
+
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            statuses = status_param.split(',')
+            qs = qs.filter(status__in=statuses)
+            
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+        if search:
+            q = search.strip()
+            qs = qs.filter(
+                Q(judul__icontains=q) |
+                Q(no_task__icontains=q) |
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q) |
+                Q(user__username__icontains=q)
+            )
+
+        return qs.order_by('-updated_at')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return TaskCreateSerializer
+        return TaskSerializer
+
+    def perform_create(self, serializer):
+        task = serializer.save(user=self.request.user, started_at=timezone.now(), status='on_progress')
+        # Buat sesi kerja pertama
+        SesiKerja.objects.create(task=task, mulai=timezone.now())
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user and not self.request.user.is_superuser:
+            raise PermissionDenied('Anda hanya dapat menghapus task milik Anda sendiri.')
+        instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def pause(self, request, pk=None):
+        task = self.get_object()
+        if task.status == 'done':
+            return Response({'error': 'Task sudah selesai.'}, status=400)
+            
+        sesi_aktif = task.sesi_list.filter(selesai__isnull=True).first()
+        if not sesi_aktif:
+            return Response({'error': 'Tidak ada sesi yang sedang berjalan'}, status=400)
+        
+        now = timezone.now()
+        sesi_aktif.selesai = now
+        kerja, lembur = hitung_durasi_sesi(sesi_aktif.mulai, sesi_aktif.selesai)
+        sesi_aktif.durasi_kerja = kerja
+        sesi_aktif.durasi_lembur = lembur
+        sesi_aktif.save()
+        
+        task.status = 'on_hold'
+        _hitung_total_task(task)
+        
+        return Response(TaskSerializer(task).data)
+
+    @action(detail=True, methods=['post'])
+    def resume(self, request, pk=None):
+        task = self.get_object()
+        if task.status == 'done':
+            return Response({'error': 'Task sudah selesai.'}, status=400)
+            
+        if task.sesi_list.filter(selesai__isnull=True).exists():
+            return Response({'error': 'Task sudah memiliki sesi aktif.'}, status=400)
+            
+        SesiKerja.objects.create(task=task, mulai=timezone.now())
+        task.status = 'on_progress'
+        task.save()
+        
+        return Response(TaskSerializer(task).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        task = self.get_object()
+        if task.status == 'done':
+            return Response({'error': 'Task sudah selesai.'}, status=400)
+            
+        now = timezone.now()
+        sesi_aktif = task.sesi_list.filter(selesai__isnull=True).first()
+        
+        if sesi_aktif:
+            sesi_aktif.selesai = now
+            kerja, lembur = hitung_durasi_sesi(sesi_aktif.mulai, sesi_aktif.selesai)
+            sesi_aktif.durasi_kerja = kerja
+            sesi_aktif.durasi_lembur = lembur
+            sesi_aktif.save()
+            
+        task.status = 'done'
+        task.completed_at = now
+        _hitung_total_task(task)
+        
+        return Response(TaskSerializer(task).data)
+
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Mendapatkan daftar task yang sedang berjalan (untuk timer global)"""
+        qs = self.get_queryset().filter(status__in=['on_progress', 'on_hold'])
+        return Response(TaskSerializer(qs, many=True).data)

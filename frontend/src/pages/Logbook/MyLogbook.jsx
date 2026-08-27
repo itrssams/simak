@@ -20,11 +20,15 @@ import {
     Eye,
     ChevronRight,
     Briefcase,
+    Play,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
+import useDebounce from '../../hooks/useDebounce';
 import DateField from '../../components/DateField';
 import DateRangePicker from '../../components/DateRangePicker';
+import TaskLogbook from './TaskLogbook';
 import './MyLogbook.css';
 
 const getTodayString = () => {
@@ -75,23 +79,22 @@ export default function MyLogbook() {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
 
-    // Check Role: Direktur or Wakil Direktur
-    const isDirekturUp = useMemo(() => {
-        if (!user) return false;
-        if (user.is_superuser) return true;
-        const r = (user.role || '').toLowerCase();
-        return r === 'direktur' || r === 'wakil_direktur';
+    // Check Monitoring Level
+    const monitoringLevel = useMemo(() => {
+        if (!user) return null;
+        if (user.is_superuser || ['direktur', 'wakil_direktur'].includes(user.role?.toLowerCase())) return 'all';
+        if (['manajer', 'kepala_seksi'].includes(user.role?.toLowerCase())) return 'unit';
+        return null;
     }, [user]);
 
     // Read view from Topbar query param (?tab=monitoring)
-    const isMonitoringView = isDirekturUp && searchParams.get('tab') === 'monitoring';
+    const isMonitoringView = monitoringLevel !== null && searchParams.get('tab') === 'monitoring';
 
-    // Toast Notification
-    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-    const showToast = (message, type = 'success') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
-    };
+    // Global SIMAK Toast
+    const toast = useToast();
+
+    // View Mode (Live Track vs Quick Log)
+    const [activeTab, setActiveTab] = useState('live');
 
     // ══════════════════════════════════════════════════════════════════
     // VIEW 1: LOGBOOK SAYA (STAFF VIEW)
@@ -100,6 +103,7 @@ export default function MyLogbook() {
     const [loadingMy, setLoadingMy] = useState(false);
     const [myFilterDate, setMyFilterDate] = useState(getTodayString());
     const [mySearch, setMySearch] = useState('');
+    const debouncedMySearch = useDebounce(mySearch, 400);
 
     // Modal Form State (Create / Edit)
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,18 +127,18 @@ export default function MyLogbook() {
         try {
             const params = {};
             if (myFilterDate) params.tanggal = myFilterDate;
-            if (mySearch.trim()) params.q = mySearch.trim();
+            if (debouncedMySearch.trim()) params.q = debouncedMySearch.trim();
 
             const res = await api.get('/logbook/', { params });
             const data = Array.isArray(res.data) ? res.data : (res.data?.results || []);
             setMyLogbooks(data);
         } catch (err) {
             console.error('Error fetching logbooks:', err);
-            showToast('Gagal memuat logbook.', 'error');
+            toast.error('Gagal memuat logbook.');
         } finally {
             setLoadingMy(false);
         }
-    }, [myFilterDate, mySearch]);
+    }, [myFilterDate, debouncedMySearch]);
 
     useEffect(() => {
         if (!isMonitoringView) {
@@ -178,7 +182,8 @@ export default function MyLogbook() {
             const [h1, m1] = formData.jam_mulai.split(':').map(Number);
             const [h2, m2] = formData.jam_selesai.split(':').map(Number);
             let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-            if (totalMins <= 0) return 'Jam selesai harus lebih besar dari jam mulai';
+            if (totalMins < 0) totalMins += 24 * 60; // Lintas tengah malam
+            if (totalMins === 0) return 'Jam selesai tidak boleh sama dengan jam mulai';
             const hours = Math.floor(totalMins / 60);
             const mins = totalMins % 60;
             if (hours > 0) {
@@ -201,9 +206,10 @@ export default function MyLogbook() {
 
         const [h1, m1] = formData.jam_mulai.split(':').map(Number);
         const [h2, m2] = formData.jam_selesai.split(':').map(Number);
-        const totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (totalMins <= 0) {
-            return setFormError('Jam selesai harus lebih besar dari jam mulai.');
+        let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (totalMins < 0) totalMins += 24 * 60;
+        if (totalMins === 0) {
+            return setFormError('Jam selesai tidak boleh sama dengan jam mulai.');
         }
 
         setSubmitting(true);
@@ -217,10 +223,10 @@ export default function MyLogbook() {
 
             if (editingItem) {
                 await api.put(`/logbook/${editingItem.id}/`, payload);
-                showToast('Catatan pekerjaan berhasil diperbarui.');
+                toast.success('Catatan pekerjaan berhasil diperbarui.');
             } else {
                 await api.post('/logbook/', payload);
-                showToast('Catatan pekerjaan berhasil ditambahkan.');
+                toast.success('Catatan pekerjaan berhasil ditambahkan.');
             }
             closeModal();
             fetchMyLogbooks();
@@ -247,12 +253,12 @@ export default function MyLogbook() {
         setDeleting(true);
         try {
             await api.delete(`/logbook/${deleteItem.id}/`);
-            showToast('Catatan pekerjaan berhasil dihapus.');
+            toast.success('Catatan pekerjaan berhasil dihapus.');
             closeDeleteConfirm();
             fetchMyLogbooks();
         } catch (err) {
             console.error('Error deleting logbook:', err);
-            showToast('Gagal menghapus logbook.', 'error');
+            toast.error('Gagal menghapus logbook.');
         } finally {
             setDeleting(false);
         }
@@ -287,34 +293,37 @@ export default function MyLogbook() {
     const [monUnitId, setMonUnitId] = useState('');
     const [monUserId, setMonUserId] = useState('');
     const [monSearch, setMonSearch] = useState('');
+    const debouncedMonSearch = useDebounce(monSearch, 400);
 
     // Fetch Units & Users for dropdowns
     useEffect(() => {
-        if (isDirekturUp && isMonitoringView) {
-            api.get('/users/units/').then(res => {
-                const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
-                setUnitList(list);
-            }).catch(() => {});
+        if (monitoringLevel !== null && isMonitoringView) {
+            if (monitoringLevel === 'all') {
+                api.get('/users/units/').then(res => {
+                    const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
+                    setUnitList(list);
+                }).catch(() => {});
+            }
 
             api.get('/users/', { params: { page_size: 200 } }).then(res => {
                 const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
                 setUserList(list);
             }).catch(() => {});
         }
-    }, [isDirekturUp, isMonitoringView]);
+    }, [monitoringLevel, isMonitoringView]);
 
     const fetchMonitoringSummary = useCallback(async () => {
-        if (!isDirekturUp) return;
+        if (monitoringLevel === null) return;
         try {
             const res = await api.get('/logbook/monitoring_summary/');
             setSummaryStats(res.data);
         } catch (err) {
             console.error('Failed to fetch summary:', err);
         }
-    }, [isDirekturUp]);
+    }, [monitoringLevel]);
 
     const fetchMonitoringData = useCallback(async () => {
-        if (!isDirekturUp) return;
+        if (monitoringLevel === null) return;
         setLoadingMonitor(true);
         try {
             const params = {};
@@ -322,38 +331,38 @@ export default function MyLogbook() {
             if (monEndDate) params.end_date = monEndDate;
             if (monUnitId) params.unit_id = monUnitId;
             if (monUserId) params.user_id = monUserId;
-            if (monSearch.trim()) params.q = monSearch.trim();
+            if (debouncedMonSearch.trim()) params.q = debouncedMonSearch.trim();
 
             const res = await api.get('/logbook/', { params });
             const data = Array.isArray(res.data) ? res.data : (res.data?.results || []);
             setMonitorLogbooks(data);
         } catch (err) {
             console.error('Failed to fetch monitoring data:', err);
-            showToast('Gagal memuat monitoring logbook.', 'error');
+            toast.error('Gagal memuat monitoring logbook.');
         } finally {
             setLoadingMonitor(false);
         }
-    }, [isDirekturUp, monStartDate, monEndDate, monUnitId, monUserId, monSearch]);
+    }, [monitoringLevel, monStartDate, monEndDate, monUnitId, monUserId, debouncedMonSearch]);
 
     useEffect(() => {
-        if (isDirekturUp && isMonitoringView) {
+        if (monitoringLevel !== null && isMonitoringView) {
             fetchMonitoringSummary();
             fetchMonitoringData();
         }
-    }, [isDirekturUp, isMonitoringView, fetchMonitoringSummary, fetchMonitoringData]);
+    }, [monitoringLevel, isMonitoringView, fetchMonitoringSummary, fetchMonitoringData]);
 
     // Grouping by Employee for the Monitoring Table
     const groupedUsers = useMemo(() => {
         const map = new Map();
         monitorLogbooks.forEach((item) => {
-            const uid = item.user;
+            const uid = item.user_id;
             if (!map.has(uid)) {
                 map.set(uid, {
                     userId: uid,
-                    userName: item.user_full_name || item.user_username,
+                    userName: item.user_nama || item.user_username,
                     userUsername: item.user_username,
-                    userRole: item.user_role || 'Staff',
-                    userUnit: item.user_unit_name || 'Tidak ada unit',
+                    userRole: item.user_role_label || item.user_role || 'Staff',
+                    userUnit: item.unit_nama || 'Tidak ada unit',
                     totalEntries: 0,
                     totalMinutes: 0,
                     lastDate: item.tanggal,
@@ -389,7 +398,7 @@ export default function MyLogbook() {
 
     const handleExportExcel = async () => {
         try {
-            showToast('Menyiapkan file Excel...', 'success');
+            toast.info('Menyiapkan file Excel...');
             const params = {};
             if (monStartDate) params.start_date = monStartDate;
             if (monEndDate) params.end_date = monEndDate;
@@ -413,23 +422,15 @@ export default function MyLogbook() {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-            showToast('File Excel berhasil diunduh.', 'success');
+            toast.success('File Excel berhasil diunduh.');
         } catch (err) {
             console.error('Error downloading Excel:', err);
-            showToast('Gagal mengunduh Excel.', 'error');
+            toast.error('Gagal mengunduh Excel.');
         }
     };
 
     return (
         <div className="logbook-page">
-            {/* Toast Notification */}
-            {toast.show && (
-                <div className={`logbook-toast ${toast.type}`}>
-                    {toast.type === 'success' ? <CheckCircle2 size={16} /> : <X size={16} />}
-                    <span>{toast.message}</span>
-                </div>
-            )}
-
             {/* ══════════════════════════════════════════════════════════════════ */}
             {/* VIEW 1: LOGBOOK SAYA                                               */}
             {/* ══════════════════════════════════════════════════════════════════ */}
@@ -446,8 +447,26 @@ export default function MyLogbook() {
                         </div>
                     </div>
 
-                    {/* Main Card */}
-                    <div className="logbook-card">
+                    <div className="logbook-tabs">
+                        <button 
+                            className={`logbook-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('live')}
+                        >
+                            <Play size={16} /> Live Track (Realtime)
+                        </button>
+                        <button 
+                            className={`logbook-tab-btn ${activeTab === 'quick' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('quick')}
+                        >
+                            <ClipboardList size={16} /> Quick Log (Manual)
+                        </button>
+                    </div>
+
+                    {activeTab === 'live' ? (
+                        <TaskLogbook />
+                    ) : (
+                        /* Main Card */
+                        <div className="logbook-card">
                         <div className="logbook-card-head">
                             <div className="logbook-card-title">
                                 <h2>{formatTanggalIndo(myFilterDate || getTodayString())}</h2>
@@ -517,44 +536,52 @@ export default function MyLogbook() {
                                 </div>
                             ) : (
                                 <div className="logbook-timeline-list">
-                                    {myLogbooks.map((item) => (
-                                        <div key={item.id} className="logbook-item-card">
-                                            <div className="logbook-item-header">
-                                                <div className="logbook-item-time-pill">
-                                                    <Clock size={13} />
-                                                    <span>{formatWaktu(item.jam_mulai)} – {formatWaktu(item.jam_selesai)}</span>
+                                    {myLogbooks.map((item) => {
+                                        const diffDays = (new Date(getTodayString()) - new Date(item.tanggal)) / 86400000;
+                                        const isEditable = diffDays <= 3;
+
+                                        return (
+                                            <div key={item.id} className="logbook-item-card">
+                                                <div className="logbook-item-header">
+                                                    <div className="logbook-item-time-pill">
+                                                        <Clock size={13} />
+                                                        <span>{formatWaktu(item.jam_mulai)} – {formatWaktu(item.jam_selesai)}</span>
+                                                    </div>
+                                                    <span className="logbook-item-durasi-badge">
+                                                        ({item.durasi_format || `${item.durasi_menit} menit`})
+                                                    </span>
+                                                    {isEditable && (
+                                                        <div className="logbook-item-actions">
+                                                            <button
+                                                                type="button"
+                                                                className="logbook-icon-btn edit"
+                                                                onClick={() => openEditModal(item)}
+                                                                title="Edit Catatan"
+                                                            >
+                                                                <Edit3 size={14} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="logbook-icon-btn delete"
+                                                                onClick={() => openDeleteConfirm(item)}
+                                                                title="Hapus Catatan"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <span className="logbook-item-durasi-badge">
-                                                    ({item.durasi_format || `${item.durasi_menit} menit`})
-                                                </span>
-                                                <div className="logbook-item-actions">
-                                                    <button
-                                                        type="button"
-                                                        className="logbook-icon-btn edit"
-                                                        onClick={() => openEditModal(item)}
-                                                        title="Edit Catatan"
-                                                    >
-                                                        <Edit3 size={14} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="logbook-icon-btn delete"
-                                                        onClick={() => openDeleteConfirm(item)}
-                                                        title="Hapus Catatan"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                <div className="logbook-item-body">
+                                                    <p className="logbook-item-text">{item.deskripsi}</p>
                                                 </div>
                                             </div>
-                                            <div className="logbook-item-body">
-                                                <p className="logbook-item-text">{item.deskripsi}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
             )}
 
@@ -568,7 +595,7 @@ export default function MyLogbook() {
                         <div className="logbook-title">
                             <span><Users size={22} /></span>
                             <div>
-                                <h1>Monitoring Logbook Karyawan</h1>
+                                <h1>{monitoringLevel === 'all' ? 'Monitoring Logbook Karyawan' : 'Monitoring Unit Saya'}</h1>
                                 <p>Pantau catatan aktivitas harian seluruh karyawan dan akumulasi jam kerja.</p>
                             </div>
                         </div>
@@ -623,19 +650,21 @@ export default function MyLogbook() {
                                 />
                             </div>
 
-                            <div className="logbook-filter-item">
-                                <label>Unit / Bagian</label>
-                                <select
-                                    value={monUnitId}
-                                    onChange={(e) => setMonUnitId(e.target.value)}
-                                    className="logbook-select"
-                                >
-                                    <option value="">Semua Unit</option>
-                                    {unitList.map(u => (
-                                        <option key={u.id} value={u.id}>{u.nama}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {monitoringLevel === 'all' && (
+                                <div className="logbook-filter-item">
+                                    <label>Unit / Bagian</label>
+                                    <select
+                                        value={monUnitId}
+                                        onChange={(e) => setMonUnitId(e.target.value)}
+                                        className="logbook-select"
+                                    >
+                                        <option value="">Semua Unit</option>
+                                        {unitList.map(u => (
+                                            <option key={u.id} value={u.id}>{u.nama}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div className="logbook-filter-item flex-1">
                                 <label>Pencarian</label>

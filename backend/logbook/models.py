@@ -57,3 +57,58 @@ class Logbook(models.Model):
             return f"{jam} jam"
         else:
             return f"{sisa_menit} mnt"
+
+
+class Task(models.Model):
+    STATUS_CHOICES = [
+        ('on_progress', 'On Progress'),
+        ('on_hold',     'On Hold'),
+        ('done',        'Done'),
+    ]
+    
+    no_task      = models.CharField(max_length=25, unique=True, editable=False)
+    user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tasks')
+    judul        = models.CharField(max_length=200)
+    deskripsi    = models.TextField(blank=True)
+    status       = models.CharField(max_length=15, choices=STATUS_CHOICES, default='on_progress')
+    started_at   = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    total_menit_kerja  = models.IntegerField(default=0)
+    total_menit_lembur = models.IntegerField(default=0)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'logbook_task'
+        ordering = ['-updated_at', '-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.no_task:
+            today_str = timezone.now().strftime('%Y%m')
+            last_task = Task.objects.filter(no_task__startswith=f'TK-{today_str}').order_by('-no_task').first()
+            if last_task:
+                last_num = int(last_task.no_task.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            self.no_task = f'TK-{today_str}-{new_num:03d}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.no_task} - {self.judul}"
+
+
+class SesiKerja(models.Model):
+    task         = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='sesi_list')
+    mulai        = models.DateTimeField()
+    selesai      = models.DateTimeField(null=True, blank=True)
+    durasi_kerja  = models.IntegerField(default=0, help_text='Menit dalam jam kerja')
+    durasi_lembur = models.IntegerField(default=0, help_text='Menit di luar jam kerja')
+    created_at   = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'logbook_sesi_kerja'
+        ordering = ['mulai']
+
+    def __str__(self):
+        return f"Sesi {self.task.no_task} ({self.mulai.strftime('%Y-%m-%d %H:%M')})"
