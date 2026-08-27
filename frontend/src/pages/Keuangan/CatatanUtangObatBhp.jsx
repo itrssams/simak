@@ -938,18 +938,36 @@ export default function CatatanUtangObatBhp() {
                     </div>
                     <div className="utang-card-actions">
                         {mode === 'pengajuan' && selectedPengajuanIds.length > 0 && (
-                            <button
-                                className="utang-btn primary"
-                                type="button"
-                                onClick={() => {
-                                    setBulkRealisasiDate(todayISO());
-                                    setShowBulkRealisasiModal(true);
-                                }}
-                                style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}
-                                title="Realisasi beberapa pengajuan pembayaran sekaligus"
-                            >
-                                <CheckCheck size={16} /> Realisasi ({selectedPengajuanIds.length}) Terpilih
-                            </button>
+                            <>
+                                <div className="utang-selected-pill" style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                                    color: '#047857',
+                                    padding: '6px 14px',
+                                    borderRadius: '9px',
+                                    fontSize: '13px',
+                                    fontWeight: '700'
+                                }}>
+                                    <span>Terpilih: <strong>{selectedPengajuanIds.length} faktur</strong></span>
+                                    <span style={{ opacity: 0.5 }}>|</span>
+                                    <span>Total: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(totalBulkNominal)}</strong></span>
+                                </div>
+                                <button
+                                    className="utang-btn primary"
+                                    type="button"
+                                    onClick={() => {
+                                        setBulkRealisasiDate(todayISO());
+                                        setShowBulkRealisasiModal(true);
+                                    }}
+                                    style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}
+                                    title="Realisasi beberapa pengajuan pembayaran sekaligus"
+                                >
+                                    <CheckCheck size={16} /> Realisasi ({selectedPengajuanIds.length}) Terpilih
+                                </button>
+                            </>
                         )}
                         {(mode === 'pengajuan' || mode === 'aktif' || mode === 'semua') && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
@@ -963,23 +981,50 @@ export default function CatatanUtangObatBhp() {
                                         <CheckCheck size={16} /> Lunaskan ({selectedKeys.length}) Terpilih
                                     </button>
                                 )}
+
+                                {/* ══════════════════════════════════════════════════════════════════════
+                                    [FITUR NONAKTIF SEMENTARA: PELUNASAN MASAL DATA LAMA]
+                                    Dokumentasi: Digunakan untuk melunaskan secara masal data transaksi gudang 
+                                    lama yang terdaftar di Excel OTS berdasarkan tanggal faktur terakhir vendor.
+                                    Untuk mengaktifkan kembali, cukup buka comment pada 2 tombol di bawah ini:
+                                    ══════════════════════════════════════════════════════════════════════ */}
+                                {/*
                                 <button className="utang-btn primary" type="button" onClick={handlePelunasanDataLama} style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff' }} title="Pelunasan Masal Data Transaksi Gudang Lama (Dinamis Sesuai Tanggal Faktur Terakhir Masing-Masing Vendor di Excel OTS)">
                                     <CheckCheck size={16} /> Lunaskan Sisa Data Lama
                                 </button>
                                 <button className="utang-btn primary" type="button" onClick={handleUndoPelunasanDataLama} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Batalkan (Undo) Pelunasan Masal Data Lama">
                                     <RotateCcw size={16} /> Undo Pelunasan Data Lama
                                 </button>
+                                */}
                             </>
                         )}
+
+                        {/* ══════════════════════════════════════════════════════════════════════
+                            [FITUR NONAKTIF SEMENTARA: IMPORT EXCEL OTS & ROLLBACK]
+                            Dokumentasi: Digunakan saat proses migrasi awal data utang supplier dari format Excel OTS.
+                            Untuk mengaktifkan kembali tombol ini, cukup buka comment pada 2 tombol di bawah ini:
+                            ══════════════════════════════════════════════════════════════════════ */}
+                        {/*
                         <button className="utang-btn primary" type="button" onClick={() => navigate('/keuangan/catatan-utang/import-ots')} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}>
                             <FileSpreadsheet size={16} /> Import Excel OTS
                         </button>
                         <button className="utang-btn primary" type="button" onClick={handleRollbackImport} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Hapus seluruh data utang hasil import Excel OTS">
                             <RotateCcw size={16} /> Undo Import OTS
                         </button>
+                        */}
+
+                        {/* ══════════════════════════════════════════════════════════════════════
+                            [FITUR NONAKTIF SEMENTARA: RESET SEMUA VERIFIKASI]
+                            Dokumentasi: Digunakan saat testing / inisialisasi awal untuk mereset seluruh
+                            verifikasi data utang kembali ke status default / awal.
+                            Untuk mengaktifkan kembali tombol ini, cukup buka comment di bawah ini:
+                            ══════════════════════════════════════════════════════════════════════ */}
+                        {/*
                         <button className="utang-btn primary" type="button" onClick={handleResetAll} style={{ background: '#b91c1c', borderColor: '#991b1b', color: '#ffffff' }} title="Hapus / Reset seluruh data utang dan verifikasi kembali ke kondisi awal">
                             <RotateCcw size={16} /> Reset Semua Verifikasi
                         </button>
+                        */}
+
                         <button className="utang-btn-manual" type="button" onClick={openManual}>
                             <FilePlus2 size={16} /> Catat Utang Manual
                         </button>
@@ -1052,6 +1097,7 @@ export default function CatatanUtangObatBhp() {
                                 selectedIds={selectedPengajuanIds}
                                 onToggleAll={toggleSelectAllPengajuan}
                                 onToggleItem={toggleSelectPengajuan}
+                                selectedNominalTotal={totalBulkNominal}
                             />
                         )}
                         {mode === 'deposit' && <DepositVendorTable summary={depositData.summary} vendors={items} onDetail={setSelectedDepositVendor} />}
@@ -2225,8 +2271,10 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
     );
 }
 
-function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selectedIds = [], onToggleAll, onToggleItem }) {
+function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selectedIds = [], onToggleAll, onToggleItem, selectedNominalTotal = 0 }) {
     const isAllChecked = items.length > 0 && items.every((i) => selectedIds.includes(i.id));
+    const pageTotal = useMemo(() => items.reduce((acc, item) => acc + Number(item.jumlah_bayar || 0), 0), [items]);
+    const hasSelection = selectedIds.length > 0;
 
     return (
         <table className="utang-table" style={{ tableLayout: 'fixed', width: '100%' }}>
@@ -2318,6 +2366,37 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                     );
                 })}
             </tbody>
+            {items.length > 0 && (
+                <tfoot>
+                    <tr style={{
+                        background: hasSelection ? 'rgba(16, 185, 129, 0.12)' : 'rgba(241, 245, 249, 0.6)',
+                        borderTop: '2px solid rgba(16, 185, 129, 0.35)',
+                        fontWeight: 750
+                    }}>
+                        <td colSpan={3} style={{ textAlign: 'right', padding: '10px 14px' }}>
+                            {hasSelection ? (
+                                <span style={{ color: '#047857', fontWeight: 800 }}>
+                                    ✓ Total Terpilih ({selectedIds.length} Pengajuan):
+                                </span>
+                            ) : (
+                                <span style={{ color: '#64748b' }}>
+                                    Total Pengajuan Halaman Ini ({items.length} Faktur):
+                                </span>
+                            )}
+                        </td>
+                        <td className="utang-mono utang-right" style={{
+                            textAlign: 'right',
+                            padding: '10px 14px',
+                            fontSize: '14px',
+                            color: hasSelection ? '#047857' : 'inherit',
+                            fontWeight: 850
+                        }}>
+                            {money(hasSelection ? selectedNominalTotal : pageTotal)}
+                        </td>
+                        <td colSpan={3}></td>
+                    </tr>
+                </tfoot>
+            )}
         </table>
     );
 }
