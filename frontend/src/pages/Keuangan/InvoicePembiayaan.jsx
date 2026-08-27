@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import {
     AlertTriangle,
     Ambulance,
@@ -215,6 +215,7 @@ export default function InvoicePembiayaan() {
     const toast = useToast();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const [items, setItems] = useState([]);
@@ -306,25 +307,55 @@ export default function InvoicePembiayaan() {
             setPayment({ ...emptyPayment, tanggal: todayISO() });
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal memuat detail invoice.'));
-            navigate('/keuangan/invoices');
+            setSelected(null);
+            window.history.replaceState(null, '', `/keuangan/invoices${location.search}`);
         } finally {
             setDetailLoading(false);
         }
-    }, [navigate, toast]);
+    }, [location.search, toast]);
 
     useEffect(() => { fetchOptions(); }, [fetchOptions]);
     useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
-    useEffect(() => { fetchDetail(id); }, [fetchDetail, id]);
     useEffect(() => {
-        setFilters((prev) => ({
-            ...prev,
-            search: searchParams.get('search') || '',
-            status: searchParams.get('status') || '',
-            id_pembiayaan: searchParams.get('id_pembiayaan') || '',
-            dari: searchParams.get('dari') || '',
-            sampai: searchParams.get('sampai') || '',
-            aging: searchParams.get('aging') || '',
-        }));
+        if (id) {
+            fetchDetail(id);
+        }
+    }, [fetchDetail, id]);
+
+    // Handle browser back/forward history navigation for detail modal
+    useEffect(() => {
+        const handlePopState = () => {
+            const currentPath = window.location.pathname;
+            const match = currentPath.match(/\/keuangan\/invoices\/(\d+)/);
+            if (match) {
+                fetchDetail(match[1]);
+            } else {
+                setSelected(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [fetchDetail]);
+    useEffect(() => {
+        const search = searchParams.get('search');
+        const status = searchParams.get('status');
+        const id_pembiayaan = searchParams.get('id_pembiayaan');
+        const dari = searchParams.get('dari');
+        const sampai = searchParams.get('sampai');
+        const aging = searchParams.get('aging');
+
+        const hasAnyParam = [search, status, id_pembiayaan, dari, sampai, aging].some((v) => v !== null);
+        if (hasAnyParam) {
+            setFilters((prev) => ({
+                ...prev,
+                search: search !== null ? search : prev.search,
+                status: status !== null ? status : prev.status,
+                id_pembiayaan: id_pembiayaan !== null ? id_pembiayaan : prev.id_pembiayaan,
+                dari: dari !== null ? dari : prev.dari,
+                sampai: sampai !== null ? sampai : prev.sampai,
+                aging: aging !== null ? aging : prev.aging,
+            }));
+        }
     }, [searchParams]);
     useEffect(() => { setPage(1); }, [filters, pageSize]);
 
@@ -480,7 +511,7 @@ export default function InvoicePembiayaan() {
     const closeDetail = () => {
         setPrintMenuOpen(false);
         setSelected(null);
-        navigate('/keuangan/invoices');
+        window.history.pushState(null, '', `/keuangan/invoices${location.search}`);
     };
 
     const openEditInvoice = (invoice, event) => {
@@ -587,7 +618,10 @@ export default function InvoicePembiayaan() {
     const closeSentInfo = () => setSentInfoTarget(null);
 
     const openDetail = (invoice) => {
-        navigate(`/keuangan/invoices/${invoice.id}`);
+        if (invoice?.id) {
+            fetchDetail(invoice.id);
+            window.history.pushState(null, '', `/keuangan/invoices/${invoice.id}${location.search}`);
+        }
     };
 
     const requestRemoveVisit = (visit) => {
