@@ -505,14 +505,18 @@ const getActiveModuleConfig = (pathname, user) => {
 
     // 11. My-Logbook
     if (pathname.startsWith('/logbook')) {
-        const isDirekturUp = Boolean(
-            user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)
-        );
+        const monitoringLevel = (() => {
+            if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
+            if (['manajer', 'kepala_seksi'].includes(user?.role)) return 'unit';
+            return null;
+        })();
         const menus = [
             { label: 'Logbook Saya', path: '/logbook' },
         ];
-        if (isDirekturUp) {
+        if (monitoringLevel === 'all') {
             menus.push({ label: 'Monitoring Karyawan', path: '/logbook?tab=monitoring' });
+        } else if (monitoringLevel === 'unit') {
+            menus.push({ label: 'Monitoring Unit Saya', path: '/logbook?tab=monitoring' });
         }
         return {
             id: 'logbook',
@@ -792,7 +796,7 @@ export default function Layout({ children }) {
                 }
 
                 .app-shell {
-                    min-height: 100vh;
+                    min-height: calc(100vh / 0.88);
                     display: flex;
                     flex-direction: column;
                     background:
