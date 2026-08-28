@@ -26,7 +26,8 @@ from keuangan.views import (
     legacy_fetchall, legacy_fetchone, legacy_paginated,
     _fetch_logistik_pembelian, _build_pending_where_logistik,
     _pending_base_sql_logistik, _utang_order_clause, parse_lenient_date,
-    can_access_catatan_utang_obat_bhp, is_manajer_or_above, _get_rekanan_columns
+    can_access_catatan_utang_obat_bhp, is_manajer_or_above, _get_rekanan_columns,
+    _normalize_logistik_name
 )
 
 class IsLogistikOrCatatanUtangPermission(IsAuthenticated):
@@ -337,8 +338,15 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         params = []
 
         if has_sumber and sumber not in ['semua', 'all', '']:
-            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
-            params.extend([sumber, sumber])
+            if sumber == 'logistik':
+                where += " AND (sumber = 'logistik' OR sumber IS NULL OR sumber = '')"
+            elif sumber == 'farmasi':
+                where += " AND sumber = 'farmasi'"
+            elif sumber == 'manual':
+                where += " AND sumber = 'manual'"
+            else:
+                where += " AND sumber = %s"
+                params.append(sumber)
         if has_kategori and kategori:
             where += " AND kategori = %s"
             params.append(kategori)
@@ -371,7 +379,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         row = legacy_fetchone('SELECT COALESCE(MAX(id_rekanan), 0) + 1 AS next_id FROM rssams.rekanan')
         vendor_id = row['next_id']
         nama_vendor = _normalize_logistik_name(data.get('nama') or '')
-        sumber = data.get('sumber') or 'logistik'
+        sumber = (data.get('sumber') or 'farmasi').strip().lower()
 
         insert_cols = ['id_rekanan', 'nama', 'alamat', 'telp', 'kc', 'del']
         val_placeholders = ['%s', '%s', '%s', '%s', '%s', "'N'"]
@@ -419,7 +427,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
             params.append(data.get('kategori') or '')
         if has_sumber and 'sumber' in data:
             updates.append('sumber = %s')
-            params.append(data.get('sumber') or 'logistik')
+            params.append((data.get('sumber') or 'farmasi').strip().lower())
         params.append(pk)
         with connection.cursor() as cursor:
             cursor.execute(
@@ -446,8 +454,15 @@ class LogistikVendorViewSet(viewsets.ViewSet):
         where = "WHERE del = 'N'"
         params = []
         if has_sumber and sumber != 'all' and sumber != 'semua':
-            where += " AND (sumber = %s OR (%s = 'logistik' AND (sumber IS NULL OR sumber = '')))"
-            params.extend([sumber, sumber])
+            if sumber == 'logistik':
+                where += " AND (sumber = 'logistik' OR sumber IS NULL OR sumber = '')"
+            elif sumber == 'farmasi':
+                where += " AND sumber = 'farmasi'"
+            elif sumber == 'manual':
+                where += " AND sumber = 'manual'"
+            else:
+                where += " AND sumber = %s"
+                params.append(sumber)
         rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama FROM rssams.rekanan {where} ORDER BY nama", params)
         return Response({'results': rows})
 

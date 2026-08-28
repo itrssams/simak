@@ -1545,7 +1545,7 @@ export default function Layout({ children }) {
                     }
                     to {
                         opacity: 1;
-                        transform: translateY(0);
+                        transform: none;
                     }
                 }
                 .app-footer {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Archive, BadgeDollarSign, Printer, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileSpreadsheet, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import api from '../../api/axiosConfig';
@@ -134,7 +135,7 @@ const VENDOR_CATEGORIES = [
     'BIAYA RUTIN BULANAN',
     'BIAYA LAIN-LAIN',
 ];
-const emptyVendor = { nama: '', alamat: '', telp: '', kc: '', kategori: '' };
+const emptyVendor = { nama: '', alamat: '', telp: '', kc: '', kategori: '', sumber: 'farmasi' };
 const emptySpb = { tanggal: today(), id_rekanan: '', no_spb: '', metode_pembayaran: 'Kredit' };
 const emptyItem = { barang: '', original_barang: '', qty_pesan: 1, qty: 0, isi: 1, harga: '', no_invoice: '', editing: false };
 const UNIT_OPTIONS = ['PCS', 'BOX', 'BTL', 'KALENG', 'PAK', 'STRIP', 'SET', 'LITER', 'GRAM', 'METER'];
@@ -204,18 +205,30 @@ export default function Logistik() {
 
     const fetchOptions = useCallback(async () => {
         try {
-            const [barangRes, ruangRes, vendorRes] = await Promise.all([
+            if (section === 'vendor') {
+                const vendorRes = await api.get('/keuangan/logistik/vendor/options/?sumber=all').catch(() => null);
+                if (vendorRes?.data) setVendorOptions(getResults(vendorRes.data));
+                return;
+            }
+
+            const [barangRes, ruangRes, vendorRes] = await Promise.allSettled([
                 api.get('/keuangan/logistik/barang/?page_size=2000&show_all=true'),
                 api.get('/keuangan/logistik/barang/ruang-options/'),
                 api.get('/keuangan/logistik/vendor/options/?sumber=logistik'),
             ]);
-            setBarangOptions(getResults(barangRes.data));
-            setRuangOptions(getResults(ruangRes.data));
-            setVendorOptions(getResults(vendorRes.data));
-        } catch (err) {
-            toast.error(getError(err, 'Gagal memuat pilihan logistik.'));
+            if (barangRes.status === 'fulfilled' && barangRes.value?.data) {
+                setBarangOptions(getResults(barangRes.value.data));
+            }
+            if (ruangRes.status === 'fulfilled' && ruangRes.value?.data) {
+                setRuangOptions(getResults(ruangRes.value.data));
+            }
+            if (vendorRes.status === 'fulfilled' && vendorRes.value?.data) {
+                setVendorOptions(getResults(vendorRes.value.data));
+            }
+        } catch {
+            // Silently ignore non-critical options fetch errors
         }
-    }, [toast]);
+    }, [section]);
 
     const endpointFor = useCallback(() => {
         if (section === 'vendor') return '/keuangan/logistik/vendor/';
@@ -263,6 +276,8 @@ export default function Logistik() {
                 setVendorSumberFilter('all');
             } else if (urlSumber === 'farmasi') {
                 setVendorSumberFilter('farmasi');
+            } else if (urlSumber === 'manual') {
+                setVendorSumberFilter('manual');
             }
         }
     }, [section, urlSumber]);
@@ -275,7 +290,10 @@ export default function Logistik() {
         setActivePurchase(null);
         const target = section === 'stok-minimum' ? 'barang' : section;
         if (target === 'barang') setForms((v) => ({ ...v, barang: emptyBarang }));
-        if (target === 'vendor') setForms((v) => ({ ...v, vendor: emptyVendor }));
+        if (target === 'vendor') {
+            const defaultSumber = ['farmasi', 'logistik', 'manual'].includes(vendorSumberFilter) ? vendorSumberFilter : 'farmasi';
+            setForms((v) => ({ ...v, vendor: { ...emptyVendor, sumber: defaultSumber } }));
+        }
         if (target === 'spb' || target === 'penerimaan') setForms((v) => ({ ...v, spb: emptySpb }));
         if (target === 'barang-keluar') setForms((v) => ({ ...v, mutasi: emptyMutasi }));
         if (target === 'permintaan') setForms((v) => ({ ...v, permintaan: emptyPermintaan }));
@@ -818,9 +836,10 @@ export default function Logistik() {
                                         ))}
                                     </select>
                                     <div className="log-filter-segment" role="group" aria-label="Filter vendor">
-                                        <button className={vendorSumberFilter === 'all' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('all')}>Semua Vendor</button>
-                                        <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('logistik')}>Khusus Logistik</button>
-                                        <button className={vendorSumberFilter === 'farmasi' ? 'active' : ''} type="button" onClick={() => setVendorSumberFilter('farmasi')}>Khusus Farmasi</button>
+                                        <button className={vendorSumberFilter === 'all' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('all'); }}>Semua Vendor</button>
+                                        <button className={vendorSumberFilter === 'farmasi' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('farmasi'); }}>Khusus Farmasi</button>
+                                        <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('logistik'); }}>Khusus Logistik</button>
+                                        <button className={vendorSumberFilter === 'manual' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('manual'); }}>Khusus Manual</button>
                                     </div>
                                 </>
                             )}
@@ -845,7 +864,7 @@ export default function Logistik() {
                             setForms((v) => ({ ...v, item: { ...emptyItem, no_invoice: row.no_faktur || '' } }));
                             setModal('item');
                         }}
-                        onEditVendor={(row) => { setForms((v) => ({ ...v, vendor: row })); setModal('vendor'); }}
+                        onEditVendor={(row) => { setForms((v) => ({ ...v, vendor: { ...emptyVendor, ...row, sumber: row.sumber || 'farmasi' } })); setModal('vendor'); }}
                         onEditBarang={openEditBarang}
                         onEditPenerimaan={(row) => {
                             // Backend penerimaan only returns pemasok (name string), not a numeric vendor ID.
@@ -1098,7 +1117,11 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                         {r.kategori && <small className="log-vendor-cat">{r.kategori}</small>}
                     </div>
                 </td>
-                <td><Badge info={r.sumber === 'logistik'}>{r.sumber === 'logistik' ? 'Logistik' : 'Farmasi'}</Badge></td>
+                <td>
+                    {r.sumber === 'logistik' && <Badge info>Logistik</Badge>}
+                    {r.sumber === 'manual' && <Badge warning>Manual</Badge>}
+                    {(r.sumber === 'farmasi' || (!r.sumber || r.sumber === 'ots_import')) && <Badge purple>Farmasi</Badge>}
+                </td>
                 <td>
                     <div className="log-vendor-address-cell" title={r.alamat || '-'}>
                         {r.alamat || '-'}
@@ -1199,7 +1222,7 @@ function Badge({ children, type, variant, danger, warning, success, info, neutra
     let resolvedVariant = 'neutral';
     if (danger || variant === 'danger' || type === 'danger' || ['ditolak', 'batal', 'stok minimum', 'kosong', 'terhapus'].some(k => text.includes(k))) {
         resolvedVariant = 'danger';
-    } else if (warning || variant === 'warning' || type === 'warning' || ['draft', 'menunggu', 'proses', 'belum kirim'].some(k => text.includes(k))) {
+    } else if (warning || variant === 'warning' || type === 'warning' || ['draft', 'menunggu', 'proses', 'belum kirim', 'manual'].some(k => text.includes(k))) {
         resolvedVariant = 'warning';
     } else if (success || variant === 'success' || type === 'success' || ['selesai', 'disetujui', 'diterima', 'tersedia'].some(k => text.includes(k))) {
         resolvedVariant = 'success';
@@ -1282,7 +1305,7 @@ function Modal({ title, description = 'Lengkapi data lalu simpan.', children, on
         };
     }, []);
 
-    return (
+    return createPortal(
         <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
             <div className={`inv-modal ${isDetail ? 'detail' : 'create'} log-modal ${variant}`.trim()} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                 <div className={`inv-modal-head ${isDetail ? 'inv-detail-head' : ''}`}>
@@ -1297,7 +1320,8 @@ function Modal({ title, description = 'Lengkapi data lalu simpan.', children, on
                 </div>
                 <div className={isDetail ? 'inv-detail-body' : 'inv-modal-body'}>{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -1330,7 +1354,7 @@ function ActionConfirmModal({
         onConfirm(hasInput ? val : true);
     };
 
-    return (
+    return createPortal(
         <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
             <div className="log-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                 <button className="log-confirm-close" type="button" onClick={onClose} aria-label="Tutup">
@@ -1384,7 +1408,8 @@ function ActionConfirmModal({
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
@@ -1397,7 +1422,7 @@ function ConfirmSubmitModal({ target, onClose, onConfirm, saving }) {
         };
     }, []);
 
-    return (
+    return createPortal(
         <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
             <div className="log-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                 <button className="log-confirm-close" type="button" onClick={onClose} aria-label="Tutup">
@@ -1434,7 +1459,8 @@ function ConfirmSubmitModal({ target, onClose, onConfirm, saving }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 function Field({ label, children, className = '' }) {
@@ -1647,10 +1673,17 @@ function BarangModal({ form, setForm, onSubmit, onClose, saving, onGenerateKode 
 
 function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
     return (
-        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan, PIC, dan kategori." onClose={onClose} icon={<Pencil size={20} />}>
+        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan, PIC, kategori, dan sumber." onClose={onClose} icon={<Pencil size={20} />}>
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Nama Vendor"><input className="inv-input" required value={form.nama} onChange={(e) => setForm({ nama: e.target.value })} /></Field>
+                    <Field label="Sumber Vendor">
+                        <select className="inv-input" required value={form.sumber || 'farmasi'} onChange={(e) => setForm({ sumber: e.target.value })}>
+                            <option value="farmasi">Farmasi</option>
+                            <option value="logistik">Logistik</option>
+                            <option value="manual">Manual</option>
+                        </select>
+                    </Field>
                     <Field label="Kategori Rekanan">
                         <select className="inv-input" required value={form.kategori} onChange={(e) => setForm({ kategori: e.target.value })}>
                             <option value="">-- Pilih Kategori --</option>
