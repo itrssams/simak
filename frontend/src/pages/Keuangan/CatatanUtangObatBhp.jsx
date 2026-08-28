@@ -16,6 +16,7 @@ import {
     HandCoins,
     History,
     Layers,
+    Pencil,
     ReceiptText,
     RotateCcw,
     Search,
@@ -211,6 +212,7 @@ const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua',
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: '', keterangan: '' };
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan: '' };
+const initialEditForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', kategori: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan_titip: '' };
 
 export default function CatatanUtangObatBhp() {
     const navigate = useNavigate();
@@ -252,6 +254,8 @@ export default function CatatanUtangObatBhp() {
     const [realisasiForm, setRealisasiForm] = useState({ tanggal_realisasi: todayISO() });
     const [detailTarget, setDetailTarget] = useState(null);
     const [detailHistory, setDetailHistory] = useState([]);
+    const [editTarget, setEditTarget] = useState(null);
+    const [editForm, setEditForm] = useState(initialEditForm);
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
     const [selectedKeys, setSelectedKeys] = useState([]);
@@ -371,11 +375,11 @@ export default function CatatanUtangObatBhp() {
     }, [page]);
 
     useEffect(() => {
-        if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !showManual && !selectedDepositVendor) return undefined;
+        if (!verifyTarget && !paymentTarget && !realisasiTarget && !returTarget && !detailTarget && !editTarget && !showManual && !selectedDepositVendor && !showBulkRealisasiModal && !editTanggalTarget) return undefined;
         const previous = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previous; };
-    }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, showManual, selectedDepositVendor]);
+    }, [verifyTarget, paymentTarget, realisasiTarget, returTarget, detailTarget, editTarget, showManual, selectedDepositVendor, showBulkRealisasiModal, editTanggalTarget]);
 
     const setOrdering = (field) => setFilters((prev) => ({
         ...prev,
@@ -865,6 +869,54 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const openEdit = (item) => {
+        setEditTarget(item);
+        setEditForm({
+            vendor_id: item.vendor_id ? String(item.vendor_id) : '',
+            nomor_faktur: item.nomor_faktur || '',
+            nomor_spb: item.nomor_spb || '',
+            kategori: item.kategori || '',
+            nominal: item.nominal ? String(Math.round(Number(item.nominal))) : '',
+            tanggal_faktur: item.tanggal_faktur || '',
+            tanggal_titip: item.tanggal_titip || '',
+            tanggal_jatuh_tempo: item.tanggal_jatuh_tempo || '',
+            keterangan_titip: item.keterangan_titip || '',
+        });
+    };
+
+    const submitEdit = async (event) => {
+        event.preventDefault();
+        if (!editTarget) return;
+        const nominal = parseMoneyInput(editForm.nominal);
+        if (!editForm.nomor_faktur.trim()) return toast.error('Nomor faktur wajib diisi.');
+        if (nominal <= 0) return toast.error('Nominal utang wajib diisi dan lebih dari 0.');
+        if (!editForm.tanggal_faktur) return toast.error('Tanggal faktur wajib diisi.');
+
+        setSaving(true);
+        try {
+            const payload = {
+                vendor_id: editForm.vendor_id || null,
+                nomor_faktur: editForm.nomor_faktur.trim(),
+                nomor_spb: editForm.nomor_spb ? editForm.nomor_spb.trim() : '',
+                kategori: editForm.kategori || '',
+                tanggal_faktur: editForm.tanggal_faktur || null,
+                tanggal_jatuh_tempo: editForm.tanggal_jatuh_tempo || null,
+                tanggal_titip: editForm.tanggal_titip || null,
+                nominal,
+                keterangan_titip: editForm.keterangan_titip || '',
+            };
+            await api.patch(`/keuangan/utang-supplier/${editTarget.id}/`, payload);
+            toast.success('Catatan utang berhasil diperbarui.');
+            setEditTarget(null);
+            await fetchSummary();
+            await fetchData();
+        } catch (err) {
+            toast.error(errorMessage(err, 'Gagal memperbarui catatan utang.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (!canAccess) {
         return (
             <div className="utang-page">
@@ -1087,7 +1139,7 @@ export default function CatatanUtangObatBhp() {
                                 onToggleItem={toggleSelectItem} 
                             />
                         )}
-                        {(mode === 'aktif' || mode === 'semua') && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onSort={setOrdering} />}
+                        {(mode === 'aktif' || mode === 'semua') && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onEdit={openEdit} onSort={setOrdering} />}
                         {mode === 'pengajuan' && (
                             <PendingSubmissionTable
                                 items={items}
@@ -1676,6 +1728,97 @@ export default function CatatanUtangObatBhp() {
                 document.body,
             )}
 
+            {editTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setEditTarget(null)}>
+                    <form className="utang-modal manual" role="dialog" aria-modal="true" onSubmit={submitEdit} onMouseDown={(e) => e.stopPropagation()}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff' }}><Pencil size={20} /></span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Edit Catatan Utang</h2>
+                                    <SumberBadge sumber={editTarget.sumber} />
+                                </div>
+                                <p className="utang-modal-head-subtitle">Perbarui data faktur, vendor, tanggal, atau nominal utang</p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setEditTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-manual-grid">
+                                <label>
+                                    <span>Vendor / Rekanan</span>
+                                    <SearchablePembiayaanSelect
+                                        options={masterVendorOptions}
+                                        value={editForm.vendor_id}
+                                        onChange={(val) => setEditForm({ ...editForm, vendor_id: val })}
+                                        placeholder="-- Pilih Vendor --"
+                                    />
+                                </label>
+                                <label>
+                                    <span>Kategori Vendor</span>
+                                    <select
+                                        className="utang-input"
+                                        value={editForm.kategori || ''}
+                                        onChange={(e) => setEditForm({ ...editForm, kategori: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Kategori --</option>
+                                        {VENDOR_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Nomor Faktur <span className="utang-req">*</span></span>
+                                    <input
+                                        className="utang-input"
+                                        required
+                                        placeholder="Contoh: INV/2025/001"
+                                        value={editForm.nomor_faktur}
+                                        onChange={(e) => setEditForm({ ...editForm, nomor_faktur: e.target.value })}
+                                    />
+                                </label>
+                                <label>
+                                    <span>Nomor SPB / PO</span>
+                                    <input
+                                        className="utang-input"
+                                        placeholder="Opsional"
+                                        value={editForm.nomor_spb}
+                                        onChange={(e) => setEditForm({ ...editForm, nomor_spb: e.target.value })}
+                                    />
+                                </label>
+                                <label className="utang-span-full">
+                                    <span>Nominal Utang <span className="utang-req">*</span></span>
+                                    <input
+                                        className="utang-input utang-input-right"
+                                        required
+                                        placeholder="Rp 0"
+                                        value={formatMoneyInput(editForm.nominal)}
+                                        onChange={(e) => setEditForm({ ...editForm, nominal: formatMoneyInput(e.target.value) })}
+                                    />
+                                </label>
+                                <label><span>Tanggal Faktur <span className="utang-req">*</span></span><DateInput value={editForm.tanggal_faktur} onChange={(v) => setEditForm({ ...editForm, tanggal_faktur: v })} /></label>
+                                <label><span>Tanggal Titip Faktur</span><DateInput value={editForm.tanggal_titip} onChange={(v) => setEditForm({ ...editForm, tanggal_titip: v })} /></label>
+                                <label><span>Tanggal Jatuh Tempo</span><DateInput value={editForm.tanggal_jatuh_tempo} onChange={(v) => setEditForm({ ...editForm, tanggal_jatuh_tempo: v })} /></label>
+                                <label className="utang-span-full">
+                                    <span>Keterangan Titip / Catatan</span>
+                                    <textarea
+                                        className="utang-input"
+                                        rows={2}
+                                        placeholder="Tuliskan keterangan/catatan titip faktur..."
+                                        value={editForm.keterangan_titip}
+                                        onChange={(e) => setEditForm({ ...editForm, keterangan_titip: e.target.value })}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button type="button" className="utang-btn secondary" onClick={() => setEditTarget(null)} disabled={saving}>Batal</button>
+                            <button type="submit" className="utang-btn primary" disabled={saving} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderColor: '#d97706' }}>
+                                {saving ? 'Menyimpan...' : <><Pencil size={15} /> Simpan Perubahan</>}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
+
             {detailTarget && createPortal(
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
                     <div className="utang-modal payment utang-detail-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
@@ -2172,7 +2315,7 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
     );
 }
 
-function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
+function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onSort }) {
     return (
         <table className="utang-table">
             <thead>
@@ -2193,6 +2336,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                     const isNoSisa = Number(item.sisa_utang || 0) <= 0;
                     const isPaymentDisabled = isPendingApproval || isNoSisa;
                     const canRetur = item.status === 'belum_dibayar' && !isPendingApproval && Number(item.total_dibayar || 0) === 0;
+                    const canEdit = Number(item.total_dibayar || 0) === 0 && item.status !== 'lunas' && !isPendingApproval;
 
                     return (
                     <tr key={item.id}>
@@ -2241,6 +2385,16 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onSort }) {
                                         title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
                                     >
                                         <HandCoins size={16} />
+                                    </button>
+                                )}
+                                {canEdit && (
+                                    <button
+                                        className="utang-action-btn edit"
+                                        type="button"
+                                        onClick={() => onEdit(item)}
+                                        title="Edit Catatan Utang"
+                                    >
+                                        <Pencil size={16} />
                                     </button>
                                 )}
                                 {canRetur && (

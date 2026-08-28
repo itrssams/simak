@@ -22,6 +22,26 @@ const dateToStr = (d) => {
     if (typeof d === 'string') return d;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+const resolveMediaUrl = (url) => {
+    if (!url) return '';
+    let clean = String(url).trim();
+    // Jika URL mengandung host internal docker seperti http://backend:8000/... atau http://simak-backend:8000/...
+    if (clean.includes('://backend') || clean.includes('://simak-backend')) {
+        try {
+            const parsed = new URL(clean);
+            clean = parsed.pathname + parsed.search;
+        } catch {
+            clean = clean.replace(/^https?:\/\/[^/]+/, '');
+        }
+    }
+    if (clean.startsWith('blob:') || clean.startsWith('data:')) {
+        return clean;
+    }
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+        return clean;
+    }
+    return clean.startsWith('/') ? clean : `/${clean}`;
+};
 const RIWAYAT_SALDO_PER_PAGE = 8;
 
 const PC_STATUS = {
@@ -1693,10 +1713,17 @@ export default function PettyCash() {
                 </div>, document.body
             )}
             {imagePreview && createPortal(
-                <div className="pc-overlay" onClick={() => setImagePreview(null)} style={{ backdropFilter: 'blur(4px)', padding: '20px' }}>
-                    <div style={{ position: 'relative', width: 'min(95vw, 95vh)', height: 'min(95vh, 95vw)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
-                        <img src={imagePreview} alt="Preview berkas" style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: '8px' }} />
-                        <button style={{ position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s' }} onMouseEnter={e => e.target.style.background = 'rgba(0,0,0,0.4)'} onMouseLeave={e => e.target.style.background = 'rgba(255,255,255,0.2)'} onClick={() => setImagePreview(null)}>x</button>
+                <div className="pc-overlay" onClick={() => setImagePreview(null)} style={{ zIndex: 10005, backdropFilter: 'blur(6px)', background: 'rgba(15, 23, 42, 0.75)', padding: '20px' }}>
+                    <div style={{ position: 'relative', width: 'min(95vw, 95vh)', height: 'min(95vh, 95vw)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <img src={imagePreview} alt="Preview berkas" style={{ maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }} />
+                        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                            <a href={imagePreview} target="_blank" rel="noreferrer" style={{ padding: '8px 18px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', color: '#fff', borderRadius: '8px', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
+                                Buka di Tab Baru
+                            </a>
+                            <button style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} onClick={() => setImagePreview(null)}>
+                                Tutup Preview
+                            </button>
+                        </div>
                     </div>
                 </div>, document.body
             )}
@@ -1809,19 +1836,29 @@ function AttachmentPreview({ file, info, onPreview }) {
 
 function ExistingAttachmentPreview({ url, label, onPreview }) {
     if (!url) return null;
-    if (isImageUrl(url)) {
+    const fullUrl = resolveMediaUrl(url);
+    if (isImageUrl(fullUrl)) {
         return (
             <div className="pc-upload-preview">
-                <img className="pc-upload-thumb" src={url} alt={label} onClick={() => onPreview(url)} />
+                <img className="pc-upload-thumb" src={fullUrl} alt={label} onClick={() => onPreview(fullUrl)} />
                 <div className="pc-upload-meta">
                     <p className="pc-upload-name">{label}</p>
                     <p className="pc-upload-info">Klik preview untuk melihat foto tanpa membuka tab baru.</p>
                 </div>
-                <button className="pc-btn-sm n" type="button" onClick={() => onPreview(url)}>Preview</button>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <button className="pc-btn-sm n" type="button" onClick={() => onPreview(fullUrl)}>Preview</button>
+                    <a href={fullUrl} target="_blank" rel="noreferrer" className="pc-btn-sm n" title="Buka di tab baru">Buka File</a>
+                </div>
             </div>
         );
     }
-    return <a href={url} target="_blank" rel="noreferrer" className="pc-form-link"><Paperclip size={15} /> Lihat {label}</a>;
+    return (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+            <a href={fullUrl} target="_blank" rel="noreferrer" className="pc-form-link" style={{ margin: 0 }}>
+                <Paperclip size={15} /> Lihat {label}
+            </a>
+        </div>
+    );
 }
 
 function StatusBadge({ cfg, status }) {

@@ -60,8 +60,10 @@ PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', f'{PUBLIC_SCHEME}://{PUBLIC_DOMAI
 
 ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
-    f'localhost,127.0.0.1,192.168.44.15,192.168.44.116,{PUBLIC_DOMAIN}',
+    f'localhost,127.0.0.1,192.168.44.15,192.168.44.116,backend,simak-backend,{PUBLIC_DOMAIN}',
 )
+if DEBUG and '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*')
 
 
 # ==============================================================================

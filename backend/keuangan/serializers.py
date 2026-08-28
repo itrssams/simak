@@ -729,10 +729,12 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
         read_only_fields = ['petty_cash', 'selisih', 'dikonfirmasi_oleh', 'created_at', 'updated_at']
 
     def get_nota_url(self, obj):
-        request = self.context.get('request')
-        if obj.nota and request:
-            return request.build_absolute_uri(obj.nota.url)
-        return None
+        if not obj.nota:
+            return None
+        try:
+            return obj.nota.url
+        except Exception:
+            return None
 
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -780,10 +782,12 @@ class PettyCashSerializer(serializers.ModelSerializer):
         return obj.laporan_disetujui_oleh.get_full_name() or obj.laporan_disetujui_oleh.username
 
     def get_berkas_url(self, obj):
-        request = self.context.get('request')
-        if obj.berkas and request:
-            return request.build_absolute_uri(obj.berkas.url)
-        return None
+        if not obj.berkas:
+            return None
+        try:
+            return obj.berkas.url
+        except Exception:
+            return None
 
 class PettyCashInputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -817,10 +821,12 @@ class ReimbursementSerializer(serializers.ModelSerializer):
         return obj.dicairkan_oleh.get_full_name() or obj.dicairkan_oleh.username if obj.dicairkan_oleh else '-'
 
     def get_berkas_url(self, obj):
-        request = self.context.get('request')
-        if obj.berkas and request:
-            return request.build_absolute_uri(obj.berkas.url)
-        return None
+        if not obj.berkas:
+            return None
+        try:
+            return obj.berkas.url
+        except Exception:
+            return None
 
 class ReimbursementInputSerializer(serializers.ModelSerializer):
     class Meta:

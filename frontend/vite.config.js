@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => {
           target: backendUrl,
           changeOrigin: true,
         },
+        '/media': {
+          target: backendUrl,
+          changeOrigin: true,
+        },
       },
     },
     build: {

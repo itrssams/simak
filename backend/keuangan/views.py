@@ -4133,6 +4133,53 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         return qs
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        # Validasi 1: Faktur lunas tidak bisa diedit
+        if instance.status == UtangSupplier.STATUS_LUNAS:
+            return Response({'error': 'Faktur yang sudah lunas tidak dapat diedit.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validasi 2: Faktur yang sudah ada pembayaran / cicilan / retur tidak bisa diedit
+        has_realisasi = instance.pembayaran.filter(
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
+        ).exists()
+        if has_realisasi or (instance.total_dibayar and instance.total_dibayar > 0):
+            return Response({'error': 'Faktur yang sudah memiliki riwayat pembayaran atau retur tidak dapat diedit.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validasi 3: Faktur yang sedang dalam antrean pengajuan pembayaran tidak bisa diedit
+        has_pending = instance.pembayaran.filter(status=PembayaranUtang.STATUS_PENDING).exists()
+        if has_pending:
+            return Response({'error': 'Faktur sedang dalam proses antrean pengajuan pembayaran. Batalkan pengajuan pembayaran terlebih dahulu untuk mengedit data.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+
+        # Jika vendor_id diubah, sinkronkan nama vendor dari master rekanan
+        vendor_id = data.get('vendor_id')
+        if vendor_id:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N' LIMIT 1", [vendor_id])
+                row = cursor.fetchone()
+                if row:
+                    data['vendor_nama'] = row[0]
+
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        instance.refresh_from_db()
+        instance.refresh_status()
+
+        return Response({
+            'message': 'Catatan utang berhasil diperbarui.',
+            'utang': UtangSupplierSerializer(instance, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         qs = self.filter_queryset(self.get_queryset())
