@@ -8,6 +8,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getResults, SimplePagination } from '../../utils/pagination.jsx';
+import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import './MasterPembiayaan.css';
 
 const emptyForm = { nama: '', alamat: '' };
@@ -724,22 +725,22 @@ export default function MasterPembiayaan() {
                         <div className="mp-modal-body">
                             {/* Tambah Anggota Baru */}
                             <div className="mp-add-member-panel">
-                                <label className="mp-form-group flex-1">
+                                <div className="mp-form-group flex-1">
                                     <span>➕ Masukkan Pembiayaan Anak ke Induk Ini</span>
-                                    <select
-                                        className="mp-select w-full"
+                                    <SearchablePembiayaanSelect
+                                        options={[
+                                            { value: '', label: '-- Pilih Pembiayaan untuk Ditambahkan --' },
+                                            ...availableChildrenForInduk.map(child => ({
+                                                value: String(child.id_pembiayaan),
+                                                label: `[ID: ${child.id_pembiayaan}] ${child.nama} ${child.induk_nama ? `(Pindah dari: ${child.induk_nama})` : ''}`,
+                                            })),
+                                        ]}
                                         value={selectedAddId}
-                                        onChange={(e) => setSelectedAddId(e.target.value)}
+                                        onChange={(val) => setSelectedAddId(val)}
+                                        placeholder="Ketik untuk mencari pembiayaan..."
                                         disabled={saving}
-                                    >
-                                        <option value="">-- Pilih Pembiayaan untuk Ditambahkan --</option>
-                                        {availableChildrenForInduk.map(child => (
-                                            <option key={child.id_pembiayaan} value={child.id_pembiayaan}>
-                                                [ID: {child.id_pembiayaan}] {child.nama} {child.induk_nama ? `(Pindah dari: ${child.induk_nama})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                    />
+                                </div>
                                 <button
                                     type="button"
                                     className="mp-primary add-member-btn"
