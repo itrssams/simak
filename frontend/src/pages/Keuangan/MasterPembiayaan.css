@@ -57,44 +57,45 @@
   flex-wrap: wrap;
 }
 
-/* Tabs */
+/* Tabs (Pill Segmented Style matching Verifikasi Pembayaran) */
 .mp-tab-container {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 2px;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  margin-bottom: 22px;
 }
 
 .mp-tab-btn {
+  height: 38px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
-  border-radius: 12px 12px 0 0;
-  border: none;
   background: transparent;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 750;
+  color: var(--inv-muted, #64748b);
+  font-size: 13.5px;
+  font-weight: 850;
   cursor: pointer;
-  position: relative;
-  transition: all 0.18s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
 }
 
-.mp-tab-btn:hover {
-  color: #2563eb;
-  background: #eff6ff;
+.mp-tab-btn:hover:not(.active) {
+  color: #0f172a;
+  background: rgba(241, 245, 249, 0.85);
 }
 
 .mp-tab-btn.active {
-  color: #2563eb;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-bottom: 2px solid #ffffff;
-  margin-bottom: -3px;
-  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.03);
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #3b82f6, #06b6d4);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
 }
 
 .mp-tab-badge {
@@ -103,15 +104,16 @@
   justify-content: center;
   padding: 2px 8px;
   border-radius: 20px;
-  background: #f1f5f9;
+  background: rgba(241, 245, 249, 0.95);
   color: #475569;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
+  transition: all 0.18s ease;
 }
 
 .mp-tab-btn.active .mp-tab-badge {
-  background: #eff6ff;
-  color: #2563eb;
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 /* Buttons */
@@ -1007,15 +1009,26 @@
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35) !important;
 }
 
+[data-theme="dark"] .mp-tab-container {
+  background: #151c2c !important;
+  border-color: #334155 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
 [data-theme="dark"] .mp-tab-btn {
   color: #94a3b8 !important;
 }
 
+[data-theme="dark"] .mp-tab-btn:hover:not(.active) {
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
 [data-theme="dark"] .mp-tab-btn.active {
-  background: #151c2c !important;
-  color: #60a5fa !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  border-bottom-color: #151c2c !important;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #2563eb, #3b82f6, #06b6d4) !important;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35) !important;
+  border: none !important;
 }
 
 [data-theme="dark"] .mp-tab-badge {
@@ -1024,8 +1037,8 @@
 }
 
 [data-theme="dark"] .mp-tab-btn.active .mp-tab-badge {
-  background: rgba(59, 130, 246, 0.2) !important;
-  color: #60a5fa !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .mp-stat-label {
