@@ -62,13 +62,12 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana, AlokasiDanaPemakaian,
+    IndukPembiayaan, PembiayaanIndukMapping,
     UtangSupplier, PembayaranUtang, DepositVendor,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
     PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
-         
-     
 )
 
 from .serializers import (
@@ -78,6 +77,7 @@ from .serializers import (
     FakturSerializer, FakturInputSerializer,
     PembayaranFakturSerializer, PembayaranFakturInputSerializer,
     AlokasiDanaSerializer,
+    IndukPembiayaanSerializer, PembiayaanIndukMappingSerializer,
     UtangSupplierSerializer, PembayaranUtangSerializer, PembayaranUtangInputSerializer, DepositVendorSerializer,
     TagihanSerializer, TagihanInputSerializer,
     PembayaranTagihanSerializer, PembayaranTagihanInputSerializer,
@@ -88,8 +88,6 @@ from .serializers import (
     LaporanPenggunaanSerializer, LaporanPenggunaanInputSerializer,
     ReimbursementSerializer, ReimbursementInputSerializer, SaldoPettyCashSerializer, RiwayatSaldoPettyCashSerializer,
     PengajuanPenambahanSaldoSerializer, PengajuanPenambahanSaldoInputSerializer,
-    
-                
 )
 
 from system.audit import can_view_audit
@@ -239,10 +237,13 @@ class PembiayaanListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Get list of pembiayaan (insurance providers) from rssams.pbiaya"""
+        """Get list of pembiayaan (insurance providers) from rssams.pbiaya with Induk Pembiayaan info"""
         from django.db import connection
         include_inactive = str(request.query_params.get('include_inactive') or '').lower() in ('1', 'true', 'yes')
         search = (request.query_params.get('search') or '').strip()
+        induk_filter = request.query_params.get('induk_id')
+        unassigned_only = str(request.query_params.get('unassigned') or '').lower() in ('1', 'true', 'yes')
+
         try:
             with connection.cursor() as cursor:
                 where = []
@@ -262,9 +263,31 @@ class PembiayaanListView(APIView):
                 """, values)
                 columns = [col[0] for col in cursor.description]
                 pembiayaan = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+            # Attach Induk Mapping info
+            mappings = {
+                str(m.id_pembiayaan): (m.induk_id, m.induk.nama)
+                for m in PembiayaanIndukMapping.objects.select_related('induk').all()
+            }
+            results = []
+            for item in pembiayaan:
+                str_id = str(item['id_pembiayaan'])
+                if str_id in mappings:
+                    item['induk_id'] = mappings[str_id][0]
+                    item['induk_nama'] = mappings[str_id][1]
+                else:
+                    item['induk_id'] = None
+                    item['induk_nama'] = None
+
+                if unassigned_only and item['induk_id'] is not None:
+                    continue
+                if induk_filter and str(item['induk_id']) != str(induk_filter):
+                    continue
+                results.append(item)
+
             return Response({
-                'count': len(pembiayaan),
-                'results': pembiayaan
+                'count': len(results),
+                'results': results
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1210,6 +1233,28 @@ class TransaksiViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'kas_akhir': {'per_akun': kas_akhir_per_akun, 'total': kas_akhir_total},
         })
 
+def _get_available_alokasi_for_faktur(faktur):
+    """
+    Mengambil list AlokasiDana yang dapat digunakan untuk membayar faktur ini.
+    Bisa dari Alokasi spesifik (id_pembiayaan) atau dari Alokasi Induk Pembiayaan.
+    """
+    id_pbiaya = str(faktur.id_pembiayaan or '').strip()
+    mapping = None
+    if id_pbiaya:
+        mapping = PembiayaanIndukMapping.objects.filter(id_pembiayaan=id_pbiaya).select_related('induk').first()
+    
+    if mapping and mapping.induk_id:
+        return list(
+            AlokasiDana.objects
+            .filter(Q(induk_pembiayaan=mapping.induk) | Q(id_pembiayaan=id_pbiaya), sisa_alokasi__gt=0)
+            .order_by('tanggal_penerimaan', 'created_at', 'id')
+        )
+    return list(
+        AlokasiDana.objects
+        .filter(id_pembiayaan=id_pbiaya, sisa_alokasi__gt=0)
+        .order_by('tanggal_penerimaan', 'created_at', 'id')
+    )
+
 class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset           = Faktur.objects.select_related('pelanggan', 'created_by').prefetch_related('items', 'pembayaran__akun').all()
     permission_classes = [IsKeuanganOrManajerPermission]
@@ -1332,11 +1377,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         )['total'] or Decimal('0')
         if pending_total + jumlah > faktur.sisa_tagihan:
             return Response({'error': f'Total pembayaran menunggu verifikasi melebihi sisa tagihan ({faktur.sisa_tagihan}).'}, status=status.HTTP_400_BAD_REQUEST)
-        alokasi_list = list(
-            AlokasiDana.objects
-            .filter(id_pembiayaan=faktur.id_pembiayaan, sisa_alokasi__gt=0)
-            .order_by('tanggal_penerimaan', 'created_at', 'id')
-        )
+        alokasi_list = _get_available_alokasi_for_faktur(faktur)
         saldo_wallet = sum((alokasi.sisa_alokasi for alokasi in alokasi_list), Decimal('0'))
         if pending_total + jumlah > saldo_wallet:
             return Response({'error': f'Jumlah bayar melebihi saldo pembiayaan ({saldo_wallet}).'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1370,11 +1411,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if pembayaran.jumlah > faktur.sisa_tagihan:
             return Response({'error': f'Jumlah pembayaran melebihi sisa tagihan saat ini ({faktur.sisa_tagihan}).'}, status=status.HTTP_400_BAD_REQUEST)
 
-        alokasi_list = list(
-            AlokasiDana.objects
-            .filter(id_pembiayaan=faktur.id_pembiayaan, sisa_alokasi__gt=0)
-            .order_by('tanggal_penerimaan', 'created_at', 'id')
-        )
+        alokasi_list = _get_available_alokasi_for_faktur(faktur)
         saldo_wallet = sum((alokasi.sisa_alokasi for alokasi in alokasi_list), Decimal('0'))
         if pembayaran.jumlah > saldo_wallet:
             return Response({'error': f'Jumlah pembayaran melebihi saldo pembiayaan ({saldo_wallet}).'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3945,6 +3982,31 @@ def _build_pending_where_logistik(params):
         values.append(sampai)
     return ' AND '.join(where), values
 
+def _build_pending_where_keuangan(params):
+    """WHERE builder untuk pengajuan penambahan saldo / pengisian kembali (petty_cash_pengajuan_saldo)."""
+    where = [
+        "t.status = 'disetujui'",
+        'u.id IS NULL',
+        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
+        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))"
+    ]
+    values = []
+    search = (params.get('search') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_pengajuan LIKE %s OR t.alasan LIKE %s OR usr.first_name LIKE %s OR usr.username LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle])
+    if dari:
+        where.append('t.tanggal >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tanggal <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
 def _pending_base_sql():
     """FROM clause untuk farmasi — JOIN ke utang_supplier by app_siaga_faktur_id."""
     return """
@@ -3960,6 +4022,14 @@ def _pending_base_sql_logistik():
         LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
         LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
         LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
+    """
+
+def _pending_base_sql_keuangan():
+    """FROM clause untuk keuangan (pengisian kembali saldo) — JOIN ke utang_supplier."""
+    return """
+        FROM petty_cash_pengajuan_saldo t
+        LEFT JOIN users_user usr ON usr.id = t.created_by_id
+        LEFT JOIN keuangan_utang_supplier u ON (u.app_siaga_faktur_id = CONCAT('KEU-', t.id) COLLATE utf8mb4_general_ci OR u.nomor_spb = t.no_pengajuan COLLATE utf8mb4_general_ci)
     """
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
@@ -5813,6 +5883,7 @@ class UtangMenungguVerifikasiView(APIView):
                 COALESCE(t.ppn, 0)                      AS ppn,
                 COALESCE(t.materai, 0)                  AS materai,
                 t.gtotal                                AS nominal,
+                ''                                      AS keterangan,
                 'farmasi'                               AS sumber
         """
 
@@ -5836,11 +5907,37 @@ class UtangMenungguVerifikasiView(APIView):
                 0.00                                    AS ppn,
                 0.00                                    AS materai,
                 t.nilai                                 AS nominal,
+                ''                                      AS keterangan,
                 'logistik'                              AS sumber
+        """
+
+        # SELECT clause keuangan (pengisian kembali saldo)
+        keuangan_select = """
+            SELECT
+                CONVERT(CONCAT('KEU-', t.id) USING utf8mb4) COLLATE utf8mb4_general_ci AS app_siaga_faktur_id,
+                CONVERT(t.no_pengajuan USING utf8mb4) COLLATE utf8mb4_general_ci       AS nomor_spb,
+                t.tanggal                                                              AS tanggal_spb,
+                CONVERT(COALESCE(NULLIF(t.alasan, ''), t.no_pengajuan) USING utf8mb4) COLLATE utf8mb4_general_ci AS nomor_faktur,
+                0                                                                      AS vendor_id,
+                0                                                                      AS vendor_id_hint,
+                CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Kasir Petty Cash') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                t.tanggal                                                              AS tanggal_faktur,
+                NULL                                                                   AS tanggal_jatuh_tempo,
+                t.nominal_diajukan                                                     AS total_sebelum_diskon,
+                0.00                                                                   AS disc1,
+                0.00                                                                   AS disc2,
+                0.00                                                                   AS disc3,
+                t.nominal_diajukan                                                     AS total_setelah_diskon,
+                0.00                                                                   AS ppn,
+                0.00                                                                   AS materai,
+                t.nominal_diajukan                                                     AS nominal,
+                ''                                                                     AS keterangan,
+                'keuangan'                                                             AS sumber
         """
 
         where_f, vals_f = _build_pending_where(params)
         where_l, vals_l = _build_pending_where_logistik(params)
+        where_k, vals_k = _build_pending_where_keuangan(params)
 
         # Order mapping berlaku di wrapper query (alias kolom output)
         order = _utang_order_clause(params.get('ordering'), {
@@ -5897,12 +5994,30 @@ class UtangMenungguVerifikasiView(APIView):
                 """
                 data_vals = vals_l + [page_size, offset]
 
+            elif sumber_filter == 'keuangan':
+                count_sql = f'SELECT COUNT(*) {_pending_base_sql_keuangan()} WHERE {where_k}'
+                sum_sql = f'SELECT SUM(t.nominal_diajukan) {_pending_base_sql_keuangan()} WHERE {where_k}'
+                count_vals = vals_k
+                sum_vals = vals_k
+                data_sql = f"""
+                    SELECT * FROM (
+                        {keuangan_select}
+                        {_pending_base_sql_keuangan()}
+                        WHERE {where_k}
+                    ) AS combined
+                    ORDER BY {order}, app_siaga_faktur_id DESC
+                    LIMIT %s OFFSET %s
+                """
+                data_vals = vals_k + [page_size, offset]
+
             else:  # semua
                 count_sql = f"""
                     SELECT COUNT(*) FROM (
                         SELECT 1 {_pending_base_sql()} WHERE {where_f}
                         UNION ALL
                         SELECT 1 {_pending_base_sql_logistik()} WHERE {where_l}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_keuangan()} WHERE {where_k}
                     ) AS combined
                 """
                 sum_sql = f"""
@@ -5910,10 +6025,12 @@ class UtangMenungguVerifikasiView(APIView):
                         SELECT t.gtotal AS nominal {_pending_base_sql()} WHERE {where_f}
                         UNION ALL
                         SELECT t.nilai AS nominal {_pending_base_sql_logistik()} WHERE {where_l}
+                        UNION ALL
+                        SELECT t.nominal_diajukan AS nominal {_pending_base_sql_keuangan()} WHERE {where_k}
                     ) AS combined
                 """
-                count_vals = vals_f + vals_l
-                sum_vals = vals_f + vals_l
+                count_vals = vals_f + vals_l + vals_k
+                sum_vals = vals_f + vals_l + vals_k
                 data_sql = f"""
                     SELECT * FROM (
                         {farmasi_select}
@@ -5923,11 +6040,15 @@ class UtangMenungguVerifikasiView(APIView):
                         {logistik_select}
                         {_pending_base_sql_logistik()}
                         WHERE {where_l}
+                        UNION ALL
+                        {keuangan_select}
+                        {_pending_base_sql_keuangan()}
+                        WHERE {where_k}
                     ) AS combined
                     ORDER BY {order}, app_siaga_faktur_id DESC
                     LIMIT %s OFFSET %s
                 """
-                data_vals = vals_f + vals_l + [page_size, offset]
+                data_vals = vals_f + vals_l + vals_k + [page_size, offset]
 
             cursor.execute(count_sql, count_vals)
             total = cursor.fetchone()[0]
@@ -5952,7 +6073,7 @@ class UtangMenungguVerifikasiView(APIView):
         if not app_siaga_faktur_id:
             return Response({'app_siaga_faktur_id': 'Faktur APP_SIAGA wajib dipilih.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if sumber not in (UtangSupplier.SUMBER_FARMASI, UtangSupplier.SUMBER_LOGISTIK):
+        if sumber not in (UtangSupplier.SUMBER_FARMASI, UtangSupplier.SUMBER_LOGISTIK, UtangSupplier.SUMBER_KEUANGAN):
             return Response({'sumber': f'Nilai sumber tidak valid: {sumber}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Cek duplikat berdasarkan kombinasi (faktur_id, sumber)
@@ -5979,6 +6100,51 @@ class UtangMenungguVerifikasiView(APIView):
                 verified_by=request.user,
                 verified_at=timezone.now(),
             )
+
+        elif sumber == UtangSupplier.SUMBER_KEUANGAN:
+            raw_id = str(app_siaga_faktur_id).replace('KEU-', '')
+            try:
+                ps = PengajuanPenambahanSaldo.objects.get(pk=raw_id, status='disetujui')
+            except (PengajuanPenambahanSaldo.DoesNotExist, ValueError):
+                return Response({'error': 'Pengajuan pengisian kembali saldo tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            with transaction.atomic():
+                saldo = get_or_create_saldo()
+                saldo_sebelum = saldo.saldo
+                saldo.saldo += ps.nominal_diajukan
+                saldo.updated_by = request.user
+                saldo.save()
+
+                RiwayatSaldoPettyCash.objects.create(
+                    jenis='penambahan',
+                    jumlah=ps.nominal_diajukan,
+                    saldo_sebelum=saldo_sebelum,
+                    saldo_sesudah=saldo.saldo,
+                    keterangan=f'Pengisian kembali saldo petty cash ({ps.no_pengajuan})' + (f' - {ps.keterangan}' if ps.keterangan else (f' - {ps.alasan}' if ps.alasan else '')),
+                    created_by=request.user,
+                    nama_pengaju=user_display_name(ps.created_by),
+                    unit_pengaju=laporan_unit_label(ps.created_by),
+                )
+
+                utang = UtangSupplier.objects.create(
+                    app_siaga_faktur_id=f"KEU-{ps.id}",
+                    sumber=UtangSupplier.SUMBER_KEUANGAN,
+                    nomor_spb=ps.no_pengajuan,
+                    tanggal_spb=ps.tanggal,
+                    nomor_faktur=ps.alasan or ps.no_pengajuan,
+                    vendor_id=0,
+                    vendor_nama=f"Petty Cash - {user_display_name(ps.created_by)}",
+                    kategori='PENGISIAN PETTY CASH',
+                    tanggal_faktur=ps.tanggal,
+                    tanggal_jatuh_tempo=ps.tanggal,
+                    nominal=ps.nominal_diajukan or 0,
+                    tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                    keterangan_titip=request.data.get('keterangan_titip') or ps.keterangan or ps.alasan,
+                    status=UtangSupplier.STATUS_LUNAS,
+                    verified_by=request.user,
+                    verified_at=timezone.now(),
+                )
+            return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
         else:  # logistik
             vendor_id = request.data.get('vendor_id')
@@ -6255,21 +6421,230 @@ class UtangVendorOptionsView(APIView):
             columns = [col[0] for col in cursor.description]
             return Response([dict(zip(columns, row)) for row in cursor.fetchall()])
 
-class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    queryset           = AlokasiDana.objects.select_related('created_by').prefetch_related('pembayaran__faktur', 'pembayaran__created_by').all()
-    serializer_class  = AlokasiDanaSerializer
-    permission_classes = [IsKeuanganPermission]
+class IndukPembiayaanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    queryset = IndukPembiayaan.objects.prefetch_related('anggota').all()
+    serializer_class = IndukPembiayaanSerializer
+    permission_classes = [IsKeuanganOrManajerPermission]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
     def get_queryset(self):
+        qs = super().get_queryset()
+        search = (self.request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(Q(nama__icontains=search) | Q(kode__icontains=search))
+        return qs.order_by('nama')
+
+    @action(detail=True, methods=['get'], url_path='anggota')
+    def list_anggota(self, request, pk=None):
+        induk = self.get_object()
+        anggota = induk.anggota.all()
+        return Response(PembiayaanIndukMappingSerializer(anggota, many=True).data)
+
+    @action(detail=True, methods=['post'], url_path='tambah-anggota')
+    def tambah_anggota(self, request, pk=None):
+        induk = self.get_object()
+        id_pembiayaan_list = request.data.get('id_pembiayaan_list') or []
+        if not id_pembiayaan_list and request.data.get('id_pembiayaan'):
+            id_pembiayaan_list = [request.data.get('id_pembiayaan')]
+
+        if not id_pembiayaan_list:
+            return Response({'error': 'Pilih setidaknya satu pembiayaan untuk ditambahkan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ambil nama pembiayaan dari rssams.pbiaya
+        str_ids = [str(x) for x in id_pembiayaan_list]
+        with connection.cursor() as cursor:
+            placeholders = ','.join(['%s'] * len(str_ids))
+            cursor.execute(f"SELECT id_pembiayaan, pembiayaan FROM rssams.pbiaya WHERE id_pembiayaan IN ({placeholders})", str_ids)
+            pbiaya_dict = {str(row[0]): row[1] for row in cursor.fetchall()}
+
+        created_count = 0
+        updated_count = 0
+        with transaction.atomic():
+            for raw_id in str_ids:
+                nama = pbiaya_dict.get(raw_id) or f"Pembiayaan ID {raw_id}"
+                mapping, created = PembiayaanIndukMapping.objects.update_or_create(
+                    id_pembiayaan=raw_id,
+                    defaults={
+                        'induk': induk,
+                        'nama_pembiayaan': nama,
+                        'created_by': request.user,
+                    }
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+        return Response({
+            'message': f'Berhasil menambahkan {created_count + updated_count} pembiayaan ke {induk.nama}.',
+            'created_count': created_count,
+            'updated_count': updated_count,
+            'induk': IndukPembiayaanSerializer(induk).data,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='keluarkan-anggota')
+    def keluarkan_anggota(self, request, pk=None):
+        induk = self.get_object()
+        id_pembiayaan = str(request.data.get('id_pembiayaan') or '').strip()
+        if not id_pembiayaan:
+            return Response({'error': 'id_pembiayaan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted, _ = PembiayaanIndukMapping.objects.filter(induk=induk, id_pembiayaan=id_pembiayaan).delete()
+        if deleted:
+            return Response({
+                'message': f'Pembiayaan ID {id_pembiayaan} berhasil dikeluarkan dari {induk.nama}.',
+                'induk': IndukPembiayaanSerializer(induk).data,
+            }, status=status.HTTP_200_OK)
+        return Response({'error': 'Pembiayaan tidak ditemukan di induk ini.'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'], url_path='auto-group')
+    def auto_group(self, request):
+        """
+        Saran pengelompokan otomatis berdasarkan nama awalan/pola umum:
+        ADMEDIKA, ISOMEDIK, FHI (FULLERTON), OWLEXA, TPA, HALODOC, TMC, MAG, S.O-ADMEDIKA, BPJS, dll.
+        """
+        apply_now = str(request.data.get('apply') or '').lower() in ('1', 'true', 'yes')
+
+        AUTO_PATTERNS = [
+            ('ADMEDIKA', ['ADMEDIKA', 'S.O-ADMEDIKA', 'SO-ADMEDIKA']),
+            ('ISOMEDIK', ['ISOMEDIK']),
+            ('FULLERTON HEALTH (FHI)', ['FHI', 'FULLERTON', 'FULLERTHON']),
+            ('OWLEXA HEALTHCARE', ['OWLEXA']),
+            ('TPA (THIRD PARTY)', ['TPA']),
+            ('HALODOC', ['HALODOC']),
+            ('TMC INDONESIA', ['TMC']),
+            ('MAG (MULTI ARTHA GUNA)', ['MAG']),
+            ('MANDIRI INHEALTH', ['INHEALTH', 'MANDIRI INHEALTH']),
+            ('BPJS KESEHATAN', ['BPJS KESEHATAN']),
+            ('BPJS KETENAGAKERJAAN', ['BPJS KETENAGAKERJAAN', 'BPJS NAKER', 'BPJS-TK']),
+        ]
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id_pembiayaan, pembiayaan FROM rssams.pbiaya WHERE status = 1 ORDER BY pembiayaan")
+            all_pbiaya = cursor.fetchall()
+
+        suggestions = []
+        for induk_name, patterns in AUTO_PATTERNS:
+            matching_items = []
+            for id_p, name in all_pbiaya:
+                clean_name = str(name or '').strip().upper()
+                for pat in patterns:
+                    if clean_name.startswith(pat) or f" {pat} " in f" {clean_name} " or f"-{pat}" in clean_name or f"{pat}-" in clean_name:
+                        matching_items.append({'id_pembiayaan': str(id_p), 'nama_pembiayaan': name})
+                        break
+            if matching_items:
+                suggestions.append({
+                    'induk_nama': induk_name,
+                    'total_match': len(matching_items),
+                    'items': matching_items,
+                })
+
+        if not apply_now:
+            return Response({
+                'suggestions': suggestions,
+                'total_groups': len(suggestions),
+                'total_pembiayaan_matched': sum(s['total_match'] for s in suggestions),
+            })
+
+        # Apply changes
+        total_assigned = 0
+        with transaction.atomic():
+            for group in suggestions:
+                induk, _ = IndukPembiayaan.objects.get_or_create(
+                    nama=group['induk_nama'],
+                    defaults={'created_by': request.user}
+                )
+                for item in group['items']:
+                    PembiayaanIndukMapping.objects.update_or_create(
+                        id_pembiayaan=item['id_pembiayaan'],
+                        defaults={
+                            'induk': induk,
+                            'nama_pembiayaan': item['nama_pembiayaan'],
+                            'created_by': request.user,
+                        }
+                    )
+                    total_assigned += 1
+
+        return Response({
+            'message': f'Berhasil mengelompokkan {total_assigned} pembiayaan ke dalam {len(suggestions)} Induk Pembiayaan.',
+            'total_assigned': total_assigned,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='set-anggota-induk')
+    def set_anggota_induk(self, request):
+        """Menetapkan atau melepaskan induk untuk satu pembiayaan secara cepat"""
+        id_pembiayaan = str(request.data.get('id_pembiayaan') or '').strip()
+        induk_id = request.data.get('induk_id')
+
+        if not id_pembiayaan:
+            return Response({'error': 'id_pembiayaan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pembiayaan FROM rssams.pbiaya WHERE id_pembiayaan = %s LIMIT 1", [id_pembiayaan])
+            row = cursor.fetchone()
+            nama = row[0] if row else f"Pembiayaan ID {id_pembiayaan}"
+
+        if not induk_id:
+            # Unassign
+            PembiayaanIndukMapping.objects.filter(id_pembiayaan=id_pembiayaan).delete()
+            return Response({'message': f'Pembiayaan {nama} kini berdiri mandiri (tanpa induk).', 'induk_id': None, 'induk_nama': None})
+
+        try:
+            induk = IndukPembiayaan.objects.get(pk=induk_id)
+        except IndukPembiayaan.DoesNotExist:
+            return Response({'error': 'Induk Pembiayaan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+
+        mapping, _ = PembiayaanIndukMapping.objects.update_or_create(
+            id_pembiayaan=id_pembiayaan,
+            defaults={
+                'induk': induk,
+                'nama_pembiayaan': nama,
+                'created_by': request.user,
+            }
+        )
+        return Response({
+            'message': f'Pembiayaan {nama} berhasil dimasukkan ke {induk.nama}.',
+            'induk_id': induk.id,
+            'induk_nama': induk.nama,
+        })
+
+class AlokasiDanaViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    queryset           = AlokasiDana.objects.select_related('created_by', 'induk_pembiayaan').prefetch_related('pembayaran__faktur', 'pembayaran__created_by').all()
+    serializer_class  = AlokasiDanaSerializer
+    permission_classes = [IsKeuanganPermission]
+
+    def perform_create(self, serializer):
+        is_induk = serializer.validated_data.get('is_induk', False)
+        induk = serializer.validated_data.get('induk_pembiayaan')
+        id_pembiayaan = serializer.validated_data.get('id_pembiayaan') or ''
+        nama_pembiayaan = serializer.validated_data.get('nama_pembiayaan') or ''
+        if is_induk and induk:
+            nama_pembiayaan = induk.nama
+            if not id_pembiayaan:
+                id_pembiayaan = f"INDUK-{induk.id}"
+        serializer.save(
+            created_by=self.request.user,
+            id_pembiayaan=id_pembiayaan,
+            nama_pembiayaan=nama_pembiayaan,
+        )
+
+    def get_queryset(self):
         qs          = super().get_queryset()
         id_pbiaya   = self.request.query_params.get('id_pembiayaan')
+        induk_id    = self.request.query_params.get('induk_pembiayaan')
+        is_induk    = self.request.query_params.get('is_induk')
         dari        = self.request.query_params.get('dari')
         sampai      = self.request.query_params.get('sampai')
         bank        = self.request.query_params.get('bank')
+        search      = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(nama_pembiayaan__icontains=search) | Q(keterangan__icontains=search))
         if id_pbiaya:   qs = qs.filter(id_pembiayaan=id_pbiaya)
+        if induk_id:    qs = qs.filter(induk_pembiayaan_id=induk_id)
+        if is_induk is not None:
+            qs = qs.filter(is_induk=(str(is_induk).lower() in ('1', 'true', 'yes')))
         if dari:        qs = qs.filter(tanggal_penerimaan__gte=dari)
         if sampai:      qs = qs.filter(tanggal_penerimaan__lte=sampai)
         if bank:        qs = qs.filter(bank=bank)
@@ -6585,6 +6960,30 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         serializer.save(status='pending', catatan_tolak='')
         return Response(PettyCashSerializer(instance, context={'request': request}).data)
 
+    # POST /{id}/batal/ — pemohon / pimpinan membatalkan pengajuan
+    @action(detail=True, methods=['post'], url_path='batal')
+    def batal(self, request, pk=None):
+        instance = self.get_object()
+        can_cancel_all = is_direktur_or_wadir(request.user)
+        if not can_cancel_all:
+            if instance.created_by != request.user:
+                return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan pengajuan ini.'}, status=403)
+            if instance.status not in ('pending', 'disetujui', 'ditolak'):
+                return Response({'error': 'Pengajuan yang sudah dicairkan atau diproses lebih lanjut tidak dapat dibatalkan.'}, status=400)
+        
+        alasan = request.data.get('alasan_batal') or request.data.get('alasan') or request.data.get('catatan_tolak')
+        if not alasan or not str(alasan).strip():
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
+            
+        instance.status = 'dibatalkan'
+        instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
+        instance.save()
+        return Response({
+            'message': 'Pengajuan berhasil dibatalkan.',
+            'status': instance.status,
+            'data': PettyCashSerializer(instance, context={'request': request}).data
+        })
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         can_delete_all = is_direktur_or_wadir(request.user)
@@ -6701,6 +7100,30 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         serializer.save(status='pending', catatan_tolak='')
         return Response(ReimbursementSerializer(instance, context={'request': request}).data)
 
+    # POST /{id}/batal/ — pemohon / pimpinan membatalkan reimbursement
+    @action(detail=True, methods=['post'], url_path='batal')
+    def batal(self, request, pk=None):
+        instance = self.get_object()
+        can_cancel_all = is_direktur_or_wadir(request.user)
+        if not can_cancel_all:
+            if instance.created_by != request.user:
+                return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan reimbursement ini.'}, status=403)
+            if instance.status not in ('pending', 'disetujui', 'ditolak'):
+                return Response({'error': 'Reimbursement yang sudah dicairkan tidak dapat dibatalkan.'}, status=400)
+        
+        alasan = request.data.get('alasan_batal') or request.data.get('alasan') or request.data.get('catatan_tolak')
+        if not alasan or not str(alasan).strip():
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
+            
+        instance.status = 'dibatalkan'
+        instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
+        instance.save()
+        return Response({
+            'message': 'Reimbursement berhasil dibatalkan.',
+            'status': instance.status,
+            'data': ReimbursementSerializer(instance, context={'request': request}).data
+        })
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         can_delete_all = is_direktur_or_wadir(request.user)
@@ -6774,10 +7197,10 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             instance.save()
             return Response({'message': 'Pengajuan ditolak.', 'status': instance.status})
  
-        # Setujui — input nominal wajib
-        nominal = request.data.get('nominal_diajukan')
+        # Setujui — nominal diambil dari yang diajukan atau disesuaikan pimpinan
+        nominal = request.data.get('nominal_diajukan') or instance.nominal_diajukan
         if not nominal:
-            return Response({'error': 'Nominal penambahan wajib diisi saat menyetujui.'}, status=400)
+            return Response({'error': 'Nominal pengisian kembali wajib diisi.'}, status=400)
  
         try:
             nominal = Decimal(str(nominal))
@@ -6787,23 +7210,6 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             return Response({'error': 'Nominal tidak valid.'}, status=400)
  
         with transaction.atomic():
-            saldo         = get_or_create_saldo()
-            saldo_sebelum = saldo.saldo
-            saldo.saldo  += nominal
-            saldo.updated_by = request.user
-            saldo.save()
- 
-            RiwayatSaldoPettyCash.objects.create(
-                jenis='penambahan',
-                jumlah=nominal,
-                saldo_sebelum=saldo_sebelum,
-                saldo_sesudah=saldo.saldo,
-                keterangan=f'Penambahan dari pengajuan {instance.no_pengajuan}',
-                created_by=request.user,
-                nama_pengaju=user_display_name(instance.created_by),
-                unit_pengaju=laporan_unit_label(instance.created_by),
-            )
- 
             instance.status          = 'disetujui'
             instance.nominal_diajukan = nominal
             instance.diproses_oleh   = request.user
@@ -6811,8 +7217,7 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
             instance.save()
  
         return Response({
-            'message': f'Saldo berhasil ditambah sebesar Rp {nominal:,.0f}.',
-            'saldo_terbaru': saldo.saldo,
+            'message': f'Pengisian kembali saldo berhasil disetujui ({instance.no_pengajuan}). Otomatis masuk ke antrean Menunggu Verifikasi di Keuangan.',
             'status': instance.status,
         })
 

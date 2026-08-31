@@ -329,10 +329,10 @@ class Faktur(models.Model):
         sisa = effective_total - self.total_dibayar
         if sisa <= 0:
             self.status = 'lunas'
-        elif self.total_dibayar == 0:
-            self.status = 'belum_bayar'
-        else:
+        elif self.total_dibayar > 0 or effective_total < self.total_tagihan or (self.total_real_rs and effective_total < self.total_real_rs):
             self.status = 'bayar_sebagian'
+        else:
+            self.status = 'belum_bayar'
         super().save(*args, **kwargs)
 
     @property
@@ -435,10 +435,12 @@ class UtangSupplier(models.Model):
     SUMBER_FARMASI = 'farmasi'
     SUMBER_LOGISTIK = 'logistik'
     SUMBER_MANUAL = 'manual'
+    SUMBER_KEUANGAN = 'keuangan'
     SUMBER_CHOICES = [
         (SUMBER_FARMASI, 'Farmasi'),
         (SUMBER_LOGISTIK, 'Logistik'),
         (SUMBER_MANUAL, 'Manual'),
+        (SUMBER_KEUANGAN, 'Keuangan'),
     ]
 
     app_siaga_faktur_id = models.CharField(max_length=32, help_text='ID dari tabel sumber (tran_beli_brg_farmasi atau tran_beli_brg_log)')
@@ -599,6 +601,39 @@ class PembayaranUtang(models.Model):
         super().delete(*args, **kwargs)
         utang.refresh_status()
 
+class IndukPembiayaan(models.Model):
+    nama        = models.CharField(max_length=150, unique=True, help_text='Nama Induk Pembiayaan / Payor Group')
+    kode        = models.CharField(max_length=50, blank=True, help_text='Kode singkatan / identitas')
+    keterangan  = models.TextField(blank=True)
+    created_by  = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='induk_pembiayaan_created')
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'keuangan_induk_pembiayaan'
+        ordering = ['nama']
+        verbose_name = 'Induk Pembiayaan'
+        verbose_name_plural = 'Daftar Induk Pembiayaan'
+
+    def __str__(self):
+        return self.nama
+
+class PembiayaanIndukMapping(models.Model):
+    induk           = models.ForeignKey(IndukPembiayaan, on_delete=models.CASCADE, related_name='anggota')
+    id_pembiayaan   = models.CharField(max_length=20, unique=True, db_index=True, help_text='ID dari rssams.pbiaya')
+    nama_pembiayaan = models.CharField(max_length=150, blank=True, help_text='Nama pembiayaan/asuransi anak')
+    created_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='pembiayaan_mapping_created')
+    created_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'keuangan_pembiayaan_induk_mapping'
+        ordering = ['nama_pembiayaan']
+        verbose_name = 'Pemetaan Induk Pembiayaan'
+        verbose_name_plural = 'Pemetaan Induk Pembiayaan'
+
+    def __str__(self):
+        return f"{self.nama_pembiayaan} (ID: {self.id_pembiayaan}) -> {self.induk.nama}"
+
 class AlokasiDana(models.Model):
     BANK_CHOICES = [
         ('bsi', 'BSI'),
@@ -607,14 +642,16 @@ class AlokasiDana(models.Model):
         ('bca', 'BCA'),
     ]
 
-    id_pembiayaan   = models.CharField(max_length=20, help_text='ID dari rssams.pbiaya')
-    nama_pembiayaan = models.CharField(max_length=150, help_text='Nama pembiayaan/asuransi')
-    tanggal_penerimaan = models.DateField()
-    jumlah_penerimaan  = models.DecimalField(max_digits=15, decimal_places=2)
-    bank            = models.CharField(max_length=20, choices=BANK_CHOICES)
-    total_alokasi   = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    sisa_alokasi    = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    keterangan      = models.TextField(blank=True)
+    id_pembiayaan       = models.CharField(max_length=20, blank=True, default='', help_text='ID dari rssams.pbiaya atau kosong jika induk pool')
+    nama_pembiayaan     = models.CharField(max_length=150, help_text='Nama pembiayaan/asuransi atau nama induk')
+    induk_pembiayaan    = models.ForeignKey(IndukPembiayaan, on_delete=models.SET_NULL, null=True, blank=True, related_name='alokasi_dana', help_text='Jika alokasi ini adalah pool induk')
+    is_induk            = models.BooleanField(default=False, help_text='True jika alokasi dana untuk seluruh anak di bawah induk')
+    tanggal_penerimaan  = models.DateField()
+    jumlah_penerimaan   = models.DecimalField(max_digits=15, decimal_places=2)
+    bank                = models.CharField(max_length=20, choices=BANK_CHOICES)
+    total_alokasi       = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    sisa_alokasi        = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    keterangan          = models.TextField(blank=True)
 
     created_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='alokasi_dana')
     created_at      = models.DateTimeField(auto_now_add=True)
@@ -627,7 +664,8 @@ class AlokasiDana(models.Model):
         verbose_name_plural = 'Alokasi Dana'
 
     def __str__(self):
-        return f"{self.nama_pembiayaan} - {self.jumlah_penerimaan} ({self.bank})"
+        prefix = "[INDUK] " if self.is_induk else ""
+        return f"{prefix}{self.nama_pembiayaan} - {self.jumlah_penerimaan} ({self.bank})"
 
     def save(self, *args, **kwargs):
         # Set total_alokasi = jumlah_penerimaan saat pertama kali
@@ -828,6 +866,7 @@ class PettyCash(models.Model):
         ('dilaporkan',            'Dilaporkan'),
         ('menunggu_pengembalian', 'Menunggu Pengembalian'),
         ('selesai',               'Selesai'),
+        ('dibatalkan',            'Dibatalkan'),
     ]
 
     no_pengajuan   = models.CharField(max_length=20, unique=True, editable=False)
@@ -886,10 +925,11 @@ class LaporanPenggunaan(models.Model):
 
 class Reimbursement(models.Model):
     STATUS_CHOICES = [
-        ('pending',   'Pending'),
-        ('disetujui', 'Disetujui'),
-        ('ditolak',   'Ditolak'),
-        ('dicairkan', 'Dicairkan'),
+        ('pending',    'Pending'),
+        ('disetujui',  'Disetujui'),
+        ('ditolak',    'Ditolak'),
+        ('dicairkan',  'Dicairkan'),
+        ('dibatalkan', 'Dibatalkan'),
     ]
 
     no_reimbursement = models.CharField(max_length=20, unique=True, editable=False)
@@ -1048,6 +1088,7 @@ class PengajuanPenambahanSaldo(models.Model):
     no_pengajuan     = models.CharField(max_length=25, unique=True, editable=False)
     tanggal          = models.DateField()
     alasan           = models.TextField()
+    keterangan       = models.TextField(blank=True, default='')
     nominal_diajukan = models.DecimalField(
         max_digits=15, decimal_places=2, null=True, blank=True,
         help_text='Diisi direktur saat menyetujui'
@@ -1075,7 +1116,7 @@ class PengajuanPenambahanSaldo(models.Model):
         if not self.no_pengajuan:
             from datetime import date
             today  = date.today()
-            prefix = f"PS-{today.strftime('%Y%m')}-"
+            prefix = f"PPC-{today.strftime('%Y%m')}-"
             last   = PengajuanPenambahanSaldo.objects.filter(
                 no_pengajuan__startswith=prefix
             ).order_by('no_pengajuan').last()

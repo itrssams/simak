@@ -1479,6 +1479,12 @@ textarea.utang-input {
   border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
+.utang-sumber-badge.keuangan {
+  background: rgba(168, 85, 247, 0.12);
+  color: #7c3aed;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
 .utang-vendor-warning {
   display: flex;
   align-items: flex-start;

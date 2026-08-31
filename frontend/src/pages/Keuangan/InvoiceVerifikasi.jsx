@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Banknote,
@@ -42,7 +42,10 @@ export default function InvoiceVerifikasi() {
     const canVerify = Boolean(user?.is_superuser || (user?.is_keuangan && ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role)));
     const totalPending = useMemo(() => rows.reduce((sum, row) => sum + Number(row.jumlah || 0), 0), [rows]);
 
+    const latestRequestIdRef = useRef(0);
+
     const fetchRows = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         setLoading(true);
         try {
             const params = pageParams(page, pageSize, Object.fromEntries(
@@ -50,19 +53,28 @@ export default function InvoiceVerifikasi() {
             ));
             params.status = activeTab;
             const res = await api.get('/keuangan/invoice-verification/', { params });
-            setRows(getResults(res.data));
-            setTotal(getCount(res.data));
+            if (requestId === latestRequestIdRef.current) {
+                setRows(getResults(res.data));
+                setTotal(getCount(res.data));
+            }
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal memuat verifikasi pembayaran.'));
+            if (requestId === latestRequestIdRef.current) {
+                toast.error(errorMessage(err, 'Gagal memuat verifikasi pembayaran.'));
+            }
         } finally {
-            setLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [activeTab, filters, page, pageSize, toast]);
 
     useEffect(() => { fetchRows(); }, [fetchRows]);
     useEffect(() => { setPage(1); }, [activeTab, filters, pageSize]);
 
-    const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+    const setFilter = (key, value) => {
+        setPage(1);
+        setFilters((prev) => ({ ...prev, [key]: value }));
+    };
 
     const resetFilters = () => {
         setFilters({ search: '', dari: '', sampai: '' });

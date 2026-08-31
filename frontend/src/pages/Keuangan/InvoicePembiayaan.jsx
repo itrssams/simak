@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -278,19 +278,28 @@ export default function InvoicePembiayaan() {
         }
     }, [toast]);
 
+    const latestRequestIdRef = useRef(0);
+
     const fetchInvoices = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         setLoading(true);
         try {
             const params = pageParams(page, pageSize, Object.fromEntries(
                 Object.entries(filters).filter(([, value]) => value),
             ));
             const res = await api.get('/keuangan/faktur/', { params });
-            setItems(getResults(res.data));
-            setTotal(getCount(res.data));
+            if (requestId === latestRequestIdRef.current) {
+                setItems(getResults(res.data));
+                setTotal(getCount(res.data));
+            }
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal memuat invoice.'));
+            if (requestId === latestRequestIdRef.current) {
+                toast.error(errorMessage(err, 'Gagal memuat invoice.'));
+            }
         } finally {
-            setLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [filters, page, pageSize, toast]);
 
@@ -396,13 +405,23 @@ export default function InvoicePembiayaan() {
         [selectedReceiptInvoices],
     );
     const allPageInvoicesSelected = items.length > 0 && items.every((item) => receiptSelection.has(item.id));
+    const selectedInvoicePembiayaan = useMemo(
+        () => pembiayaan.find((item) => String(item.id_pembiayaan) === String(selected?.id_pembiayaan)),
+        [pembiayaan, selected?.id_pembiayaan],
+    );
 
     const alokasiOptions = useMemo(() => {
         if (!selected?.id_pembiayaan) return [];
+        const indukId = selectedInvoicePembiayaan?.induk_id;
         return alokasi
-            .filter((item) => String(item.id_pembiayaan) === String(selected.id_pembiayaan) && Number(item.sisa_alokasi || 0) > 0)
+            .filter((item) => {
+                if (Number(item.sisa_alokasi || 0) <= 0) return false;
+                if (String(item.id_pembiayaan) === String(selected.id_pembiayaan)) return true;
+                if (item.is_induk && indukId && String(item.induk_pembiayaan) === String(indukId)) return true;
+                return false;
+            })
             .sort((a, b) => new Date(a.tanggal_penerimaan) - new Date(b.tanggal_penerimaan));
-    }, [alokasi, selected]);
+    }, [alokasi, selected, selectedInvoicePembiayaan]);
     const latestAlokasiUpdateDate = useMemo(() => {
         const latest = [...alokasiOptions]
             .filter((item) => item.updated_at || item.created_at || item.tanggal_penerimaan)
@@ -553,7 +572,10 @@ export default function InvoicePembiayaan() {
         setCreateOpen(true);
     };
 
-    const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+    const setFilter = (key, value) => {
+        setPage(1);
+        setFilters((prev) => ({ ...prev, [key]: value }));
+    };
     const setCost = (key, value) => setForm((prev) => ({ ...prev, [key]: normalizeMoneyDraft(value) }));
     const setTanggalKirimInvoice = (value) => {
         setSendForm({
@@ -1453,7 +1475,11 @@ export default function InvoicePembiayaan() {
                                                 <strong>{money(selectedDisplayAmounts.sisa)}</strong>
                                             </div>
                                             <div className="wallet">
-                                                <span>Saldo Pembiayaan</span>
+                                                <span>
+                                                    {selectedInvoicePembiayaan?.induk_nama
+                                                        ? `Saldo (Pool: ${selectedInvoicePembiayaan.induk_nama})`
+                                                        : 'Saldo Pembiayaan'}
+                                                </span>
                                                 <strong>{money(walletSaldo)}</strong>
                                             </div>
                                             <div className="limit">

@@ -25,6 +25,7 @@ import {
     Trash2,
     Truck,
     User,
+    Wallet,
     X,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
@@ -52,6 +53,7 @@ const SUMBER_OPTIONS = [
     { value: 'semua', label: 'Semua Sumber' },
     { value: 'farmasi', label: 'Farmasi' },
     { value: 'logistik', label: 'Logistik' },
+    { value: 'keuangan', label: 'Keuangan' },
     { value: 'manual', label: 'Manual' },
 ];
 
@@ -70,7 +72,7 @@ const VENDOR_CATEGORIES = [
     'BIAYA LAIN-LAIN',
 ];
 
-const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', manual: 'Manual' };
+const SUMBER_LABELS = { farmasi: 'Farmasi', logistik: 'Logistik', keuangan: 'Keuangan', manual: 'Manual' };
 
 const TABS = [
     { id: 'semua', label: 'Semua', icon: Layers },
@@ -1203,7 +1205,7 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                                 <div className="utang-verify-row">
                                     <span className="lbl">Jatuh Tempo</span>
-                                    <span className="val">{dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
+                                    <span className="val">{['logistik', 'keuangan'].includes(verifyTarget.sumber) ? '—' : dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
                                 </div>
                                 <div className="utang-verify-row" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: 6, marginTop: 4 }}>
                                     <span className="lbl">Total Bruto</span>
@@ -2286,7 +2288,7 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
                                 <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
                                 <small className="utang-subtext">Tgl SPB: {dateLabel(item.tanggal_spb)}</small>
                             </td>
-                            <td>{item.sumber === 'logistik' ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
+                            <td>{['logistik', 'keuangan'].includes(item.sumber) ? <span className="utang-na">—</span> : dateLabel(item.tanggal_jatuh_tempo)}</td>
                             <td className="utang-right utang-mono bold">
                                 <div>{money(item.nominal)}</div>
                                 {item.sumber === 'farmasi' && (Number(item.disc1 || 0) > 0 || Number(item.ppn || 0) > 0) && (
@@ -2665,7 +2667,7 @@ function SumberBadge({ sumber }) {
     if (!sumber) return <span className="utang-sumber-badge unknown">—</span>;
     return (
         <span className={`utang-sumber-badge ${sumber}`}>
-            {sumber === 'logistik' ? <Truck size={11} /> : <ShieldCheck size={11} />}
+            {sumber === 'logistik' ? <Truck size={11} /> : sumber === 'keuangan' ? <Wallet size={11} /> : <ShieldCheck size={11} />}
             {SUMBER_LABELS[sumber] || sumber}
         </span>
     );

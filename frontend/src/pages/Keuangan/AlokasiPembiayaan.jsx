@@ -12,6 +12,8 @@ import {
     User,
     WalletCards,
     X,
+    Layers,
+    CheckCircle2
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -36,6 +38,8 @@ const LEDGER_TYPE_OPTIONS = [
 ];
 
 const emptyForm = {
+    tipe_alokasi: 'induk', // 'induk' | 'spesifik'
+    induk_pembiayaan: '',
     id_pembiayaan: '',
     tanggal_penerimaan: new Date().toISOString().slice(0, 10),
     jumlah_penerimaan: '',
@@ -92,14 +96,16 @@ export default function AlokasiPembiayaan() {
     const toast = useToast();
     const [items, setItems] = useState([]);
     const [pembiayaan, setPembiayaan] = useState([]);
+    const [indukList, setIndukList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [form, setForm] = useState(emptyForm);
     const [createOpen, setCreateOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [tipeFilter, setTipeFilter] = useState('semua'); // 'semua' | 'induk' | 'spesifik'
     const [ledgerFilters, setLedgerFilters] = useState({ search: '', type: '', dari: '', sampai: '' });
-    const [selectedGroupId, setSelectedGroupId] = useState('');
+    const [selectedGroupKey, setSelectedGroupKey] = useState('');
     const [groupPage, setGroupPage] = useState(1);
     const [groupPageSize, setGroupPageSize] = useState(10);
     const [ledgerPage, setLedgerPage] = useState(1);
@@ -107,10 +113,14 @@ export default function AlokasiPembiayaan() {
 
     const fetchOptions = useCallback(async () => {
         try {
-            const res = await api.get('/keuangan/pembiayaan-options/');
-            setPembiayaan(getResults(res.data));
+            const [resPbiaya, resInduk] = await Promise.all([
+                api.get('/keuangan/pembiayaan-options/'),
+                api.get('/keuangan/induk-pembiayaan/'),
+            ]);
+            setPembiayaan(getResults(resPbiaya.data));
+            setIndukList(getResults(resInduk.data));
         } catch (err) {
-            toast.error(errorMessage(err, 'Gagal memuat daftar pembiayaan.'));
+            toast.error(errorMessage(err, 'Gagal memuat daftar pembiayaan & induk.'));
         }
     }, [toast]);
 
@@ -132,9 +142,13 @@ export default function AlokasiPembiayaan() {
     const pembiayaanGroups = useMemo(() => {
         const groups = new Map();
         items.forEach((item) => {
-            const key = String(item.id_pembiayaan || '');
+            const isInduk = Boolean(item.is_induk);
+            const key = isInduk ? `induk-${item.induk_pembiayaan || item.nama_pembiayaan}` : `spesifik-${item.id_pembiayaan}`;
             const existing = groups.get(key) || {
-                id_pembiayaan: key,
+                groupKey: key,
+                is_induk: isInduk,
+                induk_pembiayaan: item.induk_pembiayaan,
+                id_pembiayaan: item.id_pembiayaan || (isInduk ? `INDUK-${item.induk_pembiayaan}` : ''),
                 nama_pembiayaan: item.nama_pembiayaan,
                 dana_masuk: 0,
                 digunakan: 0,
@@ -160,12 +174,16 @@ export default function AlokasiPembiayaan() {
 
     const visibleGroups = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return pembiayaanGroups;
-        return pembiayaanGroups.filter((item) => [
-            item.nama_pembiayaan,
-            item.id_pembiayaan,
-        ].some((value) => String(value || '').toLowerCase().includes(q)));
-    }, [search, pembiayaanGroups]);
+        return pembiayaanGroups.filter((item) => {
+            if (tipeFilter === 'induk' && !item.is_induk) return false;
+            if (tipeFilter === 'spesifik' && item.is_induk) return false;
+            if (!q) return true;
+            return [
+                item.nama_pembiayaan,
+                item.id_pembiayaan,
+            ].some((value) => String(value || '').toLowerCase().includes(q));
+        });
+    }, [search, tipeFilter, pembiayaanGroups]);
 
     const pagedGroups = useMemo(() => {
         const start = (groupPage - 1) * groupPageSize;
@@ -174,7 +192,7 @@ export default function AlokasiPembiayaan() {
 
     useEffect(() => {
         setGroupPage(1);
-    }, [search, groupPageSize]);
+    }, [search, tipeFilter, groupPageSize]);
 
     useEffect(() => {
         const maxPage = Math.max(1, Math.ceil(visibleGroups.length / groupPageSize));
@@ -182,16 +200,16 @@ export default function AlokasiPembiayaan() {
     }, [groupPage, groupPageSize, visibleGroups.length]);
 
     useEffect(() => {
-        if (selectedGroupId && !visibleGroups.some((group) => group.id_pembiayaan === selectedGroupId)) {
-            setSelectedGroupId('');
+        if (selectedGroupKey && !visibleGroups.some((group) => group.groupKey === selectedGroupKey)) {
+            setSelectedGroupKey('');
         }
-    }, [selectedGroupId, visibleGroups]);
+    }, [selectedGroupKey, visibleGroups]);
 
     useEffect(() => {
         const closeOnEscape = (event) => {
             if (event.key === 'Escape') {
                 setCreateOpen(false);
-                setSelectedGroupId('');
+                setSelectedGroupKey('');
             }
         };
         window.addEventListener('keydown', closeOnEscape);
@@ -199,15 +217,15 @@ export default function AlokasiPembiayaan() {
     }, []);
 
     useEffect(() => {
-        if (!selectedGroupId && !createOpen && !deleteTarget) return undefined;
+        if (!selectedGroupKey && !createOpen && !deleteTarget) return undefined;
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [createOpen, deleteTarget, selectedGroupId]);
+    }, [createOpen, deleteTarget, selectedGroupKey]);
 
-    const selectedGroup = visibleGroups.find((group) => group.id_pembiayaan === selectedGroupId) || null;
+    const selectedGroup = visibleGroups.find((group) => group.groupKey === selectedGroupKey) || null;
 
     const ledgerEntries = useMemo(() => {
         if (!selectedGroup) return [];
@@ -284,7 +302,7 @@ export default function AlokasiPembiayaan() {
 
     useEffect(() => {
         setLedgerPage(1);
-    }, [ledgerFilters, ledgerPageSize, selectedGroupId]);
+    }, [ledgerFilters, ledgerPageSize, selectedGroupKey]);
 
     useEffect(() => {
         const maxPage = Math.max(1, Math.ceil(filteredLedgerEntries.length / ledgerPageSize));
@@ -298,6 +316,7 @@ export default function AlokasiPembiayaan() {
     }), { masuk: 0, digunakan: 0, sisa: 0 }), [visibleGroups]);
 
     const selectedPembiayaan = pembiayaan.find((item) => String(item.id_pembiayaan) === String(form.id_pembiayaan));
+    const selectedInduk = indukList.find((item) => String(item.id) === String(form.induk_pembiayaan));
 
     const resetForm = () => {
         setForm(emptyForm);
@@ -314,7 +333,7 @@ export default function AlokasiPembiayaan() {
     };
 
     const closeLedgerModal = () => {
-        setSelectedGroupId('');
+        setSelectedGroupKey('');
     };
 
     const setLedgerFilter = (key, value) => {
@@ -322,7 +341,11 @@ export default function AlokasiPembiayaan() {
     };
 
     const validateForm = () => {
-        if (!form.id_pembiayaan) return 'Pembiayaan wajib dipilih.';
+        if (form.tipe_alokasi === 'induk') {
+            if (!form.induk_pembiayaan) return 'Pilih Induk Pembiayaan (Payor Group).';
+        } else {
+            if (!form.id_pembiayaan) return 'Pilih Pembiayaan Spesifik / Mandiri.';
+        }
         if (!form.tanggal_penerimaan) return 'Tanggal penerimaan wajib diisi.';
         if (!form.jumlah_penerimaan || parseMoneyInput(form.jumlah_penerimaan) <= 0) return 'Jumlah penerimaan harus lebih dari nol.';
         if (!form.bank) return 'Bank wajib dipilih.';
@@ -338,9 +361,12 @@ export default function AlokasiPembiayaan() {
         }
         setSaving(true);
         try {
+            const isInduk = form.tipe_alokasi === 'induk';
             const payload = {
-                id_pembiayaan: selectedPembiayaan?.id_pembiayaan || form.id_pembiayaan,
-                nama_pembiayaan: selectedPembiayaan?.nama || '',
+                is_induk: isInduk,
+                induk_pembiayaan: isInduk ? form.induk_pembiayaan : null,
+                id_pembiayaan: isInduk ? '' : (selectedPembiayaan?.id_pembiayaan || form.id_pembiayaan),
+                nama_pembiayaan: isInduk ? (selectedInduk?.nama || '') : (selectedPembiayaan?.nama || ''),
                 tanggal_penerimaan: form.tanggal_penerimaan,
                 jumlah_penerimaan: parseMoneyInput(form.jumlah_penerimaan),
                 bank: form.bank,
@@ -392,7 +418,7 @@ export default function AlokasiPembiayaan() {
                     <span><WalletCards size={22} /></span>
                     <div>
                         <h1>Alokasi Pembiayaan</h1>
-                        <p>Tampungan dana masuk dari pembiayaan sebelum dialokasikan ke invoice.</p>
+                        <p>Tampungan dana masuk dari Induk Asuransi (Pool) atau Pembiayaan Mandiri sebelum dialokasikan ke invoice.</p>
                     </div>
                 </div>
             </div>
@@ -427,14 +453,19 @@ export default function AlokasiPembiayaan() {
             <div className="ap-card table">
                 <div className="ap-result-head">
                     <div>
-                        <h2>Daftar Pembiayaan</h2>
-                        <p>{visibleGroups.length} pembiayaan memiliki data tampungan.</p>
+                        <h2>Daftar Pembiayaan & Pool Induk</h2>
+                        <p>{visibleGroups.length} pembiayaan / induk memiliki data tampungan.</p>
                     </div>
                     <div className="ap-card-actions">
                         <div className="ap-search ap-table-search">
                             <Search size={16} />
-                            <input className="ap-input" placeholder="Cari nama / ID pembiayaan..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                            <input className="ap-input" placeholder="Cari nama pembiayaan / induk..." value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
+                        <select className="ap-input ap-select-native" style={{ width: 'auto' }} value={tipeFilter} onChange={(e) => setTipeFilter(e.target.value)}>
+                            <option value="semua">Semua Tipe Alokasi</option>
+                            <option value="induk">🏢 Induk Pool Bersama</option>
+                            <option value="spesifik">📄 Pembiayaan Mandiri</option>
+                        </select>
                         <button className="ap-btn primary" type="button" onClick={openCreateModal}>
                             <Plus size={16} /> Tambah Alokasi
                         </button>
@@ -443,39 +474,55 @@ export default function AlokasiPembiayaan() {
                 {loading ? (
                     <TableSkeleton text="Memuat alokasi pembiayaan..." />
                 ) : visibleGroups.length === 0 ? (
-                    <div className="ap-empty">Belum ada alokasi pembiayaan.</div>
+                    <div className="ap-empty">Belum ada alokasi pembiayaan. Klik <strong>"Tambah Alokasi"</strong> untuk mencatat penerimaan bank.</div>
                 ) : (
                     <div className="ap-table-wrap table-fade-in">
                         <table className="ap-table ap-master-table">
                             <thead>
                                 <tr>
-                                    <th>Pembiayaan</th>
-                                    <th className="ap-right">Saldo Tampungan</th>
-                                    <th>Update Terakhir</th>
+                                    <th>Nama Pembiayaan / Induk</th>
+                                    <th>ID / Tipe</th>
+                                    <th className="ap-right">Total Masuk</th>
+                                    <th className="ap-right">Terpakai</th>
+                                    <th className="ap-right">Sisa Saldo</th>
+                                    <th>Aktivitas</th>
+                                    <th>Penerimaan Terakhir</th>
+                                    <th className="ap-action-col">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {pagedGroups.map((group) => (
-                                    <tr
-                                        key={group.id_pembiayaan}
-                                        className={group.id_pembiayaan === selectedGroupId ? 'selected' : ''}
-                                        onClick={() => setSelectedGroupId(group.id_pembiayaan)}
-                                    >
-                                        <td>
+                                    <tr key={group.groupKey} className="ap-table-row-hover">
+                                        <td className="ap-name-col">
                                             <div className="ap-name-cell">
-                                                <span className="ap-name-icon"><Building2 size={17} /></span>
-                                                <div>
-                                                    <strong>{group.nama_pembiayaan}</strong>
-                                                    <small className="ap-id-chip">ID Pembiayaan: {group.id_pembiayaan}</small>
-                                                </div>
+                                                <strong>{group.nama_pembiayaan}</strong>
+                                                {group.is_induk && (
+                                                    <span className="ap-induk-pool-badge" title="Dana Pool Bersama untuk seluruh invoice anak di bawah induk ini">
+                                                        <Layers size={11} /> INDUK POOL
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
-                                        <td className="ap-right ap-mono ap-strong">{money(group.sisa)}</td>
                                         <td>
-                                            <div className="ap-date-cell">
-                                                <CalendarDays size={15} />
-                                                {dateLabel(group.terakhir)}
-                                            </div>
+                                            <span className="ap-id-badge">{group.id_pembiayaan || 'INDUK'}</span>
+                                        </td>
+                                        <td className="ap-right ap-mono ap-money-in">{money(group.dana_masuk)}</td>
+                                        <td className="ap-right ap-mono ap-money-out">{money(group.digunakan)}</td>
+                                        <td className="ap-right ap-mono ap-strong ok">{money(group.sisa)}</td>
+                                        <td>
+                                            <span className="ap-activity-badge">
+                                                {group.transaksi_masuk} masuk · {group.transaksi_keluar} keluar
+                                            </span>
+                                        </td>
+                                        <td>{dateLabel(group.terakhir)}</td>
+                                        <td className="ap-action-col">
+                                            <button
+                                                className="ap-btn soft ap-sm-btn"
+                                                type="button"
+                                                onClick={() => setSelectedGroupKey(group.groupKey)}
+                                            >
+                                                Rincian Transaksi
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -494,60 +541,126 @@ export default function AlokasiPembiayaan() {
                 )}
             </div>
 
+            {/* MODAL: TAMBAH ALOKASI */}
+            {/* MODAL: TAMBAH ALOKASI */}
             {createOpen && createPortal(
-                <div className="ap-modal-backdrop ap-add-backdrop" role="presentation" onMouseDown={closeCreateModal}>
-                    <div className="ap-modal ap-add-modal" role="dialog" aria-modal="true" aria-labelledby="ap-add-title" onMouseDown={(event) => event.stopPropagation()}>
+                <div className="ap-modal-backdrop ap-blur-backdrop" role="presentation" onMouseDown={closeCreateModal}>
+                    <div className="ap-modal ap-create-modal" role="dialog" aria-modal="true" aria-labelledby="ap-add-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="ap-detail-head">
-                            <div>
-                                <h2 id="ap-add-title"><Plus size={19} /> Tambah Alokasi</h2>
-                                <p>Catat pembayaran masuk dari pembiayaan ke tampungan dana.</p>
+                            <div className="ap-modal-head-info">
+                                <h2 id="ap-add-title"><Plus size={20} /> Tambah Alokasi Dana</h2>
+                                <p>Catat pembayaran rekening koran masuk dari Induk Asuransi atau Pembiayaan Mandiri.</p>
                             </div>
                         </div>
-                        <form className="ap-modal-body" onSubmit={save}>
-                            <div className="ap-grid ap-add-grid">
-                                <label>
-                                    Pembiayaan
-                                    <SearchablePembiayaanSelect
-                                        options={[
-                                            { value: '', label: 'Pilih pembiayaan' },
-                                            ...pembiayaan.map((item) => ({
-                                                value: String(item.id_pembiayaan),
-                                                label: `${item.nama} - ID ${item.id_pembiayaan}`,
-                                            })),
-                                        ]}
-                                        value={form.id_pembiayaan}
-                                        onChange={(value) => setForm({ ...form, id_pembiayaan: value })}
-                                        placeholder="Pilih pembiayaan"
-                                    />
-                                </label>
-                                <label>
-                                    Tanggal Terima
+                        <form className="ap-create-form" onSubmit={save}>
+                            {/* Pilihan Tipe Alokasi */}
+                            <div className="ap-tipe-selector">
+                                <button
+                                    type="button"
+                                    className={`ap-tipe-btn ${form.tipe_alokasi === 'induk' ? 'active' : ''}`}
+                                    onClick={() => setForm({ ...form, tipe_alokasi: 'induk', id_pembiayaan: '' })}
+                                >
+                                    <div className="ap-tipe-icon"><Layers size={18} /></div>
+                                    <div className="ap-tipe-text">
+                                        <strong>Induk Pembiayaan (Pool Bersama)</strong>
+                                        <small>Dana gelondongan untuk seluruh invoice anak (Admedika, Isomedik, dll)</small>
+                                    </div>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`ap-tipe-btn ${form.tipe_alokasi === 'spesifik' ? 'active' : ''}`}
+                                    onClick={() => setForm({ ...form, tipe_alokasi: 'spesifik', induk_pembiayaan: '' })}
+                                >
+                                    <div className="ap-tipe-icon"><Building2 size={18} /></div>
+                                    <div className="ap-tipe-text">
+                                        <strong>Pembiayaan Mandiri / Spesifik</strong>
+                                        <small>Khusus untuk satu akun pembiayaan mandiri</small>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div className="ap-form-grid">
+                                {form.tipe_alokasi === 'induk' ? (
+                                    <div className="ap-form-group full-width">
+                                        <label>
+                                            Pilih Induk Pembiayaan (Payor Group) <span className="ap-required">*</span>
+                                        </label>
+                                        <SearchablePembiayaanSelect
+                                            options={[
+                                                { value: '', label: 'Pilih Induk Pembiayaan' },
+                                                ...indukList.map((ind) => ({
+                                                    value: String(ind.id),
+                                                    label: `${ind.nama} (${ind.total_anggota || 0} pembiayaan anak terhubung)`,
+                                                })),
+                                            ]}
+                                            value={form.induk_pembiayaan}
+                                            onChange={(value) => setForm({ ...form, induk_pembiayaan: value })}
+                                            placeholder="Cari & pilih induk pembiayaan..."
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="ap-form-group full-width">
+                                        <label>
+                                            Pilih Pembiayaan Spesifik / Mandiri <span className="ap-required">*</span>
+                                        </label>
+                                        <SearchablePembiayaanSelect
+                                            options={[
+                                                { value: '', label: 'Pilih pembiayaan' },
+                                                ...pembiayaan.map((item) => ({
+                                                    value: String(item.id_pembiayaan),
+                                                    label: `${item.nama} - ID ${item.id_pembiayaan} ${item.induk_nama ? `(Induk: ${item.induk_nama})` : ''}`,
+                                                })),
+                                            ]}
+                                            value={form.id_pembiayaan}
+                                            onChange={(value) => setForm({ ...form, id_pembiayaan: value })}
+                                            placeholder="Pilih pembiayaan"
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="ap-form-group">
+                                    <label>
+                                        Tanggal Terima (Rekening Koran) <span className="ap-required">*</span>
+                                    </label>
                                     <DateInput value={form.tanggal_penerimaan} onChange={(e) => setForm({ ...form, tanggal_penerimaan: e.target.value })} />
-                                </label>
-                                <label>
-                                    Jumlah Terima
+                                </div>
+
+                                <div className="ap-form-group">
+                                    <label>
+                                        Bank Tujuan <span className="ap-required">*</span>
+                                    </label>
+                                    <select className="ap-input ap-select-native" value={form.bank} onChange={(e) => setForm({ ...form, bank: e.target.value })}>
+                                        {BANK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="ap-form-group full-width">
+                                    <label>
+                                        Jumlah Terima (Rp) <span className="ap-required">*</span>
+                                    </label>
                                     <input
-                                        className="ap-input ap-input-right"
+                                        className="ap-input ap-input-amount"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.jumlah_penerimaan}
                                         onChange={(e) => setForm({ ...form, jumlah_penerimaan: sanitizeMoneyInput(e.target.value) })}
                                         onBlur={(e) => setForm({ ...form, jumlah_penerimaan: formatMoneyInput(e.target.value) })}
-                                        placeholder="Contoh: 1.000,50"
+                                        placeholder="Contoh: 10.000.000"
                                     />
-                                </label>
-                                <label>
-                                    Bank
-                                    <select className="ap-input ap-select-native" value={form.bank} onChange={(e) => setForm({ ...form, bank: e.target.value })}>
-                                        {BANK_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                                    </select>
-                                </label>
-                                <label className="ap-span-2">
-                                    Keterangan
-                                    <textarea className="ap-input" rows="3" value={form.keterangan} onChange={(e) => setForm({ ...form, keterangan: e.target.value })} />
-                                </label>
+                                </div>
+
+                                <div className="ap-form-group full-width">
+                                    <label>Keterangan / Berita Transfer</label>
+                                    <textarea
+                                        className="ap-input ap-textarea"
+                                        rows="3"
+                                        placeholder="Contoh: Pelunasan klaim rawat jalan & inap periode Juli 2026"
+                                        value={form.keterangan}
+                                        onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
+                                    />
+                                </div>
                             </div>
-                            <div className="ap-modal-actions">
+                            <div className="ap-create-actions">
                                 <button className="ap-btn soft" type="button" onClick={closeCreateModal}>Batal</button>
                                 <button className="ap-btn primary" type="submit" disabled={saving}>
                                     <Plus size={16} /> {saving ? 'Menyimpan...' : 'Tambah Alokasi'}
@@ -559,13 +672,16 @@ export default function AlokasiPembiayaan() {
                 document.body,
             )}
 
+            {/* MODAL: RINCIAN LEDGER / TRANSAKSI */}
             {selectedGroup && createPortal(
                 <div className="ap-modal-backdrop ap-blur-backdrop" role="presentation" onMouseDown={closeLedgerModal}>
                     <div className="ap-modal ap-ledger-modal" role="dialog" aria-modal="true" aria-labelledby="ap-ledger-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="ap-detail-head">
                             <div>
-                                <h2 id="ap-ledger-title"><Building2 size={19} /> {selectedGroup.nama_pembiayaan}</h2>
-                                <p>ID Pembiayaan: {selectedGroup.id_pembiayaan}</p>
+                                <h2 id="ap-ledger-title">
+                                    {selectedGroup.is_induk ? <Layers size={19} style={{ color: '#8b5cf6' }} /> : <Building2 size={19} />} {selectedGroup.nama_pembiayaan}
+                                </h2>
+                                <p>{selectedGroup.is_induk ? '🏢 Alokasi Pool Induk Pembiayaan' : `ID Pembiayaan: ${selectedGroup.id_pembiayaan}`}</p>
                             </div>
                             <button className="ap-modal-close" type="button" title="Tutup" onClick={closeLedgerModal}>
                                 <X size={18} />
@@ -620,7 +736,6 @@ export default function AlokasiPembiayaan() {
                                     <tbody>
                                         {pagedLedgerEntries.map((entry) => {
                                             const used = Number(entry.item?.digunakan || 0) > 0;
-                                            const canDelete = entry.type === 'in' && !used;
                                             return (
                                                 <tr key={entry.key} className={`ap-ledger-row ${entry.type}`}>
                                                     <td className="ap-ledger-date">{dateLabel(entry.tanggal)}</td>
@@ -643,7 +758,7 @@ export default function AlokasiPembiayaan() {
                                                     <td className="ap-action-col">
                                                         <div className="ap-row-actions">
                                                             {entry.type === 'in' ? (
-                                                                <button
+                                                                  <button
                                                                     className="ap-icon-btn danger"
                                                                     type="button"
                                                                     title={used ? "Penerimaan ini tidak bisa dihapus karena dana sudah dialokasikan ke invoice" : "Hapus penerimaan dana ini"}
@@ -708,19 +823,7 @@ export default function AlokasiPembiayaan() {
     );
 }
 
-function SummaryCard({ icon = null, label, value, tone = '', description = '' }) {
-    return (
-        <div className={`ap-sum ${tone}`}>
-            {icon && <div className="ap-sum-icon">{icon}</div>}
-            <div className="ap-sum-copy">
-                <span>{label}</span>
-                {description && <p>{description}</p>}
-            </div>
-            <strong>{value}</strong>
-        </div>
-    );
-}
-
 function DateInput({ value, onChange, disabled = false }) {
     return <DateField value={value} onChange={(nextValue) => onChange({ target: { value: nextValue } })} disabled={disabled} />;
 }
+

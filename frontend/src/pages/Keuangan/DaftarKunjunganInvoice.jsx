@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Activity,
     BadgeCheck,
@@ -164,7 +164,10 @@ export default function DaftarKunjunganInvoice() {
         }
     }, [toast]);
 
+    const latestRequestIdRef = useRef(0);
+
     const fetchRows = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         setLoading(true);
         try {
             const params = {
@@ -172,13 +175,18 @@ export default function DaftarKunjunganInvoice() {
                 ...pageParams(page, pageSize),
             };
             const res = await api.get('/keuangan/kunjungan-invoice/', { params });
-            setRows(getResults(res.data));
-            setTotal(getCount(res.data));
-            // setSelectedNos((prev) => prev.filter((no) => getResults(res.data).some((row) => String(row.no) === no)));
+            if (requestId === latestRequestIdRef.current) {
+                setRows(getResults(res.data));
+                setTotal(getCount(res.data));
+            }
         } catch (err) {
-            toast.error(getError(err, 'Gagal memuat daftar kunjungan.'));
+            if (requestId === latestRequestIdRef.current) {
+                toast.error(getError(err, 'Gagal memuat daftar kunjungan.'));
+            }
         } finally {
-            setLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }, [filters, page, pageSize, toast]);
 
@@ -194,7 +202,10 @@ export default function DaftarKunjunganInvoice() {
         };
     }, [detail, invoiceDialogOpen, appendDialogOpen]);
 
-    const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+    const setFilter = (key, value) => {
+        setPage(1);
+        setFilters((prev) => ({ ...prev, [key]: value }));
+    };
 
     const openDetail = async (row) => {
         setDetail(row);

@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AkunViewSet, TransaksiViewSet, JurnalViewSet,
     PelangganViewSet, PemasokViewSet, FakturViewSet, TagihanViewSet,
-    AlokasiDanaViewSet,
+    AlokasiDanaViewSet, IndukPembiayaanViewSet,
     RekeningBankViewSet,
     
     
@@ -23,6 +23,7 @@ router.register(r'pemasok',       PemasokViewSet,       basename='pemasok')
 router.register(r'faktur',        FakturViewSet,        basename='faktur')
 router.register(r'tagihan',       TagihanViewSet,       basename='tagihan')
 router.register(r'alokasi-dana',  AlokasiDanaViewSet,   basename='alokasi-dana')
+router.register(r'induk-pembiayaan', IndukPembiayaanViewSet, basename='induk-pembiayaan')
 router.register(r'rekening',      RekeningBankViewSet,  basename='rekening')
 router.register(r'petty-cash',    PettyCashViewSet,     basename='petty-cash')
 router.register(r'reimbursement', ReimbursementViewSet, basename='reimbursement')

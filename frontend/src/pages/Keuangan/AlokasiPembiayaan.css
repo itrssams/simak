@@ -1525,3 +1525,241 @@ select.ap-select-native {
   border-color: rgba(129, 140, 248, 0.25) !important;
 }
 
+/* Induk Pool Styles */
+.ap-induk-pool-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  font-size: 10.5px;
+  font-weight: 800;
+  border: 1px solid #ddd6fe;
+  letter-spacing: 0.02em;
+}
+
+/* Create Modal Layout & Styling */
+.ap-create-modal {
+  width: min(660px, calc(100vw - 32px)) !important;
+  max-height: min(820px, calc(100vh - 32px)) !important;
+  border-radius: 24px;
+  background: #ffffff !important;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.3) !important;
+  overflow: hidden;
+}
+
+.ap-modal-head-info h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ap-modal-head-info p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.ap-create-form {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 160px);
+}
+
+.ap-tipe-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ap-tipe-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ap-tipe-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.ap-tipe-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-tipe-text strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.ap-tipe-text small {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.ap-tipe-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.ap-tipe-btn.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.ap-tipe-btn.active .ap-tipe-icon {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.ap-tipe-btn.active strong {
+  color: #1d4ed8;
+}
+
+.ap-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ap-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ap-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.ap-form-group label {
+  font-size: 12.5px;
+  font-weight: 750;
+  color: #334155;
+  display: flex;
+  align-items: center;
+}
+
+.ap-required {
+  color: #ef4444;
+  font-weight: 800;
+  margin-left: 4px;
+}
+
+.ap-input-amount {
+  font-size: 14.5px !important;
+  font-weight: 750 !important;
+  color: #0f172a !important;
+  letter-spacing: 0.02em;
+}
+
+.ap-textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+.ap-create-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] .ap-create-modal {
+  background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .ap-modal-head-info h2 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-modal-head-info p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ap-form-group label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .ap-tipe-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .ap-tipe-icon {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ap-tipe-text strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .ap-tipe-text small {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ap-tipe-btn:hover {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .ap-tipe-btn.active {
+  background: rgba(37, 99, 235, 0.2) !important;
+  border-color: #60a5fa !important;
+}
+
+[data-theme="dark"] .ap-tipe-btn.active .ap-tipe-icon {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+[data-theme="dark"] .ap-tipe-btn.active strong {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .ap-create-actions {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+
+

@@ -14,13 +14,12 @@ from .models import (
     Akun, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana,
+    IndukPembiayaan, PembiayaanIndukMapping,
     UtangSupplier, PembayaranUtang, DepositVendor,
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
     PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
-         
-     
 )
 
 from system.audit import infer_target, make_description, target_display_from_user
@@ -189,16 +188,36 @@ class FakturItemInputSerializer(serializers.ModelSerializer):
         model  = FakturItem
         fields = ['deskripsi', 'kuantitas', 'harga_satuan', 'subtotal']
 
+class PembiayaanIndukMappingSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    induk_nama = serializers.CharField(source='induk.nama', read_only=True)
+
+    class Meta:
+        model = PembiayaanIndukMapping
+        fields = ['id', 'induk', 'induk_nama', 'id_pembiayaan', 'nama_pembiayaan', 'created_by', 'created_by_name', 'created_at']
+        read_only_fields = ['id', 'created_by', 'created_at']
+
+class IndukPembiayaanSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    total_anggota = serializers.IntegerField(source='anggota.count', read_only=True)
+    anggota = PembiayaanIndukMappingSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = IndukPembiayaan
+        fields = ['id', 'nama', 'kode', 'keterangan', 'total_anggota', 'anggota', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
 class AlokasiDanaSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     digunakan = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
     pemakaian = serializers.SerializerMethodField()
+    induk_pembiayaan_nama = serializers.CharField(source='induk_pembiayaan.nama', read_only=True)
     
     class Meta:
         model  = AlokasiDana
         fields = [
-            'id', 'id_pembiayaan', 'nama_pembiayaan', 'tanggal_penerimaan',
-            'jumlah_penerimaan', 'bank', 'total_alokasi', 'sisa_alokasi',
+            'id', 'id_pembiayaan', 'nama_pembiayaan', 'induk_pembiayaan', 'induk_pembiayaan_nama', 'is_induk',
+            'tanggal_penerimaan', 'jumlah_penerimaan', 'bank', 'total_alokasi', 'sisa_alokasi',
             'digunakan', 'pemakaian', 'created_by', 'created_by_name', 'created_at', 'updated_at', 'keterangan'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'total_alokasi', 'sisa_alokasi', 'digunakan']
@@ -362,15 +381,16 @@ class FakturSerializer(serializers.ModelSerializer):
         walau sisa_tagihan/total_piutang (live query) udah 0."""
         if obj.status == 'batal':
             return 'batal'
+        total_real = self.get_total_real_rs(obj)
+        total_tagihan = Decimal(str(obj.total_tagihan or 0))
         total_piutang = self.get_total_piutang(obj)
         total_dibayar = self.get_total_dibayar(obj)
         sisa = total_piutang - total_dibayar
         if sisa <= 0:
             return 'lunas'
-        elif total_dibayar == 0:
-            return 'belum_bayar'
-        else:
+        if total_dibayar > 0 or total_piutang < total_real or total_piutang < total_tagihan:
             return 'bayar_sebagian'
+        return 'belum_bayar'
 
     def get_status(self, obj):
         return self._get_effective_status(obj)
@@ -932,4 +952,8 @@ class PengajuanPenambahanSaldoSerializer(serializers.ModelSerializer):
 class PengajuanPenambahanSaldoInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = PengajuanPenambahanSaldo
-        fields = ['tanggal', 'alasan']
+        fields = ['tanggal', 'nominal_diajukan', 'alasan', 'keterangan']
+        extra_kwargs = {
+            'nominal_diajukan': {'required': True},
+            'alasan': {'required': True},
+        }
