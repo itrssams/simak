@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Building2, CheckCircle2, Edit3, MapPin, Plus, RefreshCw, Search,
     Trash2, X, AlertTriangle, ShieldAlert, Layers, Users, Zap,
@@ -710,7 +711,7 @@ export default function MasterPembiayaan() {
             )}
 
             {/* MODAL: KELOLA ANGGOTA INDUK */}
-            {kelolaInduk && (
+            {kelolaInduk && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal wide">
                         <div className="mp-modal-head">
@@ -810,11 +811,12 @@ export default function MasterPembiayaan() {
                             <button type="button" className="mp-secondary" onClick={() => setKelolaInduk(null)}>Selesai</button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL: AUTO-GROUPING PINTAR */}
-            {autoGroupModal && (
+            {autoGroupModal && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal wide">
                         <div className="mp-modal-head">
@@ -833,7 +835,7 @@ export default function MasterPembiayaan() {
                                 <>
                                     <div className="mp-auto-group-banner">
                                         <p>
-                                            Sistem mendeteksi <strong>{autoGroupData.total_pembiayaan_matched} pembiayaan</strong> yang cocok dikelompokkan ke dalam <strong>{autoGroupData.total_groups} Induk Pembiayaan</strong> berdasarkan kesamaan pola TPA / Asuransi Induk.
+                                             Sistem mendeteksi <strong>{autoGroupData.total_pembiayaan_matched} pembiayaan</strong> yang cocok dikelompokkan ke dalam <strong>{autoGroupData.total_groups} Induk Pembiayaan</strong> berdasarkan kesamaan pola TPA / Asuransi Induk.
                                         </p>
                                     </div>
                                     <div className="mp-auto-group-list">
@@ -867,11 +869,12 @@ export default function MasterPembiayaan() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL: TAMBAH / EDIT INDUK */}
-            {indukModalOpen && (
+            {indukModalOpen && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal">
                         <div className="mp-modal-head">
@@ -918,11 +921,12 @@ export default function MasterPembiayaan() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL: TAMBAH / EDIT PEMBIAYAAN TUNGGAL */}
-            {modalOpen && (
+            {modalOpen && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal">
                         <div className="mp-modal-head">
@@ -960,11 +964,12 @@ export default function MasterPembiayaan() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* CONFIRM HAPUS INDUK MODAL */}
-            {deleteIndukTarget && (
+            {deleteIndukTarget && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal confirm">
                         <div className="mp-confirm-head">
@@ -981,11 +986,12 @@ export default function MasterPembiayaan() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* CONFIRM NONAKTIFKAN PEMBIAYAAN MODAL */}
-            {deleteTarget && (
+            {deleteTarget && createPortal(
                 <div className="mp-modal-overlay">
                     <div className="mp-modal confirm">
                         <div className="mp-confirm-head">
@@ -1002,7 +1008,8 @@ export default function MasterPembiayaan() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
