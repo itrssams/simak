@@ -47,7 +47,7 @@
 .pc-table tbody tr:hover td{background:#f7fbf9}
 .pc-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn .18s ease;backdrop-filter:blur(5px);padding:18px}
 .pc-modal{background:linear-gradient(180deg,#fff,#fbfdfc);border-radius:20px;padding:30px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 26px 70px rgba(15,23,42,.24);animation:slideUp .22s ease}
-.pc-modal.sm{max-width:440px}.pc-modal.lg{max-width:760px}
+.pc-modal.sm{max-width:440px}.pc-modal.lg{max-width:760px}.pc-modal.xl{max-width:920px}.pc-modal.wide{max-width:1040px}
 .pc-field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
 .pc-label{font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em}
 .pc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -466,8 +466,10 @@
     border-radius:12px;
   }
   
-  .pc-modal.sm{max-width:95vw !important}
-  .pc-modal.lg{max-width:95vw !important}
+  .pc-modal.sm,
+  .pc-modal.lg,
+  .pc-modal.xl,
+  .pc-modal.wide{max-width:95vw !important}
   
   .pc-field{margin-bottom:12px;gap:4px}
   .pc-label{font-size:12px}
