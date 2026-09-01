@@ -1064,8 +1064,8 @@ function Sync-RemoteDatabase {
     Write-Host ""
 
     Write-Host "Pilih Database yang akan di-sync:"
-    Write-Host "[1] rssams (Legacy SIMRS)"
-    Write-Host "[2] simak  (Production SIMAK)"
+    Write-Host "[1] rssams (Legacy SIMRS - Ukuran Besar ~5-8 menit)"
+    Write-Host "[2] simak  (Production SIMAK - Cepat ~10-20 detik)"
     Write-Host "[3] Keduanya (rssams & simak)"
     Write-Host "[0] Batal"
     Write-Host ""
@@ -1075,7 +1075,7 @@ function Sync-RemoteDatabase {
     switch ($pilihan) {
         "1" { $dbList = @("rssams") }
         "2" { $dbList = @("simak") }
-        "3" { $dbList = @("rssams", "simak") }
+        "3" { $dbList = @("simak", "rssams") }
         "0" { return }
         default {
             Write-Host "Pilihan tidak valid." -ForegroundColor Red
@@ -1090,38 +1090,74 @@ function Sync-RemoteDatabase {
 
     Write-Host ""
     Write-Host "Pilih Target Tujuan Sinkronisasi:"
-    Write-Host "[1] Container Docker (shared-mysql-rssams)"
+    Write-Host "[1] Container Docker (shared-mysql-rssams) - Direkomendasikan"
     Write-Host "[2] MySQL Local (XAMPP / Service Local)"
     Write-Host "[0] Batal"
     Write-Host ""
     $targetDest = Read-Host "Pilih"
     if ($targetDest -eq "0" -or ($targetDest -ne "1" -and $targetDest -ne "2")) { return }
 
-    $mysqldump = Get-MySQLBinPath "mysqldump.exe"
-    if (!$mysqldump) {
-        $mysqldump = "mysqldump"
-    }
+    $origErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
 
-    foreach ($db in $dbList) {
-        Write-Host ""
-        Write-Host "Sync database '$db' dari $remoteHost..." -ForegroundColor Yellow
-        
-        if ($targetDest -eq "1") {
-            Write-Host "Streaming ke container Docker shared-mysql-rssams..." -ForegroundColor DarkGray
-            $cmd = "& '$mysqldump' -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick $db 2>`$null | docker exec -i shared-mysql-rssams mysql -u root -proot --force $db 2>`$null"
-            Invoke-Expression $cmd
-        } else {
-            Write-Host "Streaming ke MySQL Local..." -ForegroundColor DarkGray
-            $creds = Get-DbCredentials
-            $mysqlLocal = Get-MySQLBinPath "mysql.exe"
-            $passArg = if ($creds.password) { "-p$($creds.password)" } else { "" }
-            $cmd = "& '$mysqldump' -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick $db 2>`$null | & '$mysqlLocal' -h $($creds.host) -u $($creds.user) $passArg --force $db 2>`$null"
-            Invoke-Expression $cmd
+    try {
+        foreach ($db in $dbList) {
+            Write-Host ""
+            Write-Host "==========================================" -ForegroundColor Cyan
+            Write-Host "  Sync database '$db' dari $remoteHost..." -ForegroundColor Yellow
+            Write-Host "==========================================" -ForegroundColor Cyan
+            
+            if ($db -eq "rssams") {
+                Write-Host "Catatan: Database 'rssams' berukuran besar, proses transfer membutuhkan beberapa menit..." -ForegroundColor DarkGray
+            }
+            
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+            if ($targetDest -eq "1") {
+                Write-Host "Streaming langsung di dalam container Docker shared-mysql-rssams..." -ForegroundColor DarkGray
+                
+                # Buat database jika belum ada di docker
+                docker exec shared-mysql-rssams mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS \`$db\`;" 2>$null | Out-Null
+                
+                # Stream mysqldump langsung ke mysql di dalam container
+                $dockerCmd = "mysqldump -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick --skip-column-statistics $db 2>/dev/null | mysql -u root -proot --force $db 2>/dev/null"
+                docker exec shared-mysql-rssams sh -c $dockerCmd
+                $res = $LASTEXITCODE
+            } else {
+                Write-Host "Streaming ke MySQL Local..." -ForegroundColor DarkGray
+                $creds = Get-DbCredentials
+                $mysqlLocal = Get-MySQLBinPath "mysql.exe"
+                $mysqldump = Get-MySQLBinPath "mysqldump.exe"
+                if (!$mysqldump) { $mysqldump = "mysqldump" }
+                if (!$mysqlLocal) { $mysqlLocal = "mysql" }
+                
+                $passArg = if ($creds.password) { "-p$($creds.password)" } else { "" }
+                
+                # Buat database jika belum ada di local
+                & $mysqlLocal -h $($creds.host) -u $($creds.user) $passArg -e "CREATE DATABASE IF NOT EXISTS \`$db\`;" 2>$null | Out-Null
+                
+                $cmd = "& '$mysqldump' -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick --skip-column-statistics $db 2>`$null | & '$mysqlLocal' -h $($creds.host) -u $($creds.user) $passArg --force $db 2>`$null"
+                Invoke-Expression $cmd
+                $res = $LASTEXITCODE
+            }
+
+            $stopwatch.Stop()
+            $elapsedSeconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
+
+            if ($res -eq 0) {
+                Write-Host "OK Database '$db' berhasil disinkronkan ($elapsedSeconds detik)." -ForegroundColor Green
+            } else {
+                Write-Host "Peringatan: Sync '$db' selesai dengan kode $res ($elapsedSeconds detik)." -ForegroundColor Yellow
+            }
         }
-
-        Write-Host "OK Database $db selesai disinkronkan." -ForegroundColor Green
+    } catch {
+        Write-Host "Terjadi kesalahan saat sinkronisasi: $_" -ForegroundColor Red
+    } finally {
+        $ErrorActionPreference = $origErrorAction
     }
 
+    Write-Host ""
+    Write-Host "Proses sinkronisasi selesai!" -ForegroundColor Green
     Write-Host ""
     Pause
 }
