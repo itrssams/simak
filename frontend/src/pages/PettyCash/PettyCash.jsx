@@ -10,6 +10,7 @@ import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
 import { AKUN_BIAYA_PETTY_CASH, AKUN_MAP } from './pettyCashAccounts';
+import SearchableAkunBiayaSelect from './SearchableAkunBiayaSelect';
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
 const fmtTgl = (s) => s ? new Date(s).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -1292,23 +1293,11 @@ export default function PettyCash() {
                                                 <tr key={idx}>
                                                     <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{idx + 1}</td>
                                                     <td>
-                                                        <select
-                                                            className="pc-input-table"
+                                                        <SearchableAkunBiayaSelect
                                                             value={item.kode_akun}
-                                                            onChange={(e) => updateLaporanItem(idx, 'kode_akun', e.target.value)}
-                                                            required
-                                                        >
-                                                            <option value="">-- Pilih Akun Biaya --</option>
-                                                            {AKUN_BIAYA_PETTY_CASH.map((group) => (
-                                                                <optgroup key={group.pos} label={group.pos}>
-                                                                    {group.accounts.map((acc) => (
-                                                                        <option key={acc.kode} value={acc.kode}>
-                                                                            {acc.kode} - {acc.nama}
-                                                                        </option>
-                                                                    ))}
-                                                                </optgroup>
-                                                            ))}
-                                                        </select>
+                                                            onChange={(kode) => updateLaporanItem(idx, 'kode_akun', kode)}
+                                                            placeholder="Pilih Akun Biaya"
+                                                        />
                                                     </td>
                                                     <td>
                                                         <input
