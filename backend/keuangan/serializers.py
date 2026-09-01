@@ -767,6 +767,7 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
 
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
     rincian = serializers.CharField(required=False, allow_blank=True, default='')
+    nota    = serializers.FileField(required=True)
     class Meta:
         model  = LaporanPenggunaan
         fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'nota']

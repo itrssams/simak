@@ -363,6 +363,10 @@ export default function PettyCash() {
             return setError(`Total nominal digunakan (${fmt(nominalDigunakan)}) melebihi dana dicairkan (${fmt(modalLaporan.nominal)}).`);
         }
 
+        if (!notaFile) {
+            return setError('File nota / struk bukti pengeluaran belanja wajib diunggah.');
+        }
+
         const rincianText = validItems.map(it => `[${it.kode_akun} ${it.nama_akun}] ${it.deskripsi} (${fmt(it.nilai)})`).join('; ');
 
         setSaving(true);
@@ -373,7 +377,7 @@ export default function PettyCash() {
             fd.append('nominal_digunakan', String(nominalDigunakan));
             fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
-            if (notaFile) fd.append('nota', notaFile);
+            fd.append('nota', notaFile);
 
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan berhasil disubmit!');
@@ -1373,12 +1377,12 @@ export default function PettyCash() {
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan">
                             <input ref={notaRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => handleAttachmentChange(e, setNotaFile, setNotaFileInfo)} />
-                            <FileUploadZone file={notaFile} label="Upload Nota / Struk (opsional)" hint="PDF, JPG, atau PNG. Gambar otomatis dikompres." onPick={() => notaRef.current.click()} />
+                            <FileUploadZone file={notaFile} label="Upload Nota / Struk (Wajib) *" hint="PDF, JPG, atau PNG. Bukti fisik/kuitansi pengeluaran riil." onPick={() => notaRef.current.click()} />
                             <AttachmentPreview file={notaFile} info={notaFileInfo} onPreview={setImagePreview} />
                         </ModalSection>
                         <div className="pc-modal-footer">
                             <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaFile(null); setNotaFileInfo(null); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
+                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || !notaFile || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
                         </div>
                     </div>
                 </div>, document.body

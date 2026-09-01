@@ -6951,6 +6951,9 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if hasattr(instance, 'laporan'):
             return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
 
+        if 'nota' not in request.FILES and not request.data.get('nota'):
+            return Response({'error': 'File nota / bukti struk pengeluaran wajib diunggah.'}, status=400)
+
         # Parse items rincian pengeluaran jika dikirimkan
         raw_items = request.data.get('items')
         parsed_items = []
