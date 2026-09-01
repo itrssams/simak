@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
-import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2 } from 'lucide-react';
+import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
@@ -2409,94 +2409,321 @@ export default function PettyCash() {
                     </div>
                 </div>, document.body
             )}
-            {imagePreview && createPortal(
-                <div
-                    className="pc-overlay"
-                    onClick={() => setImagePreview(null)}
-                    style={{ zIndex: 10005, backdropFilter: 'blur(6px)', background: 'rgba(15, 23, 42, 0.78)', padding: '20px' }}
-                >
-                    <div
-                        style={{
-                            position: 'relative',
-                            width: 'min(95vw, 1000px)',
-                            maxHeight: '92vh',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: '#0f172a',
-                            borderRadius: '16px',
-                            padding: '16px',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {(() => {
-                            const rawUrl = typeof imagePreview === 'object' && imagePreview !== null ? imagePreview.url : imagePreview;
-                            const title = typeof imagePreview === 'object' && imagePreview !== null ? imagePreview.name : 'Preview Berkas';
-                            const fullUrl = resolveMediaUrl(rawUrl);
-                            const isPdf = Boolean(
-                                (title && title.toLowerCase().endsWith('.pdf')) ||
-                                (rawUrl && rawUrl.toLowerCase().includes('.pdf')) ||
-                                (typeof imagePreview === 'object' && imagePreview?.file?.type === 'application/pdf')
-                            );
-
-                            return (
-                                <>
-                                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                        <span style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
-                                            {title}
-                                        </span>
-                                        <button
-                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                            onClick={() => setImagePreview(null)}
-                                            title="Tutup"
-                                        >
-                                            <X size={18} />
-                                        </button>
-                                    </div>
-
-                                    <div style={{ width: '100%', maxHeight: '75vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
-                                        {isPdf ? (
-                                            <iframe
-                                                src={fullUrl}
-                                                title={title}
-                                                style={{ width: '100%', height: '74vh', border: 'none', borderRadius: 8, background: '#fff' }}
-                                            />
-                                        ) : (
-                                            <img
-                                                src={fullUrl}
-                                                alt={title}
-                                                style={{ maxWidth: '100%', maxHeight: '74vh', width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: '8px' }}
-                                            />
-                                        )}
-                                    </div>
-
-                                    <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                                        <a
-                                            href={fullUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            style={{ padding: '8px 18px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', color: '#fff', borderRadius: '8px', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}
-                                        >
-                                            Buka di Tab Baru
-                                        </a>
-                                        <button
-                                            style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                                            onClick={() => setImagePreview(null)}
-                                        >
-                                            Tutup Preview
-                                        </button>
-                                    </div>
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>,
-                document.body
-            )}
+            {imagePreview && <ImageZoomModal data={imagePreview} onClose={() => setImagePreview(null)} />}
         </div>
+    );
+}
+
+function ImageZoomModal({ data, onClose }) {
+    const [scale, setScale] = useState(1);
+    const [rotation, setRotation] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const containerRef = useRef(null);
+
+    const rawUrl = typeof data === 'object' && data !== null ? data.url : data;
+    const title = typeof data === 'object' && data !== null ? data.name : 'Preview Berkas';
+    const fullUrl = resolveMediaUrl(rawUrl);
+    const isPdf = Boolean(
+        (title && title.toLowerCase().endsWith('.pdf')) ||
+        (rawUrl && rawUrl.toLowerCase().includes('.pdf')) ||
+        (typeof data === 'object' && data?.file?.type === 'application/pdf')
+    );
+
+    const handleZoomIn = (e) => {
+        e?.stopPropagation();
+        setScale(s => Math.min(Number((s + 0.25).toFixed(2)), 4));
+    };
+
+    const handleZoomOut = (e) => {
+        e?.stopPropagation();
+        setScale(s => Math.max(Number((s - 0.25).toFixed(2)), 0.5));
+    };
+
+    const handleRotate = (e) => {
+        e?.stopPropagation();
+        setRotation(r => (r + 90) % 360);
+    };
+
+    const handleReset = (e) => {
+        e?.stopPropagation();
+        setScale(1);
+        setRotation(0);
+        setPosition({ x: 0, y: 0 });
+    };
+
+    const handleWheel = (e) => {
+        if (isPdf) return;
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            setScale(s => Math.min(Number((s + 0.15).toFixed(2)), 4));
+        } else {
+            setScale(s => Math.max(Number((s - 0.15).toFixed(2)), 0.5));
+        }
+    };
+
+    const handleMouseDown = (e) => {
+        if (isPdf || e.button !== 0) return;
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        setPosition({
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y
+        });
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    return createPortal(
+        <div
+            className="pc-overlay"
+            onClick={onClose}
+            style={{
+                zIndex: 10005,
+                backdropFilter: 'blur(8px)',
+                background: 'rgba(15, 23, 42, 0.82)',
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}
+        >
+            <div
+                style={{
+                    position: 'relative',
+                    width: 'min(96vw, 1100px)',
+                    height: '92vh',
+                    maxHeight: '92vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: '#0f172a',
+                    borderRadius: '16px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    overflow: 'hidden'
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div style={{
+                    padding: '12px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                    zIndex: 10
+                }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                        {title}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                                padding: '6px 14px',
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                color: '#e2e8f0',
+                                borderRadius: '6px',
+                                fontSize: 12,
+                                textDecoration: 'none',
+                                fontWeight: 600
+                            }}
+                        >
+                            Buka di Tab Baru
+                        </a>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.08)',
+                                border: 'none',
+                                color: '#cbd5e1',
+                                cursor: 'pointer',
+                                padding: '6px',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                            title="Tutup"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div
+                    ref={containerRef}
+                    onWheel={handleWheel}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    style={{
+                        flex: 1,
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        cursor: !isPdf && (scale > 1 || isDragging) ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                        userSelect: 'none',
+                        background: '#020617'
+                    }}
+                >
+                    {isPdf ? (
+                        <iframe
+                            src={fullUrl}
+                            title={title}
+                            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+                        />
+                    ) : (
+                        <img
+                            src={fullUrl}
+                            alt={title}
+                            draggable={false}
+                            style={{
+                                maxWidth: '88%',
+                                maxHeight: '88%',
+                                objectFit: 'contain',
+                                transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`,
+                                transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+                                borderRadius: '6px',
+                                filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.5))'
+                            }}
+                        />
+                    )}
+
+                    {/* Floating Zoom Toolbar */}
+                    {!isPdf && (
+                        <div
+                            style={{
+                                position: 'absolute',
+                                bottom: 18,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: 'rgba(15, 23, 42, 0.88)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: '999px',
+                                padding: '6px 14px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                                zIndex: 20
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                type="button"
+                                onClick={handleZoomOut}
+                                disabled={scale <= 0.5}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: scale <= 0.5 ? '#475569' : '#f8fafc',
+                                    cursor: scale <= 0.5 ? 'not-allowed' : 'pointer',
+                                    padding: '5px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                                title="Zoom Out (-)"
+                            >
+                                <ZoomOut size={16} />
+                            </button>
+
+                            <span
+                                onClick={handleReset}
+                                style={{
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    color: '#38bdf8',
+                                    minWidth: 46,
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px'
+                                }}
+                                title="Klik untuk Reset (100%)"
+                            >
+                                {Math.round(scale * 100)}%
+                            </span>
+
+                            <button
+                                type="button"
+                                onClick={handleZoomIn}
+                                disabled={scale >= 4}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: scale >= 4 ? '#475569' : '#f8fafc',
+                                    cursor: scale >= 4 ? 'not-allowed' : 'pointer',
+                                    padding: '5px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                                title="Zoom In (+)"
+                            >
+                                <ZoomIn size={16} />
+                            </button>
+
+                            <div style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.2)', margin: '0 4px' }} />
+
+                            <button
+                                type="button"
+                                onClick={handleRotate}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#f8fafc',
+                                    cursor: 'pointer',
+                                    padding: '5px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                                title="Putar 90°"
+                            >
+                                <RotateCw size={16} />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleReset}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '5px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
+                                title="Reset Tampilan"
+                            >
+                                <Maximize2 size={15} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 }
 
