@@ -1240,7 +1240,7 @@ export default function PettyCash() {
             {/* Upload Laporan */}
             {modalLaporan && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal xl pc-modal-native-scroll">
+                    <div className="pc-modal xl">
                         <ModalHeader
                             icon={<FileText size={18} />}
                             title="Upload Laporan Penggunaan"
@@ -1398,7 +1398,7 @@ export default function PettyCash() {
             {/* Approval Laporan Penggunaan */}
             {modalApprovalLaporan && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal lg pc-modal-native-scroll">
+                    <div className="pc-modal lg">
                         <ModalHeader
                             icon={<Check size={18} />}
                             title="Approve Laporan Penggunaan"
@@ -1536,7 +1536,7 @@ export default function PettyCash() {
             {/* Konfirmasi Pengembalian */}
             {modalKonfirmasi && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal lg pc-modal-native-scroll">
+                    <div className="pc-modal lg">
                         <h2 style={S.mt}>Konfirmasi Pengembalian</h2>
                         {modalKonfirmasi.laporan && (
                             <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>

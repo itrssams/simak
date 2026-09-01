@@ -35,8 +35,8 @@ export default function DateField({ value, onChange, disabled = false, placehold
         const updatePosition = () => {
             const rect = wrapRef.current?.getBoundingClientRect();
             if (!rect) return;
-            const popoverWidth = 292;
-            const popoverHeight = popoverRef.current?.offsetHeight || 330;
+            const popoverWidth = popoverRef.current?.offsetWidth || 284;
+            const popoverHeight = popoverRef.current?.offsetHeight || 340;
             const gap = 6;
             const viewportPadding = 10;
             const maxLeft = window.innerWidth - popoverWidth - viewportPadding;

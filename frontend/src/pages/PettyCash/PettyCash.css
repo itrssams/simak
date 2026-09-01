@@ -179,7 +179,7 @@
 .pc-table-titlebar p{margin:0}
 .pc-table-heading{font-size:15px;font-weight:800;color:#17251d}
 .pc-table-subheading{font-size:12px;color:#8aa097;margin-top:3px!important}
-.pc-modal{border:none;outline:none;overflow-y:auto;scrollbar-gutter:stable both-edges}
+.pc-modal{border:none;outline:none;overflow-y:auto}
 .pc-modal-native-scroll{overflow-y:auto;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#9aa7a0 transparent}
 .pc-modal-native-scroll::-webkit-scrollbar{width:11px;height:11px}
 .pc-modal-native-scroll::-webkit-scrollbar-track{background:transparent;border-radius:999px}
