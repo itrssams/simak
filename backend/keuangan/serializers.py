@@ -762,7 +762,7 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = LaporanPenggunaan
-        fields = ['tanggal_laporan', 'nominal_digunakan', 'rincian', 'nota']
+        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'nota']
 
     def validate_nominal_digunakan(self, value):
         if value <= 0:

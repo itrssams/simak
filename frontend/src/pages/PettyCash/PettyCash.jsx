@@ -22,6 +22,7 @@ const dateToStr = (d) => {
     if (typeof d === 'string') return d;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+const todayStr = () => dateToStr(new Date());
 const resolveMediaUrl = (url) => {
     if (!url) return '';
     let clean = String(url).trim();
@@ -144,10 +145,10 @@ export default function PettyCash() {
     const [modalBatal, setModalBatal] = useState(null);
     const [formBatal, setFormBatal] = useState({ alasan: '' });
 
-    const [formPC, setFormPC] = useState({ tanggal: '', keperluan: '', nominal: '', keterangan: '' });
+    const [formPC, setFormPC] = useState({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
     const [berkasPC, setBerkasPC] = useState(null);
     const [berkasPCInfo, setBerkasPCInfo] = useState(null);
-    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: '', nominal_digunakan: '', rincian: '' });
+    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
     const [notaFile, setNotaFile] = useState(null);
     const [notaFileInfo, setNotaFileInfo] = useState(null);
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
@@ -261,17 +262,21 @@ export default function PettyCash() {
     // Handlers PC
     const handleBuatPC = async () => {
         setError('');
-        if (!formPC.tanggal || !formPC.keperluan || !formPC.nominal) return setError('Tanggal, keperluan, dan nominal wajib diisi.');
+        const tgl = formPC.tanggal || todayStr();
+        if (!tgl || !formPC.keperluan || !formPC.nominal) return setError('Tanggal, keperluan, dan nominal wajib diisi.');
         if (Number(formPC.nominal) > 999999) return setError('Nominal maksimal Rp 999.999. Pengajuan di atas itu langsung ke bagian keuangan.');
         if (Number(formPC.nominal) <= 0) return setError('Nominal harus lebih dari 0.');
         setSaving(true);
         try {
             const fd = new FormData();
-            Object.entries(formPC).forEach(([k, v]) => { if (v) fd.append(k, v); });
+            fd.append('tanggal', tgl);
+            fd.append('keperluan', formPC.keperluan);
+            fd.append('nominal', formPC.nominal);
+            if (formPC.keterangan) fd.append('keterangan', formPC.keterangan);
             if (berkasPC) fd.append('berkas', berkasPC);
             await api.post('/keuangan/petty-cash/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Pengajuan petty cash berhasil disubmit!');
-            setModalBuat(false); setFormPC({ tanggal: '', keperluan: '', nominal: '', keterangan: '' }); setBerkasPC(null); setBerkasPCInfo(null); fetchAll();
+            setModalBuat(false); setFormPC({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' }); setBerkasPC(null); setBerkasPCInfo(null); fetchAll();
         } catch (e) { setError(e.response?.data?.detail || 'Gagal menyimpan.'); }
         finally { setSaving(false); }
     };
@@ -300,16 +305,22 @@ export default function PettyCash() {
 
     const handleLaporanPC = async () => {
         setError('');
-        if (!formLaporan.tanggal_laporan || !formLaporan.nominal_digunakan || !formLaporan.rincian) return setError('Semua field wajib diisi.');
+        const tglLaporan = formLaporan.tanggal_laporan || todayStr();
+        if (!tglLaporan || !formLaporan.tanggal_nota || !formLaporan.nominal_digunakan || !formLaporan.rincian) {
+            return setError('Tanggal laporan, tanggal nota, nominal digunakan, dan rincian penggunaan wajib diisi.');
+        }
         if (Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal)) return setError('Nominal digunakan tidak boleh melebihi dana yang dicairkan.');
         setSaving(true);
         try {
             const fd = new FormData();
-            Object.entries(formLaporan).forEach(([k, v]) => { if (v) fd.append(k, v); });
+            fd.append('tanggal_laporan', tglLaporan);
+            fd.append('tanggal_nota', formLaporan.tanggal_nota);
+            fd.append('nominal_digunakan', formLaporan.nominal_digunakan);
+            fd.append('rincian', formLaporan.rincian);
             if (notaFile) fd.append('nota', notaFile);
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan berhasil disubmit!');
-            setModalLaporan(null); setFormLaporan({ tanggal_laporan: '', nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); fetchAll();
+            setModalLaporan(null); setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); fetchAll();
         } catch (e) { setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.'); }
         finally { setSaving(false); }
     };
@@ -727,7 +738,7 @@ export default function PettyCash() {
                             <p className="pc-table-subheading">{search ? filteredPC.length : totalPC} pengajuan ditemukan</p>
                         </div>
                         <button className="pc-action-primary" onClick={() => {
-                            setFormPC({ tanggal: '', keperluan: '', nominal: '', keterangan: '' });
+                            setFormPC({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
                             setBerkasPC(null);
                             setBerkasPCInfo(null);
                             resetError();
@@ -768,7 +779,7 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm b" onClick={() => { resetError(); setModalCairkan(item); }}>Cairkan</button>
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm p" onClick={() => { setFormLaporan({ tanggal_laporan: '', nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); resetError(); setModalLaporan(item); }}>Laporan</button>
+                                                        <button className="pc-btn-sm p" onClick={() => { setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); resetError(); setModalLaporan(item); }}>Laporan</button>
                                                     )}
                                                     {isDirekturWadir && item.status === 'menunggu_approval_laporan' && (
                                                         <button className="pc-btn-sm g" onClick={() => { setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApprovalLaporan(item); }}>Approve Laporan</button>
@@ -911,8 +922,8 @@ export default function PettyCash() {
                             </div>
                             <div className="pc-grid2">
                                 <div className="pc-field">
-                                    <label className="pc-label">Tanggal *</label>
-                                    <DateField value={formPC.tanggal} onChange={tanggal => setFormPC({ ...formPC, tanggal })} placeholder="Pilih tanggal..." />
+                                    <label className="pc-label">Tanggal Pengajuan</label>
+                                    <DateField value={formPC.tanggal || todayStr()} disabled placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
                                     <label className="pc-label">Nominal (Rp) *</label>
@@ -977,6 +988,7 @@ export default function PettyCash() {
                             <ModalSection icon={<FileText size={14} />} title="Laporan Penggunaan">
                                 <DetailGrid items={[
                                     ['Tgl Laporan', fmtTgl(modalDetail.laporan.tanggal_laporan)],
+                                    ['Tgl Nota / Belanja', fmtTgl(modalDetail.laporan.tanggal_nota || modalDetail.laporan.tanggal_laporan)],
                                     ['Nominal Digunakan', fmt(modalDetail.laporan.nominal_digunakan)],
                                     ['Selisih / Kembalian', fmt(modalDetail.laporan.selisih)],
                                     ['Approval Laporan', modalDetail.laporan_disetujui_oleh_name || '-'],
@@ -1119,27 +1131,31 @@ export default function PettyCash() {
                         <ModalSection icon={<ClipboardList size={14} />} title="Data Laporan">
                             <div className="pc-grid2">
                                 <div className="pc-field">
-                                    <label className="pc-label">Tanggal Laporan *</label>
-                                    <DateField value={formLaporan.tanggal_laporan} onChange={tanggal_laporan => setFormLaporan({ ...formLaporan, tanggal_laporan })} placeholder="Pilih tanggal..." />
+                                    <label className="pc-label">Tanggal Laporan (Hari Ini)</label>
+                                    <DateField value={formLaporan.tanggal_laporan || todayStr()} disabled placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
-                                    <label className="pc-label">Nominal Digunakan (Rp) *</label>
-                                    <input className="pc-input" type="number" min="0" max={modalLaporan.nominal} placeholder="0" value={formLaporan.nominal_digunakan} onChange={e => setFormLaporan({ ...formLaporan, nominal_digunakan: e.target.value })} />
-                                    {formLaporan.nominal_digunakan && (
-                                        <p style={{ fontSize: 11, marginTop: 3 }}>
-                                            Selisih kembalian: <strong style={{ color: Number(formLaporan.nominal_digunakan) <= Number(modalLaporan.nominal) ? '#166534' : '#dc2626' }}>
-                                                {fmt(Number(modalLaporan.nominal) - Number(formLaporan.nominal_digunakan))}
-                                            </strong>
-                                        </p>
-                                    )}
-                                    {Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal) && (
-                                        <p style={{ fontSize: 11, color: '#dc2626', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                            <AlertTriangle size={13} /> Tidak boleh melebihi dana dicairkan.
-                                        </p>
-                                    )}
+                                    <label className="pc-label">Tanggal Nota / Pembelian *</label>
+                                    <DateField value={formLaporan.tanggal_nota} onChange={tanggal_nota => setFormLaporan({ ...formLaporan, tanggal_nota })} placeholder="Pilih tanggal nota..." />
                                 </div>
                             </div>
-                            <div className="pc-field"><label className="pc-label">Rincian Penggunaan *</label><textarea className="pc-textarea" style={{ minHeight: 100 }} placeholder="Jelaskan rincian penggunaan dana..." value={formLaporan.rincian} onChange={e => setFormLaporan({ ...formLaporan, rincian: e.target.value })} /></div>
+                            <div className="pc-field">
+                                <label className="pc-label">Nominal Digunakan (Rp) *</label>
+                                <input className="pc-input" type="number" min="0" max={modalLaporan.nominal} placeholder="0" value={formLaporan.nominal_digunakan} onChange={e => setFormLaporan({ ...formLaporan, nominal_digunakan: e.target.value })} />
+                                {formLaporan.nominal_digunakan && (
+                                    <p style={{ fontSize: 11, marginTop: 3 }}>
+                                        Selisih kembalian: <strong style={{ color: Number(formLaporan.nominal_digunakan) <= Number(modalLaporan.nominal) ? '#166534' : '#dc2626' }}>
+                                            {fmt(Number(modalLaporan.nominal) - Number(formLaporan.nominal_digunakan))}
+                                        </strong>
+                                    </p>
+                                )}
+                                {Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal) && (
+                                    <p style={{ fontSize: 11, color: '#dc2626', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <AlertTriangle size={13} /> Tidak boleh melebihi dana dicairkan.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="pc-field"><label className="pc-label">Rincian Penggunaan *</label><textarea className="pc-textarea" style={{ minHeight: 90 }} placeholder="Jelaskan rincian penggunaan dana..." value={formLaporan.rincian} onChange={e => setFormLaporan({ ...formLaporan, rincian: e.target.value })} /></div>
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan">
                             <input ref={notaRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => handleAttachmentChange(e, setNotaFile, setNotaFileInfo)} />
@@ -1182,6 +1198,10 @@ export default function PettyCash() {
                                             <strong>Keterangan Pengajuan:</strong> {modalApprovalLaporan.keterangan}
                                         </div>
                                     )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                    <div><p style={S.dk}>Tgl Laporan</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
+                                    <div><p style={S.dk}>Tgl Nota / Belanja</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_nota || modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                     <div><p style={S.dk}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>

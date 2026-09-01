@@ -916,6 +916,7 @@ class PettyCash(models.Model):
 class LaporanPenggunaan(models.Model):
     petty_cash           = models.OneToOneField(PettyCash, on_delete=models.CASCADE, related_name='laporan')
     tanggal_laporan      = models.DateField()
+    tanggal_nota         = models.DateField(null=True, blank=True, help_text='Tanggal nota / kuitansi riil belanja')
     nominal_digunakan    = models.DecimalField(max_digits=15, decimal_places=2)
     selisih              = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     rincian              = models.TextField()
