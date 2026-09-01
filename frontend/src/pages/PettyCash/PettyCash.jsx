@@ -791,7 +791,7 @@ export default function PettyCash() {
                                                     {item.status === 'ditolak' && (item.created_by === user?.id || isDirekturWadir) && (
                                                         <button className="pc-btn-sm b revision" onClick={() => { setFormPC({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' }); setBerkasPC(null); setBerkasPCInfo(null); resetError(); setModalRevisi(item); }}>Revisi</button>
                                                     )}
-                                                    {((['pending', 'ditolak'].includes(item.status) && item.created_by === user?.id) || (['pending', 'disetujui', 'ditolak'].includes(item.status) && isDirekturWadir)) && (
+                                                    {item.status !== 'dibatalkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
                                                         <button className="pc-btn-sm r" onClick={() => { resetError(); setFormBatal({ alasan: '' }); setModalBatal(item); }} title="Batalkan Pengajuan">Batal</button>
                                                     )}
                                                 </div>
@@ -868,7 +868,7 @@ export default function PettyCash() {
                                                     {item.status === 'ditolak' && (item.created_by === user?.id || isDirekturWadir) && (
                                                         <button className="pc-btn-sm b revision" onClick={() => { setFormRB({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' }); setBerkasRB(null); setBerkasRBInfo(null); resetError(); setModalRevisiRB(item); }}>Revisi</button>
                                                     )}
-                                                    {((['pending', 'ditolak'].includes(item.status) && item.created_by === user?.id) || (['pending', 'disetujui', 'ditolak'].includes(item.status) && isDirekturWadir)) && (
+                                                    {item.status !== 'dibatalkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
                                                         <button className="pc-btn-sm r" onClick={() => { resetError(); setFormBatalRB({ alasan: '' }); setModalBatalRB(item); }} title="Batalkan Reimbursement">Batal</button>
                                                     )}
                                                 </div>
@@ -977,7 +977,11 @@ export default function PettyCash() {
                             ]} />
                             <InfoBlock label="Keperluan" value={modalDetail.keperluan} />
                             {modalDetail.keterangan && <InfoBlock label="Keterangan" value={modalDetail.keterangan} />}
-                            {modalDetail.catatan_tolak && <div className="pc-rejection"><strong>Catatan Tolak:</strong> {modalDetail.catatan_tolak}</div>}
+                            {modalDetail.catatan_tolak && (
+                                <div className="pc-rejection">
+                                    <strong>{modalDetail.status === 'dibatalkan' ? 'Alasan Pembatalan:' : 'Catatan Tolak:'}</strong> {modalDetail.catatan_tolak.replace(/^Dibatalkan:\s*/, '')}
+                                </div>
+                            )}
                         </ModalSection>
                         {modalDetail.berkas_url && (
                             <ModalSection icon={<Paperclip size={14} />} title="Lampiran Pengajuan">
@@ -999,7 +1003,24 @@ export default function PettyCash() {
                                 {modalDetail.laporan.nota_url && <ExistingAttachmentPreview url={modalDetail.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
                             </ModalSection>
                         )}
-                        <div className="pc-modal-footer"><button className="pc-btn-ghost" onClick={() => setModalDetail(null)}>Tutup</button></div>
+                        <div className="pc-modal-footer">
+                            {modalDetail.status !== 'dibatalkan' && (modalDetail.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
+                                <button
+                                    className="pc-btn-primary danger"
+                                    style={{ marginRight: 'auto' }}
+                                    onClick={() => {
+                                        const target = modalDetail;
+                                        setModalDetail(null);
+                                        resetError();
+                                        setFormBatal({ alasan: '' });
+                                        setModalBatal(target);
+                                    }}
+                                >
+                                    <X size={15} /> Batalkan Pengajuan
+                                </button>
+                            )}
+                            <button className="pc-btn-ghost" onClick={() => setModalDetail(null)}>Tutup</button>
+                        </div>
                     </div>
                 </div>, document.body
             )}
@@ -1449,14 +1470,35 @@ export default function PettyCash() {
                             ]} />
                             <InfoBlock label="Keperluan" value={modalDetailRB.keperluan} />
                             {modalDetailRB.keterangan && <InfoBlock label="Keterangan" value={modalDetailRB.keterangan} />}
-                            {modalDetailRB.catatan_tolak && <div className="pc-rejection"><strong>Catatan Tolak:</strong> {modalDetailRB.catatan_tolak}</div>}
+                            {modalDetailRB.catatan_tolak && (
+                                <div className="pc-rejection">
+                                    <strong>{modalDetailRB.status === 'dibatalkan' ? 'Alasan Pembatalan:' : 'Catatan Tolak:'}</strong> {modalDetailRB.catatan_tolak.replace(/^Dibatalkan:\s*/, '')}
+                                </div>
+                            )}
                         </ModalSection>
                         {modalDetailRB.berkas_url && (
                             <ModalSection icon={<Paperclip size={14} />} title="Lampiran Pengajuan">
                                 <ExistingAttachmentPreview url={modalDetailRB.berkas_url} label="Bukti Pengeluaran" onPreview={setImagePreview} />
                             </ModalSection>
                         )}
-                        <div className="pc-modal-footer"><button className="pc-btn-ghost" onClick={() => setModalDetailRB(null)}>Tutup</button></div>
+                        <div className="pc-modal-footer">
+                            {modalDetailRB.status !== 'dibatalkan' && (modalDetailRB.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
+                                <button
+                                    className="pc-btn-primary danger"
+                                    style={{ marginRight: 'auto' }}
+                                    onClick={() => {
+                                        const target = modalDetailRB;
+                                        setModalDetailRB(null);
+                                        resetError();
+                                        setFormBatalRB({ alasan: '' });
+                                        setModalBatalRB(target);
+                                    }}
+                                >
+                                    <X size={15} /> Batalkan Reimbursement
+                                </button>
+                            )}
+                            <button className="pc-btn-ghost" onClick={() => setModalDetailRB(null)}>Tutup</button>
+                        </div>
                     </div>
                 </div>, document.body
             )}

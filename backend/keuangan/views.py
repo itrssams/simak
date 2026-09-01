@@ -7014,24 +7014,48 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         serializer.save(status='pending', catatan_tolak='')
         return Response(PettyCashSerializer(instance, context={'request': request}).data)
 
-    # POST /{id}/batal/ — pemohon / pimpinan membatalkan pengajuan
+    # POST /{id}/batal/ — pemohon / kasir / pimpinan membatalkan pengajuan di setiap tahapan
     @action(detail=True, methods=['post'], url_path='batal')
     def batal(self, request, pk=None):
         instance = self.get_object()
-        can_cancel_all = is_direktur_or_wadir(request.user)
+        can_cancel_all = is_direktur_or_wadir(request.user) or is_petty_cash_cashier(request.user) or request.user.is_superuser
         if not can_cancel_all:
             if instance.created_by != request.user:
-                return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan pengajuan ini.'}, status=403)
-            if instance.status not in ('pending', 'disetujui', 'ditolak'):
-                return Response({'error': 'Pengajuan yang sudah dicairkan atau diproses lebih lanjut tidak dapat dibatalkan.'}, status=400)
+                return Response({'error': 'Hanya pemohon, petugas kasir, atau pimpinan yang dapat membatalkan pengajuan ini.'}, status=403)
         
+        if instance.status == 'dibatalkan':
+            return Response({'error': 'Pengajuan ini sudah dibatalkan sebelumnya.'}, status=400)
+            
         alasan = request.data.get('alasan_batal') or request.data.get('alasan') or request.data.get('catatan_tolak')
         if not alasan or not str(alasan).strip():
             return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
             
-        instance.status = 'dibatalkan'
-        instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
-        instance.save()
+        with transaction.atomic():
+            # Jika pengajuan dibatalkan setelah status 'selesai' (di mana saldo sudah dipotong saat konfirmasi), kembalikan saldo ke kas
+            if instance.status == 'selesai' and hasattr(instance, 'laporan'):
+                nominal_pakai = instance.laporan.nominal_digunakan
+                if nominal_pakai > 0:
+                    saldo = get_or_create_saldo()
+                    saldo_sebelum = saldo.saldo
+                    saldo.saldo += nominal_pakai
+                    saldo.updated_by = request.user
+                    saldo.save()
+                    
+                    RiwayatSaldoPettyCash.objects.create(
+                        jenis='penambahan',
+                        jumlah=nominal_pakai,
+                        saldo_sebelum=saldo_sebelum,
+                        saldo_sesudah=saldo.saldo,
+                        keterangan=f'Koreksi pembatalan petty cash {instance.no_pengajuan} - {str(alasan).strip()[:50]}',
+                        created_by=request.user,
+                        nama_pengaju=user_display_name(instance.created_by),
+                        unit_pengaju=laporan_unit_label(instance.created_by),
+                    )
+
+            instance.status = 'dibatalkan'
+            instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
+            instance.save()
+
         return Response({
             'message': 'Pengajuan berhasil dibatalkan.',
             'status': instance.status,
@@ -7154,24 +7178,48 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         serializer.save(status='pending', catatan_tolak='')
         return Response(ReimbursementSerializer(instance, context={'request': request}).data)
 
-    # POST /{id}/batal/ — pemohon / pimpinan membatalkan reimbursement
+    # POST /{id}/batal/ — pemohon / kasir / pimpinan membatalkan reimbursement di setiap tahapan
     @action(detail=True, methods=['post'], url_path='batal')
     def batal(self, request, pk=None):
         instance = self.get_object()
-        can_cancel_all = is_direktur_or_wadir(request.user)
+        can_cancel_all = is_direktur_or_wadir(request.user) or is_petty_cash_cashier(request.user) or request.user.is_superuser
         if not can_cancel_all:
             if instance.created_by != request.user:
-                return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan reimbursement ini.'}, status=403)
-            if instance.status not in ('pending', 'disetujui', 'ditolak'):
-                return Response({'error': 'Reimbursement yang sudah dicairkan tidak dapat dibatalkan.'}, status=400)
+                return Response({'error': 'Hanya pemohon, petugas kasir, atau pimpinan yang dapat membatalkan reimbursement ini.'}, status=403)
         
+        if instance.status == 'dibatalkan':
+            return Response({'error': 'Reimbursement ini sudah dibatalkan sebelumnya.'}, status=400)
+            
         alasan = request.data.get('alasan_batal') or request.data.get('alasan') or request.data.get('catatan_tolak')
         if not alasan or not str(alasan).strip():
             return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
             
-        instance.status = 'dibatalkan'
-        instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
-        instance.save()
+        with transaction.atomic():
+            # Jika reimbursement sudah dicairkan (saldo sudah dipotong), kembalikan saldo ke kasir
+            if instance.status == 'dicairkan':
+                nominal = instance.nominal
+                if nominal > 0:
+                    saldo = get_or_create_saldo()
+                    saldo_sebelum = saldo.saldo
+                    saldo.saldo += nominal
+                    saldo.updated_by = request.user
+                    saldo.save()
+                    
+                    RiwayatSaldoPettyCash.objects.create(
+                        jenis='penambahan',
+                        jumlah=nominal,
+                        saldo_sebelum=saldo_sebelum,
+                        saldo_sesudah=saldo.saldo,
+                        keterangan=f'Koreksi pembatalan reimbursement {instance.no_reimbursement} - {str(alasan).strip()[:50]}',
+                        created_by=request.user,
+                        nama_pengaju=user_display_name(instance.created_by),
+                        unit_pengaju=laporan_unit_label(instance.created_by),
+                    )
+
+            instance.status = 'dibatalkan'
+            instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
+            instance.save()
+
         return Response({
             'message': 'Reimbursement berhasil dibatalkan.',
             'status': instance.status,
