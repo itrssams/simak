@@ -154,8 +154,7 @@ export default function PettyCash() {
     const [laporanItems, setLaporanItems] = useState([
         { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }
     ]);
-    const [notaFile, setNotaFile] = useState(null);
-    const [notaFileInfo, setNotaFileInfo] = useState(null);
+    const [notaList, setNotaList] = useState([]);
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const [approvalLaporanForm, setApprovalLaporanForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const berkasRef = useRef(); const notaRef = useRef();
@@ -363,8 +362,8 @@ export default function PettyCash() {
             return setError(`Total nominal digunakan (${fmt(nominalDigunakan)}) melebihi dana dicairkan (${fmt(modalLaporan.nominal)}).`);
         }
 
-        if (!notaFile) {
-            return setError('File nota / struk bukti pengeluaran belanja wajib diunggah.');
+        if (!notaList || notaList.length === 0) {
+            return setError('Minimal harus ada 1 file nota / struk bukti pengeluaran belanja yang diunggah.');
         }
 
         const rincianText = validItems.map(it => `[${it.kode_akun} ${it.nama_akun}] ${it.deskripsi} (${fmt(it.nilai)})`).join('; ');
@@ -377,15 +376,18 @@ export default function PettyCash() {
             fd.append('nominal_digunakan', String(nominalDigunakan));
             fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
-            fd.append('nota', notaFile);
+
+            // Append all nota files
+            notaList.forEach(it => {
+                fd.append('nota', it.file);
+            });
 
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan berhasil disubmit!');
             setModalLaporan(null);
             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-            setNotaFile(null);
-            setNotaFileInfo(null);
+            setNotaList([]);
             fetchAll();
         } catch (e) {
             setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.');
@@ -595,6 +597,56 @@ export default function PettyCash() {
         } finally {
             if (e.target) e.target.value = '';
         }
+    };
+
+    const handleMultipleNotaChange = async (e) => {
+        setError('');
+        const selectedFiles = Array.from(e.target.files || []);
+        if (selectedFiles.length === 0) return;
+
+        try {
+            const processedItems = [];
+            for (const file of selectedFiles) {
+                if (file.type.startsWith('image/')) {
+                    const validation = validateImageFile(file);
+                    if (!validation.isValid) {
+                        setError(`File "${file.name}": ${validation.error}`);
+                        continue;
+                    }
+                    const [compressed] = await compressImages([file], { maxSizeMB: 0.5, maxWidthOrHeight: 1920, quality: 0.75 });
+                    const reduction = Math.max(0, (1 - compressed.size / file.size) * 100).toFixed(1);
+                    processedItems.push({
+                        file: compressed,
+                        name: file.name,
+                        originalSize: formatFileSize(file.size),
+                        compressedSize: formatFileSize(compressed.size),
+                        reduction,
+                        compressed: true
+                    });
+                } else {
+                    processedItems.push({
+                        file,
+                        name: file.name,
+                        originalSize: formatFileSize(file.size),
+                        compressedSize: formatFileSize(file.size),
+                        reduction: '0.0',
+                        compressed: false
+                    });
+                }
+            }
+
+            if (processedItems.length > 0) {
+                setNotaList(prev => [...prev, ...processedItems]);
+            }
+        } catch (err) {
+            setError(`Gagal memproses file nota: ${err.message}`);
+        } finally {
+            if (e.target) e.target.value = '';
+        }
+    };
+
+    const removeNotaItem = (index) => {
+        setNotaList(prev => prev.filter((_, idx) => idx !== index));
     };
 
     // Saldo info
@@ -851,8 +903,7 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm p" onClick={() => {
                                                             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' });
                                                             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-                                                            setNotaFile(null);
-                                                            setNotaFileInfo(null);
+                                                            setNotaList([]);
                                                             resetError();
                                                             setModalLaporan(item);
                                                         }}>Laporan</button>
@@ -1115,7 +1166,12 @@ export default function PettyCash() {
                                 ) : (
                                     <InfoBlock label="Rincian Penggunaan" value={modalDetail.laporan.rincian} />
                                 )}
-                                {modalDetail.laporan.nota_url && <ExistingAttachmentPreview url={modalDetail.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
+                                <ExistingAttachmentsList
+                                    list={modalDetail.laporan.berkas_nota_list}
+                                    fallbackUrl={modalDetail.laporan.nota_url}
+                                    label="Nota / Struk Bukti Belanja"
+                                    onPreview={setImagePreview}
+                                />
                             </ModalSection>
                         )}
                         <div className="pc-modal-footer">
@@ -1375,14 +1431,31 @@ export default function PettyCash() {
                                 </div>
                             </div>
                         </ModalSection>
-                        <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan">
-                            <input ref={notaRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => handleAttachmentChange(e, setNotaFile, setNotaFileInfo)} />
-                            <FileUploadZone file={notaFile} label="Upload Nota / Struk (Wajib) *" hint="PDF, JPG, atau PNG. Bukti fisik/kuitansi pengeluaran riil." onPick={() => notaRef.current.click()} />
-                            <AttachmentPreview file={notaFile} info={notaFileInfo} onPreview={setImagePreview} />
+                        <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan (Bisa Lebih Dari 1 Nota)">
+                            <input
+                                ref={notaRef}
+                                type="file"
+                                multiple
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                style={{ display: 'none' }}
+                                onChange={handleMultipleNotaChange}
+                            />
+                            <MultiAttachmentUploader
+                                items={notaList}
+                                onRemove={removeNotaItem}
+                                onPreview={setImagePreview}
+                                onPick={() => notaRef.current?.click()}
+                            />
                         </ModalSection>
                         <div className="pc-modal-footer">
-                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaFile(null); setNotaFileInfo(null); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || !notaFile || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
+                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaList([]); resetError(); }}>Batal</button>
+                            <button
+                                className="pc-btn-primary"
+                                onClick={handleLaporanPC}
+                                disabled={saving || notaList.length === 0 || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}
+                            >
+                                {saving ? 'Menyimpan...' : 'Submit Laporan'}
+                            </button>
                         </div>
                     </div>
                 </div>, document.body
@@ -1469,7 +1542,12 @@ export default function PettyCash() {
                                 ) : (
                                     <InfoBlock label="Rincian Penggunaan" value={modalApprovalLaporan.laporan.rincian} />
                                 )}
-                                {modalApprovalLaporan.laporan.nota_url && <ExistingAttachmentPreview url={modalApprovalLaporan.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
+                                <ExistingAttachmentsList
+                                    list={modalApprovalLaporan.laporan.berkas_nota_list}
+                                    fallbackUrl={modalApprovalLaporan.laporan.nota_url}
+                                    label="Nota / Struk Bukti Belanja"
+                                    onPreview={setImagePreview}
+                                />
                             </div>
                         )}
                         {error && <div className="pc-alert-err">{error}</div>}
@@ -2428,6 +2506,110 @@ function AttachmentPreview({ file, info, onPreview }) {
                 </p>
             </div>
             {url && <button className="pc-btn-sm n" type="button" onClick={() => onPreview(url)}>Preview</button>}
+        </div>
+    );
+}
+
+function MultiAttachmentItemPreview({ item, onRemove, onPreview }) {
+    const url = useMemo(() => {
+        if (!item?.file || !isImageFile(item.file)) return '';
+        return URL.createObjectURL(item.file);
+    }, [item?.file]);
+
+    useEffect(() => {
+        if (!url) return undefined;
+        return () => URL.revokeObjectURL(url);
+    }, [url]);
+
+    return (
+        <div className="pc-upload-preview" style={{ marginBottom: 0 }}>
+            {url ? (
+                <img className="pc-upload-thumb" src={url} alt={item.name} onClick={() => onPreview(url)} />
+            ) : (
+                <div className="pc-upload-doc"><Paperclip size={20} /></div>
+            )}
+            <div className="pc-upload-meta">
+                <p className="pc-upload-name">{item.name}</p>
+                <p className="pc-upload-info">
+                    {item.compressed
+                        ? `${item.originalSize} -> ${item.compressedSize} (${item.reduction}% lebih kecil)`
+                        : `${item.originalSize} - tidak dikompres`}
+                </p>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {url && (
+                    <button className="pc-btn-sm n" type="button" onClick={() => onPreview(url)}>
+                        Preview
+                    </button>
+                )}
+                <button
+                    className="pc-btn-sm r"
+                    type="button"
+                    onClick={onRemove}
+                    title="Hapus file ini"
+                >
+                    <Trash2 size={13} />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function MultiAttachmentUploader({ items, onRemove, onPreview, onPick }) {
+    return (
+        <div>
+            <div className="pc-file-zone" onClick={onPick} style={{ cursor: 'pointer' }}>
+                <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: items.length > 0 ? '#166534' : '#475569', marginBottom: 2 }}>
+                        {items.length > 0 ? `${items.length} file nota / struk dipilih` : 'Upload Nota / Struk Bukti Belanja (Wajib) *'}
+                    </p>
+                    <p style={{ fontSize: 11, color: '#94a3b8' }}>
+                        Bisa pilih lebih dari 1 file nota (PDF, JPG, PNG). Gambar otomatis dikompres.
+                    </p>
+                </div>
+                <span className="pc-file-pick">
+                    {items.length > 0 ? '+ Tambah Nota' : 'Pilih File'}
+                </span>
+            </div>
+
+            {items.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {items.map((it, idx) => (
+                        <MultiAttachmentItemPreview
+                            key={idx}
+                            item={it}
+                            onRemove={() => onRemove(idx)}
+                            onPreview={onPreview}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ExistingAttachmentsList({ list, fallbackUrl, label = 'Nota / Struk', onPreview }) {
+    const items = (list && list.length > 0)
+        ? list
+        : (fallbackUrl ? [{ id: 'main', url: fallbackUrl, name: label }] : []);
+
+    if (items.length === 0) return null;
+
+    return (
+        <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
+                {label} ({items.length} berkas)
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {items.map((item, idx) => (
+                    <ExistingAttachmentPreview
+                        key={item.id || idx}
+                        url={item.url}
+                        label={item.name ? `${item.name}` : `${label} #${idx + 1}`}
+                        onPreview={onPreview}
+                    />
+                ))}
+            </div>
         </div>
     );
 }

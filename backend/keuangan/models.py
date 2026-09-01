@@ -1043,7 +1043,7 @@ class FotoPettyCash(models.Model):
 
 class FotoLaporanPenggunaan(models.Model):
     laporan = models.ForeignKey(LaporanPenggunaan, on_delete=models.CASCADE, related_name='foto_list')
-    foto = models.ImageField(upload_to=foto_laporan_penggunaan_path)
+    foto = models.FileField(upload_to=foto_laporan_penggunaan_path)
     urutan = models.PositiveIntegerField(default=1, help_text='Urutan foto')
     keterangan = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1058,10 +1058,15 @@ class FotoLaporanPenggunaan(models.Model):
         return f"Foto {self.urutan} - Laporan {self.laporan.petty_cash.no_pengajuan}"
 
     def save(self, *args, **kwargs):
-        # Auto-compress image on save
+        # Auto-compress image on save if file is an image
         if self.foto:
-            from .utils_image import compress_image
-            compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
+            ext = str(self.foto.name).lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                try:
+                    from .utils_image import compress_image
+                    compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
+                except Exception:
+                    pass
 
         super().save(*args, **kwargs)
 

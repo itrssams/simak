@@ -19,7 +19,7 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
 )
 
 from system.audit import infer_target, make_description, target_display_from_user
@@ -751,6 +751,7 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
     dikonfirmasi_oleh_name = serializers.CharField(source='dikonfirmasi_oleh.username', read_only=True)
     nota_url               = serializers.SerializerMethodField()
     items                  = ItemLaporanPenggunaanSerializer(many=True, read_only=True)
+    berkas_nota_list       = serializers.SerializerMethodField()
 
     class Meta:
         model  = LaporanPenggunaan
@@ -765,9 +766,37 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_berkas_nota_list(self, obj):
+        result = []
+        fotos = obj.foto_list.all().order_by('urutan', 'id')
+        for f in fotos:
+            if f.foto:
+                try:
+                    result.append({
+                        'id': f.id,
+                        'url': f.foto.url,
+                        'name': f.foto.name.split('/')[-1],
+                        'urutan': f.urutan,
+                        'keterangan': f.keterangan
+                    })
+                except Exception:
+                    pass
+        if not result and obj.nota:
+            try:
+                result.append({
+                    'id': 'main',
+                    'url': obj.nota.url,
+                    'name': obj.nota.name.split('/')[-1],
+                    'urutan': 1,
+                    'keterangan': ''
+                })
+            except Exception:
+                pass
+        return result
+
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
     rincian = serializers.CharField(required=False, allow_blank=True, default='')
-    nota    = serializers.FileField(required=True)
+    nota    = serializers.FileField(required=False, allow_null=True)
     class Meta:
         model  = LaporanPenggunaan
         fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'nota']

@@ -67,7 +67,7 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
 )
 
 from .serializers import (
@@ -6951,8 +6951,15 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if hasattr(instance, 'laporan'):
             return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
 
-        if 'nota' not in request.FILES and not request.data.get('nota'):
-            return Response({'error': 'File nota / bukti struk pengeluaran wajib diunggah.'}, status=400)
+        # Ambil seluruh file nota yang diupload (support multiple files)
+        uploaded_files = request.FILES.getlist('nota') or request.FILES.getlist('nota_files') or request.FILES.getlist('files')
+        if not uploaded_files:
+            single_f = request.FILES.get('nota')
+            if single_f:
+                uploaded_files = [single_f]
+
+        if not uploaded_files and not request.data.get('nota'):
+            return Response({'error': 'Minimal harus ada 1 file nota / bukti struk pengeluaran yang diunggah.'}, status=400)
 
         # Parse items rincian pengeluaran jika dikirimkan
         raw_items = request.data.get('items')
@@ -6997,7 +7004,16 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         selisih = nominal_dicairkan - nominal_digunakan
 
         with transaction.atomic():
-            laporan = serializer.save(petty_cash=instance, selisih=selisih)
+            primary_file = uploaded_files[0] if uploaded_files else None
+            laporan = serializer.save(petty_cash=instance, selisih=selisih, nota=primary_file)
+
+            # Simpan seluruh file nota ke FotoLaporanPenggunaan
+            for idx, f in enumerate(uploaded_files):
+                FotoLaporanPenggunaan.objects.create(
+                    laporan=laporan,
+                    foto=f,
+                    urutan=idx + 1
+                )
 
             for it in parsed_items:
                 try:
