@@ -387,7 +387,7 @@ export default function PettyCash() {
             setModalLaporan(null);
             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-            setNotaList([]);
+            clearNotaList();
             fetchAll();
         } catch (e) {
             setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.');
@@ -615,8 +615,10 @@ export default function PettyCash() {
                     }
                     const [compressed] = await compressImages([file], { maxSizeMB: 0.5, maxWidthOrHeight: 1920, quality: 0.75 });
                     const reduction = Math.max(0, (1 - compressed.size / file.size) * 100).toFixed(1);
+                    const previewUrl = URL.createObjectURL(compressed);
                     processedItems.push({
                         file: compressed,
+                        url: previewUrl,
                         name: file.name,
                         originalSize: formatFileSize(file.size),
                         compressedSize: formatFileSize(compressed.size),
@@ -624,8 +626,10 @@ export default function PettyCash() {
                         compressed: true
                     });
                 } else {
+                    const previewUrl = URL.createObjectURL(file);
                     processedItems.push({
                         file,
+                        url: previewUrl,
                         name: file.name,
                         originalSize: formatFileSize(file.size),
                         compressedSize: formatFileSize(file.size),
@@ -646,7 +650,24 @@ export default function PettyCash() {
     };
 
     const removeNotaItem = (index) => {
-        setNotaList(prev => prev.filter((_, idx) => idx !== index));
+        setNotaList(prev => {
+            const target = prev[index];
+            if (target?.url) {
+                try { URL.revokeObjectURL(target.url); } catch {}
+            }
+            return prev.filter((_, idx) => idx !== index);
+        });
+    };
+
+    const clearNotaList = () => {
+        setNotaList(prev => {
+            prev.forEach(it => {
+                if (it?.url) {
+                    try { URL.revokeObjectURL(it.url); } catch {}
+                }
+            });
+            return [];
+        });
     };
 
     // Saldo info
@@ -903,7 +924,7 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm p" onClick={() => {
                                                             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' });
                                                             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-                                                            setNotaList([]);
+                                                            clearNotaList();
                                                             resetError();
                                                             setModalLaporan(item);
                                                         }}>Laporan</button>
@@ -1448,7 +1469,7 @@ export default function PettyCash() {
                             />
                         </ModalSection>
                         <div className="pc-modal-footer">
-                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaList([]); resetError(); }}>Batal</button>
+                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); clearNotaList(); resetError(); }}>Batal</button>
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanPC}
@@ -2389,19 +2410,91 @@ export default function PettyCash() {
                 </div>, document.body
             )}
             {imagePreview && createPortal(
-                <div className="pc-overlay" onClick={() => setImagePreview(null)} style={{ zIndex: 10005, backdropFilter: 'blur(6px)', background: 'rgba(15, 23, 42, 0.75)', padding: '20px' }}>
-                    <div style={{ position: 'relative', width: 'min(95vw, 95vh)', height: 'min(95vh, 95vw)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => e.stopPropagation()}>
-                        <img src={imagePreview} alt="Preview berkas" style={{ maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }} />
-                        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                            <a href={imagePreview} target="_blank" rel="noreferrer" style={{ padding: '8px 18px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', color: '#fff', borderRadius: '8px', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
-                                Buka di Tab Baru
-                            </a>
-                            <button style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} onClick={() => setImagePreview(null)}>
-                                Tutup Preview
-                            </button>
-                        </div>
+                <div
+                    className="pc-overlay"
+                    onClick={() => setImagePreview(null)}
+                    style={{ zIndex: 10005, backdropFilter: 'blur(6px)', background: 'rgba(15, 23, 42, 0.78)', padding: '20px' }}
+                >
+                    <div
+                        style={{
+                            position: 'relative',
+                            width: 'min(95vw, 1000px)',
+                            maxHeight: '92vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#0f172a',
+                            borderRadius: '16px',
+                            padding: '16px',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {(() => {
+                            const rawUrl = typeof imagePreview === 'object' && imagePreview !== null ? imagePreview.url : imagePreview;
+                            const title = typeof imagePreview === 'object' && imagePreview !== null ? imagePreview.name : 'Preview Berkas';
+                            const fullUrl = resolveMediaUrl(rawUrl);
+                            const isPdf = Boolean(
+                                (title && title.toLowerCase().endsWith('.pdf')) ||
+                                (rawUrl && rawUrl.toLowerCase().includes('.pdf')) ||
+                                (typeof imagePreview === 'object' && imagePreview?.file?.type === 'application/pdf')
+                            );
+
+                            return (
+                                <>
+                                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
+                                            {title}
+                                        </span>
+                                        <button
+                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            onClick={() => setImagePreview(null)}
+                                            title="Tutup"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+
+                                    <div style={{ width: '100%', maxHeight: '75vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
+                                        {isPdf ? (
+                                            <iframe
+                                                src={fullUrl}
+                                                title={title}
+                                                style={{ width: '100%', height: '74vh', border: 'none', borderRadius: 8, background: '#fff' }}
+                                            />
+                                        ) : (
+                                            <img
+                                                src={fullUrl}
+                                                alt={title}
+                                                style={{ maxWidth: '100%', maxHeight: '74vh', width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: '8px' }}
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                                        <a
+                                            href={fullUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ padding: '8px 18px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', color: '#fff', borderRadius: '8px', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}
+                                        >
+                                            Buka di Tab Baru
+                                        </a>
+                                        <button
+                                            style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                                            onClick={() => setImagePreview(null)}
+                                        >
+                                            Tutup Preview
+                                        </button>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
-                </div>, document.body
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -2478,22 +2571,26 @@ function DetailGrid({ items }) {
 }
 
 function AttachmentPreview({ file, info, onPreview }) {
-    const url = useMemo(() => {
-        if (!file || !isImageFile(file)) return '';
-        return URL.createObjectURL(file);
-    }, [file]);
+    const [url, setUrl] = useState('');
 
     useEffect(() => {
-        if (!url) return undefined;
-        return () => URL.revokeObjectURL(url);
-    }, [url]);
+        if (!file || !isImageFile(file)) {
+            setUrl('');
+            return undefined;
+        }
+        const objUrl = URL.createObjectURL(file);
+        setUrl(objUrl);
+        return () => {
+            URL.revokeObjectURL(objUrl);
+        };
+    }, [file]);
 
     if (!file) return null;
 
     return (
         <div className="pc-upload-preview">
             {url ? (
-                <img className="pc-upload-thumb" src={url} alt={file.name} onClick={() => onPreview(url)} />
+                <img className="pc-upload-thumb" src={url} alt={file.name} onClick={() => onPreview({ url, name: info?.name || file.name, file })} />
             ) : (
                 <div className="pc-upload-doc"><Paperclip size={20} /></div>
             )}
@@ -2505,28 +2602,32 @@ function AttachmentPreview({ file, info, onPreview }) {
                         : `${formatFileSize(file.size)} - tidak dikompres`}
                 </p>
             </div>
-            {url && <button className="pc-btn-sm n" type="button" onClick={() => onPreview(url)}>Preview</button>}
+            {url && <button className="pc-btn-sm n" type="button" onClick={() => onPreview({ url, name: info?.name || file.name, file })}>Preview</button>}
         </div>
     );
 }
 
 function MultiAttachmentItemPreview({ item, onRemove, onPreview }) {
-    const url = useMemo(() => {
-        if (!item?.file || !isImageFile(item.file)) return '';
-        return URL.createObjectURL(item.file);
-    }, [item?.file]);
-
-    useEffect(() => {
-        if (!url) return undefined;
-        return () => URL.revokeObjectURL(url);
-    }, [url]);
+    const isImage = isImageFile(item?.file) || isImageUrl(item?.name || item?.url);
+    const displayUrl = item?.url;
 
     return (
         <div className="pc-upload-preview" style={{ marginBottom: 0 }}>
-            {url ? (
-                <img className="pc-upload-thumb" src={url} alt={item.name} onClick={() => onPreview(url)} />
+            {isImage && displayUrl ? (
+                <img
+                    className="pc-upload-thumb"
+                    src={displayUrl}
+                    alt={item.name}
+                    onClick={() => onPreview({ url: displayUrl, name: item.name, file: item.file })}
+                />
             ) : (
-                <div className="pc-upload-doc"><Paperclip size={20} /></div>
+                <div
+                    className="pc-upload-doc"
+                    onClick={() => displayUrl && onPreview({ url: displayUrl, name: item.name, file: item.file })}
+                    style={{ cursor: displayUrl ? 'pointer' : 'default' }}
+                >
+                    <Paperclip size={20} />
+                </div>
             )}
             <div className="pc-upload-meta">
                 <p className="pc-upload-name">{item.name}</p>
@@ -2537,8 +2638,12 @@ function MultiAttachmentItemPreview({ item, onRemove, onPreview }) {
                 </p>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {url && (
-                    <button className="pc-btn-sm n" type="button" onClick={() => onPreview(url)}>
+                {displayUrl && (
+                    <button
+                        className="pc-btn-sm n"
+                        type="button"
+                        onClick={() => onPreview({ url: displayUrl, name: item.name, file: item.file })}
+                    >
                         Preview
                     </button>
                 )}
@@ -2620,13 +2725,13 @@ function ExistingAttachmentPreview({ url, label, onPreview }) {
     if (isImageUrl(fullUrl)) {
         return (
             <div className="pc-upload-preview">
-                <img className="pc-upload-thumb" src={fullUrl} alt={label} onClick={() => onPreview(fullUrl)} />
+                <img className="pc-upload-thumb" src={fullUrl} alt={label} onClick={() => onPreview({ url: fullUrl, name: label })} />
                 <div className="pc-upload-meta">
                     <p className="pc-upload-name">{label}</p>
-                    <p className="pc-upload-info">Klik preview untuk melihat foto tanpa membuka tab baru.</p>
+                    <p className="pc-upload-info">Klik preview untuk melihat berkas tanpa membuka tab baru.</p>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <button className="pc-btn-sm n" type="button" onClick={() => onPreview(fullUrl)}>Preview</button>
+                    <button className="pc-btn-sm n" type="button" onClick={() => onPreview({ url: fullUrl, name: label })}>Preview</button>
                     <a href={fullUrl} target="_blank" rel="noreferrer" className="pc-btn-sm n" title="Buka di tab baru">Buka File</a>
                 </div>
             </div>
@@ -2637,6 +2742,7 @@ function ExistingAttachmentPreview({ url, label, onPreview }) {
             <a href={fullUrl} target="_blank" rel="noreferrer" className="pc-form-link" style={{ margin: 0 }}>
                 <Paperclip size={15} /> Lihat {label}
             </a>
+            <button className="pc-btn-sm n" type="button" onClick={() => onPreview({ url: fullUrl, name: label })}>Preview</button>
         </div>
     );
 }
