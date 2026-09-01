@@ -3,6 +3,75 @@
 from django.db import migrations
 
 
+def safe_rename_tables(apps, schema_editor):
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute("SHOW TABLES")
+        existing_tables = {row[0].lower() for row in cursor.fetchall()}
+
+        renames = [
+            ('keuangan_akun', 'keuangan_akun'),
+            ('keuangan_alokasidana', 'keuangan_alokasi_dana'),
+            ('keuangan_alokasidanapemakaian', 'keuangan_alokasi_dana_pemakaian'),
+            ('keuangan_announcement', 'system_announcement'),
+            ('keuangan_announcementread', 'system_announcement_read'),
+            ('keuangan_auditlog', 'system_audit_log'),
+            ('keuangan_depositvendor', 'keuangan_deposit_vendor'),
+            ('keuangan_faktur', 'keuangan_faktur'),
+            ('keuangan_fakturitem', 'keuangan_faktur_item'),
+            ('keuangan_fotolaporanpenggunaan', 'petty_cash_foto_laporan'),
+            ('keuangan_fotolaporanperjalanan', 'driver_foto_laporan'),
+            ('keuangan_fotopettycash', 'petty_cash_foto'),
+            ('keuangan_fotoreimbursement', 'petty_cash_foto_reimbursement'),
+            ('keuangan_idempotencylog', 'system_idempotency_log'),
+            ('keuangan_inventoryasset', 'inventaris_asset'),
+            ('keuangan_inventoryoption', 'inventaris_option'),
+            ('keuangan_itbackuprecord', 'it_backup_record'),
+            ('keuangan_itcredentialnote', 'it_credential_note'),
+            ('keuangan_itremoteaccess', 'it_remote_access'),
+            ('keuangan_itrepairrequest', 'it_repair_request'),
+            ('keuangan_itsubscription', 'it_subscription'),
+            ('keuangan_jurnal', 'keuangan_jurnal'),
+            ('keuangan_jurnalitem', 'keuangan_jurnal_item'),
+            ('keuangan_kendaraan', 'driver_kendaraan'),
+            ('keuangan_laporanpenggunaan', 'petty_cash_laporan_penggunaan'),
+            ('keuangan_laporanperjalanan', 'driver_laporan_perjalanan'),
+            ('keuangan_logbbm', 'driver_log_bbm'),
+            ('keuangan_logistikbarang', 'logistik_barang'),
+            ('keuangan_logistikbatch', 'logistik_batch'),
+            ('keuangan_logistikmutasi', 'logistik_mutasi'),
+            ('keuangan_logistikopname', 'logistik_opname'),
+            ('keuangan_logistikpermintaan', 'logistik_permintaan'),
+            ('keuangan_logmaintenance', 'driver_log_maintenance'),
+            ('keuangan_logperjalanan', 'driver_log_perjalanan'),
+            ('keuangan_pelanggan', 'keuangan_pelanggan'),
+            ('keuangan_pemasok', 'keuangan_pemasok'),
+            ('keuangan_pembayaranfaktur', 'keuangan_pembayaran_faktur'),
+            ('keuangan_pembayarantagihan', 'keuangan_pembayaran_tagihan'),
+            ('pembayaran_utang', 'keuangan_pembayaran_utang'),
+            ('keuangan_pembayaranutang', 'keuangan_pembayaran_utang'),
+            ('keuangan_pengajuanpenambahansaldo', 'petty_cash_pengajuan_saldo'),
+            ('keuangan_pettycash', 'petty_cash'),
+            ('keuangan_reimbursement', 'petty_cash_reimbursement'),
+            ('keuangan_rekeningbank', 'keuangan_rekening_bank'),
+            ('keuangan_riwayatsaldopettycash', 'petty_cash_riwayat_saldo'),
+            ('keuangan_riwayatsaldorekening', 'keuangan_riwayat_saldo_rekening'),
+            ('keuangan_saldopettycash', 'petty_cash_saldo'),
+            ('keuangan_tagihan', 'keuangan_tagihan'),
+            ('keuangan_tagihanitem', 'keuangan_tagihan_item'),
+            ('keuangan_transaksi', 'keuangan_transaksi'),
+            ('utang_supplier', 'keuangan_utang_supplier'),
+            ('keuangan_utangsupplier', 'keuangan_utang_supplier'),
+        ]
+
+        for old_name, new_name in renames:
+            old_lower = old_name.lower()
+            new_lower = new_name.lower()
+            if old_lower != new_lower and old_lower in existing_tables and new_lower not in existing_tables:
+                cursor.execute(f"RENAME TABLE `{old_name}` TO `{new_name}`")
+                existing_tables.remove(old_lower)
+                existing_tables.add(new_lower)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,204 +79,211 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterModelTable(
-            name='akun',
-            table='keuangan_akun',
-        ),
-        migrations.AlterModelTable(
-            name='alokasidana',
-            table='keuangan_alokasi_dana',
-        ),
-        migrations.AlterModelTable(
-            name='alokasidanapemakaian',
-            table='keuangan_alokasi_dana_pemakaian',
-        ),
-        migrations.AlterModelTable(
-            name='announcement',
-            table='system_announcement',
-        ),
-        migrations.AlterModelTable(
-            name='announcementread',
-            table='system_announcement_read',
-        ),
-        migrations.AlterModelTable(
-            name='auditlog',
-            table='system_audit_log',
-        ),
-        migrations.AlterModelTable(
-            name='depositvendor',
-            table='keuangan_deposit_vendor',
-        ),
-        migrations.AlterModelTable(
-            name='faktur',
-            table='keuangan_faktur',
-        ),
-        migrations.AlterModelTable(
-            name='fakturitem',
-            table='keuangan_faktur_item',
-        ),
-        migrations.AlterModelTable(
-            name='fotolaporanpenggunaan',
-            table='petty_cash_foto_laporan',
-        ),
-        migrations.AlterModelTable(
-            name='fotolaporanperjalanan',
-            table='driver_foto_laporan',
-        ),
-        migrations.AlterModelTable(
-            name='fotopettycash',
-            table='petty_cash_foto',
-        ),
-        migrations.AlterModelTable(
-            name='fotoreimbursement',
-            table='petty_cash_foto_reimbursement',
-        ),
-        migrations.AlterModelTable(
-            name='idempotencylog',
-            table='system_idempotency_log',
-        ),
-        migrations.AlterModelTable(
-            name='inventoryasset',
-            table='inventaris_asset',
-        ),
-        migrations.AlterModelTable(
-            name='inventoryoption',
-            table='inventaris_option',
-        ),
-        migrations.AlterModelTable(
-            name='itbackuprecord',
-            table='it_backup_record',
-        ),
-        migrations.AlterModelTable(
-            name='itcredentialnote',
-            table='it_credential_note',
-        ),
-        migrations.AlterModelTable(
-            name='itremoteaccess',
-            table='it_remote_access',
-        ),
-        migrations.AlterModelTable(
-            name='itrepairrequest',
-            table='it_repair_request',
-        ),
-        migrations.AlterModelTable(
-            name='itsubscription',
-            table='it_subscription',
-        ),
-        migrations.AlterModelTable(
-            name='jurnal',
-            table='keuangan_jurnal',
-        ),
-        migrations.AlterModelTable(
-            name='jurnalitem',
-            table='keuangan_jurnal_item',
-        ),
-        migrations.AlterModelTable(
-            name='kendaraan',
-            table='driver_kendaraan',
-        ),
-        migrations.AlterModelTable(
-            name='laporanpenggunaan',
-            table='petty_cash_laporan_penggunaan',
-        ),
-        migrations.AlterModelTable(
-            name='laporanperjalanan',
-            table='driver_laporan_perjalanan',
-        ),
-        migrations.AlterModelTable(
-            name='logbbm',
-            table='driver_log_bbm',
-        ),
-        migrations.AlterModelTable(
-            name='logistikbarang',
-            table='logistik_barang',
-        ),
-        migrations.AlterModelTable(
-            name='logistikbatch',
-            table='logistik_batch',
-        ),
-        migrations.AlterModelTable(
-            name='logistikmutasi',
-            table='logistik_mutasi',
-        ),
-        migrations.AlterModelTable(
-            name='logistikopname',
-            table='logistik_opname',
-        ),
-        migrations.AlterModelTable(
-            name='logistikpermintaan',
-            table='logistik_permintaan',
-        ),
-        migrations.AlterModelTable(
-            name='logmaintenance',
-            table='driver_log_maintenance',
-        ),
-        migrations.AlterModelTable(
-            name='logperjalanan',
-            table='driver_log_perjalanan',
-        ),
-        migrations.AlterModelTable(
-            name='pelanggan',
-            table='keuangan_pelanggan',
-        ),
-        migrations.AlterModelTable(
-            name='pemasok',
-            table='keuangan_pemasok',
-        ),
-        migrations.AlterModelTable(
-            name='pembayaranfaktur',
-            table='keuangan_pembayaran_faktur',
-        ),
-        migrations.AlterModelTable(
-            name='pembayarantagihan',
-            table='keuangan_pembayaran_tagihan',
-        ),
-        migrations.AlterModelTable(
-            name='pembayaranutang',
-            table='keuangan_pembayaran_utang',
-        ),
-        migrations.AlterModelTable(
-            name='pengajuanpenambahansaldo',
-            table='petty_cash_pengajuan_saldo',
-        ),
-        migrations.AlterModelTable(
-            name='pettycash',
-            table='petty_cash',
-        ),
-        migrations.AlterModelTable(
-            name='reimbursement',
-            table='petty_cash_reimbursement',
-        ),
-        migrations.AlterModelTable(
-            name='rekeningbank',
-            table='keuangan_rekening_bank',
-        ),
-        migrations.AlterModelTable(
-            name='riwayatsaldopettycash',
-            table='petty_cash_riwayat_saldo',
-        ),
-        migrations.AlterModelTable(
-            name='riwayatsaldorekening',
-            table='keuangan_riwayat_saldo_rekening',
-        ),
-        migrations.AlterModelTable(
-            name='saldopettycash',
-            table='petty_cash_saldo',
-        ),
-        migrations.AlterModelTable(
-            name='tagihan',
-            table='keuangan_tagihan',
-        ),
-        migrations.AlterModelTable(
-            name='tagihanitem',
-            table='keuangan_tagihan_item',
-        ),
-        migrations.AlterModelTable(
-            name='transaksi',
-            table='keuangan_transaksi',
-        ),
-        migrations.AlterModelTable(
-            name='utangsupplier',
-            table='keuangan_utang_supplier',
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterModelTable(
+                    name='akun',
+                    table='keuangan_akun',
+                ),
+                migrations.AlterModelTable(
+                    name='alokasidana',
+                    table='keuangan_alokasi_dana',
+                ),
+                migrations.AlterModelTable(
+                    name='alokasidanapemakaian',
+                    table='keuangan_alokasi_dana_pemakaian',
+                ),
+                migrations.AlterModelTable(
+                    name='announcement',
+                    table='system_announcement',
+                ),
+                migrations.AlterModelTable(
+                    name='announcementread',
+                    table='system_announcement_read',
+                ),
+                migrations.AlterModelTable(
+                    name='auditlog',
+                    table='system_audit_log',
+                ),
+                migrations.AlterModelTable(
+                    name='depositvendor',
+                    table='keuangan_deposit_vendor',
+                ),
+                migrations.AlterModelTable(
+                    name='faktur',
+                    table='keuangan_faktur',
+                ),
+                migrations.AlterModelTable(
+                    name='fakturitem',
+                    table='keuangan_faktur_item',
+                ),
+                migrations.AlterModelTable(
+                    name='fotolaporanpenggunaan',
+                    table='petty_cash_foto_laporan',
+                ),
+                migrations.AlterModelTable(
+                    name='fotolaporanperjalanan',
+                    table='driver_foto_laporan',
+                ),
+                migrations.AlterModelTable(
+                    name='fotopettycash',
+                    table='petty_cash_foto',
+                ),
+                migrations.AlterModelTable(
+                    name='fotoreimbursement',
+                    table='petty_cash_foto_reimbursement',
+                ),
+                migrations.AlterModelTable(
+                    name='idempotencylog',
+                    table='system_idempotency_log',
+                ),
+                migrations.AlterModelTable(
+                    name='inventoryasset',
+                    table='inventaris_asset',
+                ),
+                migrations.AlterModelTable(
+                    name='inventoryoption',
+                    table='inventaris_option',
+                ),
+                migrations.AlterModelTable(
+                    name='itbackuprecord',
+                    table='it_backup_record',
+                ),
+                migrations.AlterModelTable(
+                    name='itcredentialnote',
+                    table='it_credential_note',
+                ),
+                migrations.AlterModelTable(
+                    name='itremoteaccess',
+                    table='it_remote_access',
+                ),
+                migrations.AlterModelTable(
+                    name='itrepairrequest',
+                    table='it_repair_request',
+                ),
+                migrations.AlterModelTable(
+                    name='itsubscription',
+                    table='it_subscription',
+                ),
+                migrations.AlterModelTable(
+                    name='jurnal',
+                    table='keuangan_jurnal',
+                ),
+                migrations.AlterModelTable(
+                    name='jurnalitem',
+                    table='keuangan_jurnal_item',
+                ),
+                migrations.AlterModelTable(
+                    name='kendaraan',
+                    table='driver_kendaraan',
+                ),
+                migrations.AlterModelTable(
+                    name='laporanpenggunaan',
+                    table='petty_cash_laporan_penggunaan',
+                ),
+                migrations.AlterModelTable(
+                    name='laporanperjalanan',
+                    table='driver_laporan_perjalanan',
+                ),
+                migrations.AlterModelTable(
+                    name='logbbm',
+                    table='driver_log_bbm',
+                ),
+                migrations.AlterModelTable(
+                    name='logistikbarang',
+                    table='logistik_barang',
+                ),
+                migrations.AlterModelTable(
+                    name='logistikbatch',
+                    table='logistik_batch',
+                ),
+                migrations.AlterModelTable(
+                    name='logistikmutasi',
+                    table='logistik_mutasi',
+                ),
+                migrations.AlterModelTable(
+                    name='logistikopname',
+                    table='logistik_opname',
+                ),
+                migrations.AlterModelTable(
+                    name='logistikpermintaan',
+                    table='logistik_permintaan',
+                ),
+                migrations.AlterModelTable(
+                    name='logmaintenance',
+                    table='driver_log_maintenance',
+                ),
+                migrations.AlterModelTable(
+                    name='logperjalanan',
+                    table='driver_log_perjalanan',
+                ),
+                migrations.AlterModelTable(
+                    name='pelanggan',
+                    table='keuangan_pelanggan',
+                ),
+                migrations.AlterModelTable(
+                    name='pemasok',
+                    table='keuangan_pemasok',
+                ),
+                migrations.AlterModelTable(
+                    name='pembayaranfaktur',
+                    table='keuangan_pembayaran_faktur',
+                ),
+                migrations.AlterModelTable(
+                    name='pembayarantagihan',
+                    table='keuangan_pembayaran_tagihan',
+                ),
+                migrations.AlterModelTable(
+                    name='pembayaranutang',
+                    table='keuangan_pembayaran_utang',
+                ),
+                migrations.AlterModelTable(
+                    name='pengajuanpenambahansaldo',
+                    table='petty_cash_pengajuan_saldo',
+                ),
+                migrations.AlterModelTable(
+                    name='pettycash',
+                    table='petty_cash',
+                ),
+                migrations.AlterModelTable(
+                    name='reimbursement',
+                    table='petty_cash_reimbursement',
+                ),
+                migrations.AlterModelTable(
+                    name='rekeningbank',
+                    table='keuangan_rekening_bank',
+                ),
+                migrations.AlterModelTable(
+                    name='riwayatsaldopettycash',
+                    table='petty_cash_riwayat_saldo',
+                ),
+                migrations.AlterModelTable(
+                    name='riwayatsaldorekening',
+                    table='keuangan_riwayat_saldo_rekening',
+                ),
+                migrations.AlterModelTable(
+                    name='saldopettycash',
+                    table='petty_cash_saldo',
+                ),
+                migrations.AlterModelTable(
+                    name='tagihan',
+                    table='keuangan_tagihan',
+                ),
+                migrations.AlterModelTable(
+                    name='tagihanitem',
+                    table='keuangan_tagihan_item',
+                ),
+                migrations.AlterModelTable(
+                    name='transaksi',
+                    table='keuangan_transaksi',
+                ),
+                migrations.AlterModelTable(
+                    name='utangsupplier',
+                    table='keuangan_utang_supplier',
+                ),
+            ],
+            database_operations=[
+                migrations.RunPython(safe_rename_tables, reverse_code=migrations.RunPython.noop),
+            ],
         ),
     ]
