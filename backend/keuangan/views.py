@@ -5487,8 +5487,57 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = f'attachment; filename="Rekap_Utang_Supplier_{today_date}.xlsx"'
-        wb.save(response)
-        return response
+def _handle_petty_cash_payment_realisasi(pembayaran, user):
+    """
+    Jika faktur utang bersumber dari KEUANGAN (Pengisian Kas Kecil / Petty Cash),
+    tambahkan SaldoPettyCash dan catat RiwayatSaldoPettyCash saat pembayaran direalisasikan.
+    """
+    utang = pembayaran.utang
+    if utang.sumber == UtangSupplier.SUMBER_KEUANGAN or utang.kategori == 'PENGISIAN PETTY CASH':
+        nominal_bayar = pembayaran.jumlah_bayar
+        if nominal_bayar and nominal_bayar > 0:
+            saldo = get_or_create_saldo()
+            saldo_sebelum = saldo.saldo
+            saldo.saldo += nominal_bayar
+            saldo.updated_by = user
+            saldo.save()
+
+            RiwayatSaldoPettyCash.objects.create(
+                jenis='penambahan',
+                jumlah=nominal_bayar,
+                saldo_sebelum=saldo_sebelum,
+                saldo_sesudah=saldo.saldo,
+                keterangan=f'Pencairan pengisian saldo kas kecil ({utang.nomor_spb})' + (f' - {utang.keterangan_titip}' if utang.keterangan_titip else ''),
+                created_by=user,
+                nama_pengaju=utang.vendor_nama,
+                unit_pengaju='Keuangan / Kasir Kas Kecil',
+            )
+
+def _handle_petty_cash_payment_batal_realisasi(pembayaran, user):
+    """
+    Jika realisasi pembayaran utang pengisian kas kecil dibatalkan,
+    tarik kembali penambahan saldo dari SaldoPettyCash dan catat pengurangan di riwayat.
+    """
+    utang = pembayaran.utang
+    if utang.sumber == UtangSupplier.SUMBER_KEUANGAN or utang.kategori == 'PENGISIAN PETTY CASH':
+        nominal_bayar = pembayaran.jumlah_bayar
+        if nominal_bayar and nominal_bayar > 0:
+            saldo = get_or_create_saldo()
+            saldo_sebelum = saldo.saldo
+            saldo.saldo -= nominal_bayar
+            saldo.updated_by = user
+            saldo.save()
+
+            RiwayatSaldoPettyCash.objects.create(
+                jenis='pengurangan',
+                jumlah=nominal_bayar,
+                saldo_sebelum=saldo_sebelum,
+                saldo_sesudah=saldo.saldo,
+                keterangan=f'Koreksi pembatalan realisasi pencairan kas kecil ({utang.nomor_spb})',
+                created_by=user,
+                nama_pengaju=utang.vendor_nama,
+                unit_pengaju='Keuangan / Kasir Kas Kecil',
+            )
 
 class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     queryset = PembayaranUtang.objects.select_related('utang', 'created_by').all()
@@ -5578,33 +5627,38 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         
         sisa_sebelumnya = pembayaran.utang.nominal - total_realisasi_lainnya
         
-        if pembayaran.jumlah_bayar >= sisa_sebelumnya:
-            pembayaran.status = PembayaranUtang.STATUS_REALISASI_LUNAS
-        else:
-            pembayaran.status = PembayaranUtang.STATUS_REALISASI_SEBAGIAN
+        with transaction.atomic():
+            if pembayaran.jumlah_bayar >= sisa_sebelumnya:
+                pembayaran.status = PembayaranUtang.STATUS_REALISASI_LUNAS
+            else:
+                pembayaran.status = PembayaranUtang.STATUS_REALISASI_SEBAGIAN
 
-        pembayaran.tanggal_proses = tanggal_realisasi
-        if not pembayaran.tanggal_app:
-            pembayaran.tanggal_app = tanggal_realisasi
-        pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar'])
+            pembayaran.tanggal_proses = tanggal_realisasi
+            if not pembayaran.tanggal_app:
+                pembayaran.tanggal_app = tanggal_realisasi
+            pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar'])
 
-        # Potong terpakai pada DepositVendor jika menggunakan potongan_deposit
-        if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
-            sisa_potong = pembayaran.potongan_deposit
-            active_deposits = DepositVendor.objects.filter(vendor_id=pembayaran.utang.vendor_id).order_by('created_at')
-            for dep in active_deposits:
-                sisa_dep = dep.sisa_deposit
-                if sisa_dep <= 0:
-                    continue
-                potong_dep = min(sisa_potong, sisa_dep)
-                dep.terpakai += potong_dep
-                dep.save(update_fields=['terpakai', 'updated_at'])
-                sisa_potong -= potong_dep
-                if sisa_potong <= 0:
-                    break
+            # Potong terpakai pada DepositVendor jika menggunakan potongan_deposit
+            if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
+                sisa_potong = pembayaran.potongan_deposit
+                active_deposits = DepositVendor.objects.filter(vendor_id=pembayaran.utang.vendor_id).order_by('created_at')
+                for dep in active_deposits:
+                    sisa_dep = dep.sisa_deposit
+                    if sisa_dep <= 0:
+                        continue
+                    potong_dep = min(sisa_potong, sisa_dep)
+                    dep.terpakai += potong_dep
+                    dep.save(update_fields=['terpakai', 'updated_at'])
+                    sisa_potong -= potong_dep
+                    if sisa_potong <= 0:
+                        break
 
-        utang = pembayaran.utang
-        utang.refresh_status()
+            # Jika utang adalah pengisian petty cash, tambahkan saldo kas kecil
+            _handle_petty_cash_payment_realisasi(pembayaran, request.user)
+
+            utang = pembayaran.utang
+            utang.refresh_status()
+
         return Response({
             'pembayaran': PembayaranUtangSerializer(pembayaran, context={'request': request}).data,
             'utang': UtangSupplierSerializer(utang, context={'request': request}).data,
@@ -5651,6 +5705,9 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             pembayaran.keterangan = f"{pembayaran.keterangan or ''} [DIBATALKAN REALISASI]".strip()
             pembayaran.save(update_fields=['status', 'keterangan', 'updated_at'])
             
+            # Jika utang adalah pengisian petty cash, tarik kembali penambahan saldo
+            _handle_petty_cash_payment_batal_realisasi(pembayaran, request.user)
+
             utang.refresh_status()
             
         return Response({
@@ -5709,6 +5766,9 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         sisa_potong -= potong_dep
                         if sisa_potong <= 0:
                             break
+
+                # Jika utang adalah pengisian petty cash, tambahkan saldo kas kecil
+                _handle_petty_cash_payment_realisasi(pembayaran, request.user)
 
                 utang = pembayaran.utang
                 utang.refresh_status()
@@ -6163,23 +6223,6 @@ class UtangMenungguVerifikasiView(APIView):
                 return Response({'error': 'Pengajuan pengisian kembali saldo tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
             
             with transaction.atomic():
-                saldo = get_or_create_saldo()
-                saldo_sebelum = saldo.saldo
-                saldo.saldo += ps.nominal_diajukan
-                saldo.updated_by = request.user
-                saldo.save()
-
-                RiwayatSaldoPettyCash.objects.create(
-                    jenis='penambahan',
-                    jumlah=ps.nominal_diajukan,
-                    saldo_sebelum=saldo_sebelum,
-                    saldo_sesudah=saldo.saldo,
-                    keterangan=f'Pengisian kembali saldo petty cash ({ps.no_pengajuan})' + (f' - {ps.keterangan}' if ps.keterangan else (f' - {ps.alasan}' if ps.alasan else '')),
-                    created_by=request.user,
-                    nama_pengaju=user_display_name(ps.created_by),
-                    unit_pengaju=laporan_unit_label(ps.created_by),
-                )
-
                 utang = UtangSupplier.objects.create(
                     app_siaga_faktur_id=f"KEU-{ps.id}",
                     sumber=UtangSupplier.SUMBER_KEUANGAN,
@@ -6194,7 +6237,7 @@ class UtangMenungguVerifikasiView(APIView):
                     nominal=ps.nominal_diajukan or 0,
                     tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
                     keterangan_titip=request.data.get('keterangan_titip') or ps.keterangan or ps.alasan,
-                    status=UtangSupplier.STATUS_LUNAS,
+                    status=UtangSupplier.STATUS_BELUM_DIBAYAR,
                     verified_by=request.user,
                     verified_at=timezone.now(),
                 )
