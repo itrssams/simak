@@ -594,7 +594,12 @@ export default function CatatanUtangObatBhp() {
 
             if (mode === 'pengajuan') {
                 exportEndpoint = '/keuangan/pembayaran-utang/export-excel/';
-                fileName = `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`;
+                if (selectedPengajuanIds.length > 0) {
+                    activeFilters.ids = selectedPengajuanIds.join(',');
+                    fileName = `Pengajuan_Utang_Terpilih_${selectedPengajuanIds.length}_Faktur_${todayISO()}.xlsx`;
+                } else {
+                    fileName = `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`;
+                }
             } else if (mode === 'aktif') {
                 if (!activeFilters.status) activeFilters.status = 'aktif';
                 exportEndpoint = '/keuangan/utang-supplier/export-excel/';
@@ -1049,6 +1054,15 @@ export default function CatatanUtangObatBhp() {
                                 <button
                                     className="utang-btn primary"
                                     type="button"
+                                    onClick={exportExcel}
+                                    style={{ background: '#0284c7', borderColor: '#0369a1', color: '#ffffff' }}
+                                    title="Export hanya faktur pengajuan yang dicentang ke Excel"
+                                >
+                                    <FileSpreadsheet size={16} /> Export ({selectedPengajuanIds.length}) Terpilih
+                                </button>
+                                <button
+                                    className="utang-btn primary"
+                                    type="button"
                                     onClick={() => {
                                         setBulkRealisasiDate(todayISO());
                                         setShowBulkRealisasiModal(true);
@@ -1060,7 +1074,7 @@ export default function CatatanUtangObatBhp() {
                                 </button>
                             </>
                         )}
-                        {(mode === 'pengajuan' || mode === 'aktif' || mode === 'semua') && (
+                        {(mode === 'aktif' || mode === 'semua' || (mode === 'pengajuan' && selectedPengajuanIds.length === 0)) && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>

@@ -5785,7 +5785,17 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def export_excel(self, request):
         from itertools import groupby
 
-        qs = list(self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by'))
+        qs = self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by')
+        ids_param = request.query_params.get('ids')
+        if ids_param:
+            try:
+                ids = [int(x.strip()) for x in str(ids_param).split(',') if x.strip()]
+                if ids:
+                    qs = qs.filter(id__in=ids)
+            except (ValueError, TypeError):
+                pass
+
+        qs = list(qs)
         # Urutkan berdasarkan vendor_nama
         qs.sort(key=lambda item: (
             (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else '').upper(),
