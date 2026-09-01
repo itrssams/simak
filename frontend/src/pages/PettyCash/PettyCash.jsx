@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
-import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText } from 'lucide-react';
+import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
@@ -9,6 +9,7 @@ import './PettyCash.css';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
+import { AKUN_BIAYA_PETTY_CASH, AKUN_MAP } from './pettyCashAccounts';
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
 const fmtTgl = (s) => s ? new Date(s).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -149,11 +150,49 @@ export default function PettyCash() {
     const [berkasPC, setBerkasPC] = useState(null);
     const [berkasPCInfo, setBerkasPCInfo] = useState(null);
     const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
+    const [laporanItems, setLaporanItems] = useState([
+        { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }
+    ]);
     const [notaFile, setNotaFile] = useState(null);
     const [notaFileInfo, setNotaFileInfo] = useState(null);
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const [approvalLaporanForm, setApprovalLaporanForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const berkasRef = useRef(); const notaRef = useRef();
+
+    const addLaporanItem = () => {
+        setLaporanItems(prev => [...prev, { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+    };
+
+    const updateLaporanItem = (index, field, value) => {
+        setLaporanItems(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            if (field === 'kode_akun') {
+                const acc = AKUN_MAP[value];
+                if (acc) {
+                    next[index].nama_akun = acc.nama;
+                    next[index].pos_biaya = acc.pos;
+                } else {
+                    next[index].nama_akun = '';
+                    next[index].pos_biaya = '';
+                }
+            }
+            return next;
+        });
+    };
+
+    const removeLaporanItem = (index) => {
+        setLaporanItems(prev => {
+            if (prev.length <= 1) {
+                return [{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }];
+            }
+            return prev.filter((_, idx) => idx !== index);
+        });
+    };
+
+    const totalLaporanItems = useMemo(() => {
+        return laporanItems.reduce((sum, it) => sum + (Number(it.nilai) || 0), 0);
+    }, [laporanItems]);
 
     // RB state
     const [listRB, setListRB] = useState([]);
@@ -306,23 +345,48 @@ export default function PettyCash() {
     const handleLaporanPC = async () => {
         setError('');
         const tglLaporan = formLaporan.tanggal_laporan || todayStr();
-        if (!tglLaporan || !formLaporan.tanggal_nota || !formLaporan.nominal_digunakan || !formLaporan.rincian) {
-            return setError('Tanggal laporan, tanggal nota, nominal digunakan, dan rincian penggunaan wajib diisi.');
+        if (!tglLaporan || !formLaporan.tanggal_nota) {
+            return setError('Tanggal laporan dan tanggal nota belanja wajib diisi.');
         }
-        if (Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal)) return setError('Nominal digunakan tidak boleh melebihi dana yang dicairkan.');
+
+        const validItems = laporanItems.filter(it => it.kode_akun && it.deskripsi && it.nilai && Number(it.nilai) > 0);
+        if (validItems.length === 0) {
+            return setError('Minimal harus ada 1 baris rincian belanja dengan Kategori Akun Biaya, Deskripsi, dan Nilai yang valid.');
+        }
+
+        const nominalDigunakan = validItems.reduce((acc, it) => acc + Number(it.nilai), 0);
+        if (nominalDigunakan <= 0) {
+            return setError('Total nominal belanja yang digunakan harus lebih dari Rp 0.');
+        }
+        if (nominalDigunakan > Number(modalLaporan.nominal)) {
+            return setError(`Total nominal digunakan (${fmt(nominalDigunakan)}) melebihi dana dicairkan (${fmt(modalLaporan.nominal)}).`);
+        }
+
+        const rincianText = validItems.map(it => `[${it.kode_akun} ${it.nama_akun}] ${it.deskripsi} (${fmt(it.nilai)})`).join('; ');
+
         setSaving(true);
         try {
             const fd = new FormData();
             fd.append('tanggal_laporan', tglLaporan);
             fd.append('tanggal_nota', formLaporan.tanggal_nota);
-            fd.append('nominal_digunakan', formLaporan.nominal_digunakan);
-            fd.append('rincian', formLaporan.rincian);
+            fd.append('nominal_digunakan', String(nominalDigunakan));
+            fd.append('rincian', rincianText);
+            fd.append('items', JSON.stringify(validItems));
             if (notaFile) fd.append('nota', notaFile);
+
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan berhasil disubmit!');
-            setModalLaporan(null); setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); fetchAll();
-        } catch (e) { setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.'); }
-        finally { setSaving(false); }
+            setModalLaporan(null);
+            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
+            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+            setNotaFile(null);
+            setNotaFileInfo(null);
+            fetchAll();
+        } catch (e) {
+            setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal submit laporan.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleApprovalLaporanPC = async () => {
@@ -779,7 +843,14 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm b" onClick={() => { resetError(); setModalCairkan(item); }}>Cairkan</button>
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm p" onClick={() => { setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' }); setNotaFile(null); setNotaFileInfo(null); resetError(); setModalLaporan(item); }}>Laporan</button>
+                                                        <button className="pc-btn-sm p" onClick={() => {
+                                                            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' });
+                                                            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+                                                            setNotaFile(null);
+                                                            setNotaFileInfo(null);
+                                                            resetError();
+                                                            setModalLaporan(item);
+                                                        }}>Laporan</button>
                                                     )}
                                                     {isDirekturWadir && item.status === 'menunggu_approval_laporan' && (
                                                         <button className="pc-btn-sm g" onClick={() => { setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApprovalLaporan(item); }}>Approve Laporan</button>
@@ -999,7 +1070,46 @@ export default function PettyCash() {
                                     ['Tgl Approval', fmtDT(modalDetail.laporan_disetujui_at)],
                                     ['Dikonfirmasi', modalDetail.laporan.dikonfirmasi_oleh_name || 'Belum'],
                                 ]} />
-                                <InfoBlock label="Rincian Penggunaan" value={modalDetail.laporan.rincian} />
+                                {modalDetail.laporan.items && modalDetail.laporan.items.length > 0 ? (
+                                    <div style={{ marginTop: 12 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                            Rincian Akun Biaya Pengeluaran:
+                                        </p>
+                                        <div className="pc-items-table-wrapper">
+                                            <table className="pc-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '36px', textAlign: 'center' }}>No</th>
+                                                        <th style={{ width: '38%' }}>Akun Biaya</th>
+                                                        <th>Deskripsi Belanja</th>
+                                                        <th style={{ textAlign: 'right', width: '130px' }}>Nilai</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {modalDetail.laporan.items.map((it, idx) => (
+                                                        <tr key={it.id || idx}>
+                                                            <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
+                                                            <td>
+                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                            </td>
+                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style={{ background: '#f8fafc' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalDetail.laporan.nominal_digunakan)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <InfoBlock label="Rincian Penggunaan" value={modalDetail.laporan.rincian} />
+                                )}
                                 {modalDetail.laporan.nota_url && <ExistingAttachmentPreview url={modalDetail.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
                             </ModalSection>
                         )}
@@ -1160,23 +1270,117 @@ export default function PettyCash() {
                                     <DateField value={formLaporan.tanggal_nota} onChange={tanggal_nota => setFormLaporan({ ...formLaporan, tanggal_nota })} placeholder="Pilih tanggal nota..." />
                                 </div>
                             </div>
-                            <div className="pc-field">
-                                <label className="pc-label">Nominal Digunakan (Rp) *</label>
-                                <input className="pc-input" type="number" min="0" max={modalLaporan.nominal} placeholder="0" value={formLaporan.nominal_digunakan} onChange={e => setFormLaporan({ ...formLaporan, nominal_digunakan: e.target.value })} />
-                                {formLaporan.nominal_digunakan && (
-                                    <p style={{ fontSize: 11, marginTop: 3 }}>
-                                        Selisih kembalian: <strong style={{ color: Number(formLaporan.nominal_digunakan) <= Number(modalLaporan.nominal) ? '#166534' : '#dc2626' }}>
-                                            {fmt(Number(modalLaporan.nominal) - Number(formLaporan.nominal_digunakan))}
+
+                            {/* Tabel 3 Kolom: Kategori (Akun Biaya), Deskripsi, Nilai */}
+                            <div style={{ marginTop: 8 }}>
+                                <label className="pc-label" style={{ marginBottom: 6 }}>
+                                    Rincian Pengeluaran Belanja (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span>
+                                </label>
+                                <div className="pc-items-table-wrapper">
+                                    <table className="pc-items-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '38px', textAlign: 'center' }}>No</th>
+                                                <th style={{ width: '36%' }}>Kategori (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th>Deskripsi Belanja <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '160px', textAlign: 'right' }}>Nilai (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '46px', textAlign: 'center' }}>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {laporanItems.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{idx + 1}</td>
+                                                    <td>
+                                                        <select
+                                                            className="pc-input-table"
+                                                            value={item.kode_akun}
+                                                            onChange={(e) => updateLaporanItem(idx, 'kode_akun', e.target.value)}
+                                                            required
+                                                        >
+                                                            <option value="">-- Pilih Akun Biaya --</option>
+                                                            {AKUN_BIAYA_PETTY_CASH.map((group) => (
+                                                                <optgroup key={group.pos} label={group.pos}>
+                                                                    {group.accounts.map((acc) => (
+                                                                        <option key={acc.kode} value={acc.kode}>
+                                                                            {acc.kode} - {acc.nama}
+                                                                        </option>
+                                                                    ))}
+                                                                </optgroup>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="text"
+                                                            className="pc-input-table"
+                                                            placeholder="Contoh: Kertas F4 2 rim & pulpen..."
+                                                            value={item.deskripsi}
+                                                            onChange={(e) => updateLaporanItem(idx, 'deskripsi', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            className="pc-input-table text-right"
+                                                            placeholder="0"
+                                                            value={item.nilai}
+                                                            onChange={(e) => updateLaporanItem(idx, 'nilai', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button
+                                                            type="button"
+                                                            className="pc-btn-delete-row"
+                                                            onClick={() => removeLaporanItem(idx)}
+                                                            title="Hapus baris ini"
+                                                            disabled={laporanItems.length === 1 && !item.kode_akun && !item.deskripsi && !item.nilai}
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-start' }}>
+                                    <button type="button" className="pc-btn-add-item" onClick={addLaporanItem}>
+                                        <Plus size={14} /> Tambah Baris Pengeluaran
+                                    </button>
+                                </div>
+
+                                {/* Summary Kalkulasi Otomatis */}
+                                <div className="pc-report-calc-card">
+                                    <div className="pc-report-calc-row">
+                                        <span>Dana Awal Dicairkan:</span>
+                                        <strong>{fmt(modalLaporan.nominal)}</strong>
+                                    </div>
+                                    <div className="pc-report-calc-row highlight">
+                                        <span>Total Nilai Digunakan (Otomatis):</span>
+                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalLaporanItems)}</strong>
+                                    </div>
+                                    <div className="pc-report-calc-divider" />
+                                    <div className="pc-report-calc-row">
+                                        <span>Sisa Kembalian ke Kasir:</span>
+                                        <strong style={{
+                                            color: (Number(modalLaporan.nominal) - totalLaporanItems) >= 0 ? '#16a34a' : '#dc2626',
+                                            fontSize: '16px'
+                                        }}>
+                                            {fmt(Number(modalLaporan.nominal) - totalLaporanItems)}
                                         </strong>
-                                    </p>
-                                )}
-                                {Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal) && (
-                                    <p style={{ fontSize: 11, color: '#dc2626', marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                        <AlertTriangle size={13} /> Tidak boleh melebihi dana dicairkan.
-                                    </p>
-                                )}
+                                    </div>
+                                    {totalLaporanItems > Number(modalLaporan.nominal) && (
+                                        <div className="pc-report-warn">
+                                            <AlertTriangle size={14} /> Total nilai digunakan melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div className="pc-field"><label className="pc-label">Rincian Penggunaan *</label><textarea className="pc-textarea" style={{ minHeight: 90 }} placeholder="Jelaskan rincian penggunaan dana..." value={formLaporan.rincian} onChange={e => setFormLaporan({ ...formLaporan, rincian: e.target.value })} /></div>
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan">
                             <input ref={notaRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => handleAttachmentChange(e, setNotaFile, setNotaFileInfo)} />
@@ -1185,7 +1389,7 @@ export default function PettyCash() {
                         </ModalSection>
                         <div className="pc-modal-footer">
                             <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setNotaFile(null); setNotaFileInfo(null); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || Number(formLaporan.nominal_digunakan) > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
+                            <button className="pc-btn-primary" onClick={handleLaporanPC} disabled={saving || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}>{saving ? 'Menyimpan...' : 'Submit Laporan'}</button>
                         </div>
                     </div>
                 </div>, document.body
@@ -1232,7 +1436,46 @@ export default function PettyCash() {
                                     <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Selisih / Kembalian</p>
                                     <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
                                 </div>
-                                <InfoBlock label="Rincian Penggunaan" value={modalApprovalLaporan.laporan.rincian} />
+                                {modalApprovalLaporan.laporan.items && modalApprovalLaporan.laporan.items.length > 0 ? (
+                                    <div style={{ marginBottom: 14 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                            Rincian Akun Biaya Pengeluaran:
+                                        </p>
+                                        <div className="pc-items-table-wrapper">
+                                            <table className="pc-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '36px', textAlign: 'center' }}>No</th>
+                                                        <th style={{ width: '38%' }}>Akun Biaya</th>
+                                                        <th>Deskripsi Belanja</th>
+                                                        <th style={{ textAlign: 'right', width: '130px' }}>Nilai</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {modalApprovalLaporan.laporan.items.map((it, idx) => (
+                                                        <tr key={it.id || idx}>
+                                                            <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
+                                                            <td>
+                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                            </td>
+                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style={{ background: '#f8fafc' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <InfoBlock label="Rincian Penggunaan" value={modalApprovalLaporan.laporan.rincian} />
+                                )}
                                 {modalApprovalLaporan.laporan.nota_url && <ExistingAttachmentPreview url={modalApprovalLaporan.laporan.nota_url} label="Nota / Struk" onPreview={setImagePreview} />}
                             </div>
                         )}
@@ -1323,6 +1566,44 @@ export default function PettyCash() {
                                     <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Kembalian ke Kasir</p>
                                     <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalKonfirmasi.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalKonfirmasi.laporan.selisih)}</p>
                                 </div>
+                                {modalKonfirmasi.laporan.items && modalKonfirmasi.laporan.items.length > 0 && (
+                                    <div style={{ marginTop: 12 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                            Rincian Akun Biaya Pengeluaran:
+                                        </p>
+                                        <div className="pc-items-table-wrapper">
+                                            <table className="pc-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '36px', textAlign: 'center' }}>No</th>
+                                                        <th style={{ width: '38%' }}>Akun Biaya</th>
+                                                        <th>Deskripsi Belanja</th>
+                                                        <th style={{ textAlign: 'right', width: '130px' }}>Nilai</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {modalKonfirmasi.laporan.items.map((it, idx) => (
+                                                        <tr key={it.id || idx}>
+                                                            <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
+                                                            <td>
+                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                            </td>
+                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style={{ background: '#f8fafc' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {error && <div className="pc-alert-err">{error}</div>}

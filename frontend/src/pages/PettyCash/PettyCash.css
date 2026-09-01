@@ -2466,5 +2466,197 @@
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
+/* ── TABEL RINCIAN AKUN BIAYA LAPORAN ── */
+.pc-items-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  margin-top: 6px;
+}
+[data-theme="dark"] .pc-items-table-wrapper {
+  border-color: #334155;
+  background: #1e293b;
+}
+
+.pc-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+[data-theme="dark"] .pc-items-table {
+  color: #f1f5f9;
+}
+
+.pc-items-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+[data-theme="dark"] .pc-items-table th {
+  background: #0f172a;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+.pc-items-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+[data-theme="dark"] .pc-items-table td {
+  border-color: #334155;
+}
+
+.pc-items-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pc-input-table {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pc-input-table:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+.pc-input-table.text-right {
+  text-align: right;
+  font-weight: 600;
+}
+[data-theme="dark"] .pc-input-table {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: #475569;
+}
+[data-theme="dark"] .pc-input-table:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.pc-btn-delete-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pc-btn-delete-row:hover:not(:disabled) {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+.pc-btn-delete-row:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pc-btn-add-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pc-btn-add-item:hover {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+[data-theme="dark"] .pc-btn-add-item {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #60a5fa;
+}
+[data-theme="dark"] .pc-btn-add-item:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* Summary kalkulasi di bawah tabel */
+.pc-report-calc-card {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+[data-theme="dark"] .pc-report-calc-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.pc-report-calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #475569;
+  padding: 4px 0;
+}
+[data-theme="dark"] .pc-report-calc-row {
+  color: #94a3b8;
+}
+
+.pc-report-calc-row.highlight {
+  color: #1e293b;
+  font-weight: 600;
+}
+[data-theme="dark"] .pc-report-calc-row.highlight {
+  color: #f1f5f9;
+}
+
+.pc-report-calc-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 6px 0;
+}
+[data-theme="dark"] .pc-report-calc-divider {
+  background: #334155;
+}
+
+.pc-report-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
 
 

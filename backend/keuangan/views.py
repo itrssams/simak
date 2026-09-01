@@ -67,7 +67,7 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
 )
 
 from .serializers import (
@@ -6939,9 +6939,10 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance.save()
         return Response({'message': 'Dana berhasil dicairkan.', 'status': instance.status})
 
-    # POST /{id}/laporan/ — karyawan upload nota + rincian
+    # POST /{id}/laporan/ — karyawan upload nota + rincian akun biaya
     @action(detail=True, methods=['post'], url_path='laporan', parser_classes=[MultiPartParser, FormParser, JSONParser])
     def laporan(self, request, pk=None):
+        import json
         instance = self.get_object()
         if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
             return Response({'error': 'Laporan penggunaan hanya dapat disubmit oleh pemohon.'}, status=403)
@@ -6950,7 +6951,38 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if hasattr(instance, 'laporan'):
             return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
 
-        serializer = LaporanPenggunaanInputSerializer(data=request.data, context={'request': request})
+        # Parse items rincian pengeluaran jika dikirimkan
+        raw_items = request.data.get('items')
+        parsed_items = []
+        if isinstance(raw_items, str):
+            try:
+                parsed_items = json.loads(raw_items)
+            except Exception:
+                parsed_items = []
+        elif isinstance(raw_items, list):
+            parsed_items = raw_items
+
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+
+        # Jika ada parsed_items, hitung otomatis total nominal digunakan jika belum di-set
+        if parsed_items:
+            total_items = Decimal('0')
+            for it in parsed_items:
+                try:
+                    total_items += Decimal(str(it.get('nilai', 0)))
+                except Exception:
+                    pass
+            if total_items > 0:
+                data['nominal_digunakan'] = total_items
+            
+            # Jika rincian kosong, rangkum dari item
+            if not data.get('rincian'):
+                data['rincian'] = "; ".join(
+                    f"[{it.get('kode_akun', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
+                    for it in parsed_items if it.get('deskripsi')
+                )
+
+        serializer = LaporanPenggunaanInputSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
 
         nominal_dicairkan = instance.nominal
@@ -6959,15 +6991,31 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({
                 'error': f'Nominal digunakan tidak boleh melebihi dana yang dicairkan. Maksimal Rp {nominal_dicairkan:,.0f}.'
             }, status=400)
-        selisih           = nominal_dicairkan - nominal_digunakan
+        selisih = nominal_dicairkan - nominal_digunakan
 
-        laporan = serializer.save(petty_cash=instance, selisih=selisih)
+        with transaction.atomic():
+            laporan = serializer.save(petty_cash=instance, selisih=selisih)
 
-        instance.status = 'menunggu_approval_laporan'
-        instance.catatan_tolak = ''
-        instance.laporan_disetujui_oleh = None
-        instance.laporan_disetujui_at = None
-        instance.save()
+            for it in parsed_items:
+                try:
+                    val = Decimal(str(it.get('nilai', 0)))
+                except Exception:
+                    val = Decimal('0')
+                if val > 0 or it.get('deskripsi'):
+                    ItemLaporanPenggunaan.objects.create(
+                        laporan=laporan,
+                        kode_akun=str(it.get('kode_akun') or '').strip(),
+                        nama_akun=str(it.get('nama_akun') or '').strip(),
+                        pos_biaya=str(it.get('pos_biaya') or '').strip(),
+                        deskripsi=str(it.get('deskripsi') or '').strip(),
+                        nilai=val,
+                    )
+
+            instance.status = 'menunggu_approval_laporan'
+            instance.catatan_tolak = ''
+            instance.laporan_disetujui_oleh = None
+            instance.laporan_disetujui_at = None
+            instance.save()
 
         return Response(LaporanPenggunaanSerializer(laporan, context={'request': request}).data, status=status.HTTP_201_CREATED)
 

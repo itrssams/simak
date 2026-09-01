@@ -934,6 +934,24 @@ class LaporanPenggunaan(models.Model):
     def __str__(self):
         return f"Laporan {self.petty_cash.no_pengajuan}"
 
+class ItemLaporanPenggunaan(models.Model):
+    laporan     = models.ForeignKey(LaporanPenggunaan, on_delete=models.CASCADE, related_name='items')
+    kode_akun   = models.CharField(max_length=30)
+    nama_akun   = models.CharField(max_length=150)
+    pos_biaya   = models.CharField(max_length=100, blank=True)
+    deskripsi   = models.TextField()
+    nilai       = models.DecimalField(max_digits=15, decimal_places=2)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'petty_cash_laporan_item'
+        ordering = ['id']
+        verbose_name = 'Item Laporan Penggunaan'
+        verbose_name_plural = 'Item Laporan Penggunaan'
+
+    def __str__(self):
+        return f"{self.kode_akun} - {self.nama_akun}: {self.nilai}"
+
 class Reimbursement(models.Model):
     STATUS_CHOICES = [
         ('pending',    'Pending'),

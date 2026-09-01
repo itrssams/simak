@@ -19,7 +19,7 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
 )
 
 from system.audit import infer_target, make_description, target_display_from_user
@@ -742,9 +742,15 @@ class UpdateSaldoSerializer(serializers.Serializer):
             raise serializers.ValidationError('Saldo tidak boleh negatif.')
         return value
 
+class ItemLaporanPenggunaanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemLaporanPenggunaan
+        fields = ['id', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'nilai', 'created_at']
+
 class LaporanPenggunaanSerializer(serializers.ModelSerializer):
     dikonfirmasi_oleh_name = serializers.CharField(source='dikonfirmasi_oleh.username', read_only=True)
     nota_url               = serializers.SerializerMethodField()
+    items                  = ItemLaporanPenggunaanSerializer(many=True, read_only=True)
 
     class Meta:
         model  = LaporanPenggunaan
@@ -760,6 +766,7 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
             return None
 
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
+    rincian = serializers.CharField(required=False, allow_blank=True, default='')
     class Meta:
         model  = LaporanPenggunaan
         fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'nota']
