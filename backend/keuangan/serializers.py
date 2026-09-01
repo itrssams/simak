@@ -612,6 +612,7 @@ class DepositVendorSerializer(serializers.ModelSerializer):
 class UtangSupplierSerializer(serializers.ModelSerializer):
     vendor_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     verified_by_name = serializers.CharField(source='verified_by.username', read_only=True)
+    dibatalkan_by_name = serializers.CharField(source='dibatalkan_by.username', read_only=True)
     status_label = serializers.CharField(source='get_status_display', read_only=True)
     sumber_label = serializers.CharField(source='get_sumber_display', read_only=True)
     total_dibayar = serializers.DecimalField(max_digits=25, decimal_places=2, read_only=True)
@@ -626,11 +627,13 @@ class UtangSupplierSerializer(serializers.ModelSerializer):
             'nomor_faktur', 'vendor_id', 'vendor_nama', 'kategori', 'tanggal_faktur',
             'tanggal_jatuh_tempo', 'nominal', 'tanggal_titip',
             'keterangan_titip', 'status', 'status_label', 'total_dibayar',
-            'sisa_utang', 'verified_by', 'verified_by_name', 'verified_at',
+            'sisa_utang', 'alasan_batal', 'dibatalkan_by', 'dibatalkan_by_name', 'dibatalkan_at',
+            'verified_by', 'verified_by_name', 'verified_at',
             'pembayaran', 'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'status', 'status_label', 'sumber_label', 'total_dibayar', 'sisa_utang',
+            'alasan_batal', 'dibatalkan_by', 'dibatalkan_by_name', 'dibatalkan_at',
             'verified_by', 'verified_by_name', 'verified_at', 'created_at', 'updated_at',
         ]
 

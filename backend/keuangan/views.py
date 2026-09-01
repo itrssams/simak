@@ -4171,7 +4171,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             qs = qs.filter(kategori__icontains=kategori)
 
         if st == 'aktif':
-            qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+            qs = qs.exclude(status__in=[UtangSupplier.STATUS_LUNAS, UtangSupplier.STATUS_DIBATALKAN])
         elif st and st not in ['semua', 'all']:
             qs = qs.filter(status=st)
 
@@ -4206,6 +4206,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+
+        # Validasi 0: Faktur yang sudah dibatalkan tidak bisa diedit
+        if instance.status == UtangSupplier.STATUS_DIBATALKAN:
+            return Response({'error': 'Faktur yang sudah dibatalkan tidak dapat diedit.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validasi 1: Faktur lunas tidak bisa diedit
         if instance.status == UtangSupplier.STATUS_LUNAS:
@@ -4253,7 +4257,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='summary')
     def summary(self, request):
         qs = self.filter_queryset(self.get_queryset())
-        active_qs = qs.exclude(status=UtangSupplier.STATUS_LUNAS)
+        active_qs = qs.exclude(status__in=[UtangSupplier.STATUS_LUNAS, UtangSupplier.STATUS_DIBATALKAN])
 
         total_nominal = active_qs.aggregate(total=models.Sum('nominal'))['total'] or Decimal('0')
         total_dibayar = PembayaranUtang.objects.filter(
@@ -4265,17 +4269,55 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         total_faktur = qs.count()
         total_lunas_count = qs.filter(status=UtangSupplier.STATUS_LUNAS).count()
+        total_dibatalkan_count = qs.filter(status=UtangSupplier.STATUS_DIBATALKAN).count()
         total_aktif_count = active_qs.count()
 
         return Response({
             'total_faktur': total_faktur,
             'total_lunas_count': total_lunas_count,
+            'total_dibatalkan_count': total_dibatalkan_count,
             'total_aktif_count': total_aktif_count,
             'utang_count': total_aktif_count,
             'total_nominal': total_nominal,
             'total_dibayar': total_dibayar,
             'total_sisa': total_sisa,
         })
+
+    @action(detail=True, methods=['post'], url_path='batalkan')
+    def batalkan(self, request, pk=None):
+        """Membatalkan catatan utang (agar track audit tetap ada tanpa menghapus data)."""
+        instance = self.get_object()
+
+        if instance.status == UtangSupplier.STATUS_DIBATALKAN:
+            return Response({'error': 'Faktur ini sudah dibatalkan sebelumnya.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cek apakah sudah ada pembayaran realisasi
+        has_realisasi = instance.pembayaran.filter(
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
+        ).exists()
+        if has_realisasi or (instance.total_dibayar and instance.total_dibayar > 0):
+            return Response({'error': 'Faktur yang sudah memiliki riwayat pembayaran terealisasi tidak dapat dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        alasan = (request.data.get('alasan') or request.data.get('alasan_batal') or '').strip()
+        if not alasan:
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            # Batalkan otomatis jika ada pembayaran yang masih berstatus pending
+            instance.pembayaran.filter(status=PembayaranUtang.STATUS_PENDING).update(
+                status=PembayaranUtang.STATUS_DITOLAK
+            )
+
+            instance.status = UtangSupplier.STATUS_DIBATALKAN
+            instance.alasan_batal = alasan
+            instance.dibatalkan_by = request.user
+            instance.dibatalkan_at = timezone.now()
+            instance.save(update_fields=['status', 'alasan_batal', 'dibatalkan_by', 'dibatalkan_at', 'updated_at'])
+
+        return Response({
+            'message': f'Faktur {instance.nomor_faktur} berhasil dibatalkan.',
+            'utang': UtangSupplierSerializer(instance, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='create-manual')
     def create_manual(self, request):
@@ -4299,6 +4341,18 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         nomor_faktur = (data.get('nomor_faktur') or '').strip()
         if not nomor_faktur:
             return Response({'error': 'nomor_faktur wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cek apakah nomor faktur + vendor sudah pernah diinput (dan belum dibatalkan)
+        duplicate = UtangSupplier.objects.filter(
+            vendor_id=int(vendor_id),
+            nomor_faktur__iexact=nomor_faktur
+        ).exclude(status=UtangSupplier.STATUS_DIBATALKAN).first()
+
+        if duplicate:
+            nominal_str = f"{float(duplicate.nominal):,.0f}".replace(',', '.')
+            return Response({
+                'error': f"Faktur dengan nomor '{nomor_faktur}' untuk vendor '{vendor_nama}' sudah tercatat di sistem (ID #{duplicate.id}, Nominal: Rp {nominal_str}, Status: {duplicate.get_status_display()}). Jika faktur ini merupakan koreksi/perbaikan, silakan batalkan faktur sebelumnya terlebih dahulu."
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         tgl_faktur = data.get('tanggal_faktur')
         if not tgl_faktur:

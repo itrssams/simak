@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertTriangle,
+    Ban,
     CalendarDays,
     CheckCircle2,
     CheckCheck,
@@ -40,13 +41,14 @@ import { getCount, getResults, pageParams, SimplePagination } from '../../utils/
 import './CatatanUtangObatBhp.css';
 
 const STATUS_OPTIONS = [
-    { value: '', label: 'Semua Status (Termasuk Lunas)' },
+    { value: '', label: 'Semua Status (Termasuk Lunas & Batal)' },
     { value: 'aktif', label: 'Utang Aktif (Belum Lunas Saja)' },
     { value: 'belum_dibayar', label: 'Belum Dibayar' },
     { value: 'diajukan', label: 'Diajukan Pembayaran' },
     { value: 'sebagian', label: 'Bayar Sebagian' },
     { value: 'sebagian_diajukan', label: 'Sebagian Diajukan' },
     { value: 'lunas', label: 'Lunas' },
+    { value: 'dibatalkan', label: 'Dibatalkan' },
 ];
 
 const SUMBER_OPTIONS = [
@@ -268,6 +270,8 @@ export default function CatatanUtangObatBhp() {
     const [editTanggalForm, setEditTanggalForm] = useState({ tanggal_realisasi: todayISO() });
     const [depositData, setDepositData] = useState({ summary: { total_vendor: 0, total_retur: 0, total_terpakai: 0, total_sisa_deposit: 0 }, vendors: [] });
     const [selectedDepositVendor, setSelectedDepositVendor] = useState(null);
+    const [batalTarget, setBatalTarget] = useState(null);
+    const [batalAlasan, setBatalAlasan] = useState('');
 
     const resetFilters = useCallback(() => {
         setFilters({
@@ -919,6 +923,39 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const openBatalkan = (item) => {
+        setBatalTarget(item);
+        setBatalAlasan('');
+    };
+
+    const submitBatalkan = async (event) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        if (!batalTarget) return;
+        if (!batalAlasan || !batalAlasan.trim()) {
+            return toast.error('Alasan pembatalan wajib diisi.');
+        }
+
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/utang-supplier/${batalTarget.id}/batalkan/`, {
+                alasan: batalAlasan.trim(),
+            });
+            toast.success(res.data?.message || 'Faktur berhasil dibatalkan.');
+            setBatalTarget(null);
+            setBatalAlasan('');
+            await fetchSummary();
+            await fetchData();
+        } catch (err) {
+            console.error('Gagal membatalkan faktur:', err);
+            toast.error(errorMessage(err, 'Gagal membatalkan faktur.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (!canAccess) {
         return (
             <div className="utang-page">
@@ -1141,7 +1178,17 @@ export default function CatatanUtangObatBhp() {
                                 onToggleItem={toggleSelectItem} 
                             />
                         )}
-                        {(mode === 'aktif' || mode === 'semua') && <ActiveTable items={items} onPayment={openPayment} onDetail={openDetail} onRetur={openRetur} onEdit={openEdit} onSort={setOrdering} />}
+                        {(mode === 'aktif' || mode === 'semua') && (
+                            <ActiveTable
+                                items={items}
+                                onPayment={openPayment}
+                                onDetail={openDetail}
+                                onRetur={openRetur}
+                                onEdit={openEdit}
+                                onBatalkan={openBatalkan}
+                                onSort={setOrdering}
+                            />
+                        )}
                         {mode === 'pengajuan' && (
                             <PendingSubmissionTable
                                 items={items}
@@ -1482,21 +1529,9 @@ export default function CatatanUtangObatBhp() {
                                 </label>
 
                                 {parseMoneyInput(returForm.nominal_retur) > 0 && (
-                                    <div style={{
-                                        background: parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#fef2f2' : '#f0fdf4',
-                                        border: `1px solid ${parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#fecaca' : '#bbf7d0'}`,
-                                        borderRadius: 8,
-                                        padding: '10px 14px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        fontSize: '13px',
-                                    }}>
-                                        <span style={{ color: '#475569', fontWeight: 600 }}>Sisa Tagihan Setelah Retur:</span>
-                                        <strong style={{
-                                            fontSize: '15px',
-                                            color: parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? '#dc2626' : '#16a34a',
-                                        }}>
+                                    <div className={`utang-retur-calc-box ${parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) ? 'invalid' : 'valid'}`} style={{ marginTop: 6 }}>
+                                        <span>Sisa Tagihan Setelah Retur:</span>
+                                        <strong>
                                             {parseMoneyInput(returForm.nominal_retur) > Number(returTarget.sisa_utang || 0) 
                                                 ? 'Nominal melebihi sisa utang!'
                                                 : money(Math.max(Number(returTarget.sisa_utang || 0) - parseMoneyInput(returForm.nominal_retur), 0))
@@ -1839,6 +1874,21 @@ export default function CatatanUtangObatBhp() {
                             <div className="utang-detail-split-grid">
                                 {/* Left Column: Ringkasan & Informasi Faktur */}
                                 <div className="utang-detail-col-left">
+                                    {detailTarget.status === 'dibatalkan' && (
+                                        <div className="utang-notice-box danger" style={{ marginTop: 0, marginBottom: 16 }}>
+                                            <Ban size={20} className="utang-notice-box-icon" />
+                                            <div className="utang-notice-content">
+                                                <strong className="utang-notice-title">Faktur Telah Dibatalkan</strong>
+                                                <p className="utang-notice-desc">
+                                                    <strong>Alasan:</strong> {detailTarget.alasan_batal || '-'}
+                                                </p>
+                                                <small className="utang-notice-meta">
+                                                    Dibatalkan oleh <strong>{detailTarget.dibatalkan_by_name || '-'}</strong> {detailTarget.dibatalkan_at ? `pada ${new Date(detailTarget.dibatalkan_at).toLocaleString('id-ID')}` : ''}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <section className="utang-payment-section">
                                         <SectionTitle>Ringkasan Faktur</SectionTitle>
                                         <div className="utang-pay-summary">
@@ -2149,6 +2199,74 @@ export default function CatatanUtangObatBhp() {
                 </div>,
                 document.body,
             )}
+
+            {batalTarget && createPortal(
+                <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setBatalTarget(null)}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitBatalkan} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className="utang-modal-head">
+                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}>
+                                <Ban size={20} />
+                            </span>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Batalkan Catatan Utang</h2>
+                                    {batalTarget.sumber && <SumberBadge sumber={batalTarget.sumber} />}
+                                </div>
+                                <p className="utang-modal-head-subtitle">Faktur akan dinonaktifkan tanpa menghapus riwayat audit</p>
+                            </div>
+                            <button className="utang-confirm-close" type="button" onClick={() => setBatalTarget(null)} aria-label="Tutup"><X size={18} /></button>
+                        </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-verify-card">
+                                <div className="utang-verify-row">
+                                    <span className="lbl">Vendor</span>
+                                    <span className="val bold">{batalTarget.vendor_nama || '-'}</span>
+                                </div>
+                                <div className="utang-verify-row">
+                                    <span className="lbl">No. Faktur</span>
+                                    <span className="val mono" style={{ whiteSpace: 'normal', wordBreak: 'break-word', textAlign: 'right' }}>{batalTarget.nomor_faktur || '-'}</span>
+                                </div>
+                                {batalTarget.nomor_spb && (
+                                    <div className="utang-verify-row">
+                                        <span className="lbl">No. SPB</span>
+                                        <span className="val mono">{batalTarget.nomor_spb}</span>
+                                    </div>
+                                )}
+                                <div className="utang-verify-row total">
+                                    <span className="lbl">Nominal Faktur</span>
+                                    <span className="val price">{money(batalTarget.nominal)}</span>
+                                </div>
+                            </div>
+
+                            <div className="utang-notice-box warning">
+                                <AlertTriangle size={18} className="utang-notice-box-icon" />
+                                <div className="utang-notice-content">
+                                    <strong>Perhatian:</strong> Faktur yang dibatalkan tidak akan lagi dihitung dalam total hutang aktif maupun pengajuan pembayaran. Data dan riwayat pencatatan tetap tersimpan demi audit trail pembukuan.
+                                </div>
+                            </div>
+
+                            <div className="utang-field-block" style={{ marginTop: 14 }}>
+                                <label className="utang-field-lbl">Alasan Pembatalan <span className="utang-req">*</span></label>
+                                <textarea
+                                    className="utang-input"
+                                    autoFocus
+                                    rows={3}
+                                    placeholder="Tuliskan alasan pembatalan (contoh: Salah input nominal / Faktur ganda dengan ID #... / Salah vendor)..."
+                                    value={batalAlasan}
+                                    onChange={(e) => setBatalAlasan(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="utang-modal-actions">
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setBatalTarget(null)}>Batal</button>
+                            <button className="utang-btn primary" type="submit" disabled={saving} onClick={submitBatalkan} style={{ background: '#dc2626', borderColor: '#b91c1c' }}>
+                                <Ban size={16} /> {saving ? 'Memproses...' : 'Konfirmasi Batalkan Faktur'}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body,
+            )}
         </div>
     );
 }
@@ -2317,7 +2435,7 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
     );
 }
 
-function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onSort }) {
+function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, onSort }) {
     return (
         <table className="utang-table">
             <thead>
@@ -2336,34 +2454,44 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onSort }) {
                 {items.map((item) => {
                     const isPendingApproval = item.status === 'diajukan' || item.status === 'sebagian_diajukan';
                     const isNoSisa = Number(item.sisa_utang || 0) <= 0;
-                    const isPaymentDisabled = isPendingApproval || isNoSisa;
+                    const isDibatalkan = item.status === 'dibatalkan';
+                    const isPaymentDisabled = isPendingApproval || isNoSisa || isDibatalkan;
                     const canRetur = item.status === 'belum_dibayar' && !isPendingApproval && Number(item.total_dibayar || 0) === 0;
-                    const canEdit = Number(item.total_dibayar || 0) === 0 && item.status !== 'lunas' && !isPendingApproval;
+                    const canEdit = Number(item.total_dibayar || 0) === 0 && item.status !== 'lunas' && !isPendingApproval && !isDibatalkan;
+                    const canBatalkan = item.status !== 'lunas' && !isDibatalkan && Number(item.total_dibayar || 0) === 0;
 
                     return (
-                    <tr key={item.id}>
+                    <tr key={item.id} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
-                            <strong>{item.vendor_nama || '-'}</strong>
+                            <strong style={isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>{item.vendor_nama || '-'}</strong>
                             <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
                         </td>
                         <td>
-                            <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
+                            <strong className="utang-mono" style={isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>{item.nomor_faktur || '-'}</strong>
                             <small className="utang-subtext">Tgl: {dateLabel(item.tanggal_faktur)}</small>
                             {item.tanggal_jatuh_tempo && (
                                 <small className="utang-subtext">Tempo: {dateLabel(item.tanggal_jatuh_tempo)}</small>
                             )}
                         </td>
                         <td>
-                            <strong className="utang-mono">{calcUmurUtang(item.tanggal_titip)}</strong>
-                            {item.tanggal_titip ? (
-                                <small className="utang-subtext">Titip: {dateLabel(item.tanggal_titip)}</small>
+                            {isDibatalkan ? (
+                                <strong className="utang-mono" style={{ opacity: 0.5 }}>—</strong>
                             ) : (
-                                <small className="utang-subtext" style={{ opacity: 0.6 }}>-</small>
+                                <>
+                                    <strong className="utang-mono">{calcUmurUtang(item.tanggal_titip)}</strong>
+                                    {item.tanggal_titip ? (
+                                        <small className="utang-subtext">Titip: {dateLabel(item.tanggal_titip)}</small>
+                                    ) : (
+                                        <small className="utang-subtext" style={{ opacity: 0.6 }}>-</small>
+                                    )}
+                                </>
                             )}
                         </td>
                         <td className="utang-right">
-                            <strong className="utang-mono utang-sisa-main">{money(item.sisa_utang)}</strong>
+                            <strong className="utang-mono utang-sisa-main" style={isDibatalkan ? { color: '#94a3b8', textDecoration: 'line-through' } : undefined}>
+                                {isDibatalkan ? 'Rp 0' : money(item.sisa_utang)}
+                            </strong>
                             <small className="utang-subtext utang-mono">Total: {money(item.nominal)}</small>
                             <small className="utang-subtext utang-mono">Dibayar: {money(item.total_dibayar)}</small>
                         </td>
@@ -2378,7 +2506,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onSort }) {
                         </td>
                         <td className="utang-right">
                             <div className="utang-action-group">
-                                {item.status !== 'lunas' && (
+                                {item.status !== 'lunas' && !isDibatalkan && (
                                     <button
                                         className="utang-action-btn pay"
                                         type="button"
@@ -2407,6 +2535,16 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onSort }) {
                                         title="Input Retur / Potongan Faktur"
                                     >
                                         <RotateCcw size={16} />
+                                    </button>
+                                )}
+                                {canBatalkan && (
+                                    <button
+                                        className="utang-action-btn danger"
+                                        type="button"
+                                        onClick={() => onBatalkan(item)}
+                                        title="Batalkan Catatan Utang / Faktur"
+                                    >
+                                        <Ban size={16} />
                                     </button>
                                 )}
                                 <button

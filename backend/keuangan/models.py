@@ -424,12 +424,14 @@ class UtangSupplier(models.Model):
     STATUS_SEBAGIAN = 'sebagian'
     STATUS_SEBAGIAN_DIAJUKAN = 'sebagian_diajukan'
     STATUS_LUNAS = 'lunas'
+    STATUS_DIBATALKAN = 'dibatalkan'
     STATUS_CHOICES = [
         (STATUS_BELUM_DIBAYAR, 'Belum Dibayar'),
         (STATUS_DIAJUKAN, 'Diajukan'),
         (STATUS_SEBAGIAN, 'Sebagian'),
         (STATUS_SEBAGIAN_DIAJUKAN, 'Sebagian Diajukan'),
         (STATUS_LUNAS, 'Lunas'),
+        (STATUS_DIBATALKAN, 'Dibatalkan'),
     ]
 
     SUMBER_FARMASI = 'farmasi'
@@ -457,6 +459,9 @@ class UtangSupplier(models.Model):
     tanggal_titip = models.DateField(null=True, blank=True)
     keterangan_titip = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_BELUM_DIBAYAR)
+    alasan_batal = models.TextField(blank=True, help_text='Alasan pembatalan catatan utang/faktur')
+    dibatalkan_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='utang_supplier_dibatalkan')
+    dibatalkan_at = models.DateTimeField(null=True, blank=True)
     verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='utang_supplier_verified')
     verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -497,10 +502,15 @@ class UtangSupplier(models.Model):
 
     @property
     def sisa_utang(self):
+        if self.status == self.STATUS_DIBATALKAN:
+            return Decimal('0')
         sisa = self.nominal - self.total_dibayar
         return max(sisa, Decimal('0'))
 
     def refresh_status(self, commit=True):
+        if self.status == self.STATUS_DIBATALKAN:
+            return self.status
+
         total_realisasi = self.total_dibayar if self.pk else Decimal('0')
         total_pending = self.total_pending if self.pk else Decimal('0')
 
