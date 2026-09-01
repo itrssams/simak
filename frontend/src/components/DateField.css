@@ -41,6 +41,9 @@
 .df-popover {
     position: fixed;
     z-index: 2147482900;
+    width: 292px;
+    max-width: calc(100vw - 20px);
+    box-sizing: border-box;
     max-height: calc(100vh - 20px);
     overflow: auto;
     border: 1px solid #e2e8f0;

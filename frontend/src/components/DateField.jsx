@@ -13,7 +13,7 @@ export default function DateField({ value, onChange, disabled = false, placehold
     const popoverRef = useRef(null);
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState(() => strToDate(value));
-    const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+    const [position, setPosition] = useState({ top: 0, left: 0 });
 
     useEffect(() => {
         if (!open) return undefined;
@@ -35,7 +35,7 @@ export default function DateField({ value, onChange, disabled = false, placehold
         const updatePosition = () => {
             const rect = wrapRef.current?.getBoundingClientRect();
             if (!rect) return;
-            const popoverWidth = 284;
+            const popoverWidth = 292;
             const popoverHeight = popoverRef.current?.offsetHeight || 330;
             const gap = 6;
             const viewportPadding = 10;
@@ -48,7 +48,6 @@ export default function DateField({ value, onChange, disabled = false, placehold
             setPosition({
                 top,
                 left: Math.max(viewportPadding, Math.min(rect.left, maxLeft)),
-                width: Math.max(rect.width, 0),
             });
         };
 
@@ -83,7 +82,7 @@ export default function DateField({ value, onChange, disabled = false, placehold
         <div
             ref={popoverRef}
             className="df-popover"
-            style={{ top: position.top, left: position.left, minWidth: position.width }}
+            style={{ top: position.top, left: position.left }}
         >
             <DatePicker
                 inline
