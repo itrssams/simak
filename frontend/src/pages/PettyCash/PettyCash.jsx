@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
-import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
+import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
@@ -11,6 +12,8 @@ import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
 import { AKUN_BIAYA_PETTY_CASH, AKUN_MAP } from './pettyCashAccounts';
 import SearchableAkunBiayaSelect from './SearchableAkunBiayaSelect';
+import KasBesarTab from '../KasBesar/KasBesar';
+import Reimbursement from '../Reimbursement/Reimbursement';
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
 const fmtTgl = (s) => s ? new Date(s).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -107,9 +110,34 @@ export default function PettyCash() {
     const isManajer = user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role);
     const isDirekturWadir = user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role);
     const isPettyCashCashier = user?.is_superuser || Boolean(user?.is_petty_cash_cashier);
-    const canSeeSaldo = isManajer;
+    const canSeeSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
+    const canAjukanSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
+    const canSeeKasBesar = user?.is_superuser || Boolean(user?.akses_kas_besar) || isDirekturWadir || isPettyCashCashier;
+    const canSeeReimbursement = user?.is_superuser || Boolean(user?.akses_reimbursement) || Boolean(user?.is_keuangan) || isManajer || isPettyCashCashier;
 
-    const [activeTab, setActiveTab] = useState('pc');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    const [activeTab, setActiveTab] = useState(() => (tabParam === 'kb' ? 'kb' : tabParam === 'rb' ? 'rb' : 'pc'));
+    const [pendingKB, setPendingKB] = useState(0);
+
+    useEffect(() => {
+        let target = (tabParam && ['pc', 'kb', 'rb'].includes(tabParam)) ? tabParam : 'pc';
+        if (target === 'rb' && !canSeeReimbursement) target = 'pc';
+        if (target === 'kb' && !canSeeKasBesar) target = 'pc';
+        if (target !== activeTab) {
+            setActiveTab(target);
+        }
+    }, [tabParam, activeTab, canSeeReimbursement, canSeeKasBesar]);
+
+    const handleTabChange = (t) => {
+        setActiveTab(t);
+        if (t === 'pc') {
+            setSearchParams({});
+        } else {
+            setSearchParams({ tab: t });
+        }
+    };
+
     const [success, setSuccess] = useToastState('success');
     const [error, setError] = useToastState('error');
     const [saving, setSaving] = useState(false);
@@ -123,6 +151,9 @@ export default function PettyCash() {
     const [modalAjukanSaldo, setModalAjukanSaldo] = useState(false);
     const [modalApprovalSaldo, setModalApprovalSaldo] = useState(null);
     const [formSaldo, setFormSaldo] = useState({ tanggal: '', nominal_diajukan: '', alasan: '' });
+    const [berkasSaldo, setBerkasSaldo] = useState(null);
+    const [berkasSaldoInfo, setBerkasSaldoInfo] = useState(null);
+    const berkasSaldoRef = useRef(null);
     const [formApvSaldo, setFormApvSaldo] = useState({ aksi: 'setujui', nominal_diajukan: '', catatan_tolak: '' });
 
     // PC state
@@ -146,6 +177,8 @@ export default function PettyCash() {
     const [modalRevisi, setModalRevisi] = useState(null);
     const [modalBatal, setModalBatal] = useState(null);
     const [formBatal, setFormBatal] = useState({ alasan: '' });
+    const [modalAlihkanKB, setModalAlihkanKB] = useState(null);
+    const [formAlihkanKB, setFormAlihkanKB] = useState({ nominal_kas_besar: '', keterangan: '' });
 
     const [formPC, setFormPC] = useState({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
     const [berkasPC, setBerkasPC] = useState(null);
@@ -259,6 +292,11 @@ export default function PettyCash() {
             }
             if (canSeeSaldo && results[3]) {
                 setListPenambahan(getResults(results[3].data));
+            }
+            if (canSeeKasBesar) {
+                api.get('/keuangan/kas-besar/', { params: { status: 'pending', page_size: 1 } })
+                    .then(r => setPendingKB(getCount(r.data)))
+                    .catch(() => {});
             }
         } catch (e) { console.error(e); }
         finally { setLoadingPC(false); setLoadingRB(false); }
@@ -455,6 +493,32 @@ export default function PettyCash() {
         }
     };
 
+    const handleAlihkanKB = async () => {
+        setError('');
+        const nom = Number(formAlihkanKB.nominal_kas_besar);
+        if (!nom || nom < 1000000) {
+            return setError('Nominal pengajuan Kas Besar minimal Rp 1.000.000.');
+        }
+        if (!formAlihkanKB.keterangan || !formAlihkanKB.keterangan.trim()) {
+            return setError('Alasan/keterangan pengalihan ke Kas Besar wajib diisi.');
+        }
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/petty-cash/${modalAlihkanKB.id}/alihkan-ke-kas-besar/`, {
+                nominal_kas_besar: nom,
+                keterangan: formAlihkanKB.keterangan.trim()
+            });
+            showSuccess(res.data?.message || 'Petty Cash berhasil dialihkan ke Kas Besar! Pengajuan baru telah dibuat.');
+            setModalAlihkanKB(null);
+            setFormAlihkanKB({ nominal_kas_besar: '', keterangan: '' });
+            fetchAll();
+        } catch (e) {
+            setError(e.response?.data?.error || e.response?.data?.detail || 'Gagal mengalihkan ke Kas Besar.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // Handlers RB
     const handleBuatRB = async () => {
         setError('');
@@ -544,11 +608,26 @@ export default function PettyCash() {
         }
         setSaving(true);
         try {
-            await api.post('/keuangan/penambahan-saldo/', formSaldo);
+            const fd = new FormData();
+            fd.append('tanggal', formSaldo.tanggal);
+            fd.append('nominal_diajukan', formSaldo.nominal_diajukan);
+            fd.append('alasan', formSaldo.alasan.trim());
+            if (berkasSaldo) fd.append('berkas', berkasSaldo);
+
+            await api.post('/keuangan/penambahan-saldo/', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             showSuccess('Pengajuan pengisian kembali saldo berhasil disubmit!');
-            setModalAjukanSaldo(false); setFormSaldo({ tanggal: '', nominal_diajukan: '', alasan: '' }); fetchAll();
-        } catch (e) { setError(e.response?.data?.detail || 'Gagal mengajukan pengisian kembali saldo.'); }
-        finally { setSaving(false); }
+            setModalAjukanSaldo(false);
+            setFormSaldo({ tanggal: '', nominal_diajukan: '', alasan: '' });
+            setBerkasSaldo(null);
+            setBerkasSaldoInfo(null);
+            fetchAll();
+        } catch (e) {
+            setError(e.response?.data?.detail || 'Gagal mengajukan pengisian kembali saldo.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleApprovalSaldo = async () => {
@@ -795,8 +874,8 @@ export default function PettyCash() {
                                         Daftar Pengisian Kembali Saldo
                                         {pendingSaldo > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 800, padding: '2px 7px', lineHeight: 1.4 }}>{pendingSaldo}</span>}
                                     </button>
-                                    {isManajer && (
-                                        <button className="pc-action-dark" onClick={() => { setFormSaldo({ tanggal: '', nominal_diajukan: '', alasan: '' }); resetError(); setModalAjukanSaldo(true); }}>
+                                    {canAjukanSaldo && (
+                                        <button className="pc-action-dark" onClick={() => { setFormSaldo({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' }); setBerkasSaldo(null); setBerkasSaldoInfo(null); resetError(); setModalAjukanSaldo(true); }}>
                                             <Plus size={15} />
                                             Pengisian Kembali
                                         </button>
@@ -862,12 +941,19 @@ export default function PettyCash() {
                         <p className="pc-list-subtitle">Pilih jenis pengajuan, filter data, lalu proses sesuai role Anda.</p>
                     </div>
                     <div className="pc-tabs">
-                        <button className={`pc-tab-pill${activeTab === 'pc' ? ' active' : ''}`} onClick={() => setActiveTab('pc')}>
+                        <button className={`pc-tab-pill${activeTab === 'pc' ? ' active' : ''}`} onClick={() => handleTabChange('pc')}>
                             Petty Cash {pendingPC > 0 && <span className="pc-tab-count">{pendingPC}</span>}
                         </button>
-                        <button className={`pc-tab-pill${activeTab === 'rb' ? ' active' : ''}`} onClick={() => setActiveTab('rb')}>
-                            Reimbursement {pendingRB > 0 && <span className="pc-tab-count">{pendingRB}</span>}
-                        </button>
+                        {canSeeKasBesar && (
+                            <button className={`pc-tab-pill${activeTab === 'kb' ? ' active' : ''}`} onClick={() => handleTabChange('kb')}>
+                                Kas Besar {pendingKB > 0 && <span className="pc-tab-count">{pendingKB}</span>}
+                            </button>
+                        )}
+                        {canSeeReimbursement && (
+                            <button className={`pc-tab-pill${activeTab === 'rb' ? ' active' : ''}`} onClick={() => handleTabChange('rb')}>
+                                Reimbursement {pendingRB > 0 && <span className="pc-tab-count">{pendingRB}</span>}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -929,6 +1015,20 @@ export default function PettyCash() {
                                                             setModalLaporan(item);
                                                         }}>Laporan</button>
                                                     )}
+                                                    {item.status === 'dicairkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
+                                                        <button
+                                                            className="pc-btn-sm y"
+                                                            style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}
+                                                            onClick={() => {
+                                                                resetError();
+                                                                setFormAlihkanKB({ nominal_kas_besar: '', keterangan: '' });
+                                                                setModalAlihkanKB(item);
+                                                            }}
+                                                            title="Alihkan ke Kas Besar jika realisasi belanja membengkak >= Rp 1.000.000"
+                                                        >
+                                                            Alihkan ke KB
+                                                        </button>
+                                                    )}
                                                     {isDirekturWadir && item.status === 'menunggu_approval_laporan' && (
                                                         <button className="pc-btn-sm g" onClick={() => { setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApprovalLaporan(item); }}>Approve Laporan</button>
                                                     )}
@@ -963,81 +1063,12 @@ export default function PettyCash() {
                 </div>
             )}
 
+            {/* ══ TAB KAS BESAR ══ */}
+            {activeTab === 'kb' && <KasBesarTab />}
+
             {/* ══ TAB REIMBURSEMENT ══ */}
-            {activeTab === 'rb' && (
-                <div className="pc-section-card">
-                    <div className="pc-table-titlebar">
-                        <div>
-                            <p className="pc-table-heading">Daftar Reimbursement</p>
-                            <p className="pc-table-subheading">{searchRB ? filteredRB.length : totalRB} pengajuan ditemukan</p>
-                        </div>
-                        <button className="pc-action-primary" onClick={() => {
-                            setFormRB({ tanggal: '', keperluan: '', nominal: '', keterangan: '' });
-                            setBerkasRB(null);
-                            setBerkasRBInfo(null);
-                            resetError();
-                            setModalBuatRB(true);
-                        }}>
-                            <Plus size={16} />
-                            Ajukan Reimbursement
-                        </button>
-                    </div>
-                    <StableFilterBar searchVal={searchRB} onSearch={setSearchRB} statusVal={filterStatusRB} onStatus={setFilterStatusRB}
-                        statusCfg={RB_STATUS} dariVal={filterDariRB} onDari={setFilterDariRB} sampaiVal={filterSampaiRB} onSampai={setFilterSampaiRB}
-                        hasFilter={!!(searchRB || filterStatusRB || filterDariRB || filterSampaiRB)}
-                        onReset={() => { setSearchRB(''); setFilterStatusRB(''); setFilterDariRB(null); setFilterSampaiRB(null); }} />
-
-                    {loadingRB ? <div className="pc-empty-state">Memuat data...</div>
-                        : pagedRB.length === 0 ? <div className="pc-empty-state">Tidak ada data.</div>
-                            : <div className="pc-table-wrap"><table className="pc-table">
-                                <thead><tr>
-                                    <th>No. Reimburse</th><th>Tanggal</th><th>Keperluan</th><th>Nominal</th><th>Status</th><th style={{ textAlign: 'center' }}>Aksi</th>
-                                </tr></thead>
-                                <tbody>
-                                    {pagedRB.map((item, idx) => (
-                                        <tr key={item.id} className="pc-tr" style={{ animationDelay: `${idx * .03}s` }}>
-                                            <td><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1a4731', fontSize: 13 }}>{item.no_reimbursement}</span></td>
-                                            <td style={{ color: '#94a3b8' }}>{fmtTgl(item.tanggal)}</td>
-                                            <td style={{ maxWidth: 200 }}>
-                                                <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.keperluan}</p>
-                                                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.created_by_name}</p>
-                                            </td>
-                                            <td style={{ fontWeight: 700, color: '#1a4731' }}>{fmt(item.nominal)}</td>
-                                            <td><StatusBadge cfg={RB_STATUS} status={item.status} /></td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <div className="pc-action-cell">
-                                                    {isDirekturWadir && item.status === 'pending' && (
-                                                        <button className="pc-btn-sm g" onClick={() => { setApprovalRBForm({ aksi: 'setujui', catatan_tolak: '' }); resetError(); setModalApprovalRB(item); }}>Proses</button>
-                                                    )}
-                                                    {isManajer && item.status === 'disetujui' && (
-                                                        <button className="pc-btn-sm b" onClick={() => { resetError(); setModalCairkanRB(item); }}>Cairkan</button>
-                                                    )}
-                                                    <button className="pc-btn-sm n" onClick={() => setModalDetailRB(item)}>Detail</button>
-                                                    {item.status === 'ditolak' && (item.created_by === user?.id || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm b revision" onClick={() => { setFormRB({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' }); setBerkasRB(null); setBerkasRBInfo(null); resetError(); setModalRevisiRB(item); }}>Revisi</button>
-                                                    )}
-                                                    {item.status !== 'dibatalkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm r" onClick={() => { resetError(); setFormBatalRB({ alasan: '' }); setModalBatalRB(item); }} title="Batalkan Reimbursement">Batal</button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table></div>}
-
-                    {(searchRB ? filteredRB.length : totalRB) > 0 && (
-                        <div className="pc-pagination">
-                            <span className="pc-page-info">Hal {pageRB} dari {totalPagesRB} - {searchRB ? filteredRB.length : totalRB} data</span>
-                            <div className="pc-page-btns">
-                                <RowSizeSelect className="pc-filter-select" value={pageSizeRB} onChange={(size) => { setPageSizeRB(size); setPageRB(1); }} />
-                                <button className="pc-page-btn" onClick={() => setPageRB(p => p - 1)} disabled={pageRB === 1}>&lt;</button>
-                                {renderPages(pageRB, totalPagesRB, setPageRB)}
-                                <button className="pc-page-btn" onClick={() => setPageRB(p => p + 1)} disabled={pageRB === totalPagesRB}>&gt;</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+            {activeTab === 'rb' && canSeeReimbursement && (
+                <Reimbursement isEmbedded={true} />
             )}
 
             </div>
@@ -1221,24 +1252,40 @@ export default function PettyCash() {
             {modalApproval && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <h2 style={S.mt}>Proses Pengajuan</h2>
+                        <div style={{ marginBottom: 18 }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Proses Pengajuan</h2>
+                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>Tinjau dan tentukan persetujuan untuk pengajuan Petty Cash.</p>
+                        </div>
                         <div className="pc-approval-summary">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                <p className="pc-approval-no">{modalApproval.no_pengajuan}</p>
-                                <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalApproval.tanggal)}</span>
+                            <div className="pc-approval-top">
+                                <span className="pc-approval-no">{modalApproval.no_pengajuan}</span>
+                                <span className="pc-approval-date">{fmtTgl(modalApproval.tanggal)}</span>
                             </div>
-                            <p className="pc-approval-amount">{fmt(modalApproval.nominal)}</p>
+                            <div className="pc-approval-amount-row">
+                                <p className="pc-approval-amount">{fmt(modalApproval.nominal)}</p>
+                                <span className="pc-approval-amount-sub">Nominal Pengajuan</span>
+                            </div>
                             <div className="pc-popup-applicant-block">
-                                <div className="pc-popup-applicant-row">
-                                    <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                    <span>Diajukan Oleh: <strong>{modalApproval.created_by_name || '-'}</strong></span>
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">
+                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Pemohon :
+                                    </span>
+                                    <span className="pc-popup-grid-val">
+                                        {modalApproval.created_by_name || '-'}
+                                    </span>
                                 </div>
-                                <div className="pc-popup-desc">
-                                    <strong>Keperluan:</strong> {modalApproval.keperluan}
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">
+                                        <FileText size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keperluan :
+                                    </span>
+                                    <span className="pc-popup-grid-val">{modalApproval.keperluan}</span>
                                 </div>
                                 {modalApproval.keterangan && (
-                                    <div className="pc-popup-keterangan">
-                                        <strong>Keterangan:</strong> {modalApproval.keterangan}
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label">
+                                            <ClipboardList size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keterangan :
+                                        </span>
+                                        <span className="pc-popup-grid-val">{modalApproval.keterangan}</span>
                                     </div>
                                 )}
                             </div>
@@ -1286,25 +1333,40 @@ export default function PettyCash() {
             {modalCairkan && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <h2 style={S.mt}>Cairkan Dana</h2>
-                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                <p style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600, margin: 0 }}>Konfirmasi pencairan dana:</p>
-                                <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalCairkan.tanggal)}</span>
+                        <div style={{ marginBottom: 18 }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Cairkan Dana</h2>
+                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>Konfirmasi pencairan dana kepada pemohon.</p>
+                        </div>
+                        <div className="pc-approval-summary" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                            <div className="pc-approval-top">
+                                <span className="pc-approval-no" style={{ color: '#1d4ed8' }}>{modalCairkan.no_pengajuan}</span>
+                                <span className="pc-approval-date">{fmtTgl(modalCairkan.tanggal)}</span>
                             </div>
-                            <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '4px 0 0' }}>{modalCairkan.no_pengajuan}</p>
-                            <p style={{ fontSize: 22, fontWeight: 700, color: '#1d4ed8', margin: '4px 0 8px' }}>{fmt(modalCairkan.nominal)}</p>
+                            <div className="pc-approval-amount-row">
+                                <p className="pc-approval-amount" style={{ color: '#1d4ed8' }}>{fmt(modalCairkan.nominal)}</p>
+                                <span className="pc-approval-amount-sub" style={{ color: '#3b82f6' }}>Nominal Pencairan</span>
+                            </div>
                             <div className="pc-popup-applicant-block" style={{ borderTopColor: '#bfdbfe' }}>
-                                <div className="pc-popup-applicant-row">
-                                    <User size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-                                    <span>Diajukan Oleh: <strong>{modalCairkan.created_by_name || '-'}</strong></span>
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                        <User size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Pemohon :
+                                    </span>
+                                    <span className="pc-popup-grid-val">
+                                        {modalCairkan.created_by_name || '-'}
+                                    </span>
                                 </div>
-                                <div className="pc-popup-desc">
-                                    <strong>Keperluan:</strong> {modalCairkan.keperluan}
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                        <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Keperluan :
+                                    </span>
+                                    <span className="pc-popup-grid-val">{modalCairkan.keperluan}</span>
                                 </div>
                                 {modalCairkan.keterangan && (
-                                    <div className="pc-popup-keterangan">
-                                        <strong>Keterangan:</strong> {modalCairkan.keterangan}
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                            <ClipboardList size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Keterangan :
+                                        </span>
+                                        <span className="pc-popup-grid-val">{modalCairkan.keterangan}</span>
                                     </div>
                                 )}
                             </div>
@@ -1445,8 +1507,34 @@ export default function PettyCash() {
                                         </strong>
                                     </div>
                                     {totalLaporanItems > Number(modalLaporan.nominal) && (
-                                        <div className="pc-report-warn">
-                                            <AlertTriangle size={14} /> Total nilai digunakan melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
+                                        <div className="pc-report-warn" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <AlertTriangle size={14} /> Total nilai digunakan ({fmt(totalLaporanItems)}) melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
+                                            </div>
+                                            {totalLaporanItems >= 1000000 && (
+                                                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #fde68a', gap: 10 }}>
+                                                    <span style={{ fontSize: 12, color: '#92400e', fontWeight: 500 }}>
+                                                        Kebutuhan belanja membengkak &ge; Rp 1.000.000? Anda dapat mengalihkan pengajuan ini ke Kas Besar.
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className="pc-btn-sm y"
+                                                        style={{ background: '#d97706', color: '#fff', border: 'none', padding: '5px 12px', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                                                        onClick={() => {
+                                                            const target = modalLaporan;
+                                                            setModalLaporan(null);
+                                                            clearNotaList();
+                                                            setFormAlihkanKB({
+                                                                nominal_kas_besar: String(totalLaporanItems),
+                                                                keterangan: `Realisasi belanja membengkak menjadi ${fmt(totalLaporanItems)}`
+                                                            });
+                                                            setModalAlihkanKB(target);
+                                                        }}
+                                                    >
+                                                        Alihkan ke Kas Besar
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1761,6 +1849,72 @@ export default function PettyCash() {
                 </div>, document.body
             )}
 
+            {/* ══ MODAL ALIHKAN KE KAS BESAR ══ */}
+            {modalAlihkanKB && createPortal(
+                <div className="pc-overlay">
+                    <div className="pc-modal sm">
+                        <ModalHeader
+                            icon={<ArrowRightLeft size={18} />}
+                            title="Alihkan ke Kas Besar"
+                            subtitle={`Pengalihan pengajuan ${modalAlihkanKB.no_pengajuan}`}
+                        />
+                        {error && <div className="pc-alert-err">{error}</div>}
+
+                        <div className="pc-form-note" style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#b45309', marginBottom: 14 }}>
+                            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <span>
+                                Fitur ini digunakan jika realisasi belanja membengkak hingga <strong>&ge; Rp 1.000.000</strong>.
+                                Dana Petty Cash yang telah dicairkan (<strong>{fmt(modalAlihkanKB.nominal)}</strong>) harus dikembalikan ke kasir.
+                            </span>
+                        </div>
+
+                        <ModalSummary
+                            label="Dana Petty Cash Dicairkan"
+                            value={fmt(modalAlihkanKB.nominal)}
+                            description={modalAlihkanKB.keperluan}
+                            meta={`Pemohon: ${modalAlihkanKB.created_by_name}`}
+                        />
+
+                        <div className="pc-field" style={{ marginTop: 14 }}>
+                            <label className="pc-label">Nominal Kas Besar Baru (Rp) <span style={{ color: '#dc2626' }}>*</span></label>
+                            <input
+                                className="pc-input"
+                                type="number"
+                                min="1000000"
+                                placeholder="Contoh: 1500000"
+                                value={formAlihkanKB.nominal_kas_besar}
+                                onChange={e => setFormAlihkanKB({ ...formAlihkanKB, nominal_kas_besar: e.target.value })}
+                            />
+                            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                                Nominal Kas Besar minimal Rp 1.000.000
+                            </p>
+                        </div>
+
+                        <div className="pc-field">
+                            <label className="pc-label">Alasan / Keterangan Pengalihan <span style={{ color: '#dc2626' }}>*</span></label>
+                            <textarea
+                                className="pc-textarea"
+                                placeholder="Tuliskan alasan mengapa dana Petty Cash dialihkan ke Kas Besar..."
+                                value={formAlihkanKB.keterangan}
+                                onChange={e => setFormAlihkanKB({ ...formAlihkanKB, keterangan: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="pc-modal-footer">
+                            <button className="pc-btn-ghost" onClick={() => { setModalAlihkanKB(null); resetError(); }}>Batal</button>
+                            <button
+                                className="pc-btn-primary"
+                                onClick={handleAlihkanKB}
+                                disabled={saving || !formAlihkanKB.nominal_kas_besar || Number(formAlihkanKB.nominal_kas_besar) < 1000000 || !formAlihkanKB.keterangan.trim()}
+                            >
+                                {saving ? 'Memproses...' : 'Alihkan ke Kas Besar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
             {/* ════ MODALS REIMBURSEMENT ════ */}
 
             {/* Buat / Revisi RB */}
@@ -1880,24 +2034,40 @@ export default function PettyCash() {
             {modalApprovalRB && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <h2 style={S.mt}>Proses Reimbursement</h2>
+                        <div style={{ marginBottom: 18 }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Proses Reimbursement</h2>
+                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>Tinjau dan tentukan persetujuan untuk reimbursement ini.</p>
+                        </div>
                         <div className="pc-approval-summary">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                <p className="pc-approval-no">{modalApprovalRB.no_reimbursement}</p>
-                                <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalApprovalRB.tanggal)}</span>
+                            <div className="pc-approval-top">
+                                <span className="pc-approval-no">{modalApprovalRB.no_reimbursement}</span>
+                                <span className="pc-approval-date">{fmtTgl(modalApprovalRB.tanggal)}</span>
                             </div>
-                            <p className="pc-approval-amount">{fmt(modalApprovalRB.nominal)}</p>
+                            <div className="pc-approval-amount-row">
+                                <p className="pc-approval-amount">{fmt(modalApprovalRB.nominal)}</p>
+                                <span className="pc-approval-amount-sub">Nominal Reimbursement</span>
+                            </div>
                             <div className="pc-popup-applicant-block">
-                                <div className="pc-popup-applicant-row">
-                                    <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                    <span>Diajukan Oleh: <strong>{modalApprovalRB.created_by_name || '-'}</strong></span>
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">
+                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Pemohon :
+                                    </span>
+                                    <span className="pc-popup-grid-val">
+                                        {modalApprovalRB.created_by_name || '-'}
+                                    </span>
                                 </div>
-                                <div className="pc-popup-desc">
-                                    <strong>Keperluan:</strong> {modalApprovalRB.keperluan}
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">
+                                        <FileText size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keperluan :
+                                    </span>
+                                    <span className="pc-popup-grid-val">{modalApprovalRB.keperluan}</span>
                                 </div>
                                 {modalApprovalRB.keterangan && (
-                                    <div className="pc-popup-keterangan">
-                                        <strong>Keterangan:</strong> {modalApprovalRB.keterangan}
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label">
+                                            <ClipboardList size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keterangan :
+                                        </span>
+                                        <span className="pc-popup-grid-val">{modalApprovalRB.keterangan}</span>
                                     </div>
                                 )}
                             </div>
@@ -1946,25 +2116,40 @@ export default function PettyCash() {
             {modalCairkanRB && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <h2 style={S.mt}>Cairkan Reimbursement</h2>
-                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                <p style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600, margin: 0 }}>Konfirmasi pembayaran reimbursement:</p>
-                                <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalCairkanRB.tanggal)}</span>
+                        <div style={{ marginBottom: 18 }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Cairkan Reimbursement</h2>
+                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>Konfirmasi pembayaran reimbursement kepada pemohon.</p>
+                        </div>
+                        <div className="pc-approval-summary" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                            <div className="pc-approval-top">
+                                <span className="pc-approval-no" style={{ color: '#1d4ed8' }}>{modalCairkanRB.no_reimbursement}</span>
+                                <span className="pc-approval-date">{fmtTgl(modalCairkanRB.tanggal)}</span>
                             </div>
-                            <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '4px 0 0' }}>{modalCairkanRB.no_reimbursement}</p>
-                            <p style={{ fontSize: 22, fontWeight: 700, color: '#1d4ed8', margin: '4px 0 8px' }}>{fmt(modalCairkanRB.nominal)}</p>
+                            <div className="pc-approval-amount-row">
+                                <p className="pc-approval-amount" style={{ color: '#1d4ed8' }}>{fmt(modalCairkanRB.nominal)}</p>
+                                <span className="pc-approval-amount-sub" style={{ color: '#3b82f6' }}>Nominal Reimbursement</span>
+                            </div>
                             <div className="pc-popup-applicant-block" style={{ borderTopColor: '#bfdbfe' }}>
-                                <div className="pc-popup-applicant-row">
-                                    <User size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-                                    <span>Diajukan Oleh: <strong>{modalCairkanRB.created_by_name || '-'}</strong></span>
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                        <User size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Pemohon :
+                                    </span>
+                                    <span className="pc-popup-grid-val">
+                                        {modalCairkanRB.created_by_name || '-'}
+                                    </span>
                                 </div>
-                                <div className="pc-popup-desc">
-                                    <strong>Keperluan:</strong> {modalCairkanRB.keperluan}
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                        <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Keperluan :
+                                    </span>
+                                    <span className="pc-popup-grid-val">{modalCairkanRB.keperluan}</span>
                                 </div>
                                 {modalCairkanRB.keterangan && (
-                                    <div className="pc-popup-keterangan">
-                                        <strong>Keterangan:</strong> {modalCairkanRB.keterangan}
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label" style={{ color: '#1d4ed8' }}>
+                                            <ClipboardList size={14} style={{ color: '#2563eb', flexShrink: 0 }} /> Keterangan :
+                                        </span>
+                                        <span className="pc-popup-grid-val">{modalCairkanRB.keterangan}</span>
                                     </div>
                                 )}
                             </div>
@@ -2102,7 +2287,14 @@ export default function PettyCash() {
                                             <tbody>
                                                 {listPenambahan.map(item => (
                                                     <tr key={item.id}>
-                                                        <td style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1a4731' }}>{item.no_pengajuan}</td>
+                                                        <td style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1a4731' }}>
+                                                            {item.no_pengajuan}
+                                                            {item.berkas && (
+                                                                <a href={item.berkas} target="_blank" rel="noreferrer" title="Lihat Lampiran Rekap" style={{ color: '#0284c7', display: 'inline-flex', alignItems: 'center', marginLeft: 6 }}>
+                                                                    <Paperclip size={13} />
+                                                                </a>
+                                                            )}
+                                                        </td>
                                                         <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
                                                         <td>
                                                             <div className="pc-saldo-actor">
@@ -2251,6 +2443,52 @@ export default function PettyCash() {
                                 onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
                             />
                         </div>
+                        <div className="pc-field">
+                            <label className="pc-label">Lampiran Rekap / Printout Petty Cash (PDF / Foto / Excel)</label>
+                            <input
+                                type="file"
+                                ref={berkasSaldoRef}
+                                style={{ display: 'none' }}
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls"
+                                onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        setBerkasSaldo(file);
+                                        setBerkasSaldoInfo({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB' });
+                                    }
+                                }}
+                            />
+                            {berkasSaldoInfo ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#166534', overflow: 'hidden' }}>
+                                        <FileText size={16} style={{ flexShrink: 0 }} />
+                                        <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{berkasSaldoInfo.name}</span>
+                                        <span style={{ fontSize: 11, color: '#15803d' }}>({berkasSaldoInfo.size})</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                                        onClick={() => {
+                                            setBerkasSaldo(null);
+                                            setBerkasSaldoInfo(null);
+                                            if (berkasSaldoRef.current) berkasSaldoRef.current.value = '';
+                                        }}
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => berkasSaldoRef.current?.click()}
+                                    className="pc-btn-ghost"
+                                    style={{ width: '100%', justifyContent: 'center', border: '1px dashed #cbd5e1', padding: '12px', borderRadius: 8, color: '#64748b' }}
+                                >
+                                    <Paperclip size={15} />
+                                    Pilih Berkas Lampiran / Rekap
+                                </button>
+                            )}
+                        </div>
                         <div className="pc-modal-footer">
                             <button className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
                             <button className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>{saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}</button>
@@ -2306,6 +2544,21 @@ export default function PettyCash() {
                                                 <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Keterangan:</span>
                                                 <p style={{ fontSize: 13, color: '#1e293b', margin: '3px 0 0', lineHeight: 1.5 }}>{modalApprovalSaldo.alasan || '-'}</p>
                                             </div>
+                                            {modalApprovalSaldo.berkas && (
+                                                <div style={{ marginTop: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
+                                                    <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 600 }}>Lampiran Rekap / Bukti:</span>
+                                                    <div style={{ marginTop: 4 }}>
+                                                        <a
+                                                            href={modalApprovalSaldo.berkas}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
+                                                        >
+                                                            <Paperclip size={14} /> Lihat Berkas Lampiran
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {error && <div className="pc-alert-err">{error}</div>}

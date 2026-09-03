@@ -15,6 +15,8 @@ import FakturPelanggan from './pages/Pelanggan/FakturPelanggan';
 import DataPemasok from './pages/Pemasok/DataPemasok';
 import TagihanPemasok from './pages/Pemasok/TagihanPemasok';
 import PettyCash from './pages/PettyCash/PettyCash';
+import Reimbursement from './pages/Reimbursement/Reimbursement';
+import KasBesar from './pages/KasBesar/KasBesar';
 import RekeningBank from './pages/RekeningBank/RekeningBank';
 import ManajemenUser from './pages/Admin/ManajemenUser';
 import LaporanPettyCash from './pages/Laporan/LaporanPettyCash';
@@ -47,6 +49,8 @@ const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
 const isLogistik = (u) => u?.is_superuser || u?.is_logistik || isManajerUp(u);
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
+const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || isDirekturUp(u) || u?.is_petty_cash_cashier;
+const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || u?.is_keuangan || isDirekturUp(u) || u?.is_petty_cash_cashier;
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isManajerUp(u);
 const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
@@ -125,6 +129,8 @@ const AppRoutes = () => {
 
             {/* Semua role */}
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
+            <Route path="/kas-besar" element={<Navigate to="/petty-cash?tab=kb" replace />} />
+            <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
             <Route path="/logbook" element={<ProtectedRoute><MyLogbook /></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}

@@ -8,6 +8,7 @@ const normalize = (value) => String(value || '').toLowerCase().trim();
 export default function SearchablePembiayaanSelect({
     options = [],
     value = '',
+    displayLabel = '',
     onChange,
     placeholder = 'Pilih pembiayaan',
     className = '',
@@ -24,9 +25,10 @@ export default function SearchablePembiayaanSelect({
     const selectedOption = useMemo(() => {
         const found = options.find((item) => String(item.value) === String(value));
         if (found) return found;
+        if (displayLabel) return { value, label: displayLabel };
         if (value) return { value, label: value }; // Fallback to display the raw value if not in options
         return null;
-    }, [options, value]);
+    }, [options, value, displayLabel]);
 
     const filteredOptions = useMemo(() => {
         const needle = normalize(query);

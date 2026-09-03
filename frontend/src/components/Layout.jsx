@@ -56,6 +56,7 @@ const IconConfig = {
     finance: { icon: HandCoins, size: 18 },
     invoice: { icon: ReceiptText, size: 18 },
     debt: { icon: FileClock, size: 18 },
+    kasbesar: { icon: WalletCards, size: 18 },
 };
 
 const renderIcon = (iconKey, overrideSize) => {
@@ -421,11 +422,19 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 5. Petty Cash (sama persis dengan sidebar sebelumnya)
-    if (pathname.startsWith('/petty-cash') || pathname.startsWith('/laporan/petty-cash')) {
+    // 5. Petty Cash & Reimbursement
+    if (pathname.startsWith('/petty-cash') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
+        const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isManajerUp(user) || user?.is_petty_cash_cashier;
+        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isManajerUp(user) || user?.is_petty_cash_cashier;
         const menus = [
             { label: 'Petty Cash', path: '/petty-cash' },
         ];
+        if (canKasBesar) {
+            menus.push({ label: 'Kas Besar', path: '/petty-cash?tab=kb' });
+        }
+        if (canReimbursement) {
+            menus.push({ label: 'Reimbursement', path: '/reimbursement' });
+        }
         if (isManajerUp(user)) {
             menus.push({ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' });
         }
@@ -536,7 +545,7 @@ function TopNavSubmenuItem({ item, location, navigate }) {
     if (item.path.includes('?')) {
         isCurrentActive = (location.pathname + location.search) === item.path;
     } else {
-        isCurrentActive = location.pathname === item.path && (!location.search || location.search === '');
+        isCurrentActive = location.pathname === item.path && (!location.search || location.search === '' || location.search === '?tab=pc');
     }
 
     return (

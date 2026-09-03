@@ -212,7 +212,7 @@ const getDefaultOrdering = (m) => {
     return 'tanggal_titip';
 };
 
-const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at' };
+const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at', tipe_tanggal: 'titip' };
 const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: '', keterangan: '' };
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan: '' };
@@ -230,10 +230,6 @@ export default function CatatanUtangObatBhp() {
 
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
-    const masterVendorOptions = useMemo(() => [
-        { value: '', label: '-- Pilih Vendor Master --' },
-        ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
-    ], [vendors]);
     const [summary, setSummary] = useState(null);
     const [pendingSummary, setPendingSummary] = useState({ count: 0, nominal: 0 });
     const [pendingCount, setPendingCount] = useState(0);
@@ -260,6 +256,22 @@ export default function CatatanUtangObatBhp() {
     const [detailHistory, setDetailHistory] = useState([]);
     const [editTarget, setEditTarget] = useState(null);
     const [editForm, setEditForm] = useState(initialEditForm);
+    const masterVendorOptions = useMemo(() => {
+        const list = [
+            { value: '', label: '-- Pilih Vendor Master --' },
+            ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
+        ];
+        const extraTargets = [editTarget, verifyTarget];
+        for (const target of extraTargets) {
+            if (target?.vendor_id && !list.some((opt) => String(opt.value) === String(target.vendor_id))) {
+                list.push({
+                    value: String(target.vendor_id),
+                    label: target.vendor_nama || `Vendor #${target.vendor_id}`
+                });
+            }
+        }
+        return list;
+    }, [vendors, editTarget, verifyTarget]);
     const [showManual, setShowManual] = useState(false);
     const [manualForm, setManualForm] = useState(initialManualForm);
     const [selectedKeys, setSelectedKeys] = useState([]);
@@ -1330,6 +1342,7 @@ export default function CatatanUtangObatBhp() {
                                     <SearchablePembiayaanSelect
                                         options={masterVendorOptions}
                                         value={verifyForm.vendor_id}
+                                        displayLabel={verifyTarget?.vendor_nama || ''}
                                         onChange={(val) => setVerifyForm({ ...verifyForm, vendor_id: val })}
                                         placeholder="-- Pilih Vendor Master --"
                                         className="utang-vendor-select"
@@ -1800,6 +1813,7 @@ export default function CatatanUtangObatBhp() {
                                     <SearchablePembiayaanSelect
                                         options={masterVendorOptions}
                                         value={editForm.vendor_id}
+                                        displayLabel={editTarget?.vendor_nama || ''}
                                         onChange={(val) => setEditForm({ ...editForm, vendor_id: val })}
                                         placeholder="-- Pilih Vendor --"
                                     />
@@ -2343,10 +2357,32 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                             <option value="-nominal">Nominal Terbesar</option>
                             <option value="nominal">Nominal Terkecil</option>
                         </>
+                    ) : mode === 'histori' ? (
+                        <>
+                            <option value="-tanggal_proses">Tgl Bayar Terbaru</option>
+                            <option value="tanggal_proses">Tgl Bayar Terlama</option>
+                            <option value="-jumlah_bayar">Jumlah Bayar Terbesar</option>
+                            <option value="jumlah_bayar">Jumlah Bayar Terkecil</option>
+                            <option value="vendor">Vendor (A-Z)</option>
+                            <option value="-nomor_faktur">No Faktur (Z-A)</option>
+                            <option value="nomor_faktur">No Faktur (A-Z)</option>
+                        </>
+                    ) : mode === 'pengajuan' ? (
+                        <>
+                            <option value="-created_at">Tgl Pengajuan Terbaru</option>
+                            <option value="created_at">Tgl Pengajuan Terlama</option>
+                            <option value="-tanggal_rencana_bayar">Rencana Bayar Terbaru</option>
+                            <option value="tanggal_rencana_bayar">Rencana Bayar Terlama</option>
+                            <option value="-jumlah_bayar">Nominal Terbesar</option>
+                            <option value="jumlah_bayar">Nominal Terkecil</option>
+                            <option value="vendor">Vendor (A-Z)</option>
+                        </>
                     ) : (
                         <>
                             <option value="tanggal_titip">Tgl Titip Terlama (Umur Utang)</option>
                             <option value="-tanggal_titip">Tgl Titip Terbaru</option>
+                            <option value="-tanggal_bayar">Tgl Pembayaran Terbaru</option>
+                            <option value="tanggal_bayar">Tgl Pembayaran Terlama</option>
                             <option value="-verified_at">Verifikasi Terbaru</option>
                             <option value="-tanggal_faktur">Tgl Faktur Terbaru</option>
                             <option value="tanggal_faktur">Tgl Faktur Terlama</option>
@@ -2356,6 +2392,20 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                         </>
                     )}
                 </select>
+                {(mode === 'aktif' || mode === 'semua') && (
+                    <select
+                        className="dki-select"
+                        value={filters.tipe_tanggal || 'titip'}
+                        onChange={(e) => setFilters({ ...filters, tipe_tanggal: e.target.value })}
+                        title="Pilih jenis tanggal untuk filter rentang periode"
+                        style={{ minWidth: 140 }}
+                    >
+                        <option value="titip">Periode: Tgl Titip</option>
+                        <option value="bayar">Periode: Tgl Bayar</option>
+                        <option value="faktur">Periode: Tgl Faktur</option>
+                        <option value="jatuh_tempo">Periode: Jatuh Tempo</option>
+                    </select>
+                )}
                 <DateRangePicker
                     dari={filters.dari}
                     sampai={filters.sampai}

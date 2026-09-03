@@ -67,7 +67,8 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan, Reimbursement, FotoReimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    KasBesar, LaporanPenggunaanKasBesar, ItemLaporanKasBesar, FotoLaporanKasBesar,
 )
 
 from .serializers import (
@@ -88,6 +89,7 @@ from .serializers import (
     LaporanPenggunaanSerializer, LaporanPenggunaanInputSerializer,
     ReimbursementSerializer, ReimbursementInputSerializer, SaldoPettyCashSerializer, RiwayatSaldoPettyCashSerializer,
     PengajuanPenambahanSaldoSerializer, PengajuanPenambahanSaldoInputSerializer,
+    KasBesarSerializer, KasBesarInputSerializer, LaporanPenggunaanKasBesarSerializer, LaporanPenggunaanKasBesarInputSerializer,
 )
 
 from system.audit import can_view_audit
@@ -126,6 +128,22 @@ def can_access_catatan_utang_obat_bhp(user):
 
 def is_petty_cash_cashier(user):
     return user.is_authenticated and (getattr(user, 'is_petty_cash_cashier', False) or user.is_superuser)
+
+def can_access_kas_besar(user):
+    return user.is_authenticated and (
+        getattr(user, 'akses_kas_besar', False)
+        or is_direktur_or_wadir(user)
+        or is_petty_cash_cashier(user)
+        or user.is_superuser
+    )
+
+def can_access_reimbursement(user):
+    return user.is_authenticated and (
+        getattr(user, 'akses_reimbursement', False)
+        or is_direktur_or_wadir(user)
+        or getattr(user, 'is_keuangan', False)
+        or user.is_superuser
+    )
 
 def is_manajer_keuangan(user):
     return user.is_authenticated and (
@@ -222,6 +240,10 @@ class IsPettyCashSaldoPermission(BasePermission):
 class IsKeuanganOrManajerPermission(BasePermission):
     def has_permission(self, request, view):
         return is_keuangan(request.user) or is_manajer_or_above(request.user)
+
+class IsReimbursementPermission(BasePermission):
+    def has_permission(self, request, view):
+        return can_access_reimbursement(request.user)
 
 
 def _normalize_pembiayaan_name(value):
@@ -1993,10 +2015,9 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
 
 def render_rincian_pdf_response(faktur, mode='rincian'):
     pdf = FPDF('P', 'mm', (330, 216))
+    pdf.alias_nb_pages()
     pdf.set_auto_page_break(False)
     pdf.add_page()
-    print("WIDTH =", pdf.w)
-    print("HEIGHT =", pdf.h)
 
     tanggal = faktur.tanggal or timezone.localdate()
     tgl = f"{tanggal.day:02d}-{tanggal.month:02d}-{tanggal.year}"
@@ -2004,61 +2025,70 @@ def render_rincian_pdf_response(faktur, mode='rincian'):
 
     rows = get_invoice_kunjungan_rows(faktur)
 
-    pdf.set_font('Times', '', 11)
-    pdf.set_x(10)
-    pdf.cell(57, 5, 'LAMPIRAN', 0, 1, 'L')
+    def print_header(is_continuation=False):
+        pdf.set_y(10)
+        pdf.set_font('Times', '', 11)
+        pdf.set_x(10)
+        title_text = 'LAMPIRAN (Lanjutan)' if is_continuation else 'LAMPIRAN'
+        pdf.cell(100, 5, title_text, 0, 0, 'L')
+        pdf.set_x(250)
+        pdf.set_font('Times', 'I', 9)
+        pdf.cell(70, 5, f'Halaman {pdf.page_no()} / {{nb}}', 0, 1, 'R')
 
-    pdf.set_x(10)
-    pdf.cell(195, 5, 'Nomor Invoice', 0, 0, 'L')
-    pdf.set_x(35)
-    pdf.cell(57, 5, f': {no_invoice}', 0, 1, 'L')
+        pdf.set_font('Times', '', 11)
+        pdf.set_x(10)
+        pdf.cell(195, 5, 'Nomor Invoice', 0, 0, 'L')
+        pdf.set_x(35)
+        pdf.cell(57, 5, f': {no_invoice}', 0, 1, 'L')
 
-    pdf.set_x(10)
-    pdf.cell(195, 5, 'Tanggal', 0, 0, 'L')
-    pdf.set_x(35)
-    pdf.cell(57, 5, f': {tgl}', 0, 1, 'L')
+        pdf.set_x(10)
+        pdf.cell(195, 5, 'Tanggal', 0, 0, 'L')
+        pdf.set_x(35)
+        pdf.cell(57, 5, f': {tgl}', 0, 1, 'L')
 
-    pdf.set_font('Times', '', 9)
-    pdf.set_x(10)
-    pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
+        pdf.set_font('Times', '', 9)
+        pdf.set_x(10)
+        pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
 
-    pdf.set_x(10)
-    pdf.cell(10, 5, 'NO.', 0, 0, 'L')
-    pdf.set_x(20)
-    pdf.cell(10, 5, 'NAMA PASIEN', 0, 0, 'L')
-    pdf.set_x(75)
-    pdf.cell(20, 5, 'TANGGAL', 0, 0, 'R')
-    pdf.set_x(95)
-    pdf.cell(20, 5, 'JASA', 0, 0, 'R')
-    pdf.set_x(115)
-    pdf.cell(20, 5, 'TINDAKAN', 0, 0, 'R')
-    pdf.set_x(135)
-    pdf.cell(20, 5, 'FARMASI', 0, 0, 'R')
-    pdf.set_x(158)
-    pdf.cell(15, 5, 'LAB', 0, 0, 'R')
-    pdf.set_x(175)
-    pdf.cell(15, 5, 'RAD', 0, 0, 'R')
-    pdf.set_x(187)
-    pdf.cell(20, 5, 'KAMAR', 0, 0, 'R')
-    pdf.set_x(205)
-    pdf.cell(20, 5, 'BHP', 0, 0, 'R')
-    pdf.set_x(222)
-    pdf.cell(20, 5, 'ALAT', 0, 0, 'R')
-    pdf.set_x(243)
-    pdf.cell(15, 5, 'AMB', 0, 0, 'R')
-    pdf.set_x(255)
-    pdf.cell(20, 5, 'ADM &', 0, 0, 'R')
-    pdf.set_x(277)
-    pdf.cell(20, 5, 'JML BAYAR', 0, 0, 'R')
-    pdf.set_x(300)
-    pdf.cell(20, 5, 'TOTAL', 0, 0, 'R')
-    pdf.ln(4)
-    pdf.set_x(255)
-    pdf.cell(20, 5, 'LAINNYA', 0, 0, 'R')
-    pdf.ln(4)
+        pdf.set_x(10)
+        pdf.cell(10, 5, 'NO.', 0, 0, 'L')
+        pdf.set_x(20)
+        pdf.cell(10, 5, 'NAMA PASIEN', 0, 0, 'L')
+        pdf.set_x(75)
+        pdf.cell(20, 5, 'TANGGAL', 0, 0, 'R')
+        pdf.set_x(95)
+        pdf.cell(20, 5, 'JASA', 0, 0, 'R')
+        pdf.set_x(115)
+        pdf.cell(20, 5, 'TINDAKAN', 0, 0, 'R')
+        pdf.set_x(135)
+        pdf.cell(20, 5, 'FARMASI', 0, 0, 'R')
+        pdf.set_x(158)
+        pdf.cell(15, 5, 'LAB', 0, 0, 'R')
+        pdf.set_x(175)
+        pdf.cell(15, 5, 'RAD', 0, 0, 'R')
+        pdf.set_x(187)
+        pdf.cell(20, 5, 'KAMAR', 0, 0, 'R')
+        pdf.set_x(205)
+        pdf.cell(20, 5, 'BHP', 0, 0, 'R')
+        pdf.set_x(222)
+        pdf.cell(20, 5, 'ALAT', 0, 0, 'R')
+        pdf.set_x(243)
+        pdf.cell(15, 5, 'AMB', 0, 0, 'R')
+        pdf.set_x(255)
+        pdf.cell(20, 5, 'ADM &', 0, 0, 'R')
+        pdf.set_x(277)
+        pdf.cell(20, 5, 'JML BAYAR', 0, 0, 'R')
+        pdf.set_x(300)
+        pdf.cell(20, 5, 'TOTAL', 0, 0, 'R')
+        pdf.ln(4)
+        pdf.set_x(255)
+        pdf.cell(20, 5, 'LAINNYA', 0, 0, 'R')
+        pdf.ln(4)
 
-    pdf.set_x(10)
-    pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
+        pdf.set_x(10)
+        pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
+
+    print_header(is_continuation=False)
 
     totals = {
         'jasa': Decimal('0'),
@@ -2083,6 +2113,10 @@ def render_rincian_pdf_response(faktur, mode='rincian'):
         return f"{Decimal(value or 0):,.{dec}f}"
 
     for idx, row in enumerate(rows, start=1):
+        if pdf.get_y() > 195:
+            pdf.add_page()
+            print_header(is_continuation=True)
+
         nama = str(row.get('nama') or '')
         noreg = str(row.get('noreg') or '')
         if len(nama) > 23:
@@ -2143,6 +2177,11 @@ def render_rincian_pdf_response(faktur, mode='rincian'):
         totals['lainnya'] += lainnya_adm
         totals['jmlbyr'] += d(row, 'jmlbyr')
         totals['ttl'] += d(row, 'ttl')
+
+    needed_bottom_space = 45 if (faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0) else 25
+    if pdf.get_y() > (216 - needed_bottom_space):
+        pdf.add_page()
+        print_header(is_continuation=True)
 
     pdf.set_x(10)
     pdf.cell(310, 5, '-' * 300, 0, 1, 'L')
@@ -2210,6 +2249,7 @@ def render_rincian_pdf_response(faktur, mode='rincian'):
 
 def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
     pdf = FPDF('P', 'mm', (330, 216))
+    pdf.alias_nb_pages()
     pdf.set_auto_page_break(False)
     pdf.add_page()
 
@@ -2219,69 +2259,78 @@ def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
 
     rows = get_invoice_kunjungan_rows(faktur)
 
-    pdf.set_font('Times', '', 11)
-    pdf.set_x(10)
-    pdf.cell(57, 5, 'LAMPIRAN', 0, 1, 'L')
+    def print_header(is_continuation=False):
+        pdf.set_y(10)
+        pdf.set_font('Times', '', 11)
+        pdf.set_x(10)
+        title_text = 'LAMPIRAN (Lanjutan)' if is_continuation else 'LAMPIRAN'
+        pdf.cell(100, 5, title_text, 0, 0, 'L')
+        pdf.set_x(250)
+        pdf.set_font('Times', 'I', 9)
+        pdf.cell(60, 5, f'Halaman {pdf.page_no()} / {{nb}}', 0, 1, 'R')
 
-    pdf.set_x(10)
-    pdf.cell(195, 5, 'Nomor Invoice', 0, 0, 'L')
-    pdf.set_x(35)
-    pdf.cell(57, 5, f': {no_invoice}', 0, 1, 'L')
+        pdf.set_font('Times', '', 11)
+        pdf.set_x(10)
+        pdf.cell(195, 5, 'Nomor Invoice', 0, 0, 'L')
+        pdf.set_x(35)
+        pdf.cell(57, 5, f': {no_invoice}', 0, 1, 'L')
 
-    pdf.set_x(10)
-    pdf.cell(195, 5, 'Tanggal', 0, 0, 'L')
-    pdf.set_x(35)
-    pdf.cell(57, 5, f': {tgl}', 0, 1, 'L')
+        pdf.set_x(10)
+        pdf.cell(195, 5, 'Tanggal', 0, 0, 'L')
+        pdf.set_x(35)
+        pdf.cell(57, 5, f': {tgl}', 0, 1, 'L')
 
-    pdf.set_font('Times', '', 9)
+        pdf.set_font('Times', '', 9)
 
-    pdf.set_x(10)
-    pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
+        pdf.set_x(10)
+        pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
 
-    pdf.set_x(10)
-    pdf.cell(10, 5, 'NO.', 0, 0, 'L')
-    pdf.set_x(20)
-    pdf.cell(10, 5, 'NAMA PASIEN', 0, 0, 'L')
-    pdf.set_x(75)
-    pdf.cell(25, 5, 'TANGGAL', 0, 0, 'R')
-    pdf.set_x(95)
-    pdf.cell(20, 5, 'JASA', 0, 0, 'R')
-    pdf.set_x(115)
-    pdf.cell(20, 5, 'TINDAKAN', 0, 0, 'R')
-    pdf.set_x(135)
-    pdf.cell(20, 5, 'OBAT', 0, 0, 'R')
-    pdf.set_x(163)
-    pdf.cell(9, 5, 'PPN', 0, 0, 'R')
-    pdf.set_x(168)
-    pdf.cell(15, 5, 'EMBA', 0, 0, 'R')
-    pdf.set_x(185)
-    pdf.cell(15, 5, 'LAB', 0, 0, 'R')
-    pdf.set_x(197)
-    pdf.cell(20, 5, 'RAD', 0, 0, 'R')
-    pdf.set_x(215)
-    pdf.cell(20, 5, 'BHP', 0, 0, 'R')
-    pdf.set_x(230)
-    pdf.cell(20, 5, 'ALAT', 0, 0, 'R')
-    pdf.set_x(249)
-    pdf.cell(15, 5, 'AMB', 0, 0, 'R')
-    pdf.set_x(260)
-    pdf.cell(20, 5, 'ADM &', 0, 0, 'R')
-    pdf.set_x(277)
-    pdf.cell(20, 5, 'JUMLAH', 0, 0, 'R')
-    pdf.set_x(300)
-    pdf.cell(20, 5, 'TOTAL', 0, 0, 'R')
-    pdf.ln(4)
+        pdf.set_x(10)
+        pdf.cell(10, 5, 'NO.', 0, 0, 'L')
+        pdf.set_x(20)
+        pdf.cell(10, 5, 'NAMA PASIEN', 0, 0, 'L')
+        pdf.set_x(75)
+        pdf.cell(25, 5, 'TANGGAL', 0, 0, 'R')
+        pdf.set_x(95)
+        pdf.cell(20, 5, 'JASA', 0, 0, 'R')
+        pdf.set_x(115)
+        pdf.cell(20, 5, 'TINDAKAN', 0, 0, 'R')
+        pdf.set_x(135)
+        pdf.cell(20, 5, 'OBAT', 0, 0, 'R')
+        pdf.set_x(163)
+        pdf.cell(9, 5, 'PPN', 0, 0, 'R')
+        pdf.set_x(168)
+        pdf.cell(15, 5, 'EMBA', 0, 0, 'R')
+        pdf.set_x(185)
+        pdf.cell(15, 5, 'LAB', 0, 0, 'R')
+        pdf.set_x(197)
+        pdf.cell(20, 5, 'RAD', 0, 0, 'R')
+        pdf.set_x(215)
+        pdf.cell(20, 5, 'BHP', 0, 0, 'R')
+        pdf.set_x(230)
+        pdf.cell(20, 5, 'ALAT', 0, 0, 'R')
+        pdf.set_x(249)
+        pdf.cell(15, 5, 'AMB', 0, 0, 'R')
+        pdf.set_x(260)
+        pdf.cell(20, 5, 'ADM &', 0, 0, 'R')
+        pdf.set_x(277)
+        pdf.cell(20, 5, 'JUMLAH', 0, 0, 'R')
+        pdf.set_x(300)
+        pdf.cell(20, 5, 'TOTAL', 0, 0, 'R')
+        pdf.ln(4)
 
-    pdf.set_x(152)
-    pdf.cell(20, 5, 'OBAT', 0, 0, 'R')
-    pdf.set_x(260)
-    pdf.cell(20, 5, 'LAINNYA', 0, 0, 'R')
-    pdf.set_x(277)
-    pdf.cell(20, 5, 'BAYAR', 0, 0, 'R')
-    pdf.ln(4)
+        pdf.set_x(152)
+        pdf.cell(20, 5, 'OBAT', 0, 0, 'R')
+        pdf.set_x(260)
+        pdf.cell(20, 5, 'LAINNYA', 0, 0, 'R')
+        pdf.set_x(277)
+        pdf.cell(20, 5, 'BAYAR', 0, 0, 'R')
+        pdf.ln(4)
 
-    pdf.set_x(10)
-    pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
+        pdf.set_x(10)
+        pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
+
+    print_header(is_continuation=False)
 
     totals = {
         'jasa': Decimal('0'),
@@ -2306,6 +2355,10 @@ def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
         return f"{Decimal(value or 0):,.{dec}f}"
 
     for idx, row in enumerate(rows, start=1):
+        if pdf.get_y() > 195:
+            pdf.add_page()
+            print_header(is_continuation=True)
+
         nama = str(row.get('nama') or '')
         noreg = str(row.get('noreg') or '')
 
@@ -2375,6 +2428,11 @@ def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
         totals['jmlbyr'] += d(row, 'jmlbyr')
         totals['ttl'] += d(row, 'ttl')
 
+    needed_bottom_space = 45 if (faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0) else 25
+    if pdf.get_y() > (216 - needed_bottom_space):
+        pdf.add_page()
+        print_header(is_continuation=True)
+
     pdf.set_x(10)
     pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
 
@@ -2410,6 +2468,30 @@ def render_rincian_ppn_pdf_response(faktur, mode='rincian_ppn'):
     pdf.ln(4)
     pdf.set_x(10)
     pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
+
+    if faktur.is_cob and Decimal(faktur.tanggungan_bpjs or 0) > 0:
+        total_real = totals['ttl']
+        tanggungan = Decimal(faktur.tanggungan_bpjs)
+        net_tagihan = max(Decimal('0'), total_real - tanggungan)
+
+        pdf.set_font('Times', 'B', 9)
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'TOTAL BIAYA RIIL RS:', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"Rp. {fmt(total_real, 2)}", 0, 1, 'R')
+
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'DITANGGUNG BPJS (INA-CBGs):', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"- Rp. {fmt(tanggungan, 2)}", 0, 1, 'R')
+
+        pdf.set_x(230)
+        pdf.cell(50, 5, 'NET TAGIHAN ASURANSI:', 0, 0, 'R')
+        pdf.set_x(280)
+        pdf.cell(40, 5, f"Rp. {fmt(net_tagihan, 2)}", 0, 1, 'R')
+
+        pdf.set_x(10)
+        pdf.cell(300, 5, '-' * 292, 0, 1, 'L')
 
     pdf_bytes = bytes(pdf.output(dest='S'))
 
@@ -4007,6 +4089,54 @@ def _build_pending_where_keuangan(params):
         values.append(sampai)
     return ' AND '.join(where), values
 
+def _build_pending_where_kas_besar(params):
+    """WHERE builder untuk Kas Besar."""
+    where = [
+        "t.status IN ('menunggu_realisasi', 'disetujui')",
+        'u.id IS NULL',
+        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))"
+    ]
+    values = []
+    search = (params.get('search') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_pengajuan LIKE %s OR t.keperluan LIKE %s OR usr.first_name LIKE %s OR usr.username LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle])
+    if dari:
+        where.append('t.tanggal >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tanggal <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
+def _build_pending_where_reimbursement(params):
+    """WHERE builder untuk Reimbursement yang telah disetujui pimpinan."""
+    where = [
+        "t.status = 'disetujui'",
+        'u.id IS NULL',
+        "(t.no_reimbursement COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))"
+    ]
+    values = []
+    search = (params.get('search') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_reimbursement LIKE %s OR t.keperluan LIKE %s OR usr.first_name LIKE %s OR usr.username LIKE %s OR kb.no_pengajuan LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle, needle])
+    if dari:
+        where.append('t.tanggal >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tanggal <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
 def _pending_base_sql():
     """FROM clause untuk farmasi — JOIN ke utang_supplier by app_siaga_faktur_id."""
     return """
@@ -4030,6 +4160,23 @@ def _pending_base_sql_keuangan():
         FROM petty_cash_pengajuan_saldo t
         LEFT JOIN users_user usr ON usr.id = t.created_by_id
         LEFT JOIN keuangan_utang_supplier u ON (u.app_siaga_faktur_id = CONCAT('KEU-', t.id) COLLATE utf8mb4_general_ci OR u.nomor_spb = t.no_pengajuan COLLATE utf8mb4_general_ci)
+    """
+
+def _pending_base_sql_kas_besar():
+    """FROM clause untuk Kas Besar."""
+    return """
+        FROM keuangan_kas_besar t
+        LEFT JOIN users_user usr ON usr.id = t.created_by_id
+        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('KBS-', t.id) COLLATE utf8mb4_general_ci
+    """
+
+def _pending_base_sql_reimbursement():
+    """FROM clause untuk Reimbursement — JOIN ke utang_supplier dan kas_besar."""
+    return """
+        FROM petty_cash_reimbursement t
+        LEFT JOIN users_user usr ON usr.id = t.created_by_id
+        LEFT JOIN keuangan_kas_besar kb ON kb.id = t.kas_besar_id
+        LEFT JOIN keuangan_utang_supplier u ON (u.app_siaga_faktur_id = CONCAT('RMB-', t.id) COLLATE utf8mb4_general_ci OR u.nomor_spb = t.no_reimbursement COLLATE utf8mb4_general_ci)
     """
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
@@ -4178,16 +4325,50 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if sumber and sumber not in ['semua', 'all']:
             qs = qs.filter(sumber=sumber)
 
+        tipe_tgl = (params.get('tipe_tanggal') or 'titip').strip()
         if dari:
-            qs = qs.filter(tanggal_titip__gte=dari)
+            if tipe_tgl == 'bayar':
+                qs = qs.filter(
+                    pembayaran__tanggal_proses__gte=dari,
+                    pembayaran__status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur']
+                ).distinct()
+            elif tipe_tgl == 'faktur':
+                qs = qs.filter(tanggal_faktur__gte=dari)
+            elif tipe_tgl == 'jatuh_tempo':
+                qs = qs.filter(tanggal_jatuh_tempo__gte=dari)
+            else:
+                qs = qs.filter(tanggal_titip__gte=dari)
 
         if sampai:
-            qs = qs.filter(tanggal_titip__lte=sampai)
+            if tipe_tgl == 'bayar':
+                qs = qs.filter(
+                    pembayaran__tanggal_proses__lte=sampai,
+                    pembayaran__status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur']
+                ).distinct()
+            elif tipe_tgl == 'faktur':
+                qs = qs.filter(tanggal_faktur__lte=sampai)
+            elif tipe_tgl == 'jatuh_tempo':
+                qs = qs.filter(tanggal_jatuh_tempo__lte=sampai)
+            else:
+                qs = qs.filter(tanggal_titip__lte=sampai)
 
-        if ordering:
+        if ordering in ['-tanggal_bayar', 'tanggal_bayar']:
+            from django.db.models import Max
+            qs = qs.annotate(
+                latest_tgl_bayar=Max(
+                    'pembayaran__tanggal_proses',
+                    filter=models.Q(pembayaran__status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur'])
+                )
+            )
+            if ordering == '-tanggal_bayar':
+                qs = qs.order_by(models.F('latest_tgl_bayar').desc(nulls_last=True), '-verified_at')
+            else:
+                qs = qs.order_by(models.F('latest_tgl_bayar').asc(nulls_last=True), '-verified_at')
+        elif ordering:
             allowed_ordering = [
                 'tanggal_titip', '-tanggal_titip',
                 'tanggal_faktur', '-tanggal_faktur',
+                'tanggal_jatuh_tempo', '-tanggal_jatuh_tempo',
                 'verified_at', '-verified_at',
                 'vendor_nama', '-vendor_nama',
                 'nominal', '-nominal',
@@ -4233,7 +4414,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         vendor_id = data.get('vendor_id')
         if vendor_id:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N' LIMIT 1", [vendor_id])
+                cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1", [vendor_id])
                 row = cursor.fetchone()
                 if row:
                     data['vendor_nama'] = row[0]
@@ -4330,7 +4511,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         # Ambil nama vendor dari rssams.rekanan
         vendor_nama = ''
         with connection.cursor() as cursor:
-            cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N'", [vendor_id])
+            cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1", [vendor_id])
             row = cursor.fetchone()
             if row:
                 vendor_nama = row[0]
@@ -5373,6 +5554,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def export_excel(self, request):
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from collections import defaultdict
 
         qs = self.filter_queryset(self.get_queryset())
         
@@ -5381,7 +5563,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws.title = "Daftar Utang Supplier"
 
         ws.merge_cells('A1:O1')
-        ws['A1'] = 'REKAP DAFTAR UTANG SUPPLIER (OBAT, BHP & LOGISTIK)'
+        ws['A1'] = 'REKAP DAFTAR UTANG SUPPLIER'
         ws['A1'].font = Font(bold=True, size=14, color='1E293B')
         ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
 
@@ -5399,12 +5581,19 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         header_row = 4
         header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
         header_font = Font(bold=True, color='FFFFFF')
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
 
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=header_row, column=col_num)
             cell.fill = header_fill
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = thin_border
 
         today_date = timezone.localdate()
         tot_nom = 0.0
@@ -5424,6 +5613,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             for p in pays:
                 pay_map[p['utang_id']] = float(p['total'] or 0)
 
+        # Koleksi statistik per kategori
+        cat_stats = defaultdict(lambda: {'count': 0, 'nominal': 0.0, 'dibayar': 0.0, 'sisa': 0.0})
+
         for idx, u in enumerate(utang_list, 1):
             nom = float(u.nominal or 0)
             byr = pay_map.get(u.id, 0.0)
@@ -5432,6 +5624,25 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             tot_byr += byr
             tot_sisa += sisa
 
+            kat_raw = (u.kategori or '').strip().upper()
+            if kat_raw.startswith('PELAYANAN RUJUKAN'):
+                kat_label = 'PELAYANAN RUJUKAN DAN LABORATORIUM'
+            elif kat_raw.startswith('PENUNJANG PELAYANAN'):
+                kat_label = 'PENUNJANG PELAYANAN RS'
+            elif kat_raw.startswith('BIAYA ATK'):
+                kat_label = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.'
+            elif kat_raw.startswith('BIAYA RUTIN JASA PEL'):
+                kat_label = 'BIAYA RUTIN JASA PELAYANAN DLL'
+            elif kat_raw.startswith('IURAN BPJS'):
+                kat_label = 'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN'
+            else:
+                kat_label = kat_raw or 'TANPA KATEGORI'
+
+            cat_stats[kat_label]['count'] += 1
+            cat_stats[kat_label]['nominal'] += nom
+            cat_stats[kat_label]['dibayar'] += byr
+            cat_stats[kat_label]['sisa'] += sisa
+
             umur_str = f"{max(0, (today_date - u.tanggal_titip).days)} Hari" if u.tanggal_titip else '-'
             status_lbl = dict(UtangSupplier.STATUS_CHOICES).get(u.status, u.status)
 
@@ -5439,7 +5650,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 idx,
                 u.get_sumber_display(),
                 u.vendor_nama,
-                u.kategori or '-',
+                kat_label if kat_label != 'TANPA KATEGORI' else '-',
                 u.nomor_spb or '-',
                 u.nomor_faktur or '-',
                 u.tanggal_spb.strftime('%d-%m-%Y') if u.tanggal_spb else '-',
@@ -5453,46 +5664,249 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 status_lbl,
             ])
 
+            row_i = ws.max_row
+            ws.cell(row=row_i, column=12).number_format = '#,##0.00'
+            ws.cell(row=row_i, column=13).number_format = '#,##0.00'
+            ws.cell(row=row_i, column=14).number_format = '#,##0.00'
+
+        # Baris Grand Total Tabel Utama
         total_row_idx = ws.max_row + 1
-        ws.cell(row=total_row_idx, column=1, value='TOTAL')
+        ws.cell(row=total_row_idx, column=1, value='GRAND TOTAL')
         ws.merge_cells(start_row=total_row_idx, start_column=1, end_row=total_row_idx, end_column=11)
         ws.cell(row=total_row_idx, column=12, value=tot_nom)
         ws.cell(row=total_row_idx, column=13, value=tot_byr)
         ws.cell(row=total_row_idx, column=14, value=tot_sisa)
 
-        total_fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
-        total_font = Font(bold=True, color='0F172A')
+        total_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        total_font = Font(bold=True, color='FFFFFF')
 
         for c_idx in range(1, 16):
             c = ws.cell(row=total_row_idx, column=c_idx)
             c.fill = total_fill
             c.font = total_font
+            c.border = thin_border
             if c_idx in (12, 13, 14):
                 c.number_format = '#,##0.00'
                 c.alignment = Alignment(horizontal='right', vertical='center')
             else:
                 c.alignment = Alignment(horizontal='center', vertical='center')
 
-        ws.auto_filter.ref = f'A4:O{ws.max_row}'
+        # ─────────────────────────────────────────────────────────────
+        # TABEL RINGKASAN TOTAL PER KATEGORI (Di Bawah Tabel Utama)
+        # ─────────────────────────────────────────────────────────────
+        sum_title_row = total_row_idx + 3
+        ws.cell(row=sum_title_row, column=1, value='RINGKASAN TOTAL PER KATEGORI')
+        ws.cell(row=sum_title_row, column=1).font = Font(bold=True, size=12, color='0F172A')
+        ws.merge_cells(start_row=sum_title_row, start_column=1, end_row=sum_title_row, end_column=7)
+
+        cat_header_row = sum_title_row + 1
+        cat_headers = ['No', 'Kategori', 'Jumlah Faktur', 'Total Nominal Faktur (Rp)', 'Total Sudah Dibayar (Rp)', 'Total Sisa Utang (Rp)', '% Dari Total Sisa']
+        
+        cat_head_fill = PatternFill(start_color='0F766E', end_color='0F766E', fill_type='solid')
+        for c_idx, h_text in enumerate(cat_headers, 1):
+            c = ws.cell(row=cat_header_row, column=c_idx, value=h_text)
+            c.fill = cat_head_fill
+            c.font = Font(bold=True, color='FFFFFF')
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            c.border = thin_border
+
+        cur_row = cat_header_row + 1
+        cat_num = 1
+        for kat_name, stats in sorted(cat_stats.items(), key=lambda x: x[1]['nominal'], reverse=True):
+            pct_sisa = (stats['sisa'] / tot_sisa * 100.0) if tot_sisa > 0 else 0.0
+            
+            c_no = ws.cell(row=cur_row, column=1, value=cat_num)
+            c_no.alignment = Alignment(horizontal='center', vertical='center')
+            
+            c_kat = ws.cell(row=cur_row, column=2, value=kat_name)
+            c_kat.alignment = Alignment(horizontal='left', vertical='center')
+            c_kat.font = Font(bold=True, color='1E293B')
+
+            c_cnt = ws.cell(row=cur_row, column=3, value=stats['count'])
+            c_cnt.alignment = Alignment(horizontal='center', vertical='center')
+
+            c_nom = ws.cell(row=cur_row, column=4, value=stats['nominal'])
+            c_nom.number_format = '#,##0.00'
+            c_nom.alignment = Alignment(horizontal='right', vertical='center')
+
+            c_byr = ws.cell(row=cur_row, column=5, value=stats['dibayar'])
+            c_byr.number_format = '#,##0.00'
+            c_byr.alignment = Alignment(horizontal='right', vertical='center')
+
+            c_sisa = ws.cell(row=cur_row, column=6, value=stats['sisa'])
+            c_sisa.number_format = '#,##0.00'
+            c_sisa.alignment = Alignment(horizontal='right', vertical='center')
+
+            c_pct = ws.cell(row=cur_row, column=7, value=pct_sisa / 100.0)
+            c_pct.number_format = '0.00%'
+            c_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+            for col_i in range(1, 8):
+                ws.cell(row=cur_row, column=col_i).border = thin_border
+
+            cur_row += 1
+            cat_num += 1
+
+        # Baris Total Ringkasan Kategori
+        cat_tot_row = cur_row
+        ws.cell(row=cat_tot_row, column=1, value='TOTAL')
+        ws.merge_cells(start_row=cat_tot_row, start_column=1, end_row=cat_tot_row, end_column=2)
+        
+        ws.cell(row=cat_tot_row, column=3, value=len(utang_list)).alignment = Alignment(horizontal='center', vertical='center')
+        
+        c_tot_nom_cell = ws.cell(row=cat_tot_row, column=4, value=tot_nom)
+        c_tot_nom_cell.number_format = '#,##0.00'
+        c_tot_nom_cell.alignment = Alignment(horizontal='right', vertical='center')
+
+        c_tot_byr_cell = ws.cell(row=cat_tot_row, column=5, value=tot_byr)
+        c_tot_byr_cell.number_format = '#,##0.00'
+        c_tot_byr_cell.alignment = Alignment(horizontal='right', vertical='center')
+
+        c_tot_sisa_cell = ws.cell(row=cat_tot_row, column=6, value=tot_sisa)
+        c_tot_sisa_cell.number_format = '#,##0.00'
+        c_tot_sisa_cell.alignment = Alignment(horizontal='right', vertical='center')
+
+        c_tot_pct = ws.cell(row=cat_tot_row, column=7, value=1.0 if tot_sisa > 0 else 0.0)
+        c_tot_pct.number_format = '0.00%'
+        c_tot_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+        cat_tot_fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+        for col_i in range(1, 8):
+            c = ws.cell(row=cat_tot_row, column=col_i)
+            c.fill = cat_tot_fill
+            c.font = Font(bold=True, color='0F172A')
+            c.border = thin_border
+            if col_i == 1:
+                c.alignment = Alignment(horizontal='center', vertical='center')
+
+        ws.auto_filter.ref = f'A4:O{total_row_idx - 1}'
 
         col_widths = {
-            'A': 8, 'B': 12, 'C': 32, 'D': 24, 'E': 18, 'F': 22,
+            'A': 8, 'B': 14, 'C': 34, 'D': 42, 'E': 18, 'F': 22,
             'G': 14, 'H': 14, 'I': 14, 'J': 14, 'K': 14,
             'L': 20, 'M': 20, 'N': 20, 'O': 18
         }
         for col_letter, width in col_widths.items():
             ws.column_dimensions[col_letter].width = width
 
+        # ─────────────────────────────────────────────────────────────
+        # SHEET 2: RINGKASAN KATEGORI (Halaman Khusus Executive Summary)
+        # ─────────────────────────────────────────────────────────────
+        ws2 = wb.create_sheet(title="Ringkasan Kategori")
+        ws2.merge_cells('A1:G1')
+        ws2['A1'] = 'RINGKASAN REKAP UTANG PER KATEGORI'
+        ws2['A1'].font = Font(bold=True, size=14, color='1E293B')
+        ws2['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+        ws2['A2'] = f'Tanggal Export: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        ws2['A2'].font = Font(italic=True, size=10, color='64748B')
+
+        ws2.append([])
+        ws2.append(['No', 'Kategori', 'Jumlah Faktur', 'Total Nominal Faktur (Rp)', 'Total Sudah Dibayar (Rp)', 'Total Sisa Utang (Rp)', '% Sisa Utang'])
+        
+        for c_idx in range(1, 8):
+            c = ws2.cell(row=4, column=c_idx)
+            c.fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+            c.font = Font(bold=True, color='FFFFFF')
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            c.border = thin_border
+
+        r2 = 5
+        c_num = 1
+        for kat_name, stats in sorted(cat_stats.items(), key=lambda x: x[1]['nominal'], reverse=True):
+            pct_sisa = (stats['sisa'] / tot_sisa * 100.0) if tot_sisa > 0 else 0.0
+            ws2.append([
+                c_num,
+                kat_name,
+                stats['count'],
+                stats['nominal'],
+                stats['dibayar'],
+                stats['sisa'],
+                pct_sisa / 100.0
+            ])
+            for col_i in range(1, 8):
+                c = ws2.cell(row=r2, column=col_i)
+                c.border = thin_border
+                if col_i in (4, 5, 6):
+                    c.number_format = '#,##0.00'
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                elif col_i == 7:
+                    c.number_format = '0.00%'
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                elif col_i in (1, 3):
+                    c.alignment = Alignment(horizontal='center', vertical='center')
+            r2 += 1
+            c_num += 1
+
+        # Total baris di sheet 2
+        ws2.cell(row=r2, column=1, value='TOTAL')
+        ws2.merge_cells(start_row=r2, start_column=1, end_row=r2, end_column=2)
+        ws2.cell(row=r2, column=3, value=len(utang_list)).alignment = Alignment(horizontal='center', vertical='center')
+        
+        c1 = ws2.cell(row=r2, column=4, value=tot_nom)
+        c1.number_format = '#,##0.00'
+        c1.alignment = Alignment(horizontal='right', vertical='center')
+
+        c2 = ws2.cell(row=r2, column=5, value=tot_byr)
+        c2.number_format = '#,##0.00'
+        c2.alignment = Alignment(horizontal='right', vertical='center')
+
+        c3 = ws2.cell(row=r2, column=6, value=tot_sisa)
+        c3.number_format = '#,##0.00'
+        c3.alignment = Alignment(horizontal='right', vertical='center')
+
+        c4 = ws2.cell(row=r2, column=7, value=1.0 if tot_sisa > 0 else 0.0)
+        c4.number_format = '0.00%'
+        c4.alignment = Alignment(horizontal='right', vertical='center')
+
+        for col_i in range(1, 8):
+            c = ws2.cell(row=r2, column=col_i)
+            c.fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+            c.font = Font(bold=True, color='0F172A')
+            c.border = thin_border
+
+        ws2_col_widths = {'A': 8, 'B': 42, 'C': 16, 'D': 24, 'E': 24, 'F': 24, 'G': 18}
+        for col_letter, width in ws2_col_widths.items():
+            ws2.column_dimensions[col_letter].width = width
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = f'attachment; filename="Rekap_Utang_Supplier_{today_date}.xlsx"'
+        wb.save(response)
+        return response
 def _handle_petty_cash_payment_realisasi(pembayaran, user):
     """
     Jika faktur utang bersumber dari KEUANGAN (Pengisian Kas Kecil / Petty Cash),
     tambahkan SaldoPettyCash dan catat RiwayatSaldoPettyCash saat pembayaran direalisasikan.
+    Jika faktur utang bersumber dari REIMBURSEMENT, perbarui status reimbursement menjadi dicairkan.
     """
     utang = pembayaran.utang
+    if str(utang.app_siaga_faktur_id).startswith('KBS-') or utang.kategori == 'KAS BESAR':
+        return
+
+    if str(utang.app_siaga_faktur_id).startswith('RMB-') or utang.kategori == 'REIMBURSEMENT':
+        try:
+            rb_id = int(str(utang.app_siaga_faktur_id).replace('RMB-', ''))
+            rb = Reimbursement.objects.get(pk=rb_id)
+            if utang.status == UtangSupplier.STATUS_LUNAS or utang.total_dibayar >= utang.nominal:
+                rb.status = 'dicairkan'
+                rb.dicairkan_oleh = user
+                rb.save(update_fields=['status', 'dicairkan_oleh', 'updated_at'])
+
+                if rb.kas_besar:
+                    kb = rb.kas_besar
+                    if not kb.reimbursements.exclude(status='dicairkan').exists():
+                        kb.status = 'selesai'
+                        kb.save(update_fields=['status', 'updated_at'])
+                        if hasattr(kb, 'laporan'):
+                            kb.laporan.pengembalian_selesai = True
+                            kb.laporan.dikonfirmasi_oleh = user
+                            kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+        except Exception:
+            pass
+        return
+
     if utang.sumber == UtangSupplier.SUMBER_KEUANGAN or utang.kategori == 'PENGISIAN PETTY CASH':
         nominal_bayar = pembayaran.jumlah_bayar
         if nominal_bayar and nominal_bayar > 0:
@@ -5517,8 +5931,32 @@ def _handle_petty_cash_payment_batal_realisasi(pembayaran, user):
     """
     Jika realisasi pembayaran utang pengisian kas kecil dibatalkan,
     tarik kembali penambahan saldo dari SaldoPettyCash dan catat pengurangan di riwayat.
+    Jika reimbursement, kembalikan status menjadi disetujui dan kas besar ke menunggu_reimburse.
     """
     utang = pembayaran.utang
+    if str(utang.app_siaga_faktur_id).startswith('KBS-') or utang.kategori == 'KAS BESAR':
+        return
+
+    if str(utang.app_siaga_faktur_id).startswith('RMB-') or utang.kategori == 'REIMBURSEMENT':
+        try:
+            rb_id = int(str(utang.app_siaga_faktur_id).replace('RMB-', ''))
+            rb = Reimbursement.objects.get(pk=rb_id)
+            if rb.status == 'dicairkan':
+                rb.status = 'disetujui'
+                rb.dicairkan_oleh = None
+                rb.save(update_fields=['status', 'dicairkan_oleh', 'updated_at'])
+
+                if rb.kas_besar:
+                    kb = rb.kas_besar
+                    kb.status = 'menunggu_reimburse'
+                    kb.save(update_fields=['status', 'updated_at'])
+                    if hasattr(kb, 'laporan'):
+                        kb.laporan.pengembalian_selesai = False
+                        kb.laporan.save(update_fields=['pengembalian_selesai', 'updated_at'])
+        except Exception:
+            pass
+        return
+
     if utang.sumber == UtangSupplier.SUMBER_KEUANGAN or utang.kategori == 'PENGISIAN PETTY CASH':
         nominal_bayar = pembayaran.jumlah_bayar
         if nominal_bayar and nominal_bayar > 0:
@@ -5587,6 +6025,12 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             '-nomor_faktur': '-utang__nomor_faktur',
             'tanggal_proses': 'tanggal_proses',
             '-tanggal_proses': '-tanggal_proses',
+            'tanggal_bayar': 'tanggal_proses',
+            '-tanggal_bayar': '-tanggal_proses',
+            'tanggal_rencana_bayar': 'tanggal_rencana_bayar',
+            '-tanggal_rencana_bayar': '-tanggal_rencana_bayar',
+            'created_at': 'created_at',
+            '-created_at': '-created_at',
             'jumlah_bayar': 'jumlah_bayar',
             '-jumlah_bayar': '-jumlah_bayar',
             'status': 'status',
@@ -5847,6 +6291,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         def get_vendor_name(item):
             return (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else 'TANPA VENDOR').strip()
 
+        cat_stats_pay = defaultdict(lambda: {'count': 0, 'total': Decimal('0')})
+
         for vendor_nama, group_items in groupby(qs, key=get_vendor_name):
             items_list = list(group_items)
             vendor_subtotal = Decimal('0')
@@ -5857,6 +6303,23 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 grand_total += jumlah
 
                 utang = item.utang
+                kat_raw = (utang.kategori or '').strip().upper() if utang else ''
+                if kat_raw.startswith('PELAYANAN RUJUKAN'):
+                    kat_label = 'PELAYANAN RUJUKAN DAN LABORATORIUM'
+                elif kat_raw.startswith('PENUNJANG PELAYANAN'):
+                    kat_label = 'PENUNJANG PELAYANAN RS'
+                elif kat_raw.startswith('BIAYA ATK'):
+                    kat_label = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.'
+                elif kat_raw.startswith('BIAYA RUTIN JASA PEL'):
+                    kat_label = 'BIAYA RUTIN JASA PELAYANAN DLL'
+                elif kat_raw.startswith('IURAN BPJS'):
+                    kat_label = 'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN'
+                else:
+                    kat_label = kat_raw or 'TANPA KATEGORI'
+
+                cat_stats_pay[kat_label]['count'] += 1
+                cat_stats_pay[kat_label]['total'] += jumlah
+
                 if utang and utang.tanggal_titip:
                     days = (today_date - utang.tanggal_titip).days
                     umur_utang_str = f"{max(0, days)} Hari"
@@ -5935,11 +6398,82 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             elif col == 5:
                 c.alignment = Alignment(horizontal='right', vertical='center')
 
+        # ─────────────────────────────────────────────────────────────
+        # TABEL RINGKASAN PENGAJUAN PER KATEGORI
+        # ─────────────────────────────────────────────────────────────
+        ws.append([])
+        ws.append([])
+        sum_p_title = ws.max_row + 1
+        ws.cell(row=sum_p_title, column=1, value='RINGKASAN PENGAJUAN PER KATEGORI')
+        ws.cell(row=sum_p_title, column=1).font = Font(bold=True, size=12, color='0F172A')
+        ws.merge_cells(start_row=sum_p_title, start_column=1, end_row=sum_p_title, end_column=5)
+
+        cat_p_head_row = sum_p_title + 1
+        cat_p_headers = ['No', 'Kategori', 'Jumlah Faktur', 'Total Pengajuan Bayar (Rp)', '% Dari Total']
+        cat_p_fill = PatternFill(start_color='0F766E', end_color='0F766E', fill_type='solid')
+
+        for c_idx, h_text in enumerate(cat_p_headers, 1):
+            c = ws.cell(row=cat_p_head_row, column=c_idx, value=h_text)
+            c.fill = cat_p_fill
+            c.font = Font(bold=True, color='FFFFFF')
+            c.alignment = Alignment(horizontal='center', vertical='center')
+            c.border = thin_border
+
+        cur_p_row = cat_p_head_row + 1
+        cat_p_num = 1
+        for k_name, stats in sorted(cat_stats_pay.items(), key=lambda x: x[1]['total'], reverse=True):
+            pct_val = (float(stats['total']) / float(grand_total)) if grand_total > 0 else 0.0
+            
+            c_no = ws.cell(row=cur_p_row, column=1, value=cat_p_num)
+            c_no.alignment = Alignment(horizontal='center', vertical='center')
+
+            c_kat = ws.cell(row=cur_row if False else cur_p_row, column=2, value=k_name)
+            c_kat.alignment = Alignment(horizontal='left', vertical='center')
+            c_kat.font = Font(bold=True, color='1E293B')
+
+            c_cnt = ws.cell(row=cur_p_row, column=3, value=stats['count'])
+            c_cnt.alignment = Alignment(horizontal='center', vertical='center')
+
+            c_tot = ws.cell(row=cur_p_row, column=4, value=float(stats['total']))
+            c_tot.number_format = '#,##0.00'
+            c_tot.alignment = Alignment(horizontal='right', vertical='center')
+
+            c_pct = ws.cell(row=cur_p_row, column=5, value=pct_val)
+            c_pct.number_format = '0.00%'
+            c_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+            for col_i in range(1, 6):
+                ws.cell(row=cur_p_row, column=col_i).border = thin_border
+
+            cur_p_row += 1
+            cat_p_num += 1
+
+        # Total baris ringkasan pengajuan kategori
+        ws.cell(row=cur_p_row, column=1, value='TOTAL')
+        ws.merge_cells(start_row=cur_p_row, start_column=1, end_row=cur_p_row, end_column=2)
+        ws.cell(row=cur_p_row, column=3, value=sum(s['count'] for s in cat_stats_pay.values())).alignment = Alignment(horizontal='center', vertical='center')
+        
+        c_gtot = ws.cell(row=cur_p_row, column=4, value=float(grand_total))
+        c_gtot.number_format = '#,##0.00'
+        c_gtot.alignment = Alignment(horizontal='right', vertical='center')
+
+        c_gtot_pct = ws.cell(row=cur_p_row, column=5, value=1.0 if grand_total > 0 else 0.0)
+        c_gtot_pct.number_format = '0.00%'
+        c_gtot_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+        for col_i in range(1, 6):
+            c = ws.cell(row=cur_p_row, column=col_i)
+            c.fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+            c.font = Font(bold=True, color='0F172A')
+            c.border = thin_border
+            if col_i == 1:
+                c.alignment = Alignment(horizontal='center', vertical='center')
+
         col_widths = {
             'A': 8,
-            'B': 16,
+            'B': 22,
             'C': 35,
-            'D': 16,
+            'D': 24,
             'E': 22,
             'F': 38,
             'G': 20,
@@ -5951,7 +6485,6 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         response['Content-Disposition'] = f'attachment; filename="Rekap_Pengajuan_Pembayaran_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
         wb.save(response)
         return response
-        return qs.order_by(order, '-created_at')
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
@@ -6059,9 +6592,59 @@ class UtangMenungguVerifikasiView(APIView):
                 'keuangan'                                                             AS sumber
         """
 
+        # SELECT clause kas besar
+        kas_besar_select = """
+            SELECT
+                CONVERT(CONCAT('KBS-', t.id) USING utf8mb4) COLLATE utf8mb4_general_ci AS app_siaga_faktur_id,
+                CONVERT(t.no_pengajuan USING utf8mb4) COLLATE utf8mb4_general_ci       AS nomor_spb,
+                t.tanggal                                                              AS tanggal_spb,
+                CONVERT(t.no_pengajuan USING utf8mb4) COLLATE utf8mb4_general_ci       AS nomor_faktur,
+                0                                                                      AS vendor_id,
+                0                                                                      AS vendor_id_hint,
+                CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Kasir') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                t.tanggal                                                              AS tanggal_faktur,
+                NULL                                                                   AS tanggal_jatuh_tempo,
+                t.nominal                                                              AS total_sebelum_diskon,
+                0.00                                                                   AS disc1,
+                0.00                                                                   AS disc2,
+                0.00                                                                   AS disc3,
+                t.nominal                                                              AS total_setelah_diskon,
+                0.00                                                                   AS ppn,
+                0.00                                                                   AS materai,
+                t.nominal                                                              AS nominal,
+                CONVERT(t.keperluan USING utf8mb4) COLLATE utf8mb4_general_ci          AS keterangan,
+                'keuangan'                                                             AS sumber
+        """
+
+        # SELECT clause reimbursement
+        reimbursement_select = """
+            SELECT
+                CONVERT(CONCAT('RMB-', t.id) USING utf8mb4) COLLATE utf8mb4_general_ci AS app_siaga_faktur_id,
+                CONVERT(t.no_reimbursement USING utf8mb4) COLLATE utf8mb4_general_ci   AS nomor_spb,
+                t.tanggal                                                              AS tanggal_spb,
+                CONVERT(t.no_reimbursement USING utf8mb4) COLLATE utf8mb4_general_ci   AS nomor_faktur,
+                0                                                                      AS vendor_id,
+                0                                                                      AS vendor_id_hint,
+                CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Pemohon Reimbursement') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                COALESCE(t.tanggal_nota, t.tanggal)                                    AS tanggal_faktur,
+                NULL                                                                   AS tanggal_jatuh_tempo,
+                t.nominal                                                              AS total_sebelum_diskon,
+                0.00                                                                   AS disc1,
+                0.00                                                                   AS disc2,
+                0.00                                                                   AS disc3,
+                t.nominal                                                              AS total_setelah_diskon,
+                0.00                                                                   AS ppn,
+                0.00                                                                   AS materai,
+                t.nominal                                                              AS nominal,
+                CONVERT(CONCAT(t.keperluan, IF(kb.no_pengajuan IS NOT NULL, CONCAT(' [Kas Besar: ', kb.no_pengajuan, ']'), '')) USING utf8mb4) COLLATE utf8mb4_general_ci AS keterangan,
+                'keuangan'                                                             AS sumber
+        """
+
         where_f, vals_f = _build_pending_where(params)
         where_l, vals_l = _build_pending_where_logistik(params)
         where_k, vals_k = _build_pending_where_keuangan(params)
+        where_kb, vals_kb = _build_pending_where_kas_besar(params)
+        where_rmb, vals_rmb = _build_pending_where_reimbursement(params)
 
         # Order mapping berlaku di wrapper query (alias kolom output)
         order = _utang_order_clause(params.get('ordering'), {
@@ -6119,20 +6702,44 @@ class UtangMenungguVerifikasiView(APIView):
                 data_vals = vals_l + [page_size, offset]
 
             elif sumber_filter == 'keuangan':
-                count_sql = f'SELECT COUNT(*) {_pending_base_sql_keuangan()} WHERE {where_k}'
-                sum_sql = f'SELECT SUM(t.nominal_diajukan) {_pending_base_sql_keuangan()} WHERE {where_k}'
-                count_vals = vals_k
-                sum_vals = vals_k
+                count_sql = f"""
+                    SELECT COUNT(*) FROM (
+                        SELECT 1 {_pending_base_sql_keuangan()} WHERE {where_k}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_kas_besar()} WHERE {where_kb}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_reimbursement()} WHERE {where_rmb}
+                    ) AS combined
+                """
+                sum_sql = f"""
+                    SELECT SUM(nominal) FROM (
+                        SELECT t.nominal_diajukan AS nominal {_pending_base_sql_keuangan()} WHERE {where_k}
+                        UNION ALL
+                        SELECT t.nominal AS nominal {_pending_base_sql_kas_besar()} WHERE {where_kb}
+                        UNION ALL
+                        SELECT t.nominal AS nominal {_pending_base_sql_reimbursement()} WHERE {where_rmb}
+                    ) AS combined
+                """
+                count_vals = vals_k + vals_kb + vals_rmb
+                sum_vals = vals_k + vals_kb + vals_rmb
                 data_sql = f"""
                     SELECT * FROM (
                         {keuangan_select}
                         {_pending_base_sql_keuangan()}
                         WHERE {where_k}
+                        UNION ALL
+                        {kas_besar_select}
+                        {_pending_base_sql_kas_besar()}
+                        WHERE {where_kb}
+                        UNION ALL
+                        {reimbursement_select}
+                        {_pending_base_sql_reimbursement()}
+                        WHERE {where_rmb}
                     ) AS combined
                     ORDER BY {order}, app_siaga_faktur_id DESC
                     LIMIT %s OFFSET %s
                 """
-                data_vals = vals_k + [page_size, offset]
+                data_vals = vals_k + vals_kb + vals_rmb + [page_size, offset]
 
             else:  # semua
                 count_sql = f"""
@@ -6142,6 +6749,10 @@ class UtangMenungguVerifikasiView(APIView):
                         SELECT 1 {_pending_base_sql_logistik()} WHERE {where_l}
                         UNION ALL
                         SELECT 1 {_pending_base_sql_keuangan()} WHERE {where_k}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_kas_besar()} WHERE {where_kb}
+                        UNION ALL
+                        SELECT 1 {_pending_base_sql_reimbursement()} WHERE {where_rmb}
                     ) AS combined
                 """
                 sum_sql = f"""
@@ -6151,10 +6762,14 @@ class UtangMenungguVerifikasiView(APIView):
                         SELECT t.nilai AS nominal {_pending_base_sql_logistik()} WHERE {where_l}
                         UNION ALL
                         SELECT t.nominal_diajukan AS nominal {_pending_base_sql_keuangan()} WHERE {where_k}
+                        UNION ALL
+                        SELECT t.nominal AS nominal {_pending_base_sql_kas_besar()} WHERE {where_kb}
+                        UNION ALL
+                        SELECT t.nominal AS nominal {_pending_base_sql_reimbursement()} WHERE {where_rmb}
                     ) AS combined
                 """
-                count_vals = vals_f + vals_l + vals_k
-                sum_vals = vals_f + vals_l + vals_k
+                count_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb
+                sum_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb
                 data_sql = f"""
                     SELECT * FROM (
                         {farmasi_select}
@@ -6168,11 +6783,19 @@ class UtangMenungguVerifikasiView(APIView):
                         {keuangan_select}
                         {_pending_base_sql_keuangan()}
                         WHERE {where_k}
+                        UNION ALL
+                        {kas_besar_select}
+                        {_pending_base_sql_kas_besar()}
+                        WHERE {where_kb}
+                        UNION ALL
+                        {reimbursement_select}
+                        {_pending_base_sql_reimbursement()}
+                        WHERE {where_rmb}
                     ) AS combined
                     ORDER BY {order}, app_siaga_faktur_id DESC
                     LIMIT %s OFFSET %s
                 """
-                data_vals = vals_f + vals_l + vals_k + [page_size, offset]
+                data_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb + [page_size, offset]
 
             cursor.execute(count_sql, count_vals)
             total = cursor.fetchone()[0]
@@ -6226,31 +6849,86 @@ class UtangMenungguVerifikasiView(APIView):
             )
 
         elif sumber == UtangSupplier.SUMBER_KEUANGAN:
-            raw_id = str(app_siaga_faktur_id).replace('KEU-', '')
-            try:
-                ps = PengajuanPenambahanSaldo.objects.get(pk=raw_id, status='disetujui')
-            except (PengajuanPenambahanSaldo.DoesNotExist, ValueError):
-                return Response({'error': 'Pengajuan pengisian kembali saldo tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
-            
-            with transaction.atomic():
-                utang = UtangSupplier.objects.create(
-                    app_siaga_faktur_id=f"KEU-{ps.id}",
-                    sumber=UtangSupplier.SUMBER_KEUANGAN,
-                    nomor_spb=ps.no_pengajuan,
-                    tanggal_spb=ps.tanggal,
-                    nomor_faktur=ps.alasan or ps.no_pengajuan,
-                    vendor_id=0,
-                    vendor_nama=f"Petty Cash - {user_display_name(ps.created_by)}",
-                    kategori='PENGISIAN PETTY CASH',
-                    tanggal_faktur=ps.tanggal,
-                    tanggal_jatuh_tempo=ps.tanggal,
-                    nominal=ps.nominal_diajukan or 0,
-                    tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
-                    keterangan_titip=request.data.get('keterangan_titip') or ps.keterangan or ps.alasan,
-                    status=UtangSupplier.STATUS_BELUM_DIBAYAR,
-                    verified_by=request.user,
-                    verified_at=timezone.now(),
-                )
+            if str(app_siaga_faktur_id).startswith('KBS-'):
+                raw_id = str(app_siaga_faktur_id).replace('KBS-', '')
+                try:
+                    kb = KasBesar.objects.get(pk=raw_id, status__in=['menunggu_realisasi', 'disetujui'])
+                except (KasBesar.DoesNotExist, ValueError):
+                    return Response({'error': 'Pengajuan Kas Besar tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
+                
+                with transaction.atomic():
+                    utang = UtangSupplier.objects.create(
+                        app_siaga_faktur_id=f"KBS-{kb.id}",
+                        sumber=UtangSupplier.SUMBER_KEUANGAN,
+                        nomor_spb=kb.no_pengajuan,
+                        tanggal_spb=kb.tanggal,
+                        nomor_faktur=kb.no_pengajuan,
+                        vendor_id=0,
+                        vendor_nama=f"Kas Besar - {user_display_name(kb.created_by) if kb.created_by else 'Kasir'}",
+                        kategori='KAS BESAR',
+                        tanggal_faktur=kb.tanggal,
+                        tanggal_jatuh_tempo=kb.tanggal,
+                        nominal=kb.nominal or 0,
+                        tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                        keterangan_titip=request.data.get('keterangan_titip') or kb.keperluan,
+                        status=UtangSupplier.STATUS_BELUM_DIBAYAR,
+                        verified_by=request.user,
+                        verified_at=timezone.now(),
+                    )
+                return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+            elif str(app_siaga_faktur_id).startswith('RMB-'):
+                raw_id = str(app_siaga_faktur_id).replace('RMB-', '')
+                try:
+                    rb = Reimbursement.objects.get(pk=raw_id, status='disetujui')
+                except (Reimbursement.DoesNotExist, ValueError):
+                    return Response({'error': 'Pengajuan reimbursement tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
+                
+                with transaction.atomic():
+                    utang = UtangSupplier.objects.create(
+                        app_siaga_faktur_id=f"RMB-{rb.id}",
+                        sumber=UtangSupplier.SUMBER_KEUANGAN,
+                        nomor_spb=rb.no_reimbursement,
+                        tanggal_spb=rb.tanggal,
+                        nomor_faktur=rb.no_reimbursement,
+                        vendor_id=0,
+                        vendor_nama=f"Reimbursement - {user_display_name(rb.created_by) if rb.created_by else 'Pemohon'}",
+                        kategori='REIMBURSEMENT',
+                        tanggal_faktur=rb.tanggal_nota or rb.tanggal,
+                        tanggal_jatuh_tempo=rb.tanggal,
+                        nominal=rb.nominal or 0,
+                        tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                        keterangan_titip=request.data.get('keterangan_titip') or rb.keperluan,
+                        status=UtangSupplier.STATUS_BELUM_DIBAYAR,
+                        verified_by=request.user,
+                        verified_at=timezone.now(),
+                    )
+                return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
+            else:
+                raw_id = str(app_siaga_faktur_id).replace('KEU-', '')
+                try:
+                    ps = PengajuanPenambahanSaldo.objects.get(pk=raw_id, status='disetujui')
+                except (PengajuanPenambahanSaldo.DoesNotExist, ValueError):
+                    return Response({'error': 'Pengajuan pengisian kembali saldo tidak ditemukan atau belum disetujui.'}, status=status.HTTP_404_NOT_FOUND)
+                
+                with transaction.atomic():
+                    utang = UtangSupplier.objects.create(
+                        app_siaga_faktur_id=f"KEU-{ps.id}",
+                        sumber=UtangSupplier.SUMBER_KEUANGAN,
+                        nomor_spb=ps.no_pengajuan,
+                        tanggal_spb=ps.tanggal,
+                        nomor_faktur=ps.alasan or ps.no_pengajuan,
+                        vendor_id=0,
+                        vendor_nama=f"Petty Cash - {user_display_name(ps.created_by) if ps.created_by else 'Kasir'}",
+                        kategori='PENGISIAN PETTY CASH',
+                        tanggal_faktur=ps.tanggal,
+                        tanggal_jatuh_tempo=ps.tanggal,
+                        nominal=ps.nominal_diajukan or 0,
+                        tanggal_titip=request.data.get('tanggal_titip') or timezone.localdate(),
+                        keterangan_titip=request.data.get('keterangan_titip') or ps.keterangan or ps.alasan,
+                        status=UtangSupplier.STATUS_BELUM_DIBAYAR,
+                        verified_by=request.user,
+                        verified_at=timezone.now(),
+                    )
             return Response(UtangSupplierSerializer(utang, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
         else:  # logistik
@@ -6263,7 +6941,7 @@ class UtangMenungguVerifikasiView(APIView):
             # Validasi vendor_id ke rssams.rekanan
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT id_rekanan, nama FROM rssams.rekanan WHERE id_rekanan = %s AND del = 'N' LIMIT 1",
+                    "SELECT id_rekanan, nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1",
                     [vendor_id],
                 )
                 rek = cursor.fetchone()
@@ -6520,9 +7198,7 @@ class UtangVendorOptionsView(APIView):
                 """
                 SELECT id_rekanan AS id, nama
                 FROM rssams.rekanan
-                WHERE del = 'N'
                 ORDER BY nama
-                LIMIT 500
                 """
             )
             columns = [col[0] for col in cursor.description]
@@ -7182,6 +7858,428 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'data': PettyCashSerializer(instance, context={'request': request}).data
         })
 
+    # POST /{id}/alihkan-ke-kas-besar/ - alihkan petty cash ke kas besar jika realisasi membengkak > 999.999
+    @action(detail=True, methods=['post'], url_path='alihkan-ke-kas-besar')
+    def alihkan_ke_kas_besar(self, request, pk=None):
+        instance = self.get_object()
+        can_alihkan = (instance.created_by == request.user) or is_petty_cash_cashier(request.user) or is_direktur_or_wadir(request.user) or request.user.is_superuser
+        if not can_alihkan:
+            return Response({'error': 'Pengalihan ke Kas Besar hanya dapat dilakukan oleh pemohon, kasir, atau pimpinan.'}, status=403)
+
+        if instance.status not in ['dicairkan', 'menunggu_approval_laporan']:
+            return Response({'error': f'Pengalihan ke Kas Besar hanya dapat dilakukan untuk pengajuan yang telah dicairkan (status saat ini: {instance.status}).'}, status=400)
+
+        nominal_kb = request.data.get('nominal_kas_besar') or request.data.get('nominal')
+        keterangan = str(request.data.get('keterangan', '')).strip()
+
+        if not nominal_kb:
+            return Response({'error': 'Nominal Kas Besar yang diajukan wajib diisi.'}, status=400)
+
+        try:
+            nominal_kb_dec = Decimal(str(nominal_kb))
+            if nominal_kb_dec < Decimal('1000000'):
+                return Response({'error': 'Nominal pengajuan Kas Besar minimal Rp 1.000.000.'}, status=400)
+        except Exception:
+            return Response({'error': 'Format nominal Kas Besar tidak valid.'}, status=400)
+
+        if not keterangan:
+            return Response({'error': 'Keterangan atau alasan pengalihan ke Kas Besar wajib diisi.'}, status=400)
+
+        with transaction.atomic():
+            # 1. Mutasi status Petty Cash menjadi 'menunggu_pengembalian'
+            instance.status = 'menunggu_pengembalian'
+            catatan_alihkan = f"[Dialihkan ke Kas Besar] {keterangan}"
+            instance.keterangan = f"{instance.keterangan}\n{catatan_alihkan}".strip() if instance.keterangan else catatan_alihkan
+            instance.save()
+
+            # 2. Buat pengajuan baru di Kas Besar
+            from .models import KasBesar
+            from django.core.files.base import ContentFile
+            import os
+
+            kb = KasBesar(
+                tanggal=timezone.now().date(),
+                keperluan=f"[Pengalihan dari {instance.no_pengajuan}] {instance.keperluan}",
+                nominal=nominal_kb_dec,
+                keterangan=f"Pengalihan dari Petty Cash {instance.no_pengajuan}. Alasan: {keterangan}",
+                created_by=instance.created_by,
+                status='pending',
+                sumber_petty_cash=instance
+            )
+
+            # Jika ada berkas lampiran di Petty Cash, salin ke Kas Besar
+            if instance.berkas:
+                try:
+                    file_name = os.path.basename(instance.berkas.name)
+                    instance.berkas.open()
+                    kb.berkas.save(file_name, ContentFile(instance.berkas.read()), save=False)
+                    instance.berkas.close()
+                except Exception as err:
+                    pass
+
+            kb.save()
+
+        return Response({
+            'message': f'Petty Cash {instance.no_pengajuan} berhasil dialihkan ke Kas Besar {kb.no_pengajuan}. Dana petty cash harus dikembalikan ke kasir.',
+            'petty_cash': PettyCashSerializer(instance, context={'request': request}).data,
+            'kas_besar': KasBesarSerializer(kb, context={'request': request}).data
+        })
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        can_delete_all = is_direktur_or_wadir(request.user)
+        if not can_delete_all:
+            if instance.created_by != request.user:
+                return Response({'error': 'Hanya pemohon yang dapat menghapus pengajuan sendiri.'}, status=403)
+            if instance.status != 'pending':
+                return Response({'error': 'Hanya pengajuan pending yang dapat dihapus.'}, status=400)
+        return super().destroy(request, *args, **kwargs)
+
+class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return KasBesarInputSerializer
+        return KasBesarSerializer
+
+    def get_queryset(self):
+        qs = KasBesar.objects.select_related('created_by', 'disetujui_oleh', 'dicairkan_oleh', 'laporan_disetujui_oleh').prefetch_related('laporan').all()
+        
+        if not can_access_kas_besar(self.request.user):
+            qs = qs.none()
+        elif not (is_direktur_or_wadir(self.request.user) or is_petty_cash_cashier(self.request.user) or self.request.user.is_superuser):
+            qs = qs.filter(created_by=self.request.user)
+        
+        st = self.request.query_params.get('status')
+        dari = self.request.query_params.get('dari')
+        sampai = self.request.query_params.get('sampai')
+        if st: qs = qs.filter(status=st)
+        if dari: qs = qs.filter(tanggal__gte=dari)
+        if sampai: qs = qs.filter(tanggal__lte=sampai)
+        return qs
+
+    def perform_create(self, serializer):
+        if not (getattr(self.request.user, 'akses_kas_besar', False) or self.request.user.is_superuser):
+            raise PermissionDenied("Anda tidak memiliki akses untuk membuat pengajuan Kas Besar.")
+        serializer.save(created_by=self.request.user)
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    @action(detail=True, methods=['post'], url_path='approval')
+    def approval(self, request, pk=None):
+        if not is_direktur_or_wadir(request.user):
+            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat memproses approval.'}, status=403)
+        instance = self.get_object()
+        if instance.status != 'pending':
+            return Response({'error': 'Hanya pengajuan berstatus pending yang dapat diproses.'}, status=400)
+        aksi = request.data.get('aksi')
+        catatan = request.data.get('catatan_tolak', '')
+        if aksi not in ('setujui', 'tolak'):
+            return Response({'error': 'aksi harus setujui atau tolak.'}, status=400)
+            
+        with transaction.atomic():
+            if aksi == 'setujui':
+                instance.status = 'menunggu_realisasi'
+                instance.disetujui_oleh = request.user
+                instance.catatan_tolak = ''
+            else:
+                if not catatan:
+                    return Response({'error': 'Catatan tolak wajib diisi.'}, status=400)
+                instance.status = 'ditolak'
+                instance.catatan_tolak = catatan
+            instance.save()
+        return Response({
+            'message': 'Pengajuan Kas Besar berhasil disetujui. Otomatis masuk ke antrean Menunggu Verifikasi di Catatan Utang.' if aksi == 'setujui' else 'Pengajuan Kas Besar berhasil ditolak.',
+            'status': instance.status
+        })
+
+    @action(detail=True, methods=['post'], url_path='cairkan')
+    def cairkan(self, request, pk=None):
+        if not is_petty_cash_cashier(request.user):
+            return Response({'error': 'Hanya petugas kas petty cash yang dapat mencairkan dana.'}, status=403)
+        instance = self.get_object()
+        if instance.status not in ('menunggu_realisasi', 'disetujui'):
+            return Response({'error': 'Hanya pengajuan berstatus menunggu realisasi yang dapat dicairkan.'}, status=400)
+
+        # Cek apakah sudah diverifikasi dan direalisasikan pembayarannya di Catatan Utang
+        utang = UtangSupplier.objects.filter(app_siaga_faktur_id=f"KBS-{instance.id}").first()
+        if not utang:
+            return Response({'error': 'Dana belum dapat dicairkan. Pengajuan ini belum diverifikasi di Catatan Utang.'}, status=400)
+        
+        is_realisasi = (utang.status == UtangSupplier.STATUS_LUNAS or utang.total_dibayar > 0)
+        if not is_realisasi:
+            return Response({'error': 'Dana belum dapat dicairkan. Realisasi pembayaran di Catatan Utang belum dilakukan.'}, status=400)
+
+        instance.status = 'dicairkan'
+        instance.dicairkan_oleh = request.user
+        instance.save()
+        return Response({'message': 'Dana Kas Besar berhasil dicairkan.', 'status': instance.status})
+
+    @action(detail=True, methods=['post'], url_path='laporan', parser_classes=[MultiPartParser, FormParser, JSONParser])
+    def laporan(self, request, pk=None):
+        import json
+        instance = self.get_object()
+        if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
+            return Response({'error': 'Laporan penggunaan hanya dapat disubmit oleh pemohon.'}, status=403)
+        if instance.status != 'dicairkan':
+            return Response({'error': 'Laporan hanya bisa disubmit setelah dana dicairkan.'}, status=400)
+        if hasattr(instance, 'laporan'):
+            return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
+
+        uploaded_files = request.FILES.getlist('nota') or request.FILES.getlist('nota_files') or request.FILES.getlist('files')
+        if not uploaded_files:
+            single_f = request.FILES.get('nota')
+            if single_f:
+                uploaded_files = [single_f]
+
+        if not uploaded_files and not request.data.get('nota'):
+            return Response({'error': 'Minimal harus ada 1 file nota / bukti struk pengeluaran yang diunggah.'}, status=400)
+
+        raw_items = request.data.get('items')
+        parsed_items = []
+        if isinstance(raw_items, str):
+            try:
+                parsed_items = json.loads(raw_items)
+            except Exception:
+                parsed_items = []
+        elif isinstance(raw_items, list):
+            parsed_items = raw_items
+
+        data = {k: request.data.get(k) for k in request.data}
+        if parsed_items:
+            data['items'] = parsed_items
+            total_items = Decimal('0')
+            for it in parsed_items:
+                try:
+                    total_items += Decimal(str(it.get('nilai', 0)))
+                except Exception:
+                    pass
+            if total_items > 0:
+                data['nominal_digunakan'] = total_items
+            
+            if not data.get('rincian'):
+                data['rincian'] = "; ".join(
+                    f"[{it.get('kode_akun', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
+                    for it in parsed_items if it.get('deskripsi')
+                )
+
+        serializer = LaporanPenggunaanKasBesarInputSerializer(data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        nominal_dicairkan = instance.nominal
+        nominal_digunakan = serializer.validated_data['nominal_digunakan']
+        selisih = nominal_dicairkan - nominal_digunakan
+
+        with transaction.atomic():
+            primary_file = uploaded_files[0] if uploaded_files else None
+            laporan = serializer.save(kas_besar=instance, selisih=selisih, nota=primary_file)
+
+            for idx, f in enumerate(uploaded_files):
+                FotoLaporanKasBesar.objects.create(
+                    laporan=laporan,
+                    foto=f,
+                    urutan=idx + 1
+                )
+
+            for it in parsed_items:
+                try:
+                    val = Decimal(str(it.get('nilai', 0)))
+                except Exception:
+                    val = Decimal('0')
+                if val > 0 or it.get('deskripsi'):
+                    ItemLaporanKasBesar.objects.create(
+                        laporan=laporan,
+                        kode_akun=str(it.get('kode_akun') or '').strip(),
+                        nama_akun=str(it.get('nama_akun') or '').strip(),
+                        pos_biaya=str(it.get('pos_biaya') or '').strip(),
+                        deskripsi=str(it.get('deskripsi') or '').strip(),
+                        nilai=val,
+                    )
+
+            instance.status = 'menunggu_approval_laporan'
+            instance.catatan_tolak = ''
+            instance.laporan_disetujui_oleh = None
+            instance.laporan_disetujui_at = None
+            instance.save()
+
+        return Response(LaporanPenggunaanKasBesarSerializer(laporan, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='approval-laporan')
+    def approval_laporan(self, request, pk=None):
+        if not is_direktur_or_wadir(request.user):
+            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat approve laporan penggunaan.'}, status=403)
+        instance = self.get_object()
+        if instance.status != 'menunggu_approval_laporan':
+            return Response({'error': 'Hanya laporan berstatus menunggu approval yang dapat diproses.'}, status=400)
+        if not hasattr(instance, 'laporan'):
+            return Response({'error': 'Laporan penggunaan belum tersedia.'}, status=400)
+
+        aksi = request.data.get('aksi', 'setujui')
+        catatan = request.data.get('catatan_tolak', '')
+        if aksi not in ('setujui', 'tolak'):
+            return Response({'error': 'aksi harus setujui atau tolak.'}, status=400)
+
+        laporan = instance.laporan
+        if aksi == 'tolak':
+            if not catatan:
+                return Response({'error': 'Catatan tolak wajib diisi.'}, status=400)
+            with transaction.atomic():
+                laporan.delete()
+                instance.status = 'dicairkan'
+                instance.catatan_tolak = catatan
+                instance.laporan_disetujui_oleh = None
+                instance.laporan_disetujui_at = None
+                instance.save()
+            return Response({
+                'message': 'Laporan penggunaan ditolak. User dapat upload laporan ulang.',
+                'status': instance.status,
+            }, status=status.HTTP_200_OK)
+
+        with transaction.atomic():
+            reimburse_info = None
+            if laporan.selisih > 0:
+                instance.status = 'menunggu_pengembalian'
+                laporan.pengembalian_selesai = False
+            elif laporan.selisih < 0:
+                instance.status = 'menunggu_reimburse'
+                laporan.pengembalian_selesai = False
+            else:
+                instance.status = 'selesai'
+                laporan.pengembalian_selesai = True
+                laporan.dikonfirmasi_oleh = request.user
+                laporan.save()
+
+            instance.catatan_tolak = ''
+            instance.laporan_disetujui_oleh = request.user
+            instance.laporan_disetujui_at = timezone.now()
+            instance.save()
+
+            if laporan.selisih < 0:
+                kekurangan = abs(laporan.selisih)
+                # Auto-create pengajuan Reimbursement untuk menutupi kekurangan dana belanja Kas Besar
+                rb_auto = Reimbursement.objects.create(
+                    kas_besar=instance,
+                    tanggal=timezone.localdate(),
+                    tanggal_nota=laporan.tanggal_nota or timezone.localdate(),
+                    keperluan=f"[Kekurangan Kas Besar {instance.no_pengajuan}] {instance.keperluan[:150]}",
+                    nominal=kekurangan,
+                    keterangan=f"Auto-create dari kekurangan belanja Kas Besar {instance.no_pengajuan}. Total belanja: Rp {laporan.nominal_digunakan:,.0f}, dana dicairkan: Rp {instance.nominal:,.0f}.",
+                    status='disetujui',
+                    disetujui_oleh=request.user,
+                    created_by=instance.created_by,
+                )
+                if laporan.nota:
+                    try:
+                        from django.core.files.base import ContentFile
+                        rb_auto.berkas.save(os.path.basename(laporan.nota.name), ContentFile(laporan.nota.read()), save=True)
+                    except Exception as e:
+                        logger.warning(f"Gagal menyalin nota laporan KB ke berkas Reimbursement: {e}")
+
+                reimburse_info = f"Pengajuan Reimbursement {rb_auto.no_reimbursement} senilai Rp {kekurangan:,.0f} otomatis diterbitkan & disetujui, dan tercatat di Catatan Utang. Status Kas Besar menjadi 'Menunggu Reimbursement' hingga reimbursement dicairkan."
+                if hasattr(laporan, 'foto_list'):
+                    from django.core.files.base import ContentFile
+                    for f in laporan.foto_list.all():
+                        try:
+                            f_name = os.path.basename(f.foto.name)
+                            FotoReimbursement.objects.create(
+                                reimbursement=rb_auto,
+                                foto=ContentFile(f.foto.read(), name=f_name),
+                                urutan=f.urutan,
+                                keterangan=f.keterangan or ''
+                            )
+                        except Exception as e:
+                            logger.warning(f"Gagal menyalin foto laporan KB ke FotoReimbursement: {e}")
+
+        msg = 'Laporan penggunaan berhasil disetujui.'
+        if reimburse_info:
+            msg += f' {reimburse_info}'
+
+        return Response({
+            'message': msg,
+            'status': instance.status,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='approval_laporan')
+    def approval_laporan_alias(self, request, pk=None):
+        return self.approval_laporan(request, pk)
+
+    @action(detail=True, methods=['post'], url_path='konfirmasi-pengembalian')
+    def konfirmasi_pengembalian(self, request, pk=None):
+        if not is_petty_cash_cashier(request.user):
+            return Response({'error': 'Hanya petugas kas petty cash yang dapat mengkonfirmasi pengembalian.'}, status=403)
+        instance = self.get_object()
+        if instance.status not in ('menunggu_pengembalian', 'dilaporkan'):
+            return Response({'error': 'Status tidak valid untuk dikonfirmasi.'}, status=400)
+ 
+        laporan = instance.laporan
+ 
+        with transaction.atomic():
+            laporan.pengembalian_selesai = True
+            laporan.dikonfirmasi_oleh = request.user
+            laporan.save()
+ 
+            instance.status = 'selesai'
+            instance.save()
+ 
+        return Response({'message': 'Pengembalian dikonfirmasi. Kas Besar selesai.', 'status': instance.status})
+
+    @action(detail=True, methods=['post'], url_path='konfirmasi_kembali')
+    def konfirmasi_kembali_alias(self, request, pk=None):
+        return self.konfirmasi_pengembalian(request, pk)
+
+    @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
+    def revisi(self, request, pk=None):
+        instance = self.get_object()
+        if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
+            return Response({'error': 'Revisi hanya dapat dilakukan oleh pemohon.'}, status=403)
+        if instance.status != 'ditolak':
+            return Response({'error': 'Hanya pengajuan ditolak yang bisa direvisi.'}, status=400)
+        serializer = KasBesarInputSerializer(instance, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(status='pending', catatan_tolak='')
+        return Response(KasBesarSerializer(instance, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='batal')
+    def batal(self, request, pk=None):
+        instance = self.get_object()
+        can_cancel_all = is_direktur_or_wadir(request.user) or is_petty_cash_cashier(request.user) or request.user.is_superuser
+        if not can_cancel_all:
+            if instance.created_by != request.user:
+                return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan pengajuan ini.'}, status=403)
+        
+        if instance.status == 'dibatalkan':
+            return Response({'error': 'Pengajuan ini sudah dibatalkan sebelumnya.'}, status=400)
+            
+        alasan = request.data.get('alasan_batal') or request.data.get('alasan') or request.data.get('catatan_tolak')
+        if not alasan or not str(alasan).strip():
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
+            
+        with transaction.atomic():
+            if instance.status in ['menunggu_realisasi', 'disetujui', 'dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'menunggu_reimburse', 'selesai']:
+                utang = UtangSupplier.objects.filter(app_siaga_faktur_id=f"KBS-{instance.id}").first()
+                if utang:
+                    if utang.status == UtangSupplier.STATUS_LUNAS:
+                        utang.status = UtangSupplier.STATUS_DIBATALKAN
+                        utang.alasan_batal = f"Kas Besar {instance.no_pengajuan} dibatalkan: {str(alasan).strip()}"
+                        utang.dibatalkan_by = request.user
+                        utang.dibatalkan_at = timezone.now()
+                        utang.save(update_fields=['status', 'alasan_batal', 'dibatalkan_by', 'dibatalkan_at', 'updated_at'])
+                    else:
+                        utang.delete()
+
+            instance.status = 'dibatalkan'
+            instance.alasan_batal = str(alasan).strip()
+            instance.save()
+
+        return Response({
+            'message': 'Pengajuan Kas Besar berhasil dibatalkan.',
+            'status': instance.status,
+            'data': KasBesarSerializer(instance, context={'request': request}).data
+        })
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         can_delete_all = is_direktur_or_wadir(request.user)
@@ -7193,7 +8291,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsReimbursementPermission]
     parser_classes     = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
@@ -7203,21 +8301,35 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Reimbursement.objects.select_related('created_by', 'disetujui_oleh', 'dicairkan_oleh').all()
+        if not can_access_reimbursement(self.request.user):
+            return qs.none()
         
-        # User biasa hanya lihat milik sendiri
-        if not is_manajer_or_above(self.request.user):
+        # Jika bukan pimpinan atau keuangan/kasir, hanya lihat milik sendiri
+        if not (is_direktur_or_wadir(self.request.user) or is_keuangan(self.request.user) or self.request.user.is_superuser):
             qs = qs.filter(created_by=self.request.user)
         
         st     = self.request.query_params.get('status')
         dari   = self.request.query_params.get('dari')
         sampai = self.request.query_params.get('sampai')
+        search = self.request.query_params.get('search')
         if st:     qs = qs.filter(status=st)
         if dari:   qs = qs.filter(tanggal__gte=dari)
         if sampai: qs = qs.filter(tanggal__lte=sampai)
+        if search:
+            qs = qs.filter(
+                Q(no_reimbursement__icontains=search) |
+                Q(keperluan__icontains=search) |
+                Q(keterangan__icontains=search) |
+                Q(created_by__first_name__icontains=search) |
+                Q(created_by__username__icontains=search)
+            )
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        rb = serializer.save(created_by=self.request.user, tanggal=timezone.localdate())
+        fotos = self.request.FILES.getlist('fotos') or self.request.FILES.getlist('foto_list')
+        for i, f in enumerate(fotos):
+            FotoReimbursement.objects.create(reimbursement=rb, foto=f, urutan=i+1)
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -7282,7 +8394,17 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.status         = 'dicairkan'
             instance.dicairkan_oleh = request.user
             instance.save()
- 
+
+            if instance.kas_besar:
+                kb = instance.kas_besar
+                if not kb.reimbursements.exclude(status='dicairkan').exists():
+                    kb.status = 'selesai'
+                    kb.save(update_fields=['status', 'updated_at'])
+                    if hasattr(kb, 'laporan'):
+                        kb.laporan.pengembalian_selesai = True
+                        kb.laporan.dikonfirmasi_oleh = request.user
+                        kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+
         return Response({'message': 'Reimbursement berhasil dicairkan.', 'status': instance.status})
 
     # POST /{id}/revisi/ — karyawan revisi yang ditolak
@@ -7375,7 +8497,8 @@ class SaldoPettyCashViewSet(viewsets.ViewSet):
         })
 
 class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
-    permission_classes = [IsManajerOrAbovePermission]
+    permission_classes = [IsAuthenticated]
+    parser_classes     = [MultiPartParser, FormParser, JSONParser]
  
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -7388,10 +8511,16 @@ class PengajuanPenambahanSaldoViewSet(OptionalPaginationMixin, viewsets.ModelVie
         ).all()
  
     def perform_create(self, serializer):
-        # Manajer keuangan ke atas bisa mengajukan penambahan saldo.
-        if not is_manajer_or_above(self.request.user):
+        can_create = (
+            getattr(self.request.user, 'akses_reimbursement', False)
+            or getattr(self.request.user, 'is_keuangan', False)
+            or is_manajer_or_above(self.request.user)
+            or is_petty_cash_cashier(self.request.user)
+            or self.request.user.is_superuser
+        )
+        if not can_create:
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied('Hanya manajer, direktur, atau wakil direktur yang dapat mengajukan penambahan saldo.')
+            raise PermissionDenied('Hanya bagian keuangan, kasir kas kecil, manajer, atau direksi yang dapat mengajukan pengisian kembali saldo.')
         serializer.save(created_by=self.request.user)
  
     # POST /{id}/approval/ — direktur/wadir approve atau tolak

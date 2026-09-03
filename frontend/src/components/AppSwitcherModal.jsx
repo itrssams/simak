@@ -43,6 +43,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
     const isLogistik = user?.is_superuser || user?.is_logistik || isManajerUp;
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
     const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
+    const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isDirekturUp || user?.is_petty_cash_cashier;
     const isDriverAccess = user?.is_driver || isManajerUp;
 
     const allApps = useMemo(() => [

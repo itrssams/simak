@@ -19,7 +19,9 @@ from .models import (
     Tagihan, TagihanItem, PembayaranTagihan,
     RekeningBank, RiwayatSaldoRekening,
     
-    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan, Reimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    PettyCash, LaporanPenggunaan, ItemLaporanPenggunaan, FotoLaporanPenggunaan,
+    Reimbursement, FotoReimbursement, SaldoPettyCash, RiwayatSaldoPettyCash, PengajuanPenambahanSaldo,
+    KasBesar, LaporanPenggunaanKasBesar, ItemLaporanKasBesar, FotoLaporanKasBesar,
 )
 
 from system.audit import infer_target, make_description, target_display_from_user
@@ -813,6 +815,187 @@ class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Nominal maksimal Rp 999.999. Pengajuan di atas itu langsung ke bagian keuangan.')
         return value
 
+class ItemLaporanKasBesarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemLaporanKasBesar
+        fields = '__all__'
+        read_only_fields = ['laporan', 'created_at']
+
+class ItemLaporanKasBesarInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemLaporanKasBesar
+        fields = ['kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'nilai']
+
+class FotoLaporanKasBesarSerializer(serializers.ModelSerializer):
+    foto_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FotoLaporanKasBesar
+        fields = ['id', 'foto_url', 'urutan', 'keterangan']
+
+    def get_foto_url(self, obj):
+        if obj.foto:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.foto.url)
+            return obj.foto.url
+        return None
+
+class LaporanPenggunaanKasBesarSerializer(serializers.ModelSerializer):
+    items = ItemLaporanKasBesarSerializer(many=True, read_only=True)
+    dikonfirmasi_oleh_name = serializers.SerializerMethodField()
+    nota_url = serializers.SerializerMethodField()
+    foto_list = FotoLaporanKasBesarSerializer(many=True, read_only=True)
+    berkas_nota_list = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LaporanPenggunaanKasBesar
+        fields = '__all__'
+        read_only_fields = ['kas_besar', 'pengembalian_selesai', 'dikonfirmasi_oleh', 'created_at', 'updated_at']
+
+    def get_dikonfirmasi_oleh_name(self, obj):
+        return obj.dikonfirmasi_oleh.get_full_name() or obj.dikonfirmasi_oleh.username if obj.dikonfirmasi_oleh else '-'
+
+    def get_nota_url(self, obj):
+        if obj.nota:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.nota.url)
+            return obj.nota.url
+        return None
+
+    def get_berkas_nota_list(self, obj):
+        result = []
+        fotos = obj.foto_list.all().order_by('urutan', 'id')
+        for f in fotos:
+            if f.foto:
+                try:
+                    result.append({
+                        'id': f.id,
+                        'url': f.foto.url,
+                        'name': f.foto.name.split('/')[-1],
+                        'urutan': f.urutan,
+                        'keterangan': f.keterangan
+                    })
+                except Exception:
+                    pass
+        if not result and obj.nota:
+            try:
+                result.append({
+                    'id': 'main',
+                    'url': obj.nota.url,
+                    'name': obj.nota.name.split('/')[-1],
+                    'urutan': 1,
+                    'keterangan': ''
+                })
+            except Exception:
+                pass
+        return result
+
+class LaporanPenggunaanKasBesarInputSerializer(serializers.ModelSerializer):
+    items = ItemLaporanKasBesarInputSerializer(many=True, required=False)
+    
+    class Meta:
+        model = LaporanPenggunaanKasBesar
+        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'items']
+
+    def validate_nominal_digunakan(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal digunakan harus lebih dari 0.')
+        return value
+
+    def create(self, validated_data):
+        validated_data.pop('items', None)
+        return LaporanPenggunaanKasBesar.objects.create(**validated_data)
+
+class KasBesarSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    disetujui_oleh_name = serializers.SerializerMethodField()
+    dicairkan_oleh_name = serializers.SerializerMethodField()
+    laporan_disetujui_oleh_name = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    berkas_url = serializers.SerializerMethodField()
+    catatan_utang_info = serializers.SerializerMethodField()
+    is_realisasi_utang = serializers.SerializerMethodField()
+    reimbursement_info = serializers.SerializerMethodField()
+    laporan = LaporanPenggunaanKasBesarSerializer(read_only=True)
+
+    class Meta:
+        model = KasBesar
+        fields = '__all__'
+        read_only_fields = ['no_pengajuan', 'status', 'catatan_tolak', 'alasan_batal', 'created_by', 'disetujui_oleh', 'dicairkan_oleh', 'laporan_disetujui_oleh', 'laporan_disetujui_at', 'created_at', 'updated_at', 'sumber_petty_cash']
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() or obj.created_by.username if obj.created_by else '-'
+
+    def get_disetujui_oleh_name(self, obj):
+        return obj.disetujui_oleh.get_full_name() or obj.disetujui_oleh.username if obj.disetujui_oleh else '-'
+
+    def get_dicairkan_oleh_name(self, obj):
+        return obj.dicairkan_oleh.get_full_name() or obj.dicairkan_oleh.username if obj.dicairkan_oleh else '-'
+
+    def get_laporan_disetujui_oleh_name(self, obj):
+        return obj.laporan_disetujui_oleh.get_full_name() or obj.laporan_disetujui_oleh.username if obj.laporan_disetujui_oleh else '-'
+
+    def get_berkas_url(self, obj):
+        if obj.berkas:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.berkas.url)
+            return obj.berkas.url
+        return None
+
+    def get_catatan_utang_info(self, obj):
+        from .models import UtangSupplier
+        utang = UtangSupplier.objects.filter(app_siaga_faktur_id=f"KBS-{obj.id}").first()
+        if not utang:
+            return {
+                'tercatat': obj.status in ('menunggu_realisasi', 'disetujui'),
+                'diverifikasi': False,
+                'status_utang': None,
+                'status_utang_label': 'Menunggu Verifikasi',
+                'total_dibayar': 0,
+                'is_realisasi': False,
+            }
+        is_real = (utang.status == UtangSupplier.STATUS_LUNAS or utang.total_dibayar > 0)
+        return {
+            'tercatat': True,
+            'diverifikasi': True,
+            'status_utang': utang.status,
+            'status_utang_label': utang.get_status_display(),
+            'total_dibayar': float(utang.total_dibayar),
+            'is_realisasi': is_real,
+        }
+
+    def get_is_realisasi_utang(self, obj):
+        info = self.get_catatan_utang_info(obj)
+        return info.get('is_realisasi', False)
+
+    def get_reimbursement_info(self, obj):
+        rb = obj.reimbursements.first()
+        if not rb:
+            return None
+        return {
+            'id': rb.id,
+            'no_reimbursement': rb.no_reimbursement,
+            'nominal': float(rb.nominal),
+            'status': rb.status,
+            'status_label': rb.get_status_display(),
+            'tanggal': str(rb.tanggal),
+        }
+
+class KasBesarInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KasBesar
+        fields = ['tanggal', 'keperluan', 'nominal', 'keterangan', 'berkas']
+
+    def validate_nominal(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Nominal harus lebih dari 0.')
+        if value < 1000000:
+            raise serializers.ValidationError('Nominal minimal Kas Besar adalah Rp 1.000.000.')
+        return value
+
 class PettyCashSerializer(serializers.ModelSerializer):
     created_by_name     = serializers.SerializerMethodField()
     disetujui_oleh_name = serializers.SerializerMethodField()
@@ -859,12 +1042,19 @@ class PettyCashInputSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Nominal harus lebih dari 0.')
         return value
 
+class FotoReimbursementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FotoReimbursement
+        fields = ['id', 'foto', 'urutan', 'keterangan', 'created_at']
+
 class ReimbursementSerializer(serializers.ModelSerializer):
     created_by_name     = serializers.SerializerMethodField()
     disetujui_oleh_name = serializers.SerializerMethodField()
     dicairkan_oleh_name = serializers.SerializerMethodField()
     status_label        = serializers.CharField(source='get_status_display', read_only=True)
     berkas_url          = serializers.SerializerMethodField()
+    kas_besar_info      = serializers.SerializerMethodField()
+    foto_list           = FotoReimbursementSerializer(many=True, read_only=True)
 
     class Meta:
         model  = Reimbursement
@@ -888,21 +1078,29 @@ class ReimbursementSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_kas_besar_info(self, obj):
+        if not obj.kas_besar:
+            return None
+        return {
+            'id': obj.kas_besar.id,
+            'no_pengajuan': obj.kas_besar.no_pengajuan,
+            'status': obj.kas_besar.status,
+            'status_label': obj.kas_besar.get_status_display(),
+        }
+
 class ReimbursementInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Reimbursement
-        fields = ['tanggal', 'keperluan', 'nominal', 'keterangan', 'berkas']
+        fields = ['tanggal', 'tanggal_nota', 'keperluan', 'nominal', 'keterangan', 'berkas']
+        extra_kwargs = {
+            'tanggal': {'required': False},
+            'tanggal_nota': {'required': False},
+            'berkas': {'required': False},
+        }
 
     def validate_nominal(self, value):
         if value <= 0:
             raise serializers.ValidationError('Nominal harus lebih dari 0.')
-        if value > 999999:
-            raise serializers.ValidationError('Nominal maksimal Rp 999.999. Pengajuan di atas itu langsung ke bagian keuangan.')
-        return value
-
-    def validate_berkas(self, value):
-        if not value:
-            raise serializers.ValidationError('Berkas bukti wajib dilampirkan.')
         return value
 
 class SaldoPettyCashSerializer(serializers.ModelSerializer):
@@ -990,9 +1188,11 @@ class PengajuanPenambahanSaldoSerializer(serializers.ModelSerializer):
         return penambahan_terakhir.created_at.isoformat() if penambahan_terakhir else None
 
 class PengajuanPenambahanSaldoInputSerializer(serializers.ModelSerializer):
+    berkas = serializers.FileField(required=False, allow_null=True)
+
     class Meta:
         model  = PengajuanPenambahanSaldo
-        fields = ['tanggal', 'nominal_diajukan', 'alasan', 'keterangan']
+        fields = ['tanggal', 'nominal_diajukan', 'alasan', 'keterangan', 'berkas']
         extra_kwargs = {
             'nominal_diajukan': {'required': True},
             'alasan': {'required': True},

@@ -9,6 +9,7 @@ from .views import (
     
     
     PettyCashViewSet, ReimbursementViewSet, SaldoPettyCashViewSet, PengajuanPenambahanSaldoViewSet,
+    KasBesarViewSet,
         
     UtangSupplierViewSet, PembayaranUtangViewSet, UtangMenungguVerifikasiView, UtangVendorOptionsView, UtangPelunasanDataLamaView,
     faktur_legacy_print_view, faktur_tanda_terima_print_view, faktur_rekap_print_view, faktur_rekap_excel_view,
@@ -26,6 +27,7 @@ router.register(r'alokasi-dana',  AlokasiDanaViewSet,   basename='alokasi-dana')
 router.register(r'induk-pembiayaan', IndukPembiayaanViewSet, basename='induk-pembiayaan')
 router.register(r'rekening',      RekeningBankViewSet,  basename='rekening')
 router.register(r'petty-cash',    PettyCashViewSet,     basename='petty-cash')
+router.register(r'kas-besar',     KasBesarViewSet,      basename='kas-besar')
 router.register(r'reimbursement', ReimbursementViewSet, basename='reimbursement')
 router.register(r'saldo-petty-cash',      SaldoPettyCashViewSet,         basename='saldo-petty-cash')
 router.register(r'penambahan-saldo',      PengajuanPenambahanSaldoViewSet, basename='penambahan-saldo')

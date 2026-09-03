@@ -866,6 +866,18 @@ def foto_petty_cash_path(instance, filename):
 def foto_laporan_penggunaan_path(instance, filename):
     return f'petty_cash/laporan/{instance.laporan.petty_cash.no_pengajuan}/foto/{filename}'
 
+def berkas_kb_path(instance, filename):
+    return f'kas_besar/{instance.no_pengajuan}/{filename}'
+
+def nota_kb_path(instance, filename):
+    return f'kas_besar/nota/{instance.kas_besar.no_pengajuan}/{filename}'
+
+def foto_laporan_kb_path(instance, filename):
+    return f'kas_besar/laporan/{instance.laporan.kas_besar.no_pengajuan}/foto/{filename}'
+
+def berkas_saldo_path(instance, filename):
+    return f'petty_cash/lampiran_saldo/{instance.no_pengajuan}/{filename}'
+
 class PettyCash(models.Model):
     STATUS_CHOICES = [
         ('pending',               'Pending'),
@@ -962,7 +974,8 @@ class Reimbursement(models.Model):
     ]
 
     no_reimbursement = models.CharField(max_length=20, unique=True, editable=False)
-    tanggal          = models.DateField()
+    tanggal          = models.DateField(help_text="Tanggal pengajuan (hari ini)")
+    tanggal_nota     = models.DateField(null=True, blank=True, help_text="Tanggal bukti transaksi nota/kuitansi fisik")
     keperluan        = models.TextField()
     nominal          = models.DecimalField(max_digits=15, decimal_places=2)
     keterangan       = models.TextField(blank=True)
@@ -972,6 +985,7 @@ class Reimbursement(models.Model):
     created_by       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='reimbursement_pengajuan')
     disetujui_oleh   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursement_disetujui')
     dicairkan_oleh   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursement_dicairkan')
+    kas_besar        = models.ForeignKey('KasBesar', on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursements', help_text="Referensi Kas Besar jika reimbursement berasal dari kekurangan belanja")
     created_at       = models.DateTimeField(auto_now_add=True)
     updated_at       = models.DateTimeField(auto_now=True)
 
@@ -982,8 +996,10 @@ class Reimbursement(models.Model):
         verbose_name_plural = 'Reimbursement'
 
     def save(self, *args, **kwargs):
+        from datetime import date
+        if not self.tanggal:
+            self.tanggal = date.today()
         if not self.no_reimbursement:
-            from datetime import date
             today  = date.today()
             prefix = f"RB-{today.strftime('%Y%m')}-"
             last   = Reimbursement.objects.filter(no_reimbursement__startswith=prefix).order_by('no_reimbursement').last()
@@ -1070,6 +1086,131 @@ class FotoLaporanPenggunaan(models.Model):
 
         super().save(*args, **kwargs)
 
+class KasBesar(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('menunggu_realisasi', 'Menunggu Realisasi'),
+        ('disetujui', 'Disetujui'),
+        ('ditolak', 'Ditolak'),
+        ('dicairkan', 'Dicairkan'),
+        ('menunggu_approval_laporan', 'Menunggu Approval Laporan'),
+        ('dilaporkan', 'Dilaporkan'),
+        ('menunggu_pengembalian', 'Menunggu Pengembalian'),
+        ('menunggu_reimburse', 'Menunggu Reimbursement'),
+        ('selesai', 'Selesai'),
+        ('dibatalkan', 'Dibatalkan'),
+    ]
+
+    no_pengajuan = models.CharField(max_length=20, unique=True, editable=False)
+    tanggal = models.DateField()
+    keperluan = models.TextField()
+    nominal = models.DecimalField(max_digits=15, decimal_places=2)
+    keterangan = models.TextField(blank=True)
+    berkas = models.FileField(upload_to=berkas_kb_path, null=True, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
+    catatan_tolak = models.TextField(blank=True)
+    alasan_batal = models.TextField(blank=True)
+    
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='kas_besar_pengajuan')
+    disetujui_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='kas_besar_disetujui')
+    dicairkan_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='kas_besar_dicairkan')
+    laporan_disetujui_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='kas_besar_laporan_disetujui')
+    
+    sumber_petty_cash = models.ForeignKey('PettyCash', on_delete=models.SET_NULL, null=True, blank=True, related_name='kas_besar_pengalihan', help_text="Referensi Petty Cash jika ini adalah hasil pengalihan")
+    
+    laporan_disetujui_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'keuangan_kas_besar'
+        ordering = ['-created_at']
+        verbose_name = 'Kas Besar'
+        verbose_name_plural = 'Kas Besar'
+
+    def save(self, *args, **kwargs):
+        if not self.no_pengajuan:
+            from datetime import date
+            today = date.today()
+            prefix = f"KB-{today.strftime('%Y%m')}-"
+            last = KasBesar.objects.filter(no_pengajuan__startswith=prefix).order_by('no_pengajuan').last()
+            if last:
+                last_num = int(last.no_pengajuan.split('-')[-1])
+                self.no_pengajuan = f"{prefix}{str(last_num + 1).zfill(3)}"
+            else:
+                self.no_pengajuan = f"{prefix}001"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.no_pengajuan} - {self.status}"
+
+class LaporanPenggunaanKasBesar(models.Model):
+    kas_besar = models.OneToOneField(KasBesar, on_delete=models.CASCADE, related_name='laporan')
+    tanggal_laporan = models.DateField()
+    tanggal_nota = models.DateField(null=True, blank=True, help_text='Tanggal nota / kuitansi riil belanja')
+    nominal_digunakan = models.DecimalField(max_digits=15, decimal_places=2)
+    selisih = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    rincian = models.TextField()
+    nota = models.FileField(upload_to=nota_kb_path, null=True, blank=True)
+    pengembalian_selesai = models.BooleanField(default=False)
+    dikonfirmasi_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='konfirmasi_laporan_kb')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'keuangan_kas_besar_laporan'
+        verbose_name = 'Laporan Penggunaan Kas Besar'
+        verbose_name_plural = 'Laporan Penggunaan Kas Besar'
+
+    def __str__(self):
+        return f"Laporan {self.kas_besar.no_pengajuan}"
+
+class ItemLaporanKasBesar(models.Model):
+    laporan = models.ForeignKey(LaporanPenggunaanKasBesar, on_delete=models.CASCADE, related_name='items')
+    kode_akun = models.CharField(max_length=30)
+    nama_akun = models.CharField(max_length=150)
+    pos_biaya = models.CharField(max_length=100, blank=True)
+    deskripsi = models.TextField()
+    nilai = models.DecimalField(max_digits=15, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'keuangan_kas_besar_laporan_item'
+        ordering = ['id']
+        verbose_name = 'Item Laporan Kas Besar'
+        verbose_name_plural = 'Item Laporan Kas Besar'
+
+    def __str__(self):
+        return f"{self.kode_akun} - {self.nama_akun}: {self.nilai}"
+
+class FotoLaporanKasBesar(models.Model):
+    laporan = models.ForeignKey(LaporanPenggunaanKasBesar, on_delete=models.CASCADE, related_name='foto_list')
+    foto = models.FileField(upload_to=foto_laporan_kb_path)
+    urutan = models.PositiveIntegerField(default=1, help_text='Urutan foto')
+    keterangan = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'keuangan_kas_besar_foto_laporan'
+        ordering = ['urutan', 'created_at']
+        verbose_name = 'Foto Laporan Kas Besar'
+        verbose_name_plural = 'Foto Laporan Kas Besar'
+
+    def __str__(self):
+        return f"Foto {self.urutan} - Laporan {self.laporan.kas_besar.no_pengajuan}"
+
+    def save(self, *args, **kwargs):
+        # Auto-compress image on save if file is an image
+        if self.foto:
+            ext = str(self.foto.name).lower().split('.')[-1]
+            if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                try:
+                    from .utils_image import compress_image
+                    compress_image(self.foto, max_width=1920, max_height=1920, quality=75)
+                except Exception:
+                    pass
+        super().save(*args, **kwargs)
+
 class SaldoPettyCash(models.Model):
     """Singleton — hanya ada 1 row (pk=1)"""
     saldo      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
@@ -1129,6 +1270,7 @@ class PengajuanPenambahanSaldo(models.Model):
     )
     status           = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     catatan_tolak    = models.TextField(blank=True)
+    berkas           = models.FileField(upload_to=berkas_saldo_path, null=True, blank=True, help_text='Lampiran print out / rekap Laporan PC')
     created_by       = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name='pengajuan_penambahan_saldo'

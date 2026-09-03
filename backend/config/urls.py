@@ -33,6 +33,7 @@ def me_view(request):
         'is_keuangan': user.is_keuangan,
         'is_petty_cash_cashier': user.is_petty_cash_cashier,
         'akses_catatan_utang': user.akses_catatan_utang,
+        'akses_kas_besar': getattr(user, 'akses_kas_besar', False),
         'is_logistik': getattr(user, 'is_logistik', False),
         'is_akuntansi': getattr(user, 'is_akuntansi', False),
         'unit': user.unit_id,

@@ -92,6 +92,8 @@ export default function AppLauncher() {
     const isLogistik = user?.is_superuser || user?.is_logistik || isManajerUp;
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
     const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
+    const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isDirekturUp || user?.is_petty_cash_cashier;
+    const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isManajerUp || user?.is_petty_cash_cashier;
     const isDriverAccess = user?.is_driver || isManajerUp;
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
@@ -157,7 +159,7 @@ export default function AppLauncher() {
         {
             id: 'petty-cash',
             name: 'Petty Cash',
-            subtitle: 'Kas Kecil & Pengeluaran',
+            subtitle: 'Kas Kecil, Kas Besar & Reimbursement',
             icon: WalletCards,
             color: '#22c55e',
             glowColor: 'rgba(34, 197, 94, 0.45)',
@@ -166,7 +168,9 @@ export default function AppLauncher() {
             path: '/petty-cash',
             allowed: true,
             submenus: [
-                { label: 'Pengajuan & Kasbon', path: '/petty-cash' },
+                { label: 'Petty Cash', path: '/petty-cash' },
+                ...(canKasBesar ? [{ label: 'Kas Besar', path: '/petty-cash?tab=kb' }] : []),
+                ...(canReimbursement ? [{ label: 'Reimbursement', path: '/reimbursement' }] : []),
                 ...(isManajerUp ? [{ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' }] : []),
             ],
         },
