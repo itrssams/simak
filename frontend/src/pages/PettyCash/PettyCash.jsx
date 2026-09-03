@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
 import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
@@ -12,8 +11,6 @@ import DateField from '../../components/DateField';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
 import { AKUN_BIAYA_PETTY_CASH, AKUN_MAP } from './pettyCashAccounts';
 import SearchableAkunBiayaSelect from './SearchableAkunBiayaSelect';
-import KasBesarTab from '../KasBesar/KasBesar';
-import Reimbursement from '../Reimbursement/Reimbursement';
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
 const fmtTgl = (s) => s ? new Date(s).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -112,31 +109,7 @@ export default function PettyCash() {
     const isPettyCashCashier = user?.is_superuser || Boolean(user?.is_petty_cash_cashier);
     const canSeeSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
     const canAjukanSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
-    const canSeeKasBesar = user?.is_superuser || Boolean(user?.akses_kas_besar) || isDirekturWadir || isPettyCashCashier;
-    const canSeeReimbursement = user?.is_superuser || Boolean(user?.akses_reimbursement) || Boolean(user?.is_keuangan) || isManajer || isPettyCashCashier;
 
-    const [searchParams, setSearchParams] = useSearchParams();
-    const tabParam = searchParams.get('tab');
-    const [activeTab, setActiveTab] = useState(() => (tabParam === 'kb' ? 'kb' : tabParam === 'rb' ? 'rb' : 'pc'));
-    const [pendingKB, setPendingKB] = useState(0);
-
-    useEffect(() => {
-        let target = (tabParam && ['pc', 'kb', 'rb'].includes(tabParam)) ? tabParam : 'pc';
-        if (target === 'rb' && !canSeeReimbursement) target = 'pc';
-        if (target === 'kb' && !canSeeKasBesar) target = 'pc';
-        if (target !== activeTab) {
-            setActiveTab(target);
-        }
-    }, [tabParam, activeTab, canSeeReimbursement, canSeeKasBesar]);
-
-    const handleTabChange = (t) => {
-        setActiveTab(t);
-        if (t === 'pc') {
-            setSearchParams({});
-        } else {
-            setSearchParams({ tab: t });
-        }
-    };
 
     const [success, setSuccess] = useToastState('success');
     const [error, setError] = useToastState('error');
@@ -293,11 +266,7 @@ export default function PettyCash() {
             if (canSeeSaldo && results[3]) {
                 setListPenambahan(getResults(results[3].data));
             }
-            if (canSeeKasBesar) {
-                api.get('/keuangan/kas-besar/', { params: { status: 'pending', page_size: 1 } })
-                    .then(r => setPendingKB(getCount(r.data)))
-                    .catch(() => {});
-            }
+
         } catch (e) { console.error(e); }
         finally { setLoadingPC(false); setLoadingRB(false); }
     };
@@ -832,134 +801,107 @@ export default function PettyCash() {
                     <div className="pc-page-title">
                         <span><Wallet size={22} /></span>
                         <div>
-                            <h1 className="pc-title">Petty Cash & Reimbursement</h1>
-                            <p className="pc-subtitle">Pantau saldo kas kecil, proses pengajuan, dan cek reimbursement dalam satu halaman kerja yang ringkas.</p>
+                            <h1 className="pc-title">Petty Cash</h1>
+                            <p className="pc-subtitle">Pantau saldo kas kecil dan kelola pengajuan operasional petty cash.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {success && <div className="pc-alert-ok"><Check size={16} /> {success}</div>}
+                    {/* Saldo cards untuk manajer ke atas */}
+                    {canSeeSaldo && saldo && (() => {
+                        const totalMasuk = riwayatSaldo.filter(r => r.jenis === 'penambahan').reduce((s, r) => s + Number(r.jumlah), 0);
+                        const totalKeluar = riwayatSaldo.filter(r => r.jenis === 'pengurangan').reduce((s, r) => s + Number(r.jumlah), 0);
+                        return (
+                            <div className="pc-saldo-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 28 }}>
 
-            {/* Saldo cards untuk manajer ke atas */}
-            {canSeeSaldo && saldo && (() => {
-                const totalMasuk = riwayatSaldo.filter(r => r.jenis === 'penambahan').reduce((s, r) => s + Number(r.jumlah), 0);
-                const totalKeluar = riwayatSaldo.filter(r => r.jenis === 'pengurangan').reduce((s, r) => s + Number(r.jumlah), 0);
-                return (
-                    <div className="pc-saldo-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 28 }}>
-
-                        {/* Card Saldo Utama */}
-                        <div className="pc-balance-card">
-                            <div className="pc-balance-inner">
-                                <div>
-                                    <div className="pc-balance-top">
+                                {/* Card Saldo Utama */}
+                                <div className="pc-balance-card">
+                                    <div className="pc-balance-inner">
                                         <div>
-                                            <p className="pc-balance-label">Saldo Petty Cash</p>
-                                            <p className="pc-balance-value">{fmt(saldoNominal)}</p>
-                                            {saldo.updated_by_name && <p className="pc-balance-meta">Diperbarui oleh {saldo.updated_by_name}</p>}
+                                            <div className="pc-balance-top">
+                                                <div>
+                                                    <p className="pc-balance-label">Saldo Petty Cash</p>
+                                                    <p className="pc-balance-value">{fmt(saldoNominal)}</p>
+                                                    {saldo.updated_by_name && <p className="pc-balance-meta">Diperbarui oleh {saldo.updated_by_name}</p>}
+                                                </div>
+                                                <div className="pc-balance-icon"><Wallet size={23} /></div>
+                                            </div>
+                                            <div className="pc-balance-progress">
+                                                <span style={{ width: `${saldoPct}%`, background: saldoKritis ? 'linear-gradient(90deg,#f87171,#ef4444)' : 'linear-gradient(90deg,#6ee7b7,#34d399)' }} />
+                                            </div>
+                                            <div className="pc-balance-foot">
+                                                <span>{saldoPct}% dari Rp 10.000.000</span>
+                                                {saldoKritis && <span className="pc-warning-pill"><AlertTriangle size={13} /> Menipis</span>}
+                                            </div>
                                         </div>
-                                        <div className="pc-balance-icon"><Wallet size={23} /></div>
-                                    </div>
-                                    <div className="pc-balance-progress">
-                                        <span style={{ width: `${saldoPct}%`, background: saldoKritis ? 'linear-gradient(90deg,#f87171,#ef4444)' : 'linear-gradient(90deg,#6ee7b7,#34d399)' }} />
-                                    </div>
-                                    <div className="pc-balance-foot">
-                                        <span>{saldoPct}% dari Rp 10.000.000</span>
-                                        {saldoKritis && <span className="pc-warning-pill"><AlertTriangle size={13} /> Menipis</span>}
+                                        <div className="pc-balance-actions">
+                                            <button className="pc-action-dark" onClick={() => setModalSaldo(true)}>
+                                                <ClipboardList size={15} />
+                                                Daftar Pengisian Kembali Saldo
+                                                {pendingSaldo > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 800, padding: '2px 7px', lineHeight: 1.4 }}>{pendingSaldo}</span>}
+                                            </button>
+                                            {canAjukanSaldo && (
+                                                <button className="pc-action-dark" onClick={() => { setFormSaldo({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' }); setBerkasSaldo(null); setBerkasSaldoInfo(null); resetError(); setModalAjukanSaldo(true); }}>
+                                                    <Plus size={15} />
+                                                    Pengisian Kembali
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="pc-balance-actions">
-                                    <button className="pc-action-dark" onClick={() => setModalSaldo(true)}>
-                                        <ClipboardList size={15} />
-                                        Daftar Pengisian Kembali Saldo
-                                        {pendingSaldo > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 800, padding: '2px 7px', lineHeight: 1.4 }}>{pendingSaldo}</span>}
-                                    </button>
-                                    {canAjukanSaldo && (
-                                        <button className="pc-action-dark" onClick={() => { setFormSaldo({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' }); setBerkasSaldo(null); setBerkasSaldoInfo(null); resetError(); setModalAjukanSaldo(true); }}>
-                                            <Plus size={15} />
-                                            Pengisian Kembali
-                                        </button>
-                                    )}
+                                {/* Card Total Masuk */}
+                                <div className="pc-money-card pc-money-masuk">
+                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(34,197,94,.06)', pointerEvents: 'none' }} />
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                        <div className="pc-card-icon pc-icon-masuk"><ArrowRight size={18} style={{ transform: 'rotate(-45deg)' }} /></div>
+                                        <span className="pc-card-badge pc-badge-masuk">MASUK</span>
+                                    </div>
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penambahan</p>
+                                    <p className="pc-masuk-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalMasuk)}</p>
+                                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'penambahan').length} kali penambahan</p>
+                                    <div className="pc-progress-track">
+                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#86efac,#22c55e)', width: `${Math.min((totalMasuk / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
+                                    </div>
+                                </div>
+
+                                {/* Card Total Keluar */}
+                                <div className="pc-money-card pc-money-keluar">
+                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(239,68,68,.06)', pointerEvents: 'none' }} />
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                        <div className="pc-card-icon pc-icon-keluar"><ArrowRight size={18} style={{ transform: 'rotate(45deg)' }} /></div>
+                                        <span className="pc-card-badge pc-badge-keluar">KELUAR</span>
+                                    </div>
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penggunaan</p>
+                                    <p className="pc-keluar-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalKeluar)}</p>
+                                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'pengurangan').length} kali penggunaan</p>
+                                    <div className="pc-progress-track">
+                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#fca5a5,#ef4444)', width: `${Math.min((totalKeluar / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        {/* Card Total Masuk */}
-                        <div className="pc-money-card pc-money-masuk">
-                            <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(34,197,94,.06)', pointerEvents: 'none' }} />
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div className="pc-card-icon pc-icon-masuk"><ArrowRight size={18} style={{ transform: 'rotate(-45deg)' }} /></div>
-                                <span className="pc-card-badge pc-badge-masuk">MASUK</span>
-                            </div>
-                            <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penambahan</p>
-                            <p className="pc-masuk-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalMasuk)}</p>
-                            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'penambahan').length} kali penambahan</p>
-                            <div className="pc-progress-track">
-                                <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#86efac,#22c55e)', width: `${Math.min((totalMasuk / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
-                            </div>
-                        </div>
+                        );
+                    })()}
 
-                        {/* Card Total Keluar */}
-                        <div className="pc-money-card pc-money-keluar">
-                            <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(239,68,68,.06)', pointerEvents: 'none' }} />
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <div className="pc-card-icon pc-icon-keluar"><ArrowRight size={18} style={{ transform: 'rotate(45deg)' }} /></div>
-                                <span className="pc-card-badge pc-badge-keluar">KELUAR</span>
+                    {/* Stats mini */}
+                    <div className="pc-stats-mini" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 24 }}>
+                        {[
+                            { Icon: Clock, label: 'Pending Approval', val: pendingPC, iconClass: 'pc-stat-icon-pending', valClass: 'pc-stat-val-pending' },
+                            { Icon: Wallet, label: 'Sedang Berjalan', val: berjalanPC, iconClass: 'pc-stat-icon-berjalan', valClass: 'pc-stat-val-berjalan' },
+                            { Icon: Check, label: 'Selesai', val: selesaiPC, iconClass: 'pc-stat-icon-selesai', valClass: 'pc-stat-val-selesai' },
+                        ].map((s, i) => (
+                            <div className="pc-stat-mini" key={i}>
+                                <div className={`pc-stat-icon ${s.iconClass}`}><s.Icon size={18} strokeWidth={1.5} /></div>
+                                <div style={{ minWidth: 0 }}>
+                                    <p className="pc-stat-mini-label">{s.label}</p>
+                                    <p className={`pc-stat-mini-val ${s.valClass}`}>{s.val}</p>
+                                </div>
                             </div>
-                            <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penggunaan</p>
-                            <p className="pc-keluar-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalKeluar)}</p>
-                            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'pengurangan').length} kali penggunaan</p>
-                            <div className="pc-progress-track">
-                                <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#fca5a5,#ef4444)', width: `${Math.min((totalKeluar / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                );
-            })()}
 
-            {/* Stats row kalau tidak ada saldo banner (karyawan) */}
-            {/* Stats mini */}
-            <div className="pc-stats-mini" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 24 }}>
-                {[
-                    { Icon: Clock, label: 'Pending Approval', val: pendingPC + pendingRB, iconClass: 'pc-stat-icon-pending', valClass: 'pc-stat-val-pending' },
-                    { Icon: Wallet, label: 'Sedang Berjalan', val: berjalanPC, iconClass: 'pc-stat-icon-berjalan', valClass: 'pc-stat-val-berjalan' },
-                    { Icon: Check, label: 'Selesai', val: selesaiPC, iconClass: 'pc-stat-icon-selesai', valClass: 'pc-stat-val-selesai' },
-                ].map((s, i) => (
-                    <div className="pc-stat-mini" key={i}>
-                        <div className={`pc-stat-icon ${s.iconClass}`}><s.Icon size={18} strokeWidth={1.5} /></div>
-                        <div style={{ minWidth: 0 }}>
-                            <p className="pc-stat-mini-label">{s.label}</p>
-                            <p className={`pc-stat-mini-val ${s.valClass}`}>{s.val}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="pc-list-area">
-                <div className="pc-list-head">
-                    <div>
-                        <p className="pc-list-title">Pengajuan Operasional</p>
-                        <p className="pc-list-subtitle">Pilih jenis pengajuan, filter data, lalu proses sesuai role Anda.</p>
-                    </div>
-                    <div className="pc-tabs">
-                        <button className={`pc-tab-pill${activeTab === 'pc' ? ' active' : ''}`} onClick={() => handleTabChange('pc')}>
-                            Petty Cash {pendingPC > 0 && <span className="pc-tab-count">{pendingPC}</span>}
-                        </button>
-                        {canSeeKasBesar && (
-                            <button className={`pc-tab-pill${activeTab === 'kb' ? ' active' : ''}`} onClick={() => handleTabChange('kb')}>
-                                Kas Besar {pendingKB > 0 && <span className="pc-tab-count">{pendingKB}</span>}
-                            </button>
-                        )}
-                        {canSeeReimbursement && (
-                            <button className={`pc-tab-pill${activeTab === 'rb' ? ' active' : ''}`} onClick={() => handleTabChange('rb')}>
-                                Reimbursement {pendingRB > 0 && <span className="pc-tab-count">{pendingRB}</span>}
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-            {/* ══ TAB PETTY CASH ══ */}
-            {activeTab === 'pc' && (
-                <div className="pc-section-card">
+                    <div className="pc-section-card">
                     <div className="pc-table-titlebar">
                         <div>
                             <p className="pc-table-heading">Daftar Petty Cash</p>
@@ -989,7 +931,7 @@ export default function PettyCash() {
                                 </tr></thead>
                                 <tbody>
                                     {pagedPC.map((item, idx) => (
-                                        <tr key={item.id} className="pc-tr" style={{ animationDelay: `${idx * .03}s` }}>
+                                        <tr key={item.id} className="pc-tr" style={{ animationDelay: `${Math.min(idx, 8) * 0.03}s` }}>
                                             <td><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1a4731', fontSize: 13 }}>{item.no_pengajuan}</span></td>
                                             <td style={{ color: '#94a3b8' }}>{fmtTgl(item.tanggal)}</td>
                                             <td style={{ maxWidth: 200 }}>
@@ -1061,17 +1003,7 @@ export default function PettyCash() {
                         </div>
                     )}
                 </div>
-            )}
 
-            {/* ══ TAB KAS BESAR ══ */}
-            {activeTab === 'kb' && <KasBesarTab />}
-
-            {/* ══ TAB REIMBURSEMENT ══ */}
-            {activeTab === 'rb' && canSeeReimbursement && (
-                <Reimbursement isEmbedded={true} />
-            )}
-
-            </div>
 
             {/* ════ MODALS PETTY CASH ════ */}
 
@@ -1115,8 +1047,16 @@ export default function PettyCash() {
                             <div className="pc-field"><label className="pc-label">Keterangan <span style={{ fontWeight: 400, color: '#94a3b8' }}>(opsional)</span></label><textarea className="pc-textarea" style={{ minHeight: 60 }} placeholder="Catatan atau keterangan tambahan (opsional)..." value={formPC.keterangan} onChange={e => setFormPC({ ...formPC, keterangan: e.target.value })} /></div>
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran">
+                            {modalRevisi?.berkas_url && !berkasPC && (
+                                <div style={{ marginBottom: 10 }}>
+                                    <ExistingAttachmentPreview url={modalRevisi.berkas_url} label="Berkas Saat Ini" onPreview={setImagePreview} />
+                                    <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                                        Berkas lama akan tetap digunakan jika Anda tidak memilih berkas baru di bawah.
+                                    </p>
+                                </div>
+                            )}
                             <input ref={berkasRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => handleAttachmentChange(e, setBerkasPC, setBerkasPCInfo)} />
-                            <FileUploadZone file={berkasPC} label="Lampirkan Berkas (opsional)" hint="PDF, JPG, atau PNG. Gambar otomatis dikompres." onPick={() => berkasRef.current.click()} />
+                            <FileUploadZone file={berkasPC} label={modalRevisi?.berkas_url ? "Ganti Berkas Pengajuan" : "Lampirkan Berkas (opsional)"} hint="PDF, JPG, atau PNG. Gambar otomatis dikompres." onPick={() => berkasRef.current.click()} />
                             <AttachmentPreview file={berkasPC} info={berkasPCInfo} onPreview={setImagePreview} />
                         </ModalSection>
                         <div className="pc-modal-footer">

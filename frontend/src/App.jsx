@@ -129,7 +129,7 @@ const AppRoutes = () => {
 
             {/* Semua role */}
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
-            <Route path="/kas-besar" element={<Navigate to="/petty-cash?tab=kb" replace />} />
+            <Route path="/kas-besar" element={<ProtectedRoute allow={canKasBesar}><KasBesar /></ProtectedRoute>} />
             <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
             <Route path="/logbook" element={<ProtectedRoute><MyLogbook /></ProtectedRoute>} />
 

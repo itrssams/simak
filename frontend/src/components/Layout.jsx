@@ -423,14 +423,14 @@ const getActiveModuleConfig = (pathname, user) => {
     }
 
     // 5. Petty Cash & Reimbursement
-    if (pathname.startsWith('/petty-cash') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
+    if (pathname.startsWith('/petty-cash') || pathname.startsWith('/kas-besar') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
         const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isManajerUp(user) || user?.is_petty_cash_cashier;
         const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isManajerUp(user) || user?.is_petty_cash_cashier;
         const menus = [
             { label: 'Petty Cash', path: '/petty-cash' },
         ];
         if (canKasBesar) {
-            menus.push({ label: 'Kas Besar', path: '/petty-cash?tab=kb' });
+            menus.push({ label: 'Kas Besar', path: '/kas-besar' });
         }
         if (canReimbursement) {
             menus.push({ label: 'Reimbursement', path: '/reimbursement' });
@@ -545,14 +545,18 @@ function TopNavSubmenuItem({ item, location, navigate }) {
     if (item.path.includes('?')) {
         isCurrentActive = (location.pathname + location.search) === item.path;
     } else {
-        isCurrentActive = location.pathname === item.path && (!location.search || location.search === '' || location.search === '?tab=pc');
+        isCurrentActive = location.pathname === item.path;
     }
 
     return (
         <button
             type="button"
             className={`topbar-menu-item ${isCurrentActive ? 'active' : ''}`}
-            onClick={() => navigate(item.path)}
+            onClick={() => {
+                if (location.pathname !== item.path) {
+                    navigate(item.path);
+                }
+            }}
         >
             {item.label}
         </button>
@@ -987,35 +991,39 @@ export default function Layout({ children }) {
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    padding: 5px 9px;
-                    border-radius: 7px;
+                    padding: 6px 12px;
+                    border-radius: 8px;
                     border: none;
                     background: transparent;
                     color: rgba(255, 255, 255, 0.72);
-                    font-size: 12px;
-                    font-weight: 650;
+                    font-size: 12.5px;
+                    font-weight: 600;
                     cursor: pointer;
-                    transition: all 0.14s ease;
+                    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
                     white-space: nowrap;
                     font-family: inherit;
                 }
                 [data-theme="light"] .topbar-menu-item { color: #475569; }
                 .topbar-menu-item:hover {
                     color: #ffffff;
-                    background: rgba(255, 255, 255, 0.1);
+                    background: rgba(255, 255, 255, 0.12);
+                    transform: translateY(-1px);
                 }
                 [data-theme="light"] .topbar-menu-item:hover {
                     color: #0f172a;
-                    background: rgba(0, 0, 0, 0.05);
+                    background: rgba(0, 0, 0, 0.06);
+                    transform: translateY(-1px);
                 }
                 .topbar-menu-item.active {
                     color: #38bdf8;
-                    background: rgba(56, 189, 248, 0.14);
-                    font-weight: 750;
+                    background: rgba(56, 189, 248, 0.16);
+                    font-weight: 700;
+                    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28);
                 }
                 [data-theme="light"] .topbar-menu-item.active {
                     color: #0284c7;
                     background: rgba(2, 132, 199, 0.12);
+                    box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.25);
                 }
                 .topbar-menu-dropdown-wrap { position: relative; }
                 .topbar-dropdown-menu {
@@ -1545,16 +1553,19 @@ export default function Layout({ children }) {
                         radial-gradient(circle at 18% 10%, rgba(99,102,241,.12), transparent 28%),
                         radial-gradient(circle at 88% 0%, rgba(6,182,212,.10), transparent 24%),
                         transparent;
-                    animation: moduleContentFadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                 }
-                @keyframes moduleContentFadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(8px);
+                .main-page-transition {
+                    width: 100%;
+                    animation: pageSoftFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+                }
+                @keyframes pageSoftFadeIn {
+                    0% {
+                        opacity: 0.72;
+                        transform: translateY(5px);
                     }
-                    to {
+                    100% {
                         opacity: 1;
-                        transform: none;
+                        transform: translateY(0);
                     }
                 }
                 .app-footer {
@@ -1770,8 +1781,10 @@ export default function Layout({ children }) {
 
             <div className="body-shell">
                 <div className="content-shell full-width">
-                    <main className="main-content" key={location.pathname}>
-                        {children}
+                    <main className="main-content">
+                        <div key={location.pathname} className="main-page-transition">
+                            {children}
+                        </div>
                     </main>
                     <footer className="app-footer">
                         RS Siaga Al Munawwarah Samarinda &copy; {new Date().getFullYear()} - Sistem Informasi Keuangan

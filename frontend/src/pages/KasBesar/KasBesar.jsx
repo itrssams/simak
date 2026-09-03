@@ -471,7 +471,21 @@ export default function KasBesar() {
     const totalLaporanItems = useMemo(() => laporanItems.reduce((sum, it) => sum + (Number(it.nilai) || 0), 0), [laporanItems]);
 
     return (
-        <>
+        <div className="pc-page pc-shell">
+            <div className="pc-hero">
+                <div className="pc-hero-main">
+                    <div className="pc-page-title">
+                        <span><Wallet size={22} /></span>
+                        <div>
+                            <h1 className="pc-title">Kas Besar</h1>
+                            <p className="pc-subtitle">Pengajuan dana operasional kas besar di atas Rp 1.000.000 dan pencatatan realisasi dana.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {success && <div className="pc-alert-ok"><Check size={16} /> {success}</div>}
+
             <div className="pc-section-card">
             <div className="pc-table-titlebar">
                 <div>
@@ -519,8 +533,8 @@ export default function KasBesar() {
                             </tr>
                         </thead>
                         <tbody>
-                            {pagedKB.map(item => (
-                                <tr key={item.id}>
+                            {pagedKB.map((item, idx) => (
+                                <tr key={item.id} className="pc-tr" style={{ animationDelay: `${Math.min(idx, 8) * 0.03}s` }}>
                                     <td style={{ fontWeight: 600, color: '#0f2d1a' }}>{item.no_pengajuan}</td>
                                     <td style={{ color: '#94a3b8' }}>{fmtTgl(item.tanggal)}</td>
                                     <td style={{ maxWidth: 220 }}>
@@ -651,7 +665,7 @@ export default function KasBesar() {
                             <div className="pc-grid2">
                                 <div className="pc-field">
                                     <label className="pc-label">Tanggal Pengajuan</label>
-                                    <DateField value={formKB.tanggal || todayStr()} onChange={val => setFormKB({ ...formKB, tanggal: val })} placeholder="Pilih tanggal..." />
+                                    <DateField value={formKB.tanggal || todayStr()} disabled placeholder="Pilih tanggal..." />
                                 </div>
                                 <div className="pc-field">
                                     <label className="pc-label">Nominal (Rp) *</label>
@@ -1448,7 +1462,7 @@ export default function KasBesar() {
 
             {/* ══ IMAGE PREVIEW LIGHTBOX ══ */}
             {imagePreview && <ImageZoomModal data={imagePreview} onClose={() => setImagePreview(null)} />}
-        </>
+        </div>
     );
 }
 

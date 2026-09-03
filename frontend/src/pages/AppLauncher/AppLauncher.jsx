@@ -169,7 +169,7 @@ export default function AppLauncher() {
             allowed: true,
             submenus: [
                 { label: 'Petty Cash', path: '/petty-cash' },
-                ...(canKasBesar ? [{ label: 'Kas Besar', path: '/petty-cash?tab=kb' }] : []),
+                ...(canKasBesar ? [{ label: 'Kas Besar', path: '/kas-besar' }] : []),
                 ...(canReimbursement ? [{ label: 'Reimbursement', path: '/reimbursement' }] : []),
                 ...(isManajerUp ? [{ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' }] : []),
             ],
