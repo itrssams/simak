@@ -75,7 +75,6 @@ const MENU_MANAJER_DIREKTUR = [
     { label: 'Audit Log', path: '/audit-log', icon: 'audit' },
     { label: 'Pengumuman', path: '/pengumuman', icon: 'announcement' },
     { label: 'Inventaris', path: '/inventaris', icon: 'inventory' },
-    { label: 'Driver', path: '/driver', icon: 'driver' },
     { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
     {
         label: 'Laporan', icon: 'laporan', children: [
@@ -199,7 +198,7 @@ function getMenuItems(user) {
     if (user?.is_it) base.push(...MENU_IT);
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
     if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
-    if (user?.is_logistik || isManajerUp(user)) base.push(...MENU_LOGISTIK);
+    if (user?.is_logistik) base.push(...MENU_LOGISTIK);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -212,6 +211,7 @@ const ROLE_LABEL = {
 };
 
 const isManajerUp = (user) => user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role);
+const isDirekturUp = (user) => user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role);
 
 const formatDateTime = (value) => {
     if (!value) return '-';
@@ -425,7 +425,7 @@ const getActiveModuleConfig = (pathname, user) => {
     // 5. Petty Cash & Reimbursement
     if (pathname.startsWith('/petty-cash') || pathname.startsWith('/kas-besar') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
         const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isManajerUp(user) || user?.is_petty_cash_cashier;
-        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isManajerUp(user) || user?.is_petty_cash_cashier;
+        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturUp(user) || user?.is_petty_cash_cashier;
         const menus = [
             { label: 'Petty Cash', path: '/petty-cash' },
         ];

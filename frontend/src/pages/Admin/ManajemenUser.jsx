@@ -56,6 +56,7 @@ const initialForm = {
     is_logistik: false,
     is_akuntansi: false,
     akses_kas_besar: false,
+    akses_reimbursement: false,
     unit: '',
     password: '',
     is_active: true,
@@ -188,6 +189,7 @@ export default function ManajemenUser() {
             is_logistik: Boolean(u.is_logistik),
             is_akuntansi: Boolean(u.is_akuntansi),
             akses_kas_besar: Boolean(u.akses_kas_besar),
+            akses_reimbursement: Boolean(u.akses_reimbursement),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -243,6 +245,7 @@ export default function ManajemenUser() {
                 is_logistik: form.is_logistik,
                 is_akuntansi: form.is_akuntansi,
                 akses_kas_besar: form.akses_kas_besar,
+                akses_reimbursement: form.akses_reimbursement,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -722,9 +725,10 @@ function RoleBadge({ user }) {
             </span>
             {user?.is_driver && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Driver</span>}
             {user?.is_it && <span className="mu-badge" style={{ background: '#ccfbf1', color: '#0f766e', borderColor: '#99f6e4' }}>IT</span>}
-            {user?.is_keuangan && <span className="mu-badge" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' }}>Keuangan</span>}
+            {user?.is_keuangan && <span className="mu-badge" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' }}>Penagihan</span>}
             {user?.is_petty_cash_cashier && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>Kas Petty Cash</span>}
             {user?.akses_kas_besar && <span className="mu-badge" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>Kas Besar</span>}
+            {user?.akses_reimbursement && <span className="mu-badge" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>Reimbursement</span>}
             {user?.akses_catatan_utang && <span className="mu-badge" style={{ background: '#fef9c3', color: '#854d0e', borderColor: '#fde68a' }}>Catatan Utang</span>}
             {user?.is_logistik && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Logistik</span>}
             {user?.is_akuntansi && <span className="mu-badge" style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}>Akuntansi</span>}
@@ -836,9 +840,10 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                 <div className="mu-permission-list">
                                     <PermissionToggle label="Driver" description="Akses fitur Driver" checked={form.is_driver} onChange={(checked) => setForm({ ...form, is_driver: checked })} />
                                     <PermissionToggle label="IT" description="Akses fitur IT" checked={form.is_it} onChange={(checked) => setForm({ ...form, is_it: checked })} />
-                                    <PermissionToggle label="Keuangan" description="Akses fitur Keuangan" checked={form.is_keuangan} onChange={(checked) => setForm({ ...form, is_keuangan: checked })} />
+                                    <PermissionToggle label="Penagihan" description="Akses modul Penagihan & Invoice" checked={form.is_keuangan} onChange={(checked) => setForm({ ...form, is_keuangan: checked })} />
                                     <PermissionToggle label="Kas Petty Cash" description="Petugas kas petty cash" checked={form.is_petty_cash_cashier} onChange={(checked) => setForm({ ...form, is_petty_cash_cashier: checked })} />
                                     <PermissionToggle label="Kas Besar" description="Akses menu pengajuan Kas Besar" checked={form.akses_kas_besar} onChange={(checked) => setForm({ ...form, akses_kas_besar: checked })} />
+                                    <PermissionToggle label="Reimbursement" description="Akses menu Reimbursement" checked={form.akses_reimbursement} onChange={(checked) => setForm({ ...form, akses_reimbursement: checked })} />
                                     <PermissionToggle label="Catatan Utang" description="Akses seluruh modul Catatan Utang" checked={form.akses_catatan_utang} onChange={(checked) => setForm({ ...form, akses_catatan_utang: checked })} />
                                     <PermissionToggle label="Logistik" description="Akses fitur Gudang Logistik" checked={form.is_logistik} onChange={(checked) => setForm({ ...form, is_logistik: checked })} />
                                     <PermissionToggle label="Akuntansi" description="Akses seluruh modul Akuntansi & Kas" checked={form.is_akuntansi} onChange={(checked) => setForm({ ...form, is_akuntansi: checked })} />

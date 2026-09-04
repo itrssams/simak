@@ -46,13 +46,13 @@ const isKepalaSeksiUp = (u) => u?.is_superuser || ['kepala_seksi', 'manajer', 'w
 const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].includes(u?.role);
 const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
-const isLogistik = (u) => u?.is_superuser || u?.is_logistik || isManajerUp(u);
+const isLogistik = (u) => u?.is_superuser || u?.is_logistik;
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
 const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || isDirekturUp(u) || u?.is_petty_cash_cashier;
-const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || u?.is_keuangan || isDirekturUp(u) || u?.is_petty_cash_cashier;
+const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || isDirekturUp(u);
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
-const isDriverAccess = (u) => u?.is_driver || isManajerUp(u);
+const isDriverAccess = (u) => u?.is_driver || isDirekturUp(u);
 const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = false;
