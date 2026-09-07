@@ -46,11 +46,12 @@ const isKepalaSeksiUp = (u) => u?.is_superuser || ['kepala_seksi', 'manajer', 'w
 const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].includes(u?.role);
 const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
-const isLogistik = (u) => u?.is_superuser || u?.is_logistik;
+const isLogistik = (u) => u?.is_superuser || u?.is_logistik || u?.view_logistik;
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
-const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || isDirekturUp(u) || u?.is_petty_cash_cashier;
-const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || isDirekturUp(u);
+const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || u?.view_kas_besar || isDirekturUp(u);
+const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || u?.is_keuangan || isDirekturUp(u);
+const canLaporanPettyCash = (u) => u?.is_superuser || isManajerUp(u) || u?.is_petty_cash_cashier || u?.is_keuangan || u?.view_petty_cash;
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isDirekturUp(u);
 const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
@@ -119,7 +120,7 @@ const AppRoutes = () => {
             {/* Login */}
             <Route
                 path="/login"
-                element={!user ? <Login /> : (FEATURE_IT_ENABLED && user.is_it && !user.is_superuser ? <Navigate to="/it" /> : (canCatatanUtang(user) && !user.is_keuangan && !isManajerUp(user) ? <Navigate to="/keuangan/catatan-utang/obat-bhp" /> : (user.is_logistik && !isManajerUp(user) ? <Navigate to="/logistik" /> : (isKeuanganNonManajer(user) ? <Navigate to="/keuangan/kunjungan-invoice" /> : (isBasicRole(user) ? <Navigate to="/petty-cash" /> : <Navigate to="/" />)))))}
+                element={!user ? <Login /> : <Navigate to="/" />}
             />
 
             {/* Home & Apps */}
@@ -165,7 +166,7 @@ const AppRoutes = () => {
             <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/admin/users" element={<ProtectedRoute allow={isDirekturUp}><ManajemenUser /></ProtectedRoute>} />
             <Route path="/admin/system-maintenance" element={<ProtectedRoute allow={isSuperuserOnly}><SystemMaintenance /></ProtectedRoute>} />
-            <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={isManajerUp}><LaporanPettyCash /></ProtectedRoute>} />
+            <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={canLaporanPettyCash}><LaporanPettyCash /></ProtectedRoute>} />
             <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />
 

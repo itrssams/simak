@@ -198,7 +198,7 @@ function getMenuItems(user) {
     if (user?.is_it) base.push(...MENU_IT);
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
     if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
-    if (user?.is_logistik) base.push(...MENU_LOGISTIK);
+    if (user?.is_logistik || user?.view_logistik) base.push(...MENU_LOGISTIK);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -424,8 +424,8 @@ const getActiveModuleConfig = (pathname, user) => {
 
     // 5. Petty Cash & Reimbursement
     if (pathname.startsWith('/petty-cash') || pathname.startsWith('/kas-besar') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
-        const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isManajerUp(user) || user?.is_petty_cash_cashier;
-        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturUp(user) || user?.is_petty_cash_cashier;
+        const canKasBesar = user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isManajerUp(user);
+        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturUp(user);
         const menus = [
             { label: 'Petty Cash', path: '/petty-cash' },
         ];
@@ -435,7 +435,8 @@ const getActiveModuleConfig = (pathname, user) => {
         if (canReimbursement) {
             menus.push({ label: 'Reimbursement', path: '/reimbursement' });
         }
-        if (isManajerUp(user)) {
+        const canLaporanPC = isManajerUp(user) || user?.is_petty_cash_cashier || user?.is_keuangan || user?.view_petty_cash || user?.is_superuser;
+        if (canLaporanPC) {
             menus.push({ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' });
         }
         return {

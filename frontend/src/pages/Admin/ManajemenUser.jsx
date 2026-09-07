@@ -53,10 +53,13 @@ const initialForm = {
     is_keuangan: false,
     is_petty_cash_cashier: false,
     akses_catatan_utang: false,
-    is_logistik: false,
-    is_akuntansi: false,
     akses_kas_besar: false,
     akses_reimbursement: false,
+    view_petty_cash: false,
+    view_kas_besar: false,
+    view_logistik: false,
+    is_logistik: false,
+    is_akuntansi: false,
     unit: '',
     password: '',
     is_active: true,
@@ -186,10 +189,13 @@ export default function ManajemenUser() {
             is_keuangan: Boolean(u.is_keuangan),
             is_petty_cash_cashier: Boolean(u.is_petty_cash_cashier),
             akses_catatan_utang: Boolean(u.akses_catatan_utang),
-            is_logistik: Boolean(u.is_logistik),
-            is_akuntansi: Boolean(u.is_akuntansi),
             akses_kas_besar: Boolean(u.akses_kas_besar),
             akses_reimbursement: Boolean(u.akses_reimbursement),
+            view_petty_cash: Boolean(u.view_petty_cash),
+            view_kas_besar: Boolean(u.view_kas_besar),
+            view_logistik: Boolean(u.view_logistik),
+            is_logistik: Boolean(u.is_logistik),
+            is_akuntansi: Boolean(u.is_akuntansi),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -242,10 +248,13 @@ export default function ManajemenUser() {
                 is_keuangan: form.is_keuangan,
                 is_petty_cash_cashier: form.is_petty_cash_cashier,
                 akses_catatan_utang: form.akses_catatan_utang,
-                is_logistik: form.is_logistik,
-                is_akuntansi: form.is_akuntansi,
                 akses_kas_besar: form.akses_kas_besar,
                 akses_reimbursement: form.akses_reimbursement,
+                view_petty_cash: form.view_petty_cash,
+                view_kas_besar: form.view_kas_besar,
+                view_logistik: form.view_logistik,
+                is_logistik: form.is_logistik,
+                is_akuntansi: form.is_akuntansi,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -729,6 +738,9 @@ function RoleBadge({ user }) {
             {user?.is_petty_cash_cashier && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }}>Kas Petty Cash</span>}
             {user?.akses_kas_besar && <span className="mu-badge" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>Kas Besar</span>}
             {user?.akses_reimbursement && <span className="mu-badge" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>Reimbursement</span>}
+            {user?.view_petty_cash && <span className="mu-badge" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}>Monitor PC</span>}
+            {user?.view_kas_besar && <span className="mu-badge" style={{ background: '#fffbeb', color: '#b45309', borderColor: '#fde68a' }}>Monitor KB</span>}
+            {user?.view_logistik && <span className="mu-badge" style={{ background: '#f0f9ff', color: '#0c4a6e', borderColor: '#bae6fd' }}>Monitor Logistik</span>}
             {user?.akses_catatan_utang && <span className="mu-badge" style={{ background: '#fef9c3', color: '#854d0e', borderColor: '#fde68a' }}>Catatan Utang</span>}
             {user?.is_logistik && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Logistik</span>}
             {user?.is_akuntansi && <span className="mu-badge" style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}>Akuntansi</span>}
@@ -753,7 +765,7 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
     return createPortal(
         <div className="mu-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="mu-modal user-form">
-                <ModalHead title={title} subtitle={subtitle} onClose={onClose} />
+                <ModalHead title={title} subtitle={subtitle} icon={UserCog} />
                 <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
                     {/* Fake hidden inputs to trick browser autofill */}
                     <input type="text" name="fake_username_remember" style={{ display: 'none' }} tabIndex={-1} readOnly />
@@ -830,23 +842,179 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                         <PasswordInput value={form.password} onChange={(v) => setForm({ ...form, password: v })} show={showPwd} setShow={setShowPwd} placeholder="Minimal 6 karakter" />
                                     </div>
                                 )}
+
+                                {/* Summary Hak Akses */}
+                                <div className="mu-summary-box">
+                                    <div className="mu-summary-head">
+                                        <ShieldCheck size={18} className="mu-summary-icon" />
+                                        <strong>Ringkasan Hak Akses</strong>
+                                    </div>
+                                    <ul className="mu-summary-list">
+                                        {form.is_superuser && <li className="mu-summary-item green"><CheckCircle2 size={14} /> Full Access (Superadmin)</li>}
+                                        {!form.is_superuser && ['manajer', 'wakil_direktur', 'direktur'].includes(form.role) && (
+                                            <li className="mu-summary-item green"><CheckCircle2 size={14} /> Hak Approval & Monitor (Sesuai Jabatan)</li>
+                                        )}
+                                        {form.is_keuangan && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Akses Penagihan & Invoice</li>}
+                                        {form.is_petty_cash_cashier && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Kas Petty Cash</li>}
+                                        {(!form.is_petty_cash_cashier && form.view_petty_cash) ? <li className="mu-summary-item gray"><Eye size={14} /> Lihat Data Petty Cash</li> : null}
+                                        {form.akses_kas_besar && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Kas Besar</li>}
+                                        {(!form.akses_kas_besar && form.view_kas_besar) ? <li className="mu-summary-item gray"><Eye size={14} /> Lihat Data Kas Besar</li> : null}
+                                        {form.akses_reimbursement && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Reimbursement</li>}
+                                        {form.is_logistik && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Logistik & Gudang</li>}
+                                        {(!form.is_logistik && form.view_logistik) ? <li className="mu-summary-item gray"><Eye size={14} /> Lihat Data Logistik</li> : null}
+                                        
+                                        {!form.is_superuser && !form.is_keuangan && !form.is_petty_cash_cashier && !form.view_petty_cash && !form.akses_kas_besar && !form.view_kas_besar && !form.akses_reimbursement && !form.is_logistik && !form.view_logistik && !['manajer', 'wakil_direktur', 'direktur'].includes(form.role) && (
+                                            <li className="mu-summary-item gray italic">Belum ada hak akses tambahan. Akun ini hanya memiliki akses user biasa/karyawan.</li>
+                                        )}
+                                    </ul>
+                                </div>
                             </div>
 
                             <aside className="mu-permission-panel">
                                 <div className="mu-permission-head">
                                     <strong>Akses Fitur Tambahan</strong>
-                                    <span>Pilih hak akses fitur untuk user ini.</span>
+                                    <span>Tentukan hak akses per modul untuk akun ini.</span>
                                 </div>
-                                <div className="mu-permission-list">
-                                    <PermissionToggle label="Driver" description="Akses fitur Driver" checked={form.is_driver} onChange={(checked) => setForm({ ...form, is_driver: checked })} />
-                                    <PermissionToggle label="IT" description="Akses fitur IT" checked={form.is_it} onChange={(checked) => setForm({ ...form, is_it: checked })} />
-                                    <PermissionToggle label="Penagihan" description="Akses modul Penagihan & Invoice" checked={form.is_keuangan} onChange={(checked) => setForm({ ...form, is_keuangan: checked })} />
-                                    <PermissionToggle label="Kas Petty Cash" description="Petugas kas petty cash" checked={form.is_petty_cash_cashier} onChange={(checked) => setForm({ ...form, is_petty_cash_cashier: checked })} />
-                                    <PermissionToggle label="Kas Besar" description="Akses menu pengajuan Kas Besar" checked={form.akses_kas_besar} onChange={(checked) => setForm({ ...form, akses_kas_besar: checked })} />
-                                    <PermissionToggle label="Reimbursement" description="Akses menu Reimbursement" checked={form.akses_reimbursement} onChange={(checked) => setForm({ ...form, akses_reimbursement: checked })} />
-                                    <PermissionToggle label="Catatan Utang" description="Akses seluruh modul Catatan Utang" checked={form.akses_catatan_utang} onChange={(checked) => setForm({ ...form, akses_catatan_utang: checked })} />
-                                    <PermissionToggle label="Logistik" description="Akses fitur Gudang Logistik" checked={form.is_logistik} onChange={(checked) => setForm({ ...form, is_logistik: checked })} />
-                                    <PermissionToggle label="Akuntansi" description="Akses seluruh modul Akuntansi & Kas" checked={form.is_akuntansi} onChange={(checked) => setForm({ ...form, is_akuntansi: checked })} />
+                                
+                                <div className="mu-perm-section theme-finance">
+                                    <div className="mu-perm-section-header">
+                                        <span className="mu-perm-section-icon">💰</span> Keuangan & Kas
+                                    </div>
+                                    <table className="mu-perm-matrix">
+                                        <thead>
+                                            <tr>
+                                                <th className="mu-perm-col-module">Modul</th>
+                                                <th className="mu-perm-col-view">Lihat</th>
+                                                <th className="mu-perm-col-action">Kelola</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Penagihan & Invoice</strong>
+                                                    <small>Akses modul penagihan, invoice, dan verifikasi</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_keuangan} onChange={(c) => setForm({ ...form, is_keuangan: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Catatan Utang</strong>
+                                                    <small>Pencatatan utang obat, BHP, dan vendor</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.akses_catatan_utang} onChange={(c) => setForm({ ...form, akses_catatan_utang: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Reimbursement</strong>
+                                                    <small>Akses menu pengajuan dan monitoring reimbursement</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.akses_reimbursement} onChange={(c) => setForm({ ...form, akses_reimbursement: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Petty Cash</strong>
+                                                    <small>Lihat: semua data PC / Kelola: kasir & cairkan</small>
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.view_petty_cash} onChange={(c) => setForm({ ...form, view_petty_cash: c })} />
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_petty_cash_cashier} onChange={(c) => setForm({ ...form, is_petty_cash_cashier: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Kas Besar</strong>
+                                                    <small>Lihat: semua data KB / Kelola: ajukan KB</small>
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.view_kas_besar} onChange={(c) => setForm({ ...form, view_kas_besar: c })} />
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.akses_kas_besar} onChange={(c) => setForm({ ...form, akses_kas_besar: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Akuntansi & Kas</strong>
+                                                    <small>COA, jurnal, arus kas, dan rekening bank</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_akuntansi} onChange={(c) => setForm({ ...form, is_akuntansi: c })} />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div className="mu-perm-section theme-ops">
+                                    <div className="mu-perm-section-header">
+                                        <span className="mu-perm-section-icon">🏭</span> Operasional
+                                    </div>
+                                    <table className="mu-perm-matrix">
+                                        <thead>
+                                            <tr>
+                                                <th className="mu-perm-col-module">Modul</th>
+                                                <th className="mu-perm-col-view">Lihat</th>
+                                                <th className="mu-perm-col-action">Kelola</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Logistik / Gudang</strong>
+                                                    <small>Lihat: stok / Kelola: transaksi gudang</small>
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.view_logistik} onChange={(c) => setForm({ ...form, view_logistik: c })} />
+                                                </td>
+                                                <td className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_logistik} onChange={(c) => setForm({ ...form, is_logistik: c })} />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Driver & Armada</strong>
+                                                    <small>Akses logbook perjalanan driver</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_driver} onChange={(c) => setForm({ ...form, is_driver: c })} />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div className="mu-perm-section theme-it">
+                                    <div className="mu-perm-section-header">
+                                        <span className="mu-perm-section-icon">⚙️</span> Sistem & IT
+                                    </div>
+                                    <table className="mu-perm-matrix">
+                                        <thead>
+                                            <tr>
+                                                <th className="mu-perm-col-module">Modul</th>
+                                                <th className="mu-perm-col-view">Lihat</th>
+                                                <th className="mu-perm-col-action">Kelola</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>IT Center</strong>
+                                                    <small>Akses IT Center dan Audit Log sistem</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_it} onChange={(c) => setForm({ ...form, is_it: c })} />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </aside>
                         </div>
@@ -865,10 +1033,12 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
 function PermissionToggle({ label, description, checked, onChange }) {
     return (
         <label className="mu-permission-toggle">
-            <span>
-                <strong>{label}</strong>
-                <small>{description}</small>
-            </span>
+            {label && (
+                <span>
+                    <strong>{label}</strong>
+                    {description && <small>{description}</small>}
+                </span>
+            )}
             <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
             <i aria-hidden="true" />
         </label>
@@ -956,18 +1126,18 @@ function ConfirmModal({ title, body, note, error, saving, confirmText, danger = 
     );
 }
 
-function ModalHead({ title, subtitle, onClose }) {
+function ModalHead({ title, subtitle, icon: Icon }) {
     return (
         <div className="mu-modal-head">
+            {Icon && (
+                <div className="mu-modal-head-icon">
+                    <Icon size={22} />
+                </div>
+            )}
             <div>
                 <h2>{title}</h2>
                 {subtitle && <p>{subtitle}</p>}
             </div>
-            {onClose && (
-                <button type="button" className="mu-close" onClick={onClose} aria-label="Tutup modal">
-                    <X size={18} />
-                </button>
-            )}
         </div>
     );
 }

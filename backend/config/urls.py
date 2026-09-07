@@ -18,27 +18,8 @@ from system.audit import write_audit_log
 @permission_classes([IsAuthenticated])
 def me_view(request):
     user = request.user
-    return Response({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
-        'is_staff': user.is_staff,
-        'is_superuser': user.is_superuser,
-        'role': user.role,
-        'role_label': user.get_role_display(),
-        'is_driver': user.is_driver,
-        'is_it': user.is_it,
-        'is_keuangan': user.is_keuangan,
-        'is_petty_cash_cashier': user.is_petty_cash_cashier,
-        'akses_catatan_utang': user.akses_catatan_utang,
-        'akses_kas_besar': getattr(user, 'akses_kas_besar', False),
-        'is_logistik': getattr(user, 'is_logistik', False),
-        'is_akuntansi': getattr(user, 'is_akuntansi', False),
-        'unit': user.unit_id,
-        'unit_nama': user.unit.nama if user.unit else None,
-    })
+    from users.serializers import UserSerializer
+    return Response(UserSerializer(user).data)
 
 
 class AuditedTokenObtainPairView(TokenObtainPairView):

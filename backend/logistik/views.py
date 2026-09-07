@@ -16,10 +16,17 @@ from .serializers import (
 from django.db.models import Sum, F, Q
 
 def is_logistik(user):
-    return user.is_authenticated and (getattr(user, 'is_logistik', False) or user.is_superuser or is_manajer_or_above(user))
+    return user.is_authenticated and (getattr(user, 'is_logistik', False) or user.is_superuser)
+
+def can_view_logistik(user):
+    return user.is_authenticated and (
+        is_logistik(user) or getattr(user, 'view_logistik', False)
+    )
 
 class IsLogistikPermission(IsAuthenticated):
     def has_permission(self, request, view):
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return can_view_logistik(request.user)
         return is_logistik(request.user)
 
 from keuangan.views import (
@@ -32,6 +39,8 @@ from keuangan.views import (
 
 class IsLogistikOrCatatanUtangPermission(IsAuthenticated):
     def has_permission(self, request, view):
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return can_view_logistik(request.user) or can_access_catatan_utang_obat_bhp(request.user)
         return is_logistik(request.user) or can_access_catatan_utang_obat_bhp(request.user)
 
 _dafbrg_log_columns_cache = None

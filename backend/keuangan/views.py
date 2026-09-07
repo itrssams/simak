@@ -133,8 +133,22 @@ def can_access_kas_besar(user):
     return user.is_authenticated and (
         getattr(user, 'akses_kas_besar', False)
         or is_direktur_or_wadir(user)
-        or is_petty_cash_cashier(user)
         or user.is_superuser
+    )
+
+def can_view_kas_besar(user):
+    """View-only access ke data KB (monitoring tanpa bisa ajukan)."""
+    return user.is_authenticated and (
+        can_access_kas_besar(user)
+        or getattr(user, 'view_kas_besar', False)
+    )
+
+def can_view_petty_cash_all(user):
+    """Bisa melihat semua data PC, bukan hanya milik sendiri."""
+    return user.is_authenticated and (
+        is_manajer_or_above(user)
+        or is_petty_cash_cashier(user)
+        or getattr(user, 'view_petty_cash', False)
     )
 
 def can_access_reimbursement(user):
@@ -235,7 +249,10 @@ class IsCatatanUtangObatBhpPermission(BasePermission):
 
 class IsPettyCashSaldoPermission(BasePermission):
     def has_permission(self, request, view):
-        return is_manajer_or_above(request.user) or is_petty_cash_cashier(request.user)
+        user = request.user
+        if getattr(user, 'view_petty_cash', False) or getattr(user, 'akses_kas_besar', False) or getattr(user, 'is_keuangan', False):
+            return True
+        return is_manajer_or_above(user) or is_petty_cash_cashier(user)
 
 class IsKeuanganOrManajerPermission(BasePermission):
     def has_permission(self, request, view):
@@ -4069,8 +4086,6 @@ def _build_pending_where_keuangan(params):
     where = [
         "t.status = 'disetujui'",
         'u.id IS NULL',
-        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
-        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4094,7 +4109,6 @@ def _build_pending_where_kas_besar(params):
     where = [
         "t.status IN ('menunggu_realisasi', 'disetujui')",
         'u.id IS NULL',
-        "(t.no_pengajuan COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4118,7 +4132,6 @@ def _build_pending_where_reimbursement(params):
     where = [
         "t.status = 'disetujui'",
         'u.id IS NULL',
-        "(t.no_reimbursement COLLATE utf8mb4_general_ci NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))"
     ]
     values = []
     search = (params.get('search') or '').strip()
@@ -4159,7 +4172,7 @@ def _pending_base_sql_keuangan():
     return """
         FROM petty_cash_pengajuan_saldo t
         LEFT JOIN users_user usr ON usr.id = t.created_by_id
-        LEFT JOIN keuangan_utang_supplier u ON (u.app_siaga_faktur_id = CONCAT('KEU-', t.id) COLLATE utf8mb4_general_ci OR u.nomor_spb = t.no_pengajuan COLLATE utf8mb4_general_ci)
+        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('KEU-', t.id) COLLATE utf8mb4_general_ci
     """
 
 def _pending_base_sql_kas_besar():
@@ -4176,7 +4189,7 @@ def _pending_base_sql_reimbursement():
         FROM petty_cash_reimbursement t
         LEFT JOIN users_user usr ON usr.id = t.created_by_id
         LEFT JOIN keuangan_kas_besar kb ON kb.id = t.kas_besar_id
-        LEFT JOIN keuangan_utang_supplier u ON (u.app_siaga_faktur_id = CONCAT('RMB-', t.id) COLLATE utf8mb4_general_ci OR u.nomor_spb = t.no_reimbursement COLLATE utf8mb4_general_ci)
+        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('RMB-', t.id) COLLATE utf8mb4_general_ci
     """
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
@@ -5890,13 +5903,13 @@ def _handle_petty_cash_payment_realisasi(pembayaran, user):
             rb_id = int(str(utang.app_siaga_faktur_id).replace('RMB-', ''))
             rb = Reimbursement.objects.get(pk=rb_id)
             if utang.status == UtangSupplier.STATUS_LUNAS or utang.total_dibayar >= utang.nominal:
-                rb.status = 'dicairkan'
+                rb.status = 'lunas'
                 rb.dicairkan_oleh = user
                 rb.save(update_fields=['status', 'dicairkan_oleh', 'updated_at'])
 
                 if rb.kas_besar:
                     kb = rb.kas_besar
-                    if not kb.reimbursements.exclude(status='dicairkan').exists():
+                    if not kb.reimbursements.exclude(status__in=['lunas', 'dicairkan']).exists():
                         kb.status = 'selesai'
                         kb.save(update_fields=['status', 'updated_at'])
                         if hasattr(kb, 'laporan'):
@@ -7555,8 +7568,12 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = PettyCash.objects.select_related('created_by', 'disetujui_oleh', 'dicairkan_oleh', 'laporan_disetujui_oleh').prefetch_related('laporan').all()
         
-        # Manajer ke atas dan petugas kas petty cash bisa lihat semua. User biasa hanya milik sendiri.
-        if not (is_manajer_or_above(self.request.user) or is_petty_cash_cashier(self.request.user)):
+        can_view_all = (
+            is_manajer_or_above(self.request.user)
+            or is_petty_cash_cashier(self.request.user)
+            or getattr(self.request.user, 'view_petty_cash', False)
+        )
+        if not can_view_all:
             qs = qs.filter(created_by=self.request.user)
         
         st     = self.request.query_params.get('status')
@@ -7650,21 +7667,40 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
 
+        # Hitung subtotal dan diskon
+        try:
+            subtotal_req = Decimal(str(request.data.get('subtotal', 0) or 0))
+        except Exception:
+            subtotal_req = Decimal('0')
+
+        try:
+            diskon_req = Decimal(str(request.data.get('diskon', 0) or 0))
+        except Exception:
+            diskon_req = Decimal('0')
+
         # Jika ada parsed_items, hitung otomatis total nominal digunakan jika belum di-set
         if parsed_items:
             total_items = Decimal('0')
             for it in parsed_items:
                 try:
-                    total_items += Decimal(str(it.get('nilai', 0)))
+                    q = Decimal(str(it.get('qty', 1) or 1))
+                    p = Decimal(str(it.get('harga_satuan', 0) or 0))
+                    val = Decimal(str(it.get('nilai') if it.get('nilai') is not None else (q * p)))
+                    total_items += val
                 except Exception:
                     pass
-            if total_items > 0:
-                data['nominal_digunakan'] = total_items
+            if subtotal_req <= 0 and total_items > 0:
+                subtotal_req = total_items
+
+            nominal_riil = max(Decimal('0'), subtotal_req - diskon_req)
+            data['nominal_digunakan'] = nominal_riil
+            data['subtotal'] = subtotal_req
+            data['diskon'] = diskon_req
             
             # Jika rincian kosong, rangkum dari item
             if not data.get('rincian'):
                 data['rincian'] = "; ".join(
-                    f"[{it.get('kode_akun', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
+                    f"[{str(it.get('kode_akun', '')).replace('.', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
                     for it in parsed_items if it.get('deskripsi')
                 )
 
@@ -7681,7 +7717,13 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             primary_file = uploaded_files[0] if uploaded_files else None
-            laporan = serializer.save(petty_cash=instance, selisih=selisih, nota=primary_file)
+            laporan = serializer.save(
+                petty_cash=instance,
+                selisih=selisih,
+                subtotal=subtotal_req,
+                diskon=diskon_req,
+                nota=primary_file
+            )
 
             # Simpan seluruh file nota ke FotoLaporanPenggunaan
             for idx, f in enumerate(uploaded_files):
@@ -7693,16 +7735,23 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
             for it in parsed_items:
                 try:
-                    val = Decimal(str(it.get('nilai', 0)))
+                    q = Decimal(str(it.get('qty', 1) or 1))
+                    p = Decimal(str(it.get('harga_satuan', 0) or 0))
+                    val = Decimal(str(it.get('nilai') if it.get('nilai') is not None else (q * p)))
                 except Exception:
+                    q = Decimal('1')
+                    p = Decimal('0')
                     val = Decimal('0')
                 if val > 0 or it.get('deskripsi'):
+                    clean_kode = str(it.get('kode_akun') or '').replace('.', '').strip()
                     ItemLaporanPenggunaan.objects.create(
                         laporan=laporan,
-                        kode_akun=str(it.get('kode_akun') or '').strip(),
+                        kode_akun=clean_kode,
                         nama_akun=str(it.get('nama_akun') or '').strip(),
                         pos_biaya=str(it.get('pos_biaya') or '').strip(),
                         deskripsi=str(it.get('deskripsi') or '').strip(),
+                        qty=q,
+                        harga_satuan=p,
                         nilai=val,
                     )
 
@@ -7803,8 +7852,8 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance = self.get_object()
         if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
             return Response({'error': 'Revisi hanya dapat dilakukan oleh pemohon.'}, status=403)
-        if instance.status != 'ditolak':
-            return Response({'error': 'Hanya pengajuan ditolak yang bisa direvisi.'}, status=400)
+        if instance.status not in ('ditolak', 'dibatalkan'):
+            return Response({'error': 'Hanya pengajuan ditolak atau dibatalkan yang bisa direvisi.'}, status=400)
         serializer = PettyCashInputSerializer(instance, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save(status='pending', catatan_tolak='')
@@ -7946,10 +7995,18 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = KasBesar.objects.select_related('created_by', 'disetujui_oleh', 'dicairkan_oleh', 'laporan_disetujui_oleh').prefetch_related('laporan').all()
-        
-        if not can_access_kas_besar(self.request.user):
+        can_view = (
+            can_access_kas_besar(self.request.user)
+            or getattr(self.request.user, 'view_kas_besar', False)
+        )
+        if not can_view:
             qs = qs.none()
-        elif not (is_direktur_or_wadir(self.request.user) or is_petty_cash_cashier(self.request.user) or self.request.user.is_superuser):
+        elif not (
+            is_direktur_or_wadir(self.request.user)
+            or getattr(self.request.user, 'akses_kas_besar', False)
+            or self.request.user.is_superuser
+            or getattr(self.request.user, 'view_kas_besar', False)
+        ):
             qs = qs.filter(created_by=self.request.user)
         
         st = self.request.query_params.get('status')
@@ -7998,8 +8055,8 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='cairkan')
     def cairkan(self, request, pk=None):
-        if not is_petty_cash_cashier(request.user):
-            return Response({'error': 'Hanya petugas kas petty cash yang dapat mencairkan dana.'}, status=403)
+        if not (getattr(request.user, 'akses_kas_besar', False) or is_direktur_or_wadir(request.user) or request.user.is_superuser):
+            return Response({'error': 'Hanya pengelola kas besar yang dapat mencairkan dana.'}, status=403)
         instance = self.get_object()
         if instance.status not in ('menunggu_realisasi', 'disetujui'):
             return Response({'error': 'Hanya pengajuan berstatus menunggu realisasi yang dapat dicairkan.'}, status=400)
@@ -8049,20 +8106,39 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             parsed_items = raw_items
 
         data = {k: request.data.get(k) for k in request.data}
+
+        try:
+            subtotal_req = Decimal(str(request.data.get('subtotal', 0) or 0))
+        except Exception:
+            subtotal_req = Decimal('0')
+
+        try:
+            diskon_req = Decimal(str(request.data.get('diskon', 0) or 0))
+        except Exception:
+            diskon_req = Decimal('0')
+
         if parsed_items:
             data['items'] = parsed_items
             total_items = Decimal('0')
             for it in parsed_items:
                 try:
-                    total_items += Decimal(str(it.get('nilai', 0)))
+                    q = Decimal(str(it.get('qty', 1) or 1))
+                    p = Decimal(str(it.get('harga_satuan', 0) or 0))
+                    val = Decimal(str(it.get('nilai') if it.get('nilai') is not None else (q * p)))
+                    total_items += val
                 except Exception:
                     pass
-            if total_items > 0:
-                data['nominal_digunakan'] = total_items
+            if subtotal_req <= 0 and total_items > 0:
+                subtotal_req = total_items
+
+            nominal_riil = max(Decimal('0'), subtotal_req - diskon_req)
+            data['nominal_digunakan'] = nominal_riil
+            data['subtotal'] = subtotal_req
+            data['diskon'] = diskon_req
             
             if not data.get('rincian'):
                 data['rincian'] = "; ".join(
-                    f"[{it.get('kode_akun', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
+                    f"[{str(it.get('kode_akun', '')).replace('.', '')}] {it.get('deskripsi', '')} (Rp {Decimal(str(it.get('nilai', 0))):,.0f})"
                     for it in parsed_items if it.get('deskripsi')
                 )
 
@@ -8075,7 +8151,13 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             primary_file = uploaded_files[0] if uploaded_files else None
-            laporan = serializer.save(kas_besar=instance, selisih=selisih, nota=primary_file)
+            laporan = serializer.save(
+                kas_besar=instance,
+                selisih=selisih,
+                subtotal=subtotal_req,
+                diskon=diskon_req,
+                nota=primary_file
+            )
 
             for idx, f in enumerate(uploaded_files):
                 FotoLaporanKasBesar.objects.create(
@@ -8086,16 +8168,23 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
             for it in parsed_items:
                 try:
-                    val = Decimal(str(it.get('nilai', 0)))
+                    q = Decimal(str(it.get('qty', 1) or 1))
+                    p = Decimal(str(it.get('harga_satuan', 0) or 0))
+                    val = Decimal(str(it.get('nilai') if it.get('nilai') is not None else (q * p)))
                 except Exception:
+                    q = Decimal('1')
+                    p = Decimal('0')
                     val = Decimal('0')
                 if val > 0 or it.get('deskripsi'):
+                    clean_kode = str(it.get('kode_akun') or '').replace('.', '').strip()
                     ItemLaporanKasBesar.objects.create(
                         laporan=laporan,
-                        kode_akun=str(it.get('kode_akun') or '').strip(),
+                        kode_akun=clean_kode,
                         nama_akun=str(it.get('nama_akun') or '').strip(),
                         pos_biaya=str(it.get('pos_biaya') or '').strip(),
                         deskripsi=str(it.get('deskripsi') or '').strip(),
+                        qty=q,
+                        harga_satuan=p,
                         nilai=val,
                     )
 
@@ -8208,8 +8297,8 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='konfirmasi-pengembalian')
     def konfirmasi_pengembalian(self, request, pk=None):
-        if not is_petty_cash_cashier(request.user):
-            return Response({'error': 'Hanya petugas kas petty cash yang dapat mengkonfirmasi pengembalian.'}, status=403)
+        if not (getattr(request.user, 'akses_kas_besar', False) or is_direktur_or_wadir(request.user) or request.user.is_superuser):
+            return Response({'error': 'Hanya pengelola kas besar yang dapat mengkonfirmasi pengembalian.'}, status=403)
         instance = self.get_object()
         if instance.status not in ('menunggu_pengembalian', 'dilaporkan'):
             return Response({'error': 'Status tidak valid untuk dikonfirmasi.'}, status=400)
@@ -8235,8 +8324,8 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance = self.get_object()
         if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
             return Response({'error': 'Revisi hanya dapat dilakukan oleh pemohon.'}, status=403)
-        if instance.status != 'ditolak':
-            return Response({'error': 'Hanya pengajuan ditolak yang bisa direvisi.'}, status=400)
+        if instance.status not in ('ditolak', 'dibatalkan'):
+            return Response({'error': 'Hanya pengajuan ditolak atau dibatalkan yang bisa direvisi.'}, status=400)
         serializer = KasBesarInputSerializer(instance, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save(status='pending', catatan_tolak='')
@@ -8245,7 +8334,7 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='batal')
     def batal(self, request, pk=None):
         instance = self.get_object()
-        can_cancel_all = is_direktur_or_wadir(request.user) or is_petty_cash_cashier(request.user) or request.user.is_superuser
+        can_cancel_all = is_direktur_or_wadir(request.user) or getattr(request.user, 'akses_kas_besar', False) or request.user.is_superuser
         if not can_cancel_all:
             if instance.created_by != request.user:
                 return Response({'error': 'Hanya pemohon atau pimpinan yang dapat membatalkan pengajuan ini.'}, status=403)
@@ -8413,8 +8502,8 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         instance = self.get_object()
         if not is_direktur_or_wadir(request.user) and instance.created_by != request.user:
             return Response({'error': 'Revisi hanya dapat dilakukan oleh pemohon.'}, status=403)
-        if instance.status != 'ditolak':
-            return Response({'error': 'Hanya reimbursement ditolak yang bisa direvisi.'}, status=400)
+        if instance.status not in ('ditolak', 'dibatalkan'):
+            return Response({'error': 'Hanya reimbursement ditolak atau dibatalkan yang bisa direvisi.'}, status=400)
         serializer = ReimbursementInputSerializer(instance, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save(status='pending', catatan_tolak='')
@@ -8490,7 +8579,7 @@ class SaldoPettyCashViewSet(viewsets.ViewSet):
         saldo = get_or_create_saldo()
         riwayat = RiwayatSaldoPettyCash.objects.select_related(
             'created_by', 'created_by__unit'
-        ).all()[:100]
+        ).all()[:500]
         return Response({
             'saldo': SaldoPettyCashSerializer(saldo).data,
             'riwayat': RiwayatSaldoPettyCashSerializer(riwayat, many=True).data,
@@ -8576,7 +8665,14 @@ class LaporanPettyCashView(APIView):
     permission_classes = [IsAuthenticated]
  
     def get(self, request):
-        if not is_manajer_or_above(request.user):
+        can_view_report = (
+            is_manajer_or_above(request.user)
+            or is_petty_cash_cashier(request.user)
+            or can_view_petty_cash_all(request.user)
+            or getattr(request.user, 'is_keuangan', False)
+            or request.user.is_superuser
+        )
+        if not can_view_report:
             return Response({'error': 'Akses ditolak.'}, status=403)
  
         dari   = request.query_params.get('dari')
@@ -8602,7 +8698,6 @@ class LaporanPettyCashView(APIView):
         saldo_awal = riwayat_terakhir_sebelum.saldo_sesudah if riwayat_terakhir_sebelum else 0
 
         # ── Riwayat dalam periode ──
-
         sampai_datetime = timezone.make_aware(
             datetime.combine(sampai_date, time.max),
             timezone.get_current_timezone()
@@ -8613,46 +8708,91 @@ class LaporanPettyCashView(APIView):
             created_at__lte=sampai_datetime,
         ).order_by('created_at')
 
-        # print("dari_date:", dari_date)
-        # print("riwayat_terakhir_sebelum:", riwayat_terakhir_sebelum)
-        # print("total riwayat semua:", RiwayatSaldoPettyCash.objects.count())
-        # if riwayat_terakhir_sebelum:
-        #     print("saldo_sesudah:", riwayat_terakhir_sebelum.saldo_sesudah)
-        #     print("created_at:", riwayat_terakhir_sebelum.created_at)
-
-        # if riwayat_terakhir_sebelum:
-        #     saldo_awal = riwayat_terakhir_sebelum.saldo_sesudah
-        # else:
-        #     # Hitung mundur dari saldo sekarang
-        #     saldo_sekarang = get_or_create_saldo().saldo
-        #     total_masuk_periode  = riwayat_periode.filter(jenis='penambahan').aggregate(t=Sum('jumlah'))['t'] or 0
-        #     total_keluar_periode = riwayat_periode.filter(jenis='pengurangan').aggregate(t=Sum('jumlah'))['t'] or 0
-        #     saldo_awal = saldo_sekarang - total_masuk_periode + total_keluar_periode
-        
-        # print("riwayat dalam periode:", list(riwayat_periode.values('jenis', 'jumlah', 'created_at')))
-        # print("Semua riwayat:", list(RiwayatSaldoPettyCash.objects.values('jenis', 'jumlah', 'created_at').order_by('created_at')))
-
         total_penambahan  = riwayat_periode.filter(jenis='penambahan').aggregate(t=Sum('jumlah'))['t'] or 0
         total_pengurangan = riwayat_periode.filter(jenis='pengurangan').aggregate(t=Sum('jumlah'))['t'] or 0
         saldo_akhir       = saldo_awal + total_penambahan - total_pengurangan
 
-        # ── Petty Cash (advance) dalam periode ──
+        # ── Petty Cash dalam periode ──
         pc_qs = PettyCash.objects.filter(
-            tanggal__gte=dari,
-            tanggal__lte=sampai,
-        ).select_related('created_by__unit', 'laporan')
+            Q(tanggal__gte=dari, tanggal__lte=sampai) |
+            Q(laporan__tanggal_laporan__gte=dari, laporan__tanggal_laporan__lte=sampai) |
+            Q(laporan__tanggal_nota__gte=dari, laporan__tanggal_nota__lte=sampai)
+        ).distinct().select_related('created_by', 'created_by__unit', 'laporan').prefetch_related('laporan__items')
  
         # ── Reimbursement dalam periode ──
         rb_qs = Reimbursement.objects.filter(
-            tanggal__gte=dari,
-            tanggal__lte=sampai,
-        ).select_related('created_by__unit')
+            Q(tanggal__gte=dari, tanggal__lte=sampai) |
+            Q(tanggal_nota__gte=dari, tanggal_nota__lte=sampai)
+        ).distinct().select_related('created_by', 'created_by__unit')
  
-        # ── Daftar pengajuan (gabungan PC + Reimbursement) ──
+        # ── Daftar pengajuan (gabungan PC + Reimbursement) & Rekap Pos Akun ──
         daftar_pengajuan = []
+        rekap_akun_dict = defaultdict(lambda: {
+            'kode_akun': '',
+            'nama_akun': '',
+            'pos_biaya': '',
+            'total': 0.0,
+            'jumlah_transaksi': 0,
+        })
+        total_belanja_riil = 0.0
+
         for pc in pc_qs:
-            # Ambil realisasi kalau sudah ada laporan
             nominal_realisasi = float(pc.laporan.nominal_digunakan) if hasattr(pc, 'laporan') and pc.laporan else None
+            rincian_items = []
+            has_items = False
+
+            if hasattr(pc, 'laporan') and pc.laporan:
+                items = list(pc.laporan.items.all())
+                if items:
+                    has_items = True
+                    for item in items:
+                        val = float(item.nilai or 0)
+                        rincian_items.append({
+                            'kode_akun': item.kode_akun,
+                            'nama_akun': item.nama_akun,
+                            'pos_biaya': item.pos_biaya,
+                            'deskripsi': item.deskripsi,
+                            'nilai': val,
+                        })
+                        if pc.status in ['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai', 'menunggu_approval_laporan']:
+                            k = (item.kode_akun or '5.1.02.99', item.nama_akun or 'Beban Operasional Lainnya', item.pos_biaya or 'Operasional')
+                            rekap_akun_dict[k]['kode_akun'] = k[0]
+                            rekap_akun_dict[k]['nama_akun'] = k[1]
+                            rekap_akun_dict[k]['pos_biaya'] = k[2]
+                            rekap_akun_dict[k]['total'] += val
+                            rekap_akun_dict[k]['jumlah_transaksi'] += 1
+                            total_belanja_riil += val
+                elif pc.laporan.nominal_digunakan and pc.status in ['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai', 'menunggu_approval_laporan']:
+                    val = float(pc.laporan.nominal_digunakan)
+                    k = ('5.1.02.99', 'Beban Operasional Umum', 'Operasional')
+                    rekap_akun_dict[k]['kode_akun'] = k[0]
+                    rekap_akun_dict[k]['nama_akun'] = k[1]
+                    rekap_akun_dict[k]['pos_biaya'] = k[2]
+                    rekap_akun_dict[k]['total'] += val
+                    rekap_akun_dict[k]['jumlah_transaksi'] += 1
+                    total_belanja_riil += val
+                    has_items = True
+
+            if not has_items:
+                if pc.status in ['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'menunggu_approval_laporan']:
+                    val = float(pc.nominal or 0)
+                    k = ('1.1.03.01', 'Uang Muka Kerja (Bon Gantung)', 'Kasbon Sementara')
+                    rekap_akun_dict[k]['kode_akun'] = k[0]
+                    rekap_akun_dict[k]['nama_akun'] = k[1]
+                    rekap_akun_dict[k]['pos_biaya'] = k[2]
+                    rekap_akun_dict[k]['total'] += val
+                    rekap_akun_dict[k]['jumlah_transaksi'] += 1
+                    total_belanja_riil += val
+                elif pc.status == 'selesai':
+                    val = float(pc.nominal or 0)
+                    k = ('5.1.02.99', 'Beban Operasional Umum', 'Operasional')
+                    rekap_akun_dict[k]['kode_akun'] = k[0]
+                    rekap_akun_dict[k]['nama_akun'] = k[1]
+                    rekap_akun_dict[k]['pos_biaya'] = k[2]
+                    rekap_akun_dict[k]['total'] += val
+                    rekap_akun_dict[k]['jumlah_transaksi'] += 1
+                    total_belanja_riil += val
+
             daftar_pengajuan.append({
                 'no':       pc.no_pengajuan,
                 'tanggal':  str(pc.tanggal),
@@ -8662,11 +8802,22 @@ class LaporanPettyCashView(APIView):
                 'keperluan': pc.keperluan,
                 'nominal':  float(pc.nominal),
                 'nominal_realisasi': nominal_realisasi,
-                # Tampilkan realisasi sebagai nominal efektif kalau sudah ada
                 'nominal_efektif': nominal_realisasi if nominal_realisasi is not None else float(pc.nominal),
                 'status':   pc.status,
+                'items':    rincian_items,
             })
+
         for rb in rb_qs:
+            val = float(rb.nominal)
+            if rb.status in ['dicairkan', 'disetujui']:
+                k = ('5.1.02.90', 'Beban Reimbursement Operasional', 'Operasional')
+                rekap_akun_dict[k]['kode_akun'] = k[0]
+                rekap_akun_dict[k]['nama_akun'] = k[1]
+                rekap_akun_dict[k]['pos_biaya'] = k[2]
+                rekap_akun_dict[k]['total'] += val
+                rekap_akun_dict[k]['jumlah_transaksi'] += 1
+                total_belanja_riil += val
+
             daftar_pengajuan.append({
                 'no':       rb.no_reimbursement,
                 'tanggal':  str(rb.tanggal),
@@ -8675,29 +8826,43 @@ class LaporanPettyCashView(APIView):
                 'unit':     laporan_unit_label(rb.created_by),
                 'keperluan': rb.keperluan,
                 'nominal':  float(rb.nominal),
-                'nominal_realisasi': float(rb.nominal) if rb.status == 'dicairkan' else None,
+                'nominal_realisasi': val if rb.status == 'dicairkan' else None,
+                'nominal_efektif': val,
                 'status':   rb.status,
+                'items':    [],
             })
-        daftar_pengajuan.sort(key=lambda x: x['tanggal'])
+
+        daftar_pengajuan.sort(key=lambda x: x['tanggal'], reverse=True)
+
+        rekap_akun_list = []
+        for v in sorted(rekap_akun_dict.values(), key=lambda x: x['total'], reverse=True):
+            pct = round((v['total'] / total_belanja_riil * 100), 1) if total_belanja_riil > 0 else 0
+            rekap_akun_list.append({**v, 'persentase': pct})
  
         # ── Total pencairan per unit ──
         per_unit = defaultdict(lambda: {'pc': 0, 'reimburse': 0, 'total': 0})
-        for pc in pc_qs.filter(status__in=['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai']):
+        for pc in pc_qs.filter(status__in=['dicairkan', 'dilaporkan', 'menunggu_pengembalian', 'selesai', 'menunggu_approval_laporan']):
             unit = laporan_unit_label(pc.created_by)
             nominal = float(pc.laporan.nominal_digunakan) if hasattr(pc, 'laporan') and pc.laporan else float(pc.nominal)
             per_unit[unit]['pc']    += nominal
             per_unit[unit]['total'] += nominal
-        for rb in rb_qs.filter(status='dicairkan'):
+        for rb in rb_qs.filter(status__in=['dicairkan', 'disetujui']):
             unit = laporan_unit_label(rb.created_by)
-            per_unit[unit]['reimburse'] += float(rb.nominal)
-            per_unit[unit]['total']     += float(rb.nominal)
+            nominal = float(rb.nominal)
+            per_unit[unit]['reimburse'] += nominal
+            per_unit[unit]['total']     += nominal
+
+        per_unit_list = []
+        total_unit_all = sum(v['total'] for v in per_unit.values())
+        for k, v in sorted(per_unit.items(), key=lambda x: x[1]['total'], reverse=True):
+            pct = round((v['total'] / total_unit_all * 100), 1) if total_unit_all > 0 else 0
+            per_unit_list.append({'unit': k, **v, 'persentase': pct})
  
         # ── Grafik per bulan (6 bulan terakhir) ──
-        from datetime import date, timedelta
+        from datetime import date
         today = date.today()
         grafik = []
         for i in range(5, -1, -1):
-            # bulan ke-i sebelum bulan ini
             month = (today.month - i - 1) % 12 + 1
             year  = today.year + ((today.month - i - 1) // 12)
             last_day = calendar.monthrange(year, month)[1]
@@ -8724,12 +8889,34 @@ class LaporanPettyCashView(APIView):
  
         # ── Rekap mutasi saldo ──
         rekap_mutasi = [{
-            'waktu':      r.created_at.strftime('%d %b %Y %H:%M'),
-            'jenis':      r.jenis,
-            'jumlah':     float(r.jumlah),
+            'id':           r.id,
+            'waktu':        r.created_at.strftime('%d/%m/%Y %H:%M'),
+            'tanggal':      r.created_at.strftime('%Y-%m-%d'),
+            'jenis':        r.jenis,
+            'nama_pengaju': r.nama_pengaju or '',
+            'unit_pengaju': r.unit_pengaju or '',
+            'masuk':        float(r.jumlah) if r.jenis == 'penambahan' else 0.0,
+            'keluar':       float(r.jumlah) if r.jenis == 'pengurangan' else 0.0,
+            'saldo_sebelum': float(r.saldo_sebelum),
             'saldo_sesudah': float(r.saldo_sesudah),
-            'keterangan': r.keterangan,
+            'keterangan':   r.keterangan,
         } for r in riwayat_periode]
+
+        # ── Pejabat Penandatangan ──
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        kasir_u = User.objects.filter(username='ulfa', is_active=True).first() or User.objects.filter(is_petty_cash_cashier=True, role='karyawan', is_active=True).first()
+        keuangan_u = User.objects.filter(username='evi', is_active=True).first() or User.objects.filter(is_keuangan=True, role='karyawan', is_active=True).first()
+        pimpinan_u = User.objects.filter(role__in=['wakil_direktur', 'direktur'], is_active=True).first()
+
+        pejabat = {
+            'kasir': kasir_u.get_full_name() or kasir_u.username if kasir_u else 'Ulfa Santika',
+            'kasir_jabatan': 'Kasir Kas Kecil',
+            'keuangan': keuangan_u.get_full_name() or keuangan_u.username if keuangan_u else 'Evi Setyaningrum, S.Ak',
+            'keuangan_jabatan': 'Staf Keuangan & Akuntansi',
+            'pimpinan': pimpinan_u.get_full_name() or pimpinan_u.username if pimpinan_u else 'Nevi Nevada',
+            'pimpinan_jabatan': 'Wakil Direktur',
+        }
  
         return Response({
             'periode':          {'dari': dari, 'sampai': sampai},
@@ -8737,10 +8924,13 @@ class LaporanPettyCashView(APIView):
             'saldo_akhir':      float(saldo_akhir),
             'total_penambahan': float(total_penambahan),
             'total_pengurangan': float(total_pengurangan),
+            'total_belanja_riil': float(total_belanja_riil),
+            'rekap_akun':       rekap_akun_list,
             'daftar_pengajuan': daftar_pengajuan,
-            'per_unit':         [{'unit': k, **v} for k, v in per_unit.items()],
+            'per_unit':         per_unit_list,
             'grafik':           grafik,
             'rekap_mutasi':     rekap_mutasi,
+            'pejabat':          pejabat,
         })
 
 def is_driver(user):

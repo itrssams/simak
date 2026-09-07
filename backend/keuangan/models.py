@@ -930,6 +930,8 @@ class LaporanPenggunaan(models.Model):
     tanggal_laporan      = models.DateField()
     tanggal_nota         = models.DateField(null=True, blank=True, help_text='Tanggal nota / kuitansi riil belanja')
     nominal_digunakan    = models.DecimalField(max_digits=15, decimal_places=2)
+    subtotal             = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    diskon               = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     selisih              = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     rincian              = models.TextField()
     nota                 = models.FileField(upload_to=nota_pc_path, null=True, blank=True)
@@ -952,6 +954,8 @@ class ItemLaporanPenggunaan(models.Model):
     nama_akun   = models.CharField(max_length=150)
     pos_biaya   = models.CharField(max_length=100, blank=True)
     deskripsi   = models.TextField()
+    qty         = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    harga_satuan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     nilai       = models.DecimalField(max_digits=15, decimal_places=2)
     created_at  = models.DateTimeField(auto_now_add=True)
 
@@ -970,6 +974,7 @@ class Reimbursement(models.Model):
         ('disetujui',  'Disetujui'),
         ('ditolak',    'Ditolak'),
         ('dicairkan',  'Dicairkan'),
+        ('lunas',      'Lunas'),
         ('dibatalkan', 'Dibatalkan'),
     ]
 
@@ -1149,6 +1154,8 @@ class LaporanPenggunaanKasBesar(models.Model):
     tanggal_laporan = models.DateField()
     tanggal_nota = models.DateField(null=True, blank=True, help_text='Tanggal nota / kuitansi riil belanja')
     nominal_digunakan = models.DecimalField(max_digits=15, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    diskon = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     selisih = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     rincian = models.TextField()
     nota = models.FileField(upload_to=nota_kb_path, null=True, blank=True)
@@ -1171,6 +1178,8 @@ class ItemLaporanKasBesar(models.Model):
     nama_akun = models.CharField(max_length=150)
     pos_biaya = models.CharField(max_length=100, blank=True)
     deskripsi = models.TextField()
+    qty = models.DecimalField(max_digits=10, decimal_places=2, default=1)
+    harga_satuan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     nilai = models.DecimalField(max_digits=15, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 

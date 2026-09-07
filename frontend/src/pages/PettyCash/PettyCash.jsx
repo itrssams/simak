@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
-import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
+import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2, FileSpreadsheet, Download, CalendarDays, RotateCcw, Hourglass, Printer } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
@@ -104,11 +105,12 @@ function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, 
 
 export default function PettyCash() {
     const { user } = useAuth();
-    const isManajer = user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role);
+    const isManajer = user?.is_superuser || ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role) || Boolean(user?.view_petty_cash);
     const isDirekturWadir = user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role);
-    const isPettyCashCashier = user?.is_superuser || Boolean(user?.is_petty_cash_cashier);
-    const canSeeSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
-    const canAjukanSaldo = isManajer || Boolean(user?.is_keuangan) || Boolean(user?.akses_reimbursement) || isPettyCashCashier;
+    const isPettyCashCashier = Boolean(user?.is_superuser || user?.is_petty_cash_cashier);
+    const canSeeSaldo = isManajer || Boolean(user?.is_keuangan) || isPettyCashCashier;
+    const canAjukanSaldo = isManajer || Boolean(user?.is_keuangan) || isPettyCashCashier;
+    const canReimbursement = Boolean(user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturWadir);
 
 
     const [success, setSuccess] = useToastState('success');
@@ -123,14 +125,12 @@ export default function PettyCash() {
     const [modalSaldo, setModalSaldo] = useState(false);
     const [modalAjukanSaldo, setModalAjukanSaldo] = useState(false);
     const [modalApprovalSaldo, setModalApprovalSaldo] = useState(null);
-    const [formSaldo, setFormSaldo] = useState({ tanggal: '', nominal_diajukan: '', alasan: '' });
-    const [berkasSaldo, setBerkasSaldo] = useState(null);
-    const [berkasSaldoInfo, setBerkasSaldoInfo] = useState(null);
-    const berkasSaldoRef = useRef(null);
+    const [formSaldo, setFormSaldo] = useState({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' });
     const [formApvSaldo, setFormApvSaldo] = useState({ aksi: 'setujui', nominal_diajukan: '', catatan_tolak: '' });
 
     // PC state
     const [listPC, setListPC] = useState([]);
+    const [allPC, setAllPC] = useState([]);
     const [loadingPC, setLoadingPC] = useState(true);
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
@@ -152,21 +152,24 @@ export default function PettyCash() {
     const [formBatal, setFormBatal] = useState({ alasan: '' });
     const [modalAlihkanKB, setModalAlihkanKB] = useState(null);
     const [formAlihkanKB, setFormAlihkanKB] = useState({ nominal_kas_besar: '', keterangan: '' });
+    const [modalNotifyIT, setModalNotifyIT] = useState(false);
+    const [modalPrintRekap, setModalPrintRekap] = useState(false);
 
     const [formPC, setFormPC] = useState({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
     const [berkasPC, setBerkasPC] = useState(null);
     const [berkasPCInfo, setBerkasPCInfo] = useState(null);
-    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
+    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
     const [laporanItems, setLaporanItems] = useState([
-        { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }
+        { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }
     ]);
+    const [diskonItems, setDiskonItems] = useState([]);
     const [notaList, setNotaList] = useState([]);
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const [approvalLaporanForm, setApprovalLaporanForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
     const berkasRef = useRef(); const notaRef = useRef();
 
     const addLaporanItem = () => {
-        setLaporanItems(prev => [...prev, { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+        setLaporanItems(prev => [...prev, { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
     };
 
     const updateLaporanItem = (index, field, value) => {
@@ -183,6 +186,13 @@ export default function PettyCash() {
                     next[index].pos_biaya = '';
                 }
             }
+            if (field === 'qty' || field === 'harga_satuan') {
+                const q = field === 'qty' ? (parseFloat(value) || 0) : (parseFloat(next[index].qty) || 0);
+                const h = field === 'harga_satuan' ? (parseFloat(value) || 0) : (parseFloat(next[index].harga_satuan) || 0);
+                if (q > 0 && h >= 0) {
+                    next[index].nilai = Math.round(q * h);
+                }
+            }
             return next;
         });
     };
@@ -190,15 +200,41 @@ export default function PettyCash() {
     const removeLaporanItem = (index) => {
         setLaporanItems(prev => {
             if (prev.length <= 1) {
-                return [{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }];
+                return [{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }];
             }
             return prev.filter((_, idx) => idx !== index);
         });
     };
 
-    const totalLaporanItems = useMemo(() => {
+    const addDiskonItem = () => {
+        setDiskonItems(prev => [...prev, { deskripsi: '', nilai: '' }]);
+    };
+
+    const updateDiskonItem = (index, field, value) => {
+        setDiskonItems(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
+    const removeDiskonItem = (index) => {
+        setDiskonItems(prev => prev.filter((_, idx) => idx !== index));
+    };
+
+    const subtotalLaporanItems = useMemo(() => {
         return laporanItems.reduce((sum, it) => sum + (Number(it.nilai) || 0), 0);
     }, [laporanItems]);
+
+    const totalDiskon = useMemo(() => {
+        return diskonItems.reduce((sum, it) => sum + (Math.max(0, Number(it.nilai)) || 0), 0);
+    }, [diskonItems]);
+
+    const totalPengeluaranRiil = useMemo(() => {
+        return Math.max(0, subtotalLaporanItems - totalDiskon);
+    }, [subtotalLaporanItems, totalDiskon]);
+
+    const totalLaporanItems = totalPengeluaranRiil;
 
     // RB state
     const [listRB, setListRB] = useState([]);
@@ -229,11 +265,11 @@ export default function PettyCash() {
     const anyModalOpen = Boolean(
         modalBuat || modalDetail || modalApproval || modalCairkan || modalLaporan || modalApprovalLaporan || modalKonfirmasi || modalRevisi || modalBatal ||
         modalBuatRB || modalDetailRB || modalApprovalRB || modalCairkanRB || modalRevisiRB || modalBatalRB ||
-        modalSaldo || modalAjukanSaldo || modalApprovalSaldo || imagePreview
+        modalSaldo || modalAjukanSaldo || modalApprovalSaldo || modalPrintRekap || imagePreview
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    useEffect(() => { fetchAll(); }, [page, pageSizePC, filterStatus, filterDari, filterSampai, pageRB, pageSizeRB, filterStatusRB, filterDariRB, filterSampaiRB]);
+    useEffect(() => { fetchAll(); }, [user?.id, canSeeSaldo, canReimbursement, page, pageSizePC, filterStatus, filterDari, filterSampai, pageRB, pageSizeRB, filterStatusRB, filterDariRB, filterSampaiRB]);
     useEffect(() => {
         if (!anyModalOpen) return undefined;
         const previousOverflow = document.body.style.overflow;
@@ -244,27 +280,41 @@ export default function PettyCash() {
     }, [anyModalOpen]);
 
     const fetchAll = async () => {
-        setLoadingPC(true); setLoadingRB(true);
+        setLoadingPC(true);
+        if (canReimbursement) setLoadingRB(true);
         try {
-            const promises = [
-                api.get('/keuangan/petty-cash/', { params: pageParams(page, pageSizePC, { status: filterStatus || undefined, dari: dateToStr(filterDari), sampai: dateToStr(filterSampai) }) }),
-                api.get('/keuangan/reimbursement/', { params: pageParams(pageRB, pageSizeRB, { status: filterStatusRB || undefined, dari: dateToStr(filterDariRB), sampai: dateToStr(filterSampaiRB) }) }),
-            ];
-            if (canSeeSaldo) {
-                promises.push(api.get('/keuangan/saldo-petty-cash/'));
-                promises.push(api.get('/keuangan/penambahan-saldo/'));
+            const [pcRes, allPcRes, rbRes, saldoRes, penambahanRes] = await Promise.all([
+                api.get('/keuangan/petty-cash/', { params: pageParams(page, pageSizePC, { status: filterStatus || undefined, dari: dateToStr(filterDari), sampai: dateToStr(filterSampai) }) }).catch(e => null),
+                api.get('/keuangan/petty-cash/').catch(e => null),
+                canReimbursement
+                    ? api.get('/keuangan/reimbursement/', { params: pageParams(pageRB, pageSizeRB, { status: filterStatusRB || undefined, dari: dateToStr(filterDariRB), sampai: dateToStr(filterSampaiRB) }) }).catch(e => null)
+                    : Promise.resolve(null),
+                canSeeSaldo
+                    ? api.get('/keuangan/saldo-petty-cash/').catch(e => null)
+                    : Promise.resolve(null),
+                canSeeSaldo
+                    ? api.get('/keuangan/penambahan-saldo/').catch(e => null)
+                    : Promise.resolve(null),
+            ]);
+
+            setListPC(getResults(pcRes?.data));
+            setTotalPC(getCount(pcRes?.data));
+            if (allPcRes?.data) {
+                setAllPC(getResults(allPcRes.data));
             }
-            const results = await Promise.all(promises);
-            setListPC(getResults(results[0].data));
-            setTotalPC(getCount(results[0].data));
-            setListRB(getResults(results[1].data));
-            setTotalRB(getCount(results[1].data));
-            if (canSeeSaldo && results[2]) {
-                setSaldo(results[2].data.saldo);
-                setRiwayatSaldo(results[2].data.riwayat || []);
+            if (rbRes?.data) {
+                setListRB(getResults(rbRes.data));
+                setTotalRB(getCount(rbRes.data));
+            } else {
+                setListRB([]);
+                setTotalRB(0);
             }
-            if (canSeeSaldo && results[3]) {
-                setListPenambahan(getResults(results[3].data));
+            if (saldoRes?.data?.saldo) {
+                setSaldo(saldoRes.data.saldo);
+                setRiwayatSaldo(saldoRes.data.riwayat || []);
+            }
+            if (penambahanRes?.data) {
+                setListPenambahan(getResults(penambahanRes.data));
             }
 
         } catch (e) { console.error(e); }
@@ -300,11 +350,20 @@ export default function PettyCash() {
     const pagedRB = searchRB ? filteredRB : filteredRB;
     useEffect(() => setPageRB(1), [searchRB, filterStatusRB, filterDariRB, filterSampaiRB]);
 
-    // Stats
-    const pendingPC = listPC.filter(i => ['pending', 'menunggu_approval_laporan'].includes(i.status)).length;
+    // Stats & Dana Beredar
+    const pcSourceForStats = allPC.length > 0 ? allPC : listPC;
+    const pendingPC = pcSourceForStats.filter(i => ['pending', 'menunggu_approval_laporan'].includes(i.status)).length;
     const pendingRB = listRB.filter(i => i.status === 'pending').length;
-    const berjalanPC = listPC.filter(i => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(i.status)).length;
-    const selesaiPC = listPC.filter(i => i.status === 'selesai').length;
+    const berjalanPC = pcSourceForStats.filter(i => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(i.status)).length;
+    const selesaiPC = pcSourceForStats.filter(i => i.status === 'selesai').length;
+
+    const itemsBeredar = useMemo(() => {
+        return pcSourceForStats.filter(p => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(p.status));
+    }, [pcSourceForStats]);
+
+    const totalDanaBeredar = useMemo(() => {
+        return itemsBeredar.reduce((sum, p) => sum + Number(p.nominal || 0), 0);
+    }, [itemsBeredar]);
     // Handlers PC
     const handleBuatPC = async () => {
         setError('');
@@ -358,11 +417,28 @@ export default function PettyCash() {
 
         const validItems = laporanItems.filter(it => it.kode_akun && it.deskripsi && it.nilai && Number(it.nilai) > 0);
         if (validItems.length === 0) {
-            return setError('Minimal harus ada 1 baris rincian belanja dengan Kategori Akun Biaya, Deskripsi, dan Nilai yang valid.');
+            return setError('Minimal harus ada 1 baris rincian belanja dengan Kategori Akun Biaya, Deskripsi, Qty, Harga Satuan, dan Nilai yang valid.');
         }
 
-        const nominalDigunakan = validItems.reduce((acc, it) => acc + Number(it.nilai), 0);
-        if (nominalDigunakan <= 0) {
+        // Validasi baris diskon jika ada yang diisi
+        for (let i = 0; i < diskonItems.length; i++) {
+            const d = diskonItems[i];
+            const hasDesc = d.deskripsi && d.deskripsi.trim();
+            const hasVal = d.nilai !== '' && Number(d.nilai) > 0;
+            if (hasDesc && !hasVal) {
+                return setError(`Baris diskon #${i + 1} memiliki keterangan "${d.deskripsi}" tetapi nominal potongan belum diisi atau 0.`);
+            }
+            if (!hasDesc && hasVal) {
+                return setError(`Baris diskon #${i + 1} memiliki nominal ${fmt(d.nilai)} tetapi keterangan diskonnya masih kosong.`);
+            }
+        }
+
+        const validDiskonItems = diskonItems.filter(d => (d.deskripsi && d.deskripsi.trim()) && (d.nilai !== '' && Number(d.nilai) > 0));
+        const subtotal = validItems.reduce((acc, it) => acc + Number(it.nilai), 0);
+        const diskon = validDiskonItems.reduce((acc, d) => acc + Number(d.nilai), 0);
+        const nominalDigunakan = Math.max(0, subtotal - diskon);
+
+        if (nominalDigunakan <= 0 && subtotal <= 0) {
             return setError('Total nominal belanja yang digunakan harus lebih dari Rp 0.');
         }
         if (nominalDigunakan > Number(modalLaporan.nominal)) {
@@ -373,13 +449,19 @@ export default function PettyCash() {
             return setError('Minimal harus ada 1 file nota / struk bukti pengeluaran belanja yang diunggah.');
         }
 
-        const rincianText = validItems.map(it => `[${it.kode_akun} ${it.nama_akun}] ${it.deskripsi} (${fmt(it.nilai)})`).join('; ');
+        let rincianText = validItems.map(it => `[${it.kode_akun} ${it.nama_akun}] ${it.deskripsi} (${it.qty || 1} x ${fmt(it.harga_satuan || it.nilai)} = ${fmt(it.nilai)})`).join('; ');
+        if (validDiskonItems.length > 0) {
+            const diskonStr = validDiskonItems.map(d => `${d.deskripsi} (-${fmt(d.nilai)})`).join(', ');
+            rincianText += ` [Potongan Diskon: ${diskonStr} | Total: -${fmt(diskon)}]`;
+        }
 
         setSaving(true);
         try {
             const fd = new FormData();
             fd.append('tanggal_laporan', tglLaporan);
             fd.append('tanggal_nota', formLaporan.tanggal_nota);
+            fd.append('subtotal', String(subtotal));
+            fd.append('diskon', String(diskon));
             fd.append('nominal_digunakan', String(nominalDigunakan));
             fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
@@ -392,8 +474,9 @@ export default function PettyCash() {
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan berhasil disubmit!');
             setModalLaporan(null);
-            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
-            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
+            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            setDiskonItems([]);
             clearNotaList();
             fetchAll();
         } catch (e) {
@@ -569,8 +652,9 @@ export default function PettyCash() {
     // Handlers saldo
     const handleAjukanSaldo = async () => {
         setError('');
-        if (!formSaldo.tanggal || !formSaldo.nominal_diajukan || !formSaldo.alasan) {
-            return setError('Tanggal, nominal, dan keterangan pengisian kembali wajib diisi.');
+        const tgl = todayStr();
+        if (!formSaldo.nominal_diajukan || !formSaldo.alasan || !formSaldo.alasan.trim()) {
+            return setError('Nominal dan keterangan pengisian kembali wajib diisi.');
         }
         if (Number(formSaldo.nominal_diajukan) <= 0) {
             return setError('Nominal pengisian kembali harus lebih dari 0.');
@@ -578,19 +662,16 @@ export default function PettyCash() {
         setSaving(true);
         try {
             const fd = new FormData();
-            fd.append('tanggal', formSaldo.tanggal);
+            fd.append('tanggal', tgl);
             fd.append('nominal_diajukan', formSaldo.nominal_diajukan);
             fd.append('alasan', formSaldo.alasan.trim());
-            if (berkasSaldo) fd.append('berkas', berkasSaldo);
 
             await api.post('/keuangan/penambahan-saldo/', fd, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             showSuccess('Pengajuan pengisian kembali saldo berhasil disubmit!');
             setModalAjukanSaldo(false);
-            setFormSaldo({ tanggal: '', nominal_diajukan: '', alasan: '' });
-            setBerkasSaldo(null);
-            setBerkasSaldoInfo(null);
+            setFormSaldo({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' });
             fetchAll();
         } catch (e) {
             setError(e.response?.data?.detail || 'Gagal mengajukan pengisian kembali saldo.');
@@ -720,7 +801,7 @@ export default function PettyCash() {
 
     // Saldo info
     const saldoNominal = saldo ? Number(saldo.saldo) : 0;
-    const saldoPct = Math.min((saldoNominal / 10000000) * 100, 100).toFixed(1);
+    const saldoPct = Math.min((saldoNominal / 5000000) * 100, 100).toFixed(1);
     const saldoKritis = saldoNominal < 1000000;
     const pendingSaldo = listPenambahan.filter(i => i.status === 'pending').length;
     const saldoStats = useMemo(() => ({
@@ -740,12 +821,138 @@ export default function PettyCash() {
         nama: r.nama_pengaju || r.created_by_name || 'Tidak diketahui',
         unit: r.unit_pengaju || r.created_by_unit || '',
     });
-    const totalRiwayatSaldoPages = Math.max(1, Math.ceil(riwayatSaldo.length / RIWAYAT_SALDO_PER_PAGE));
-    const pagedRiwayatSaldo = riwayatSaldo.slice(
-        (riwayatSaldoPage - 1) * RIWAYAT_SALDO_PER_PAGE,
-        riwayatSaldoPage * RIWAYAT_SALDO_PER_PAGE
-    );
-    useEffect(() => setRiwayatSaldoPage(1), [riwayatSaldo.length]);
+
+    // Perhitungan otomatis pemakaian belanja sejak top up saldo terakhir
+    const pemakaianSejakTopUp = useMemo(() => {
+        const lastTopUpIndex = riwayatSaldo.findIndex(r => r.jenis === 'penambahan');
+        const list = lastTopUpIndex === -1
+            ? riwayatSaldo.filter(r => r.jenis === 'pengurangan')
+            : riwayatSaldo.slice(0, lastTopUpIndex).filter(r => r.jenis === 'pengurangan');
+        return list;
+    }, [riwayatSaldo]);
+
+    const totalPemakaianSejakTopUp = useMemo(() => {
+        return pemakaianSejakTopUp.reduce((sum, r) => sum + Number(r.jumlah || 0), 0);
+    }, [pemakaianSejakTopUp]);
+
+    // Detail rekapitulasi penggunaan belanja sejak top up terakhir (untuk print-out / dasar pengajuan top up)
+    const rekapDataWithDetails = useMemo(() => {
+        return pemakaianSejakTopUp.map((r, idx) => {
+            const matchedPC = allPC.find(p => p.no_pengajuan && r.keterangan?.includes(p.no_pengajuan));
+            const matchedRB = listRB.find(rb => rb.no_reimbursement && r.keterangan?.includes(rb.no_reimbursement));
+
+            let noReferensi = matchedPC?.no_pengajuan || matchedRB?.no_reimbursement || '-';
+            let tanggalNota = matchedPC?.laporan?.tanggal_nota || matchedPC?.tanggal || matchedRB?.tanggal_nota || matchedRB?.tanggal || r.created_at;
+            let pemohon = matchedPC?.created_by_name || matchedRB?.created_by_name || r.nama_pengaju || r.created_by_name || '-';
+            let unit = matchedPC?.unit_nama || matchedRB?.unit_nama || r.unit_pengaju || r.created_by_unit || '-';
+
+            let akunBiaya = '-';
+            if (matchedPC?.laporan?.items && matchedPC.laporan.items.length > 0) {
+                akunBiaya = matchedPC.laporan.items.map(it => `${it.kode_akun ? it.kode_akun + ' ' : ''}${it.nama_akun || it.pos_biaya || ''}`).filter(Boolean).join('; ');
+            } else if (matchedPC?.akun_biaya) {
+                akunBiaya = matchedPC.akun_biaya;
+            }
+
+            let keterangan = matchedPC?.keperluan || matchedRB?.keperluan || r.keterangan || '-';
+            let nominal = Number(r.jumlah || matchedPC?.laporan?.nominal_digunakan || matchedPC?.nominal || 0);
+
+            return {
+                no: idx + 1,
+                noReferensi,
+                tanggal: tanggalNota,
+                pemohon,
+                unit,
+                akunBiaya,
+                keterangan,
+                nominal,
+            };
+        });
+    }, [pemakaianSejakTopUp, allPC, listRB]);
+
+    const handleExportExcelPC = () => {
+        const dataToExport = search ? filteredPC : listPC;
+        if (!dataToExport || dataToExport.length === 0) {
+            setError('Tidak ada data petty cash yang dapat diekspor.');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        const titleRows = [
+            ['DAFTAR PENGAJUAN & TRANSAKSI OPERASIONAL PETTY CASH'],
+            ['RS SIAGA AL-MUNAWWARAH SAMARINDA'],
+            [],
+            ['Tanggal Cetak / Ekspor', new Date().toLocaleString('id-ID')],
+            ['Periode Tanggal', `${filterDari ? dateToStr(filterDari) : 'Semua'} s/d ${filterSampai ? dateToStr(filterSampai) : 'Sekarang'}`],
+            ['Filter Status', filterStatus ? (PC_STATUS[filterStatus]?.label || filterStatus) : 'Semua Status'],
+            ['Pencarian', search || '-'],
+            [],
+        ];
+
+        const headers = [
+            'No',
+            'No. Pengajuan',
+            'Tanggal',
+            'Pemohon',
+            'Unit',
+            'Keperluan',
+            'Nominal Pengajuan (Rp)',
+            'Status',
+            'Nominal Realisasi (Rp)',
+            'Keterangan Realisasi'
+        ];
+
+        let sumPengajuan = 0;
+        let sumRealisasi = 0;
+
+        const dataRows = dataToExport.map((item, idx) => {
+            const nom = Number(item.nominal || 0);
+            const real = Number(item.laporan?.nominal_digunakan || (item.status === 'selesai' ? item.nominal : 0));
+            sumPengajuan += nom;
+            sumRealisasi += real;
+
+            return [
+                idx + 1,
+                item.no_pengajuan || '-',
+                fmtTgl(item.tanggal),
+                item.created_by_name || '-',
+                item.created_by_unit || '-',
+                item.keperluan || '-',
+                nom,
+                PC_STATUS[item.status]?.label || item.status || '-',
+                real || 0,
+                item.laporan?.rincian || item.keterangan || '-'
+            ];
+        });
+
+        const summaryRows = [
+            [],
+            ['', '', '', '', '', 'TOTAL', sumPengajuan, '', sumRealisasi, '']
+        ];
+
+        const fullAoa = [...titleRows, headers, ...dataRows, ...summaryRows];
+        const ws = XLSX.utils.aoa_to_sheet(fullAoa);
+
+        ws['!cols'] = [
+            { wch: 6 },
+            { wch: 18 },
+            { wch: 15 },
+            { wch: 22 },
+            { wch: 20 },
+            { wch: 35 },
+            { wch: 22 },
+            { wch: 18 },
+            { wch: 22 },
+            { wch: 40 },
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Daftar Petty Cash');
+
+        const fileName = `Petty_Cash_${filterDari ? dateToStr(filterDari) : 'semua'}_sd_${filterSampai ? dateToStr(filterSampai) : 'kini'}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        showSuccess('Data petty cash berhasil diekspor ke Excel!');
+    };
+
     const approvalUsageTotal = modalApprovalSaldo?.riwayat_snapshot?.reduce((s, r) => s + Number(r.jumlah || 0), 0) || 0;
     const approvalSaldoAfter = saldoNominal + Number(formApvSaldo.nominal_diajukan || 0);
     const penambahanStatusLabel = (status) => ({
@@ -811,8 +1018,8 @@ export default function PettyCash() {
             {success && <div className="pc-alert-ok"><Check size={16} /> {success}</div>}
                     {/* Saldo cards untuk manajer ke atas */}
                     {canSeeSaldo && saldo && (() => {
-                        const totalMasuk = riwayatSaldo.filter(r => r.jenis === 'penambahan').reduce((s, r) => s + Number(r.jumlah), 0);
-                        const totalKeluar = riwayatSaldo.filter(r => r.jenis === 'pengurangan').reduce((s, r) => s + Number(r.jumlah), 0);
+                        const pemakaianPct = Math.min((totalPemakaianSejakTopUp / 5000000) * 100, 100).toFixed(1);
+                        const beredarPct = Math.min((totalDanaBeredar / 5000000) * 100, 100).toFixed(1);
                         return (
                             <div className="pc-saldo-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 28 }}>
 
@@ -832,18 +1039,33 @@ export default function PettyCash() {
                                                 <span style={{ width: `${saldoPct}%`, background: saldoKritis ? 'linear-gradient(90deg,#f87171,#ef4444)' : 'linear-gradient(90deg,#6ee7b7,#34d399)' }} />
                                             </div>
                                             <div className="pc-balance-foot">
-                                                <span>{saldoPct}% dari Rp 10.000.000</span>
+                                                <span>{saldoPct}% dari Rp 5.000.000</span>
                                                 {saldoKritis && <span className="pc-warning-pill"><AlertTriangle size={13} /> Menipis</span>}
                                             </div>
                                         </div>
                                         <div className="pc-balance-actions">
+                                            <button className="pc-action-dark" onClick={() => setModalPrintRekap(true)} title="Cetak Rincian Pengeluaran Belanja Sejak Top Up Terakhir">
+                                                <Printer size={15} />
+                                                Cetak Rekap Belanja
+                                            </button>
                                             <button className="pc-action-dark" onClick={() => setModalSaldo(true)}>
                                                 <ClipboardList size={15} />
                                                 Daftar Pengisian Kembali Saldo
                                                 {pendingSaldo > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 800, padding: '2px 7px', lineHeight: 1.4 }}>{pendingSaldo}</span>}
                                             </button>
                                             {canAjukanSaldo && (
-                                                <button className="pc-action-dark" onClick={() => { setFormSaldo({ tanggal: todayStr(), nominal_diajukan: '', alasan: '' }); setBerkasSaldo(null); setBerkasSaldoInfo(null); resetError(); setModalAjukanSaldo(true); }}>
+                                                <button
+                                                    className="pc-action-dark"
+                                                    onClick={() => {
+                                                        const autoNominal = totalPemakaianSejakTopUp > 0 ? String(totalPemakaianSejakTopUp) : '';
+                                                        const autoAlasan = totalPemakaianSejakTopUp > 0
+                                                            ? `Pengisian kembali saldo kas kecil sebesar ${fmt(totalPemakaianSejakTopUp)} (${pemakaianSejakTopUp.length} transaksi belanja sejak top up terakhir)`
+                                                            : '';
+                                                        setFormSaldo({ tanggal: todayStr(), nominal_diajukan: autoNominal, alasan: autoAlasan });
+                                                        resetError();
+                                                        setModalAjukanSaldo(true);
+                                                    }}
+                                                >
                                                     <Plus size={15} />
                                                     Pengisian Kembali
                                                 </button>
@@ -851,33 +1073,85 @@ export default function PettyCash() {
                                         </div>
                                     </div>
                                 </div>
-                                {/* Card Total Masuk */}
-                                <div className="pc-money-card pc-money-masuk">
-                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(34,197,94,.06)', pointerEvents: 'none' }} />
+
+                                {/* Card 1: Belanja Terpakai (Siap Top-Up) */}
+                                <div
+                                    className="pc-money-card pc-money-siap-topup"
+                                    style={{ cursor: canAjukanSaldo ? 'pointer' : 'default' }}
+                                    onClick={() => {
+                                        if (!canAjukanSaldo) return;
+                                        const autoNominal = totalPemakaianSejakTopUp > 0 ? String(totalPemakaianSejakTopUp) : '';
+                                        const autoAlasan = totalPemakaianSejakTopUp > 0
+                                            ? `Pengisian kembali saldo kas kecil sebesar ${fmt(totalPemakaianSejakTopUp)} (${pemakaianSejakTopUp.length} transaksi belanja sejak top up terakhir)`
+                                            : '';
+                                        setFormSaldo({ tanggal: todayStr(), nominal_diajukan: autoNominal, alasan: autoAlasan });
+                                        resetError();
+                                        setModalAjukanSaldo(true);
+                                    }}
+                                    title={canAjukanSaldo ? "Klik untuk langsung buka formulir Pengisian Kembali Saldo" : undefined}
+                                >
+                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(16,185,129,.07)', pointerEvents: 'none' }} />
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                        <div className="pc-card-icon pc-icon-masuk"><ArrowRight size={18} style={{ transform: 'rotate(-45deg)' }} /></div>
-                                        <span className="pc-card-badge pc-badge-masuk">MASUK</span>
+                                        <div className="pc-card-icon" style={{ background: '#ecfdf5', color: '#059669', width: 38, height: 38, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <RotateCcw size={18} />
+                                        </div>
+                                        <span className="pc-card-badge" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid rgba(16,185,129,.25)', fontSize: 10.5, fontWeight: 800, padding: '4px 8px', borderRadius: 999 }}>
+                                            SIAP TOP-UP
+                                        </span>
                                     </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penambahan</p>
-                                    <p className="pc-masuk-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalMasuk)}</p>
-                                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'penambahan').length} kali penambahan</p>
-                                    <div className="pc-progress-track">
-                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#86efac,#22c55e)', width: `${Math.min((totalMasuk / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                                        Belanja Terpakai
+                                    </p>
+                                    <p style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1, margin: '0 0 6px' }} className="pc-card-val-text">
+                                        {fmt(totalPemakaianSejakTopUp)}
+                                    </p>
+                                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {pemakaianSejakTopUp.length > 0 ? `${pemakaianSejakTopUp.length} transaksi sejak isi saldo` : 'Belum ada transaksi belanja'}
+                                    </p>
+                                    <div className="pc-progress-track" style={{ marginTop: 'auto' }}>
+                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#34d399,#059669)', width: `${pemakaianPct}%`, transition: 'width 1s ease' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, fontSize: 10.5, color: '#94a3b8' }}>
+                                        <span>Terpakai dari plafon</span>
+                                        <span style={{ fontWeight: 700, color: '#059669' }}>{pemakaianPct}%</span>
                                     </div>
                                 </div>
 
-                                {/* Card Total Keluar */}
-                                <div className="pc-money-card pc-money-keluar">
-                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(239,68,68,.06)', pointerEvents: 'none' }} />
+                                {/* Card 2: Dana Beredar di Staf (Bon Gantung) */}
+                                <div
+                                    className="pc-money-card pc-money-beredar"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => {
+                                        setFilterStatus('dicairkan');
+                                        const tableEl = document.getElementById('pc-table-section');
+                                        if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    title="Klik untuk filter tabel ke transaksi yang sedang berjalan (dicairkan)"
+                                >
+                                    <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(99,102,241,.07)', pointerEvents: 'none' }} />
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                        <div className="pc-card-icon pc-icon-keluar"><ArrowRight size={18} style={{ transform: 'rotate(45deg)' }} /></div>
-                                        <span className="pc-card-badge pc-badge-keluar">KELUAR</span>
+                                        <div className="pc-card-icon" style={{ background: '#eef2ff', color: '#4f46e5', width: 38, height: 38, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Hourglass size={18} />
+                                        </div>
+                                        <span className="pc-card-badge" style={{ background: '#eef2ff', color: '#4f46e5', border: '1px solid rgba(99,102,241,.25)', fontSize: 10.5, fontWeight: 800, padding: '4px 8px', borderRadius: 999 }}>
+                                            BON GANTUNG
+                                        </span>
                                     </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Total Penggunaan</p>
-                                    <p className="pc-keluar-amt" style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{fmt(totalKeluar)}</p>
-                                    <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>{riwayatSaldo.filter(r => r.jenis === 'pengurangan').length} kali penggunaan</p>
-                                    <div className="pc-progress-track">
-                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#fca5a5,#ef4444)', width: `${Math.min((totalKeluar / (totalMasuk + totalKeluar || 1)) * 100, 100).toFixed(0)}%`, transition: 'width 1s ease' }} />
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                                        Dana Beredar di Staf
+                                    </p>
+                                    <p style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1, margin: '0 0 6px' }} className="pc-card-val-text">
+                                        {fmt(totalDanaBeredar)}
+                                    </p>
+                                    <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {itemsBeredar.length > 0 ? `${itemsBeredar.length} pengajuan belum setor nota` : 'Semua dana selesai di-LPJ'}
+                                    </p>
+                                    <div className="pc-progress-track" style={{ marginTop: 'auto' }}>
+                                        <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#a78bfa,#6366f1)', width: `${beredarPct}%`, transition: 'width 1s ease' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, fontSize: 10.5, color: '#94a3b8' }}>
+                                        <span>Dari plafon 5 juta</span>
+                                        <span style={{ fontWeight: 700, color: '#6366f1' }}>{beredarPct}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -901,22 +1175,34 @@ export default function PettyCash() {
                         ))}
                     </div>
 
-                    <div className="pc-section-card">
+                    <div className="pc-section-card" id="pc-table-section">
                     <div className="pc-table-titlebar">
                         <div>
                             <p className="pc-table-heading">Daftar Petty Cash</p>
                             <p className="pc-table-subheading">{search ? filteredPC.length : totalPC} pengajuan ditemukan</p>
                         </div>
-                        <button className="pc-action-primary" onClick={() => {
-                            setFormPC({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
-                            setBerkasPC(null);
-                            setBerkasPCInfo(null);
-                            resetError();
-                            setModalBuat(true);
-                        }}>
-                            <Plus size={16} />
-                            Ajukan Petty Cash
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button
+                                type="button"
+                                className="pc-btn-ghost"
+                                onClick={handleExportExcelPC}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', fontSize: 13, fontWeight: 700 }}
+                                title="Export daftar petty cash ke file Excel (.xlsx)"
+                            >
+                                <FileSpreadsheet size={16} style={{ color: '#16a34a' }} />
+                                Export Excel
+                            </button>
+                            <button className="pc-action-primary" onClick={() => {
+                                setFormPC({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
+                                setBerkasPC(null);
+                                setBerkasPCInfo(null);
+                                resetError();
+                                setModalBuat(true);
+                            }}>
+                                <Plus size={16} />
+                                Ajukan Petty Cash
+                            </button>
+                        </div>
                     </div>
                     <StableFilterBar searchVal={search} onSearch={setSearch} statusVal={filterStatus} onStatus={setFilterStatus}
                         statusCfg={PC_STATUS} dariVal={filterDari} onDari={setFilterDari} sampaiVal={filterSampai} onSampai={setFilterSampai}
@@ -932,7 +1218,7 @@ export default function PettyCash() {
                                 <tbody>
                                     {pagedPC.map((item, idx) => (
                                         <tr key={item.id} className="pc-tr" style={{ animationDelay: `${Math.min(idx, 8) * 0.03}s` }}>
-                                            <td><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1a4731', fontSize: 13 }}>{item.no_pengajuan}</span></td>
+                                            <td><span className="pc-table-id">{item.no_pengajuan}</span></td>
                                             <td style={{ color: '#94a3b8' }}>{fmtTgl(item.tanggal)}</td>
                                             <td style={{ maxWidth: 200 }}>
                                                 <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.keperluan}</p>
@@ -950,8 +1236,9 @@ export default function PettyCash() {
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
                                                         <button className="pc-btn-sm p" onClick={() => {
-                                                            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '' });
-                                                            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+                                                            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
+                                                            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+                                                            setDiskonItems([]);
                                                             clearNotaList();
                                                             resetError();
                                                             setModalLaporan(item);
@@ -963,6 +1250,10 @@ export default function PettyCash() {
                                                             style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}
                                                             onClick={() => {
                                                                 resetError();
+                                                                if (!user?.is_superuser && !user?.akses_kas_besar) {
+                                                                    setModalNotifyIT(true);
+                                                                    return;
+                                                                }
                                                                 setFormAlihkanKB({ nominal_kas_besar: '', keterangan: '' });
                                                                 setModalAlihkanKB(item);
                                                             }}
@@ -978,8 +1269,16 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm y" onClick={() => { resetError(); setModalKonfirmasi(item); }}>Konfirmasi</button>
                                                     )}
                                                     <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>Detail</button>
-                                                    {item.status === 'ditolak' && (item.created_by === user?.id || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm b revision" onClick={() => { setFormPC({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' }); setBerkasPC(null); setBerkasPCInfo(null); resetError(); setModalRevisi(item); }}>Revisi</button>
+                                                    {['ditolak', 'dibatalkan'].includes(item.status) && (item.created_by === user?.id || isDirekturWadir) && (
+                                                        <button className="pc-btn-sm b revision" onClick={() => { 
+                                                            setFormPC({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' }); 
+                                                            setBerkasPC(null); 
+                                                            setBerkasPCInfo(item.berkas_url ? { name: item.berkas_url.split('/').pop(), url: item.berkas_url } : null); 
+                                                            resetError(); 
+                                                            setModalRevisi(item); 
+                                                        }}>
+                                                            {item.status === 'dibatalkan' ? 'Ajukan Kembali' : 'Revisi'}
+                                                        </button>
                                                     )}
                                                     {item.status !== 'dibatalkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
                                                         <button className="pc-btn-sm r" onClick={() => { resetError(); setFormBatal({ alasan: '' }); setModalBatal(item); }} title="Batalkan Pengajuan">Batal</button>
@@ -1017,6 +1316,7 @@ export default function PettyCash() {
                             subtitle="Isi data pengajuan, nominal, kebutuhan dana, dan lampiran bila ada."
                         />
                         {modalRevisi?.catatan_tolak && <div className="pc-rejection"><strong>Alasan ditolak:</strong> {modalRevisi.catatan_tolak}</div>}
+                        {modalRevisi?.alasan_batal && <div className="pc-rejection" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}><strong>Alasan dibatalkan:</strong> {modalRevisi.alasan_batal}</div>}
                         {error && <div className="pc-alert-err">{error}</div>}
                         <ModalSection icon={<ClipboardList size={14} />} title="Data Pengajuan">
                             <div className="pc-field">
@@ -1112,7 +1412,11 @@ export default function PettyCash() {
                                 <DetailGrid items={[
                                     ['Tgl Laporan', fmtTgl(modalDetail.laporan.tanggal_laporan)],
                                     ['Tgl Nota / Belanja', fmtTgl(modalDetail.laporan.tanggal_nota || modalDetail.laporan.tanggal_laporan)],
-                                    ['Nominal Digunakan', fmt(modalDetail.laporan.nominal_digunakan)],
+                                    ...(Number(modalDetail.laporan.diskon) > 0 ? [
+                                        ['Subtotal Belanja', fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))],
+                                        ['Potongan Diskon', `- ${fmt(modalDetail.laporan.diskon)}`],
+                                    ] : []),
+                                    ['Nominal Digunakan (Riil)', fmt(modalDetail.laporan.nominal_digunakan)],
                                     ['Selisih / Kembalian', fmt(modalDetail.laporan.selisih)],
                                     ['Approval Laporan', modalDetail.laporan_disetujui_oleh_name || '-'],
                                     ['Tgl Approval', fmtDT(modalDetail.laporan_disetujui_at)],
@@ -1147,8 +1451,20 @@ export default function PettyCash() {
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr style={{ background: '#f8fafc' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                    {Number(modalDetail.laporan.diskon) > 0 && (
+                                                        <>
+                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))}</td>
+                                                            </tr>
+                                                            <tr style={{ background: '#f8fafc' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalDetail.laporan.diskon)}</td>
+                                                            </tr>
+                                                        </>
+                                                    )}
+                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalDetail.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
@@ -1232,8 +1548,8 @@ export default function PettyCash() {
                         </div>
                         {/* Saldo warning */}
                         {canSeeSaldo && saldo && (
-                            <div style={{ background: saldoNominal < Number(modalApproval.nominal) ? '#fef2f2' : '#f0fdf4', border: `1px solid ${saldoNominal < Number(modalApproval.nominal) ? '#fca5a5' : '#86efac'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
-                                <span style={{ fontWeight: 600, color: saldoNominal < Number(modalApproval.nominal) ? '#991b1b' : '#166534' }}>
+                            <div className={saldoNominal < Number(modalApproval.nominal) ? 'pc-alert-err' : 'pc-alert-ok'} style={{ marginBottom: 16 }}>
+                                <span>
                                     {saldoNominal < Number(modalApproval.nominal)
                                         ? `Saldo tidak mencukupi. Saldo: ${fmt(saldoNominal)}, dibutuhkan: ${fmt(modalApproval.nominal)}`
                                         : `Saldo mencukupi. Sisa setelah approve: ${fmt(saldoNominal - Number(modalApproval.nominal))}`
@@ -1324,7 +1640,7 @@ export default function PettyCash() {
             {/* Upload Laporan */}
             {modalLaporan && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal xl">
+                    <div className="pc-modal pc-modal-laporan">
                         <ModalHeader
                             icon={<FileText size={18} />}
                             title="Upload Laporan Penggunaan"
@@ -1355,20 +1671,32 @@ export default function PettyCash() {
                                 </div>
                             </div>
 
-                            {/* Tabel 3 Kolom: Kategori (Akun Biaya), Deskripsi, Nilai */}
+                            {/* Tabel 6 Kolom: No, Kategori (Akun Biaya), Deskripsi, Qty, Harga Satuan, Total Harga, Aksi */}
                             <div style={{ marginTop: 8 }}>
-                                <label className="pc-label" style={{ marginBottom: 6 }}>
-                                    Rincian Pengeluaran Belanja (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span>
-                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <label className="pc-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        Rincian Pengeluaran Belanja (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="pc-btn-add-item"
+                                        onClick={addLaporanItem}
+                                        style={{ padding: '5px 12px', fontSize: '12px' }}
+                                    >
+                                        <Plus size={14} /> Tambah Baris Pengeluaran
+                                    </button>
+                                </div>
                                 <div className="pc-items-table-wrapper">
                                     <table className="pc-items-table">
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '38px', textAlign: 'center' }}>No</th>
-                                                <th style={{ width: '36%' }}>Kategori (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '26%' }}>Kategori (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span></th>
                                                 <th>Deskripsi Belanja <span style={{ color: '#dc2626' }}>*</span></th>
-                                                <th style={{ width: '160px', textAlign: 'right' }}>Nilai (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
-                                                <th style={{ width: '46px', textAlign: 'center' }}>Aksi</th>
+                                                <th style={{ width: '75px', textAlign: 'center' }}>Qty <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '130px', textAlign: 'right' }}>Harga Satuan (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '140px', textAlign: 'right' }}>Total Harga (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '44px', textAlign: 'center' }}>Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1386,9 +1714,32 @@ export default function PettyCash() {
                                                         <input
                                                             type="text"
                                                             className="pc-input-table"
-                                                            placeholder="Contoh: Kertas F4 2 rim & pulpen..."
+                                                            placeholder="Contoh: Kertas F4..."
                                                             value={item.deskripsi}
                                                             onChange={(e) => updateLaporanItem(idx, 'deskripsi', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="any"
+                                                            className="pc-input-table text-center"
+                                                            placeholder="1"
+                                                            value={item.qty ?? 1}
+                                                            onChange={(e) => updateLaporanItem(idx, 'qty', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            className="pc-input-table text-right"
+                                                            placeholder="0"
+                                                            value={item.harga_satuan ?? ''}
+                                                            onChange={(e) => updateLaporanItem(idx, 'harga_satuan', e.target.value)}
                                                             required
                                                         />
                                                     </td>
@@ -1420,10 +1771,85 @@ export default function PettyCash() {
                                     </table>
                                 </div>
 
-                                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-start' }}>
-                                    <button type="button" className="pc-btn-add-item" onClick={addLaporanItem}>
-                                        <Plus size={14} /> Tambah Baris Pengeluaran
-                                    </button>
+                                {/* Sub-Tabel Rincian Diskon / Potongan */}
+                                <div style={{ marginTop: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                        <label className="pc-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            Rincian Diskon / Potongan Nota (Opsional)
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="pc-btn-add-item"
+                                            onClick={addDiskonItem}
+                                            style={{ padding: '5px 12px', fontSize: '12px' }}
+                                        >
+                                            <Plus size={14} /> Tambah Baris Diskon
+                                        </button>
+                                    </div>
+
+                                    {diskonItems.length > 0 ? (
+                                        <div className="pc-items-table-wrapper">
+                                            <table className="pc-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '38px', textAlign: 'center' }}>No</th>
+                                                        <th>Keterangan / Jenis Diskon / Potongan <span style={{ color: '#dc2626' }}>*</span></th>
+                                                        <th style={{ width: '220px', textAlign: 'right' }}>Nilai Potongan Diskon (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                        <th style={{ width: '44px', textAlign: 'center' }}>Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {diskonItems.map((dItem, dIdx) => (
+                                                        <tr key={dIdx}>
+                                                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{dIdx + 1}</td>
+                                                            <td>
+                                                                <input
+                                                                    type="text"
+                                                                    className="pc-input-table"
+                                                                    placeholder="Contoh: Diskon Member, Voucher Promo, Cashback Toko..."
+                                                                    value={dItem.deskripsi}
+                                                                    onChange={(e) => updateDiskonItem(dIdx, 'deskripsi', e.target.value)}
+                                                                    required
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    className="pc-input-table text-right"
+                                                                    placeholder="0"
+                                                                    value={dItem.nilai}
+                                                                    onChange={(e) => updateDiskonItem(dIdx, 'nilai', e.target.value)}
+                                                                    required
+                                                                />
+                                                            </td>
+                                                            <td style={{ textAlign: 'center' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="pc-btn-delete-row"
+                                                                    onClick={() => removeDiskonItem(dIdx)}
+                                                                    title="Hapus baris diskon"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div style={{
+                                            padding: '12px 16px',
+                                            background: '#f8fafc',
+                                            borderRadius: 8,
+                                            border: '1px dashed #cbd5e1'
+                                        }}>
+                                            <span style={{ fontSize: 12.5, color: '#64748b' }}>
+                                                Tidak ada diskon / potongan belanja. Klik tombol <strong>"+ Tambah Baris Diskon"</strong> di atas jika struk/nota belanja memiliki potongan harga.
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Summary Kalkulasi Otomatis */}
@@ -1432,24 +1858,36 @@ export default function PettyCash() {
                                         <span>Dana Awal Dicairkan:</span>
                                         <strong>{fmt(modalLaporan.nominal)}</strong>
                                     </div>
+                                    <div className="pc-report-calc-row">
+                                        <span>Subtotal Belanja:</span>
+                                        <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>{fmt(subtotalLaporanItems)}</strong>
+                                    </div>
+                                    {totalDiskon > 0 && (
+                                        <div className="pc-report-calc-row">
+                                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                                                Total Potongan Diskon ({diskonItems.filter(d => Number(d.nilai) > 0).length} jenis):
+                                            </span>
+                                            <strong style={{ color: '#059669', fontSize: '14.5px' }}>- {fmt(totalDiskon)}</strong>
+                                        </div>
+                                    )}
                                     <div className="pc-report-calc-row highlight">
-                                        <span>Total Nilai Digunakan (Otomatis):</span>
-                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalLaporanItems)}</strong>
+                                        <span>Total Pengeluaran Riil:</span>
+                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalPengeluaranRiil)}</strong>
                                     </div>
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
                                         <span>Sisa Kembalian ke Kasir:</span>
                                         <strong style={{
-                                            color: (Number(modalLaporan.nominal) - totalLaporanItems) >= 0 ? '#16a34a' : '#dc2626',
+                                            color: (Number(modalLaporan.nominal) - totalPengeluaranRiil) >= 0 ? '#16a34a' : '#dc2626',
                                             fontSize: '16px'
                                         }}>
-                                            {fmt(Number(modalLaporan.nominal) - totalLaporanItems)}
+                                            {fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)}
                                         </strong>
                                     </div>
-                                    {totalLaporanItems > Number(modalLaporan.nominal) && (
+                                    {totalPengeluaranRiil > Number(modalLaporan.nominal) && (
                                         <div className="pc-report-warn" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <AlertTriangle size={14} /> Total nilai digunakan ({fmt(totalLaporanItems)}) melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
+                                                <AlertTriangle size={14} /> Total pengeluaran riil ({fmt(totalPengeluaranRiil)}) melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
                                             </div>
                                             {totalLaporanItems >= 1000000 && (
                                                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #fde68a', gap: 10 }}>
@@ -1461,8 +1899,13 @@ export default function PettyCash() {
                                                         className="pc-btn-sm y"
                                                         style={{ background: '#d97706', color: '#fff', border: 'none', padding: '5px 12px', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
                                                         onClick={() => {
+                                                            if (!user?.is_superuser && !user?.akses_kas_besar) {
+                                                                setModalNotifyIT(true);
+                                                                return;
+                                                            }
                                                             const target = modalLaporan;
                                                             setModalLaporan(null);
+                                                            setDiskonItems([]);
                                                             clearNotaList();
                                                             setFormAlihkanKB({
                                                                 nominal_kas_besar: String(totalLaporanItems),
@@ -1497,7 +1940,7 @@ export default function PettyCash() {
                             />
                         </ModalSection>
                         <div className="pc-modal-footer">
-                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); clearNotaList(); resetError(); }}>Batal</button>
+                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setDiskonItems([]); clearNotaList(); resetError(); }}>Batal</button>
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanPC}
@@ -1545,8 +1988,14 @@ export default function PettyCash() {
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                     <div><p style={S.dk}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>
-                                    <div><p style={S.dk}>Dana Digunakan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
+                                    <div><p style={S.dk}>Dana Digunakan (Riil)</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
                                 </div>
+                                {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, background: '#f0fdf4', padding: '8px 12px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Subtotal Belanja</p><p style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
+                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Potongan Diskon</p><p style={{ fontSize: 14, fontWeight: 700, color: '#15803d' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
+                                    </div>
+                                )}
                                 <div style={{ padding: '10px 14px', background: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: `1px solid ${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#86efac' : '#f1f5f9'}`, marginBottom: 12 }}>
                                     <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Selisih / Kembalian</p>
                                     <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
@@ -1580,8 +2029,20 @@ export default function PettyCash() {
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr style={{ background: '#f8fafc' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                    {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
+                                                        <>
+                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
+                                                            </tr>
+                                                            <tr style={{ background: '#f8fafc' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
+                                                            </tr>
+                                                        </>
+                                                    )}
+                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
@@ -2014,8 +2475,8 @@ export default function PettyCash() {
                         </div>
                         {/* Saldo warning */}
                         {canSeeSaldo && saldo && (
-                            <div style={{ background: saldoNominal < Number(modalApprovalRB.nominal) ? '#fef2f2' : '#f0fdf4', border: `1px solid ${saldoNominal < Number(modalApprovalRB.nominal) ? '#fca5a5' : '#86efac'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
-                                <span style={{ fontWeight: 600, color: saldoNominal < Number(modalApprovalRB.nominal) ? '#991b1b' : '#166534' }}>
+                            <div className={saldoNominal < Number(modalApprovalRB.nominal) ? 'pc-alert-err' : 'pc-alert-ok'} style={{ marginBottom: 16 }}>
+                                <span>
                                     {saldoNominal < Number(modalApprovalRB.nominal)
                                         ? `Saldo tidak mencukupi. Saldo: ${fmt(saldoNominal)}, dibutuhkan: ${fmt(modalApprovalRB.nominal)}`
                                         : `Saldo mencukupi. Sisa setelah cairkan: ${fmt(saldoNominal - Number(modalApprovalRB.nominal))}`
@@ -2155,7 +2616,7 @@ export default function PettyCash() {
 
             {/* ════ MODALS SALDO ════ */}
 
-            {/* Modal Riwayat & Penambahan Saldo */}
+            {/* Modal Pengisian Kembali Saldo (Clean & Focused) */}
             {modalSaldo && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal pc-saldo-modal">
@@ -2164,8 +2625,8 @@ export default function PettyCash() {
                                 <div className="pc-saldo-title">
                                     <span className="pc-modal-title-icon"><ClipboardList size={18} /></span>
                                     <div>
-                                        <h2>Saldo Petty Cash</h2>
-                                        <p>Pengajuan penambahan dan riwayat perubahan saldo.</p>
+                                        <h2>Saldo & Pengisian Kembali</h2>
+                                        <p>Monitoring saldo kas kecil dan daftar permintaan pengisian kembali (top up).</p>
                                     </div>
                                 </div>
                                 <button className="pc-btn-ghost" onClick={() => setModalSaldo(false)}>Tutup</button>
@@ -2187,12 +2648,12 @@ export default function PettyCash() {
                                 <div className="pc-saldo-kpi">
                                     <p className="pc-saldo-kpi-label">Masuk</p>
                                     <p className="pc-saldo-kpi-value">{fmt(saldoTotalMasuk)}</p>
-                                    <small>Dari 20 riwayat terakhir</small>
+                                    <small>Total mutasi penambahan</small>
                                 </div>
                                 <div className="pc-saldo-kpi">
                                     <p className="pc-saldo-kpi-label">Keluar</p>
                                     <p className="pc-saldo-kpi-value">{fmt(saldoTotalKeluar)}</p>
-                                    <small>Dari 20 riwayat terakhir</small>
+                                    <small>Total mutasi pengeluaran</small>
                                 </div>
                             </div>
 
@@ -2202,7 +2663,16 @@ export default function PettyCash() {
                                         <p className="pc-saldo-section-title"><Plus size={15} /> Pengajuan Pengisian Kembali Saldo</p>
                                         <p className="pc-saldo-section-sub">Daftar permintaan top up / pengisian kembali saldo petty cash.</p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <button
+                                            type="button"
+                                            className="pc-btn-sm n"
+                                            onClick={() => setModalPrintRekap(true)}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: 6 }}
+                                            title="Cetak Rekapitulasi Rincian Belanja Sejak Top Up Terakhir"
+                                        >
+                                            <Printer size={13} /> Cetak Rekap Pemakaian
+                                        </button>
                                         <span className="pc-saldo-badge pending">{saldoStats.pending} Menunggu</span>
                                         <span className="pc-saldo-badge disetujui">{saldoStats.disetujui} Disetujui</span>
                                         <span className="pc-saldo-badge ditolak">{saldoStats.ditolak} Ditolak</span>
@@ -2263,175 +2733,211 @@ export default function PettyCash() {
                                     </div>
                                 )}
                             </section>
-
-                            <section className="pc-saldo-section">
-                                <div className="pc-saldo-section-head">
-                                    <div>
-                                        <p className="pc-saldo-section-title"><History size={15} /> Riwayat Perubahan Saldo</p>
-                                        <p className="pc-saldo-section-sub">Nama dan unit memakai pemohon transaksi, bukan hanya akun yang memproses.</p>
-                                    </div>
-                                </div>
-                                {riwayatSaldo.length === 0 ? (
-                                    <div className="pc-saldo-empty">Belum ada riwayat perubahan saldo.</div>
-                                ) : (
-                                    <div className="pc-saldo-table-wrap" style={{ maxHeight: 330 }}>
-                                        <table className="pc-saldo-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Waktu</th>
-                                                    <th>Jenis</th>
-                                                    <th>Jumlah</th>
-                                                    <th>Nama / Unit</th>
-                                                    <th>Saldo Sesudah</th>
-                                                    <th>Keterangan</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {pagedRiwayatSaldo.map((r, i) => {
-                                                    const actor = saldoActor(r);
-                                                    return (
-                                                        <tr key={r.id || i}>
-                                                            <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDT(r.created_at)}</td>
-                                                            <td>
-                                                                <span className={`pc-saldo-badge ${r.jenis === 'penambahan' ? 'disetujui' : 'ditolak'}`}>
-                                                                    {r.jenis === 'penambahan' ? 'Tambah' : 'Kurang'}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ fontWeight: 800, color: r.jenis === 'penambahan' ? '#166534' : '#dc2626', whiteSpace: 'nowrap' }}>
-                                                                {r.jenis === 'penambahan' ? '+' : '-'}{fmt(r.jumlah)}
-                                                            </td>
-                                                            <td>
-                                                                <div className="pc-saldo-actor" title={`${actor.nama}${actor.unit ? ` - ${actor.unit}` : ''}`}>
-                                                                    <strong>{actor.nama}</strong>
-                                                                    <span>{actor.unit || '-'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{fmt(r.saldo_sesudah)}</td>
-                                                            <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={r.keterangan || ''}>{r.keterangan || '-'}</td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                {riwayatSaldo.length > RIWAYAT_SALDO_PER_PAGE && (
-                                    <div className="pc-pagination">
-                                        <span className="pc-page-info">
-                                            Menampilkan {(riwayatSaldoPage - 1) * RIWAYAT_SALDO_PER_PAGE + 1}-{Math.min(riwayatSaldoPage * RIWAYAT_SALDO_PER_PAGE, riwayatSaldo.length)} dari {riwayatSaldo.length} riwayat
-                                        </span>
-                                        <div className="pc-page-btns">
-                                            <button className="pc-page-btn" disabled={riwayatSaldoPage === 1} onClick={() => setRiwayatSaldoPage(p => Math.max(1, p - 1))}>&lt;</button>
-                                            {renderPages(riwayatSaldoPage, totalRiwayatSaldoPages, setRiwayatSaldoPage)}
-                                            <button className="pc-page-btn" disabled={riwayatSaldoPage === totalRiwayatSaldoPages} onClick={() => setRiwayatSaldoPage(p => Math.min(totalRiwayatSaldoPages, p + 1))}>&gt;</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </section>
                         </div>
                     </div>
                 </div>, document.body
             )}
 
-            {/* Modal Ajukan Pengisian Kembali Saldo */}
+            {/* Modal Ajukan Pengisian Kembali Saldo (Split Layout & Paperless) */}
             {modalAjukanSaldo && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal">
-                        <h2 style={S.mt}>Pengisian Kembali Saldo</h2>
-                        <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                            <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>Saldo saat ini</p>
-                            <p style={{ fontSize: 22, fontWeight: 700, color: saldoKritis ? '#dc2626' : '#1a4731' }}>{fmt(saldoNominal)}</p>
-                            {saldoKritis && <p style={{ fontSize: 12, color: '#dc2626', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={13} /> Saldo menipis</p>}
-                        </div>
-                        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>Isi tanggal, nominal yang dibutuhkan, dan alasan pengisian kembali saldo.</p>
-                        {error && <div className="pc-alert-err">{error}</div>}
-                        <div className="pc-field">
-                            <label className="pc-label">Nama Pengaju</label>
-                            <div className="pc-input-readonly">
-                                <User size={15} style={{ color: '#10b981', flexShrink: 0 }} />
-                                <span>{user?.full_name || user?.nama || user?.username || '-'}</span>
-                                {(user?.unit_nama || user?.unit?.nama) && (
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: 999, marginLeft: 'auto' }}>
-                                        {user?.unit_nama || user?.unit?.nama}
-                                    </span>
-                                )}
+                    <div className="pc-modal pc-split-modal">
+                        {/* Header */}
+                        <div className="pc-split-head">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
+                                    <Plus size={20} />
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Pengisian Kembali Saldo Petty Cash</h2>
+                                    <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
+                                </div>
                             </div>
+                            <button
+                                type="button"
+                                className="pc-btn-ghost"
+                                style={{ padding: '6px 12px', fontSize: 13 }}
+                                onClick={() => { setModalAjukanSaldo(false); resetError(); }}
+                            >
+                                <X size={16} /> Tutup
+                            </button>
                         </div>
-                        <div className="pc-grid2">
-                            <div className="pc-field">
-                                <label className="pc-label">Tanggal *</label>
-                                <DateField value={formSaldo.tanggal} onChange={tanggal => setFormSaldo({ ...formSaldo, tanggal })} placeholder="Pilih tanggal..." />
-                            </div>
-                            <div className="pc-field">
-                                <label className="pc-label">Nominal Pengisian (Rp) *</label>
-                                <input
-                                    className="pc-input"
-                                    type="number"
-                                    placeholder="0"
-                                    value={formSaldo.nominal_diajukan}
-                                    onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="pc-field">
-                            <label className="pc-label">Keterangan *</label>
-                            <textarea
-                                className="pc-textarea"
-                                style={{ minHeight: 90 }}
-                                placeholder="Contoh: Pengisian kembali saldo petty cash periode 1 - 15 Agustus 2026..."
-                                value={formSaldo.alasan}
-                                onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
-                            />
-                        </div>
-                        <div className="pc-field">
-                            <label className="pc-label">Lampiran Rekap / Printout Petty Cash (PDF / Foto / Excel)</label>
-                            <input
-                                type="file"
-                                ref={berkasSaldoRef}
-                                style={{ display: 'none' }}
-                                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls"
-                                onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        setBerkasSaldo(file);
-                                        setBerkasSaldoInfo({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB' });
-                                    }
-                                }}
-                            />
-                            {berkasSaldoInfo ? (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#166534', overflow: 'hidden' }}>
-                                        <FileText size={16} style={{ flexShrink: 0 }} />
-                                        <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{berkasSaldoInfo.name}</span>
-                                        <span style={{ fontSize: 11, color: '#15803d' }}>({berkasSaldoInfo.size})</span>
+
+                        {/* Split Body */}
+                        <div className="pc-split-body">
+                            {/* LEFT SIDE: FORM PENGAJUAN */}
+                            <div className="pc-split-left">
+                                {/* Saldo Status Card */}
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                        <div>
+                                            <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Saldo Saat Ini</span>
+                                            <p style={{ fontSize: 19, fontWeight: 800, color: saldoKritis ? '#dc2626' : '#1a4731', margin: '3px 0 0' }}>{fmt(saldoNominal)}</p>
+                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>Plafon Rp 5.000.000</span>
+                                        </div>
+                                        <div>
+                                            <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Total Terpakai</span>
+                                            <p style={{ fontSize: 19, fontWeight: 800, color: '#dc2626', margin: '3px 0 0' }}>{fmt(totalPemakaianSejakTopUp)}</p>
+                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{pemakaianSejakTopUp.length} transaksi pemakaian</span>
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
-                                        onClick={() => {
-                                            setBerkasSaldo(null);
-                                            setBerkasSaldoInfo(null);
-                                            if (berkasSaldoRef.current) berkasSaldoRef.current.value = '';
-                                        }}
-                                    >
-                                        <Trash2 size={15} />
+                                </div>
+
+                                {error && <div className="pc-alert-err" style={{ marginBottom: 14 }}>{error}</div>}
+
+                                {/* Nama Pengaju */}
+                                <div className="pc-field" style={{ marginBottom: 12 }}>
+                                    <label className="pc-label">Nama Pengaju</label>
+                                    <div className="pc-input-readonly" style={{ padding: '9px 12px' }}>
+                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                        <span style={{ fontWeight: 600 }}>{user?.full_name || user?.nama || user?.username || '-'}</span>
+                                        {(user?.unit_nama || user?.unit?.nama) && (
+                                            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: 999, marginLeft: 'auto' }}>
+                                                {user?.unit_nama || user?.unit?.nama}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Tanggal Terkunci Today */}
+                                <div className="pc-field" style={{ marginBottom: 12 }}>
+                                    <label className="pc-label">Tanggal Pengajuan</label>
+                                    <div className="pc-input-readonly" style={{ padding: '9px 12px', background: '#f1f5f9', color: '#334155' }}>
+                                        <CalendarDays size={14} style={{ color: '#059669', flexShrink: 0 }} />
+                                        <span style={{ fontWeight: 600 }}>{fmtTgl(todayStr())}</span>
+                                        <span style={{ fontSize: 10.5, color: '#64748b', marginLeft: 'auto', fontWeight: 600 }}>Hari Ini (Terkunci)</span>
+                                    </div>
+                                </div>
+
+                                {/* Nominal Pengisian (Otomatis Mengisi Terpakai) */}
+                                <div className="pc-field" style={{ marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label className="pc-label">Nominal Pengisian (Rp) *</label>
+                                        {totalPemakaianSejakTopUp > 0 && Number(formSaldo.nominal_diajukan) !== totalPemakaianSejakTopUp && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormSaldo(prev => ({ ...prev, nominal_diajukan: String(totalPemakaianSejakTopUp) }))}
+                                                style={{ background: 'none', border: 'none', color: '#059669', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                                            >
+                                                Reset ke {fmt(totalPemakaianSejakTopUp)}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <input
+                                        className="pc-input"
+                                        type="number"
+                                        placeholder="0"
+                                        value={formSaldo.nominal_diajukan}
+                                        onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
+                                        style={{ fontWeight: 800, fontSize: 16, color: '#1a4731' }}
+                                    />
+                                    <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>
+                                        Otomatis terisi sesuai nominal terpakai ({fmt(totalPemakaianSejakTopUp)}).
+                                    </p>
+                                </div>
+
+                                {/* Keterangan (Cukup 'Keterangan *') */}
+                                <div className="pc-field" style={{ marginBottom: 18, flex: 1 }}>
+                                    <label className="pc-label">Keterangan *</label>
+                                    <textarea
+                                        className="pc-textarea"
+                                        style={{ minHeight: 90 }}
+                                        placeholder="Tuliskan keterangan pengisian kembali kas kecil..."
+                                        value={formSaldo.alasan}
+                                        onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Actions */}
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid #edf3ef', marginTop: 'auto' }}>
+                                    <button className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
+                                    <button className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>
+                                        {saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}
                                     </button>
                                 </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => berkasSaldoRef.current?.click()}
-                                    className="pc-btn-ghost"
-                                    style={{ width: '100%', justifyContent: 'center', border: '1px dashed #cbd5e1', padding: '12px', borderRadius: 8, color: '#64748b' }}
-                                >
-                                    <Paperclip size={15} />
-                                    Pilih Berkas Lampiran / Rekap
-                                </button>
-                            )}
-                        </div>
-                        <div className="pc-modal-footer">
-                            <button className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>{saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}</button>
+                            </div>
+
+                            {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR */}
+                            <div className="pc-split-right">
+                                <div className="pc-split-right-head">
+                                    <div>
+                                        <p style={{ fontSize: 13.5, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <History size={16} style={{ color: '#059669' }} />
+                                            Penggunaan Sejak Top Up Terakhir
+                                        </p>
+                                        <p style={{ fontSize: 11, color: '#64748b', margin: '3px 0 0' }}>
+                                            Rincian riil pengeluaran kas kecil yang mendasari pengisian kembali
+                                        </p>
+                                    </div>
+                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <button
+                                            type="button"
+                                            className="pc-btn-sm n"
+                                            onClick={() => setModalPrintRekap(true)}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: 6 }}
+                                            title="Cetak Rekapitulasi Rincian Belanja Sejak Top Up Terakhir"
+                                        >
+                                            <Printer size={13} /> Cetak Lampiran Rekap
+                                        </button>
+                                        <div>
+                                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total Rincian:</span>
+                                            <p style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', margin: 0 }}>{fmt(totalPemakaianSejakTopUp)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pc-split-right-content">
+                                    {pemakaianSejakTopUp.length === 0 ? (
+                                        <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                                            Belum ada transaksi pemakaian sejak top up terakhir.
+                                        </div>
+                                    ) : (
+                                        <table className="pc-saldo-table" style={{ width: '100%', minWidth: 'unset', fontSize: 12 }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ width: 36, textAlign: 'center' }}>No</th>
+                                                    <th style={{ width: 95 }}>Tanggal</th>
+                                                    <th>Pemohon / Unit</th>
+                                                    <th>Keterangan</th>
+                                                    <th style={{ width: 115, textAlign: 'right' }}>Nominal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {pemakaianSejakTopUp.map((r, idx) => {
+                                                    const actor = saldoActor(r);
+                                                    return (
+                                                        <tr key={r.id || idx}>
+                                                            <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                                                            <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtTgl(r.created_at)}</td>
+                                                            <td>
+                                                                <div className="pc-saldo-actor">
+                                                                    <strong>{actor.nama}</strong>
+                                                                    <span>{actor.unit || '-'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#334155' }} title={r.keterangan || ''}>
+                                                                {r.keterangan || '-'}
+                                                            </td>
+                                                            <td style={{ fontWeight: 800, color: '#dc2626', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                                -{fmt(r.jumlah)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {pemakaianSejakTopUp.length > 0 && (
+                                    <div className="pc-split-right-foot">
+                                        <span style={{ color: '#64748b', fontWeight: 600 }}>{pemakaianSejakTopUp.length} transaksi pemakaian</span>
+                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>
+                                            Total Pemakaian: <strong style={{ color: '#dc2626', fontWeight: 800, marginLeft: 4 }}>{fmt(totalPemakaianSejakTopUp)}</strong>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>, document.body
@@ -2603,6 +3109,266 @@ export default function PettyCash() {
                 </div>, document.body
             )}
             {imagePreview && <ImageZoomModal data={imagePreview} onClose={() => setImagePreview(null)} />}
+
+            {modalNotifyIT && (
+                <div className="pc-overlay" style={{ zIndex: 10010 }}>
+                    <div className="pc-modal pc-modal-sm" style={{ maxWidth: 460 }}>
+                        <div className="pc-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', padding: '16px 20px' }}>
+                            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b45309', fontSize: 16, fontWeight: 750, margin: 0 }}>
+                                <AlertTriangle size={20} />
+                                Akses Ditolak
+                            </h2>
+                            <button className="pc-btn-ghost" style={{ padding: 4 }} onClick={() => setModalNotifyIT(false)}><X size={18} /></button>
+                        </div>
+                        <div className="pc-modal-body" style={{ padding: '20px' }}>
+                            <div style={{ background: '#fef3c7', border: '1px solid #fde68a', padding: '16px', borderRadius: '10px', color: '#92400e', fontSize: 13, lineHeight: 1.6 }}>
+                                Peralihan permintaan ke Kas Besar tidak dapat dilakukan karena akun Anda belum diberikan hak akses (centang) Kas Besar.
+                                <br /><br />
+                                Silakan hubungi tim IT untuk meminta pengaktifan akses menu Kas Besar.
+                            </div>
+                        </div>
+                        <div className="pc-modal-footer" style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="pc-btn-primary" onClick={() => setModalNotifyIT(false)}>Mengerti</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Preview & Cetak Rekap Pengeluaran PC Sejak Top-Up Terakhir */}
+            {modalPrintRekap && createPortal(
+                <div className="pc-overlay">
+                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 960 }}>
+                        <div className="pc-modal-head" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 14 }}>
+                            <span className="pc-modal-title-icon"><Printer size={18} /></span>
+                            <div className="pc-modal-head-copy">
+                                <h2 className="pc-modal-head-title">Cetak Rekap Pengeluaran Kas Kecil</h2>
+                                <p className="pc-modal-head-subtitle">Dokumen dasar pengajuan pengisian kembali (top-up) saldo kas kecil sejak top-up terakhir</p>
+                            </div>
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                                <button
+                                    type="button"
+                                    className="pc-btn-primary"
+                                    onClick={() => window.print()}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#059669', borderColor: '#059669' }}
+                                >
+                                    <Printer size={15} /> Cetak Dokumen / PDF
+                                </button>
+                                <button type="button" className="pc-btn-ghost" onClick={() => setModalPrintRekap(false)}>
+                                    <X size={16} /> Tutup
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Document Preview Box (Simulates Printed Paper) */}
+                        <div style={{ background: '#f8fafc', padding: '20px', borderRadius: 8, marginTop: 14 }}>
+                            <div style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '24px 30px', borderRadius: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                                {/* Kop */}
+                                <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
+                                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#064e3b', letterSpacing: '0.04em' }}>
+                                        RS SIAGA AL-MUNAWWARAH SAMARINDA
+                                    </h2>
+                                    <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#334155' }}>
+                                        Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                                    </p>
+                                </div>
+
+                                {/* Title */}
+                                <div style={{ textAlign: 'center', marginBottom: 18 }}>
+                                    <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0f172a' }}>
+                                        REKAPITULASI PENGELUARAN BELANJA PETTY CASH
+                                    </h3>
+                                    <p style={{ margin: '3px 0 0', fontSize: 11, color: '#64748b' }}>
+                                        (Dasar Lampiran Pengajuan Pengisian Kembali / Top Up Saldo)
+                                    </p>
+                                </div>
+
+                                {/* Info Meta */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11.5, marginBottom: 16, background: '#f8fafc', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                    <div>
+                                        <div>Tanggal Cetak: <strong>{fmtTgl(todayStr())}</strong></div>
+                                        <div>Plafon Saldo Tetap: <strong>Rp 5.000.000</strong></div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
+                                        <div>Total Realisasi Terpakai: <strong style={{ color: '#dc2626' }}>{fmt(totalPemakaianSejakTopUp)}</strong></div>
+                                    </div>
+                                </div>
+
+                                {/* Table */}
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 18 }}>
+                                    <thead>
+                                        <tr style={{ background: '#f1f5f9', borderTop: '1px solid #0f172a', borderBottom: '1px solid #0f172a' }}>
+                                            <th style={{ padding: '6px 8px', width: 28, textAlign: 'center' }}>No</th>
+                                            <th style={{ padding: '6px 8px', width: 95 }}>No. Ref</th>
+                                            <th style={{ padding: '6px 8px', width: 85 }}>Tgl Nota</th>
+                                            <th style={{ padding: '6px 8px', width: 140 }}>Pemohon / Unit</th>
+                                            <th style={{ padding: '6px 8px', width: 160 }}>Akun Biaya</th>
+                                            <th style={{ padding: '6px 8px' }}>Deskripsi Kebutuhan</th>
+                                            <th style={{ padding: '6px 8px', width: 105, textAlign: 'right' }}>Nominal (Rp)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rekapDataWithDetails.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>
+                                                    Tidak ada catatan pengeluaran belanja sejak top up terakhir.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            rekapDataWithDetails.map((item, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b' }}>{item.no}</td>
+                                                    <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
+                                                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
+                                                    <td style={{ padding: '6px 8px' }}>
+                                                        <strong>{item.pemohon}</strong>
+                                                        {item.unit && <div style={{ fontSize: 10, color: '#64748b' }}>{item.unit}</div>}
+                                                    </td>
+                                                    <td style={{ padding: '6px 8px', color: '#334155' }}>{item.akunBiaya}</td>
+                                                    <td style={{ padding: '6px 8px' }}>{item.keterangan}</td>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                        {fmt(item.nominal)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ background: '#f8fafc', borderTop: '2px solid #0f172a', borderBottom: '2px solid #0f172a', fontWeight: 800 }}>
+                                            <td colSpan={6} style={{ padding: '8px', textAlign: 'right', textTransform: 'uppercase' }}>
+                                                Total Pengeluaran Belanja Kas Kecil:
+                                            </td>
+                                            <td style={{ padding: '8px', textAlign: 'right', color: '#064e3b', fontSize: 12 }}>
+                                                {fmt(totalPemakaianSejakTopUp)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                {/* Signatures */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, textAlign: 'center', marginTop: 32, fontSize: 11 }}>
+                                    <div>
+                                        <p style={{ margin: '0 0 50px' }}>Diajukan Oleh,<br /><strong>Kasir Kas Kecil</strong></p>
+                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
+                                        <span style={{ fontSize: 10, color: '#64748b' }}>Petugas Petty Cash</span>
+                                    </div>
+                                    <div>
+                                        <p style={{ margin: '0 0 50px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
+                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>
+                                        <span style={{ fontSize: 10, color: '#64748b' }}>Bagian Keuangan</span>
+                                    </div>
+                                    <div>
+                                        <p style={{ margin: '0 0 50px' }}>Menyetujui,<br /><strong>Wakil Direktur / Pimpinan</strong></p>
+                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>
+                                        <span style={{ fontSize: 10, color: '#64748b' }}>Pimpinan RS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Print-Only Container for Native Browser Print */}
+            <div className="pc-print-sheet">
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#000', letterSpacing: '0.04em' }}>
+                        RS SIAGA AL-MUNAWWARAH SAMARINDA
+                    </h2>
+                    <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
+                        Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                    </p>
+                </div>
+
+                <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                    <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        REKAPITULASI PENGELUARAN BELANJA PETTY CASH
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: '#444' }}>
+                        (Dasar Lampiran Pengajuan Pengisian Kembali / Top Up Saldo Kas Kecil)
+                    </p>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 12, borderBottom: '1px solid #ccc', paddingBottom: 6 }}>
+                    <div>
+                        <div>Tanggal Cetak: <strong>{fmtTgl(todayStr())}</strong></div>
+                        <div>Plafon Saldo Tetap: <strong>Rp 5.000.000</strong></div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
+                        <div>Total Realisasi Terpakai: <strong>{fmt(totalPemakaianSejakTopUp)}</strong></div>
+                    </div>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, marginBottom: 14 }}>
+                    <thead>
+                        <tr style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
+                            <th style={{ padding: '5px 6px', width: 24, textAlign: 'center' }}>No</th>
+                            <th style={{ padding: '5px 6px', width: 85 }}>No. Ref</th>
+                            <th style={{ padding: '5px 6px', width: 75 }}>Tgl Nota</th>
+                            <th style={{ padding: '5px 6px', width: 130 }}>Pemohon / Unit</th>
+                            <th style={{ padding: '5px 6px', width: 140 }}>Akun Biaya</th>
+                            <th style={{ padding: '5px 6px' }}>Deskripsi Kebutuhan</th>
+                            <th style={{ padding: '5px 6px', width: 95, textAlign: 'right' }}>Nominal (Rp)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rekapDataWithDetails.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} style={{ textAlign: 'center', padding: 14 }}>
+                                    Tidak ada catatan pengeluaran belanja sejak top up terakhir.
+                                </td>
+                            </tr>
+                        ) : (
+                            rekapDataWithDetails.map((item, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+                                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>{item.no}</td>
+                                    <td style={{ padding: '4px 6px', fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
+                                    <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
+                                    <td style={{ padding: '4px 6px' }}>
+                                        <strong>{item.pemohon}</strong>
+                                        {item.unit && <div style={{ fontSize: 9, color: '#555' }}>{item.unit}</div>}
+                                    </td>
+                                    <td style={{ padding: '4px 6px' }}>{item.akunBiaya}</td>
+                                    <td style={{ padding: '4px 6px' }}>{item.keterangan}</td>
+                                    <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                        {fmt(item.nominal)}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                    <tfoot>
+                        <tr style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: 800 }}>
+                            <td colSpan={6} style={{ padding: '6px', textAlign: 'right', textTransform: 'uppercase' }}>
+                                Total Pengeluaran Belanja Kas Kecil:
+                            </td>
+                            <td style={{ padding: '6px', textAlign: 'right', fontSize: 11 }}>
+                                {fmt(totalPemakaianSejakTopUp)}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center', marginTop: 24, fontSize: 10 }}>
+                    <div>
+                        <p style={{ margin: '0 0 45px' }}>Diajukan Oleh,<br /><strong>Kasir Kas Kecil</strong></p>
+                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
+                        <span style={{ fontSize: 9, color: '#555' }}>Petugas Petty Cash</span>
+                    </div>
+                    <div>
+                        <p style={{ margin: '0 0 45px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
+                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>
+                        <span style={{ fontSize: 9, color: '#555' }}>Bagian Keuangan</span>
+                    </div>
+                    <div>
+                        <p style={{ margin: '0 0 45px' }}>Menyetujui,<br /><strong>Wakil Direktur / Pimpinan</strong></p>
+                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>
+                        <span style={{ fontSize: 9, color: '#555' }}>Pimpinan RS</span>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

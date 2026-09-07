@@ -27,18 +27,22 @@ export default function SearchableAkunBiayaSelect({
         if (!q) return AKUN_BIAYA_PETTY_CASH;
 
         return AKUN_BIAYA_PETTY_CASH.map(group => {
-            const matchPos = group.pos.toLowerCase().includes(q) || group.kode_pos.toLowerCase().includes(q);
+            const posName = group?.pos || '';
+            const posCode = group?.kode_pos || '';
+            const matchPos = posName.toLowerCase().includes(q) || (posCode && posCode.toLowerCase().includes(q));
             if (matchPos) return group; // Show all if group matches
 
-            const matchedAccounts = group.accounts.filter(acc =>
-                acc.kode.toLowerCase().includes(q) || acc.nama.toLowerCase().includes(q)
-            );
+            const matchedAccounts = (group?.accounts || []).filter(acc => {
+                const kode = acc?.kode || '';
+                const nama = acc?.nama || '';
+                return kode.toLowerCase().includes(q) || nama.toLowerCase().includes(q);
+            });
 
             return {
                 ...group,
                 accounts: matchedAccounts
             };
-        }).filter(group => group.accounts.length > 0);
+        }).filter(group => group.accounts && group.accounts.length > 0);
     }, [search]);
 
     const totalMatches = useMemo(() => {

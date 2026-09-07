@@ -89,11 +89,11 @@ export default function AppLauncher() {
     const isDirekturUp = user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role);
     const isIT = user?.is_superuser || user?.is_it;
     const isKeuangan = user?.is_superuser || user?.is_keuangan;
-    const isLogistik = user?.is_superuser || user?.is_logistik;
+    const isLogistik = user?.is_superuser || user?.is_logistik || user?.view_logistik;
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
     const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
-    const canKasBesar = user?.is_superuser || user?.akses_kas_besar || isDirekturUp || user?.is_petty_cash_cashier;
-    const canReimbursement = user?.is_superuser || user?.akses_reimbursement || isDirekturUp;
+    const canKasBesar = user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isDirekturUp;
+    const canReimbursement = user?.is_superuser || user?.akses_reimbursement || isKeuangan || isDirekturUp;
     const isDriverAccess = user?.is_driver || isDirekturUp;
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons

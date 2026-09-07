@@ -747,7 +747,7 @@ class UpdateSaldoSerializer(serializers.Serializer):
 class ItemLaporanPenggunaanSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemLaporanPenggunaan
-        fields = ['id', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'nilai', 'created_at']
+        fields = ['id', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai', 'created_at']
 
 class LaporanPenggunaanSerializer(serializers.ModelSerializer):
     dikonfirmasi_oleh_name = serializers.CharField(source='dikonfirmasi_oleh.username', read_only=True)
@@ -799,9 +799,13 @@ class LaporanPenggunaanSerializer(serializers.ModelSerializer):
 class LaporanPenggunaanInputSerializer(serializers.ModelSerializer):
     rincian = serializers.CharField(required=False, allow_blank=True, default='')
     nota    = serializers.FileField(required=False, allow_null=True)
+    subtotal = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+    diskon   = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+    selisih  = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+
     class Meta:
         model  = LaporanPenggunaan
-        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'nota']
+        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'subtotal', 'diskon', 'selisih', 'rincian', 'nota']
 
     def validate_nominal_digunakan(self, value):
         if value <= 0:
@@ -824,7 +828,7 @@ class ItemLaporanKasBesarSerializer(serializers.ModelSerializer):
 class ItemLaporanKasBesarInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemLaporanKasBesar
-        fields = ['kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'nilai']
+        fields = ['kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai']
 
 class FotoLaporanKasBesarSerializer(serializers.ModelSerializer):
     foto_url = serializers.SerializerMethodField()
@@ -894,10 +898,15 @@ class LaporanPenggunaanKasBesarSerializer(serializers.ModelSerializer):
 
 class LaporanPenggunaanKasBesarInputSerializer(serializers.ModelSerializer):
     items = ItemLaporanKasBesarInputSerializer(many=True, required=False)
-    
+    rincian = serializers.CharField(required=False, allow_blank=True, default='')
+    nota = serializers.FileField(required=False, allow_null=True)
+    subtotal = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+    diskon = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+    selisih = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, default=0)
+
     class Meta:
         model = LaporanPenggunaanKasBesar
-        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'rincian', 'items']
+        fields = ['tanggal_laporan', 'tanggal_nota', 'nominal_digunakan', 'subtotal', 'diskon', 'selisih', 'rincian', 'nota', 'items']
 
     def validate_nominal_digunakan(self, value):
         if value <= 0:

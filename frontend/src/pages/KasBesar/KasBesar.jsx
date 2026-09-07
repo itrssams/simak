@@ -148,7 +148,8 @@ function FileUploadZone({ file, label, hint, onPick }) {
 export default function KasBesar() {
     const { user } = useAuth();
     const isDirekturWadir = Boolean(user?.is_superuser) || ['wakil_direktur', 'direktur'].includes(user?.role);
-    const isKasBesarCashier = Boolean(user?.is_superuser) || Boolean(user?.is_petty_cash_cashier);
+    const isKasBesarCashier = Boolean(user?.is_superuser) || Boolean(user?.akses_kas_besar);
+    const canViewAll = isDirekturWadir || isKasBesarCashier || Boolean(user?.view_kas_besar);
     const canMinta = Boolean(user?.is_superuser) || Boolean(user?.akses_kas_besar);
 
     const [success, setSuccess] = useToastState('success');
@@ -180,8 +181,9 @@ export default function KasBesar() {
     const [berkasKB, setBerkasKB] = useState(null);
     const [berkasKBInfo, setBerkasKBInfo] = useState(null);
     
-    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
-    const [laporanItems, setLaporanItems] = useState([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+    const [formLaporan, setFormLaporan] = useState({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
+    const [laporanItems, setLaporanItems] = useState([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+    const [diskonItems, setDiskonItems] = useState([]);
     const [notaList, setNotaList] = useState([]);
     
     const [approvalForm, setApprovalForm] = useState({ aksi: 'setujui', catatan_tolak: '' });
@@ -371,11 +373,28 @@ export default function KasBesar() {
 
         const validItems = laporanItems.filter(it => it.kode_akun && it.deskripsi && it.nilai && Number(it.nilai) > 0);
         if (validItems.length === 0) {
-            return setError('Wajib mengisi minimal 1 baris rincian pengeluaran lengkap (Akun Biaya, Deskripsi, dan Nilai).');
+            return setError('Wajib mengisi minimal 1 baris rincian pengeluaran lengkap (Akun Biaya, Deskripsi, Qty, Harga Satuan, dan Total Nilai).');
         }
 
-        const nominalDigunakan = validItems.reduce((sum, it) => sum + Number(it.nilai), 0);
-        if (nominalDigunakan <= 0) {
+        // Validasi baris diskon jika ada yang diisi
+        for (let i = 0; i < diskonItems.length; i++) {
+            const d = diskonItems[i];
+            const hasDesc = d.deskripsi && d.deskripsi.trim();
+            const hasVal = d.nilai !== '' && Number(d.nilai) > 0;
+            if (hasDesc && !hasVal) {
+                return setError(`Baris diskon #${i + 1} memiliki keterangan "${d.deskripsi}" tetapi nominal potongan belum diisi atau 0.`);
+            }
+            if (!hasDesc && hasVal) {
+                return setError(`Baris diskon #${i + 1} memiliki nominal ${fmt(d.nilai)} tetapi keterangan diskonnya masih kosong.`);
+            }
+        }
+
+        const validDiskonItems = diskonItems.filter(d => (d.deskripsi && d.deskripsi.trim()) && (d.nilai !== '' && Number(d.nilai) > 0));
+        const subtotal = validItems.reduce((sum, it) => sum + Number(it.nilai), 0);
+        const diskon = validDiskonItems.reduce((acc, d) => acc + Number(d.nilai), 0);
+        const nominalDigunakan = Math.max(0, subtotal - diskon);
+
+        if (nominalDigunakan <= 0 && subtotal <= 0) {
             return setError('Total nominal rincian pengeluaran harus lebih besar dari Rp 0.');
         }
 
@@ -383,13 +402,21 @@ export default function KasBesar() {
             return setError('Wajib mengunggah minimal 1 bukti nota / struk belanja.');
         }
 
+        let rincianText = validItems.map(it => `[${it.kode_akun}] ${it.deskripsi} (${it.qty || 1} x ${fmt(it.harga_satuan || it.nilai)} = ${fmt(it.nilai)})`).join('; ');
+        if (validDiskonItems.length > 0) {
+            const diskonStr = validDiskonItems.map(d => `${d.deskripsi} (-${fmt(d.nilai)})`).join(', ');
+            rincianText += ` [Potongan Diskon: ${diskonStr} | Total: -${fmt(diskon)}]`;
+        }
+
         setSaving(true);
         try {
             const fd = new FormData();
             fd.append('tanggal_laporan', tglLaporan);
             fd.append('tanggal_nota', formLaporan.tanggal_nota);
+            fd.append('subtotal', String(subtotal));
+            fd.append('diskon', String(diskon));
             fd.append('nominal_digunakan', String(nominalDigunakan));
-            fd.append('rincian', validItems.map(it => `[${it.kode_akun}] ${it.deskripsi} (${fmt(it.nilai)})`).join('; '));
+            fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
 
             notaList.forEach(item => {
@@ -401,8 +428,9 @@ export default function KasBesar() {
             await api.post(`/keuangan/kas-besar/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             showSuccess('Laporan penggunaan kas besar berhasil disubmit!');
             setModalLaporan(null);
-            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' });
-            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
+            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
+            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            setDiskonItems([]);
             clearNotaList();
             fetchAll();
         } catch (e) {
@@ -462,13 +490,30 @@ export default function KasBesar() {
                     next[index].pos_biaya = '';
                 }
             }
+            if (field === 'qty' || field === 'harga_satuan') {
+                const q = field === 'qty' ? (parseFloat(value) || 0) : (parseFloat(next[index].qty) || 0);
+                const h = field === 'harga_satuan' ? (parseFloat(value) || 0) : (parseFloat(next[index].harga_satuan) || 0);
+                if (q > 0 && h >= 0) {
+                    next[index].nilai = Math.round(q * h);
+                }
+            }
             return next;
         });
     };
     
-    const addLaporanItem = () => setLaporanItems(prev => [...prev, { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-    const removeLaporanItem = (index) => setLaporanItems(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== index) : [{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]);
-    const totalLaporanItems = useMemo(() => laporanItems.reduce((sum, it) => sum + (Number(it.nilai) || 0), 0), [laporanItems]);
+    const addLaporanItem = () => setLaporanItems(prev => [...prev, { kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+    const removeLaporanItem = (index) => setLaporanItems(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== index) : [{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+    const addDiskonItem = () => setDiskonItems(prev => [...prev, { deskripsi: '', nilai: '' }]);
+    const updateDiskonItem = (index, field, value) => setDiskonItems(prev => {
+        const next = [...prev];
+        next[index] = { ...next[index], [field]: value };
+        return next;
+    });
+    const removeDiskonItem = (index) => setDiskonItems(prev => prev.filter((_, idx) => idx !== index));
+    const subtotalLaporanItems = useMemo(() => laporanItems.reduce((sum, it) => sum + (Number(it.nilai) || 0), 0), [laporanItems]);
+    const totalDiskon = useMemo(() => diskonItems.reduce((sum, it) => sum + (Math.max(0, Number(it.nilai)) || 0), 0), [diskonItems]);
+    const totalPengeluaranRiil = useMemo(() => Math.max(0, subtotalLaporanItems - totalDiskon), [subtotalLaporanItems, totalDiskon]);
+    const totalLaporanItems = totalPengeluaranRiil;
 
     return (
         <div className="pc-page pc-shell">
@@ -574,7 +619,7 @@ export default function KasBesar() {
                                             )}
                                             <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>Detail</button>
                                             {item.status === 'dicairkan' && item.created_by === user?.id && (
-                                                <button className="pc-btn-sm p" onClick={() => { setModalLaporan(item); setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', nilai: '' }]); setNotaList([]); setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '' }); }}>Laporan</button>
+                                                <button className="pc-btn-sm p" onClick={() => { setModalLaporan(item); setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]); setDiskonItems([]); setNotaList([]); setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '', diskon: '' }); }}>Laporan</button>
                                             )}
                                             {item.status === 'menunggu_approval_laporan' && isDirekturWadir && (
                                                 <button className="pc-btn-sm g" onClick={() => { setModalApprovalLaporan(item); setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); }}>Approval Laporan</button>
@@ -582,19 +627,19 @@ export default function KasBesar() {
                                             {item.status === 'menunggu_pengembalian' && isKasBesarCashier && (
                                                 <button className="pc-btn-sm y" onClick={() => setModalKonfirmasi(item)}>Terima Pengembalian</button>
                                             )}
-                                            {item.status === 'ditolak' && item.created_by === user?.id && (
+                                            {['ditolak', 'dibatalkan'].includes(item.status) && (item.created_by === user?.id || isDirekturWadir) && (
                                                 <button
                                                     className="pc-btn-sm b revision"
                                                     onClick={() => {
                                                         setFormKB({ tanggal: item.tanggal, keperluan: item.keperluan, nominal: item.nominal, keterangan: item.keterangan || '' });
                                                         setBerkasKB(null);
-                                                        setBerkasKBInfo(null);
+                                                        setBerkasKBInfo(item.berkas_url ? { name: item.berkas_url.split('/').pop(), url: item.berkas_url } : null);
                                                         resetError();
                                                         setModalRevisi(item);
                                                     }}
-                                                    title="Revisi Pengajuan"
+                                                    title="Revisi / Ajukan Kembali"
                                                 >
-                                                    Revisi
+                                                    {item.status === 'dibatalkan' ? 'Ajukan Kembali' : 'Revisi'}
                                                 </button>
                                             )}
                                             {item.status !== 'dibatalkan' && item.status !== 'selesai' && (item.created_by === user?.id || isKasBesarCashier || isDirekturWadir) && (
@@ -644,6 +689,11 @@ export default function KasBesar() {
                         {modalRevisi?.catatan_tolak && (
                             <div className="pc-rejection">
                                 <strong>Catatan Penolakan:</strong> {modalRevisi.catatan_tolak}
+                            </div>
+                        )}
+                        {modalRevisi?.alasan_batal && (
+                            <div className="pc-rejection" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+                                <strong>Alasan Dibatalkan:</strong> {modalRevisi.alasan_batal}
                             </div>
                         )}
                         {error && <div className="pc-alert-err">{error}</div>}
@@ -817,9 +867,21 @@ export default function KasBesar() {
                             <ModalSection icon={<FileText size={14} />} title="Laporan Penggunaan Dana">
                                 <div className="pc-detail-grid" style={{ marginBottom: 12 }}>
                                     <div className="pc-detail-item">
-                                        <p className="pc-detail-label">Nominal Digunakan</p>
+                                        <p className="pc-detail-label">Nominal Digunakan (Riil)</p>
                                         <p className="pc-detail-value" style={{ fontSize: 16, fontWeight: 700, color: '#166534' }}>{fmt(modalDetail.laporan.nominal_digunakan)}</p>
                                     </div>
+                                    {Number(modalDetail.laporan.diskon) > 0 && (
+                                        <>
+                                            <div className="pc-detail-item">
+                                                <p className="pc-detail-label">Subtotal Belanja</p>
+                                                <p className="pc-detail-value" style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))}</p>
+                                            </div>
+                                            <div className="pc-detail-item">
+                                                <p className="pc-detail-label">Potongan Diskon</p>
+                                                <p className="pc-detail-value" style={{ fontSize: 15, fontWeight: 700, color: '#059669' }}>- {fmt(modalDetail.laporan.diskon)}</p>
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="pc-detail-item">
                                         <p className="pc-detail-label">
                                             {Number(modalDetail.laporan.nominal_digunakan) > Number(modalDetail.nominal) ? 'Kekurangan Belanja' : 'Sisa / Kembalian'}
@@ -886,6 +948,24 @@ export default function KasBesar() {
                                                     </tr>
                                                 ))}
                                             </tbody>
+                                            <tfoot>
+                                                {Number(modalDetail.laporan.diskon) > 0 && (
+                                                    <>
+                                                        <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                                                            <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))}</td>
+                                                        </tr>
+                                                        <tr style={{ background: '#f8fafc' }}>
+                                                            <td colSpan={2} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalDetail.laporan.diskon)}</td>
+                                                        </tr>
+                                                    </>
+                                                )}
+                                                <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
+                                                    <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalDetail.laporan.nominal_digunakan)}</td>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
                                 )}
@@ -1112,7 +1192,7 @@ export default function KasBesar() {
             {/* ══ MODAL SUBMIT LAPORAN ══ */}
             {modalLaporan && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal xl">
+                    <div className="pc-modal pc-modal-laporan">
                         <ModalHeader
                             icon={<FileText size={18} />}
                             title="Upload Laporan Penggunaan"
@@ -1143,20 +1223,32 @@ export default function KasBesar() {
                                 </div>
                             </div>
 
-                            {/* Tabel 3 Kolom: Kategori (Akun Biaya), Deskripsi, Nilai */}
+                            {/* Tabel 6 Kolom: No, Kategori (Akun Biaya), Deskripsi, Qty, Harga Satuan, Total Harga, Aksi */}
                             <div style={{ marginTop: 8 }}>
-                                <label className="pc-label" style={{ marginBottom: 6 }}>
-                                    Rincian Pengeluaran Belanja (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span>
-                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <label className="pc-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        Rincian Pengeluaran Belanja (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="pc-btn-add-item"
+                                        onClick={addLaporanItem}
+                                        style={{ padding: '5px 12px', fontSize: '12px' }}
+                                    >
+                                        <Plus size={14} /> Tambah Baris Pengeluaran
+                                    </button>
+                                </div>
                                 <div className="pc-items-table-wrapper">
                                     <table className="pc-items-table">
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '38px', textAlign: 'center' }}>No</th>
-                                                <th style={{ width: '36%' }}>Kategori (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '26%' }}>Kategori (Akun Biaya) <span style={{ color: '#dc2626' }}>*</span></th>
                                                 <th>Deskripsi Belanja <span style={{ color: '#dc2626' }}>*</span></th>
-                                                <th style={{ width: '160px', textAlign: 'right' }}>Nilai (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
-                                                <th style={{ width: '46px', textAlign: 'center' }}>Aksi</th>
+                                                <th style={{ width: '75px', textAlign: 'center' }}>Qty <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '130px', textAlign: 'right' }}>Harga Satuan (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '140px', textAlign: 'right' }}>Total Harga (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                <th style={{ width: '44px', textAlign: 'center' }}>Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1174,9 +1266,32 @@ export default function KasBesar() {
                                                         <input
                                                             type="text"
                                                             className="pc-input-table"
-                                                            placeholder="Contoh: Kertas F4 2 rim & pulpen..."
+                                                            placeholder="Contoh: Kertas F4 2 rim..."
                                                             value={item.deskripsi}
                                                             onChange={(e) => updateLaporanItem(idx, 'deskripsi', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="any"
+                                                            className="pc-input-table text-center"
+                                                            placeholder="1"
+                                                            value={item.qty ?? 1}
+                                                            onChange={(e) => updateLaporanItem(idx, 'qty', e.target.value)}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            className="pc-input-table text-right"
+                                                            placeholder="0"
+                                                            value={item.harga_satuan ?? ''}
+                                                            onChange={(e) => updateLaporanItem(idx, 'harga_satuan', e.target.value)}
                                                             required
                                                         />
                                                     </td>
@@ -1208,10 +1323,85 @@ export default function KasBesar() {
                                     </table>
                                 </div>
 
-                                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-start' }}>
-                                    <button type="button" className="pc-btn-add-item" onClick={addLaporanItem}>
-                                        <Plus size={14} /> Tambah Baris Pengeluaran
-                                    </button>
+                                {/* Sub-Tabel Rincian Diskon / Potongan */}
+                                <div style={{ marginTop: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                        <label className="pc-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            Rincian Diskon / Potongan Nota (Opsional)
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="pc-btn-add-item"
+                                            onClick={addDiskonItem}
+                                            style={{ padding: '5px 12px', fontSize: '12px' }}
+                                        >
+                                            <Plus size={14} /> Tambah Baris Diskon
+                                        </button>
+                                    </div>
+
+                                    {diskonItems.length > 0 ? (
+                                        <div className="pc-items-table-wrapper">
+                                            <table className="pc-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '38px', textAlign: 'center' }}>No</th>
+                                                        <th>Keterangan / Jenis Diskon / Potongan <span style={{ color: '#dc2626' }}>*</span></th>
+                                                        <th style={{ width: '220px', textAlign: 'right' }}>Nilai Potongan Diskon (Rp) <span style={{ color: '#dc2626' }}>*</span></th>
+                                                        <th style={{ width: '44px', textAlign: 'center' }}>Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {diskonItems.map((dItem, dIdx) => (
+                                                        <tr key={dIdx}>
+                                                            <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{dIdx + 1}</td>
+                                                            <td>
+                                                                <input
+                                                                    type="text"
+                                                                    className="pc-input-table"
+                                                                    placeholder="Contoh: Diskon Member, Voucher Promo, Cashback Toko..."
+                                                                    value={dItem.deskripsi}
+                                                                    onChange={(e) => updateDiskonItem(dIdx, 'deskripsi', e.target.value)}
+                                                                    required
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    className="pc-input-table text-right"
+                                                                    placeholder="0"
+                                                                    value={dItem.nilai}
+                                                                    onChange={(e) => updateDiskonItem(dIdx, 'nilai', e.target.value)}
+                                                                    required
+                                                                />
+                                                            </td>
+                                                            <td style={{ textAlign: 'center' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="pc-btn-delete-row"
+                                                                    onClick={() => removeDiskonItem(dIdx)}
+                                                                    title="Hapus baris diskon"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div style={{
+                                            padding: '12px 16px',
+                                            background: '#f8fafc',
+                                            borderRadius: 8,
+                                            border: '1px dashed #cbd5e1'
+                                        }}>
+                                            <span style={{ fontSize: 12.5, color: '#64748b' }}>
+                                                Tidak ada diskon / potongan belanja. Klik tombol <strong>"+ Tambah Baris Diskon"</strong> di atas jika struk/nota belanja memiliki potongan harga.
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Summary Kalkulasi Otomatis */}
@@ -1220,28 +1410,40 @@ export default function KasBesar() {
                                         <span>Dana Awal Dicairkan:</span>
                                         <strong>{fmt(modalLaporan.nominal)}</strong>
                                     </div>
+                                    <div className="pc-report-calc-row">
+                                        <span>Subtotal Belanja:</span>
+                                        <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>{fmt(subtotalLaporanItems)}</strong>
+                                    </div>
+                                    {totalDiskon > 0 && (
+                                        <div className="pc-report-calc-row">
+                                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                                                Total Potongan Diskon ({diskonItems.filter(d => Number(d.nilai) > 0).length} jenis):
+                                            </span>
+                                            <strong style={{ color: '#059669', fontSize: '14.5px' }}>- {fmt(totalDiskon)}</strong>
+                                        </div>
+                                    )}
                                     <div className="pc-report-calc-row highlight">
-                                        <span>Total Nilai Digunakan (Otomatis):</span>
-                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalLaporanItems)}</strong>
+                                        <span>Total Pengeluaran Riil:</span>
+                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalPengeluaranRiil)}</strong>
                                     </div>
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
-                                        <span>{totalLaporanItems > Number(modalLaporan.nominal) ? 'Kekurangan Dana (Over-Budget):' : 'Sisa Kembalian ke Kasir:'}</span>
+                                        <span>{totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'Kekurangan Dana (Over-Budget):' : 'Sisa Kembalian ke Kasir:'}</span>
                                         <strong style={{
-                                            color: totalLaporanItems > Number(modalLaporan.nominal) ? '#ea580c' : '#16a34a',
+                                            color: totalPengeluaranRiil > Number(modalLaporan.nominal) ? '#ea580c' : '#16a34a',
                                             fontSize: '16px'
                                         }}>
-                                            {totalLaporanItems > Number(modalLaporan.nominal)
-                                                ? fmt(totalLaporanItems - Number(modalLaporan.nominal))
-                                                : fmt(Number(modalLaporan.nominal) - totalLaporanItems)
+                                            {totalPengeluaranRiil > Number(modalLaporan.nominal)
+                                                ? fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))
+                                                : fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)
                                             }
                                         </strong>
                                     </div>
-                                    {totalLaporanItems > Number(modalLaporan.nominal) && (
+                                    {totalPengeluaranRiil > Number(modalLaporan.nominal) && (
                                         <div className="pc-report-warn" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 8, marginTop: 8 }}>
                                             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#2563eb' }} />
                                             <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                                                <strong>Kekurangan dana {fmt(totalLaporanItems - Number(modalLaporan.nominal))} ditalangi pemohon.</strong>
+                                                <strong>Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.</strong>
                                                 <div style={{ color: '#3b82f6', marginTop: 2 }}>
                                                     Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
                                                 </div>
@@ -1268,7 +1470,7 @@ export default function KasBesar() {
                             />
                         </ModalSection>
                         <div className="pc-modal-footer">
-                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); clearNotaList(); resetError(); }}>Batal</button>
+                            <button className="pc-btn-ghost" onClick={() => { setModalLaporan(null); setDiskonItems([]); clearNotaList(); resetError(); }}>Batal</button>
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanKB}
@@ -1317,8 +1519,14 @@ export default function KasBesar() {
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                     <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>
-                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Dana Digunakan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
+                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Dana Digunakan (Riil)</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
                                 </div>
+                                {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, background: '#f0fdf4', padding: '8px 12px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Subtotal Belanja</p><p style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
+                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Potongan Diskon</p><p style={{ fontSize: 14, fontWeight: 700, color: '#15803d' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
+                                    </div>
+                                )}
                                 {(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) < 0 ? (
                                      <div style={{ padding: '12px 14px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe', marginBottom: 12 }}>
                                          <p style={{ fontSize: 12, color: '#1e40af', fontWeight: 600, marginBottom: 2 }}>Kekurangan Dana (Over-Budget)</p>
@@ -1362,8 +1570,20 @@ export default function KasBesar() {
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr style={{ background: '#f8fafc' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
+                                                    {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
+                                                        <>
+                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
+                                                            </tr>
+                                                            <tr style={{ background: '#f8fafc' }}>
+                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
+                                                            </tr>
+                                                        </>
+                                                    )}
+                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
+                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>

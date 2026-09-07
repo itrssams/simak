@@ -56,6 +56,7 @@ const RB_STATUS = {
     pending:   { label: 'Menunggu Approval', bg: '#fff7ed', color: '#c2410c', dot: '#f97316' },
     disetujui: { label: 'Disetujui',         bg: '#dcfce7', color: '#166534', dot: '#22c55e' },
     dicairkan: { label: 'Dicairkan',         bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
+    lunas:     { label: 'Lunas',             bg: '#ecfdf5', color: '#065f46', dot: '#10b981' },
     ditolak:   { label: 'Ditolak',           bg: '#fee2e2', color: '#991b1b', dot: '#ef4444' },
     dibatalkan:{ label: 'Dibatalkan',        bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
 };
@@ -501,7 +502,6 @@ export default function Reimbursement({ isEmbedded = false }) {
             user.is_superuser ||
             user.akses_reimbursement ||
             user.is_keuangan ||
-            user.is_petty_cash_cashier ||
             ['manajer', 'wakil_direktur', 'direktur'].includes(user.role)
         );
     }, [user]);
@@ -976,7 +976,7 @@ export default function Reimbursement({ isEmbedded = false }) {
                                                 <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>
                                                     Detail
                                                 </button>
-                                                {item.status === 'ditolak' && item.created_by === user?.id && (
+                                                {['ditolak', 'dibatalkan'].includes(item.status) && (item.created_by === user?.id || isDirekturWadir) && (
                                                     <button
                                                         className="pc-btn-sm b revision"
                                                         onClick={() => {
@@ -988,14 +988,14 @@ export default function Reimbursement({ isEmbedded = false }) {
                                                                 keterangan: item.keterangan || '',
                                                             });
                                                             setBerkasUtama(null);
-                                                            setBerkasUtamaInfo(null);
+                                                            setBerkasUtamaInfo(item.berkas ? { name: item.berkas.split('/').pop(), url: item.berkas } : null);
                                                             setFotoList([]);
                                                             resetError();
                                                             setModalRevisi(item);
                                                         }}
-                                                        title="Revisi Pengajuan"
+                                                        title="Revisi / Ajukan Kembali"
                                                     >
-                                                        Revisi
+                                                        {item.status === 'dibatalkan' ? 'Ajukan Kembali' : 'Revisi'}
                                                     </button>
                                                 )}
                                                 {['pending', 'disetujui'].includes(item.status) && (item.created_by === user?.id || isDirekturWadir) && (
@@ -1084,6 +1084,11 @@ export default function Reimbursement({ isEmbedded = false }) {
                         {modalRevisi?.catatan_tolak && (
                             <div className="pc-rejection">
                                 <strong>Alasan Evaluasi / Penolakan:</strong> {modalRevisi.catatan_tolak}
+                            </div>
+                        )}
+                        {modalRevisi?.alasan_batal && (
+                            <div className="pc-rejection" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+                                <strong>Alasan Dibatalkan:</strong> {modalRevisi.alasan_batal}
                             </div>
                         )}
 
