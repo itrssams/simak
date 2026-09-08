@@ -513,7 +513,7 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 11. My-Logbook
+    // 11. Logbook
     if (pathname.startsWith('/logbook')) {
         const monitoringLevel = (() => {
             if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
@@ -521,16 +521,20 @@ const getActiveModuleConfig = (pathname, user) => {
             return null;
         })();
         const menus = [
-            { label: 'Logbook Saya', path: '/logbook' },
+            { label: 'Beranda', path: '/logbook' },
+            { label: 'Aktivitas', path: '/logbook/aktivitas' },
         ];
-        if (monitoringLevel === 'all') {
-            menus.push({ label: 'Monitoring Karyawan', path: '/logbook?tab=monitoring' });
-        } else if (monitoringLevel === 'unit') {
-            menus.push({ label: 'Monitoring Unit Saya', path: '/logbook?tab=monitoring' });
+        
+        if (monitoringLevel !== null) {
+            menus.push({ label: 'Verifikasi', path: '/logbook/verifikasi' });
+            menus.push({ label: 'Laporan', path: '/logbook/laporan' });
         }
+        
+        menus.push({ label: 'Live Track', path: '/logbook/live-track' });
+
         return {
             id: 'logbook',
-            title: 'My-Logbook',
+            title: 'Logbook',
             icon: ClipboardList,
             iconColor: '#38bdf8',
             menus,

@@ -11,8 +11,8 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-from .models import Logbook, Task, SesiKerja
-from .serializers import LogbookSerializer, LogbookInputSerializer, TaskSerializer, TaskCreateSerializer
+from .models import Logbook, Task, SesiKerja, UraianTugas
+from .serializers import LogbookSerializer, LogbookInputSerializer, TaskSerializer, TaskCreateSerializer, UraianTugasSerializer, UraianTugasInputSerializer
 from .utils import hitung_durasi_sesi
 
 
@@ -25,6 +25,29 @@ def get_monitoring_level(user):
     if user.role in ('kepala_seksi', 'manajer'):
         return 'unit'
     return None
+
+
+class UraianTugasViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return UraianTugas.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return UraianTugasInputSerializer
+        return UraianTugasSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user and not self.request.user.is_superuser:
+            raise PermissionDenied('Anda hanya dapat menghapus uraian tugas milik Anda sendiri.')
+        # Soft delete instead of hard delete
+        instance.is_active = False
+        instance.save()
 
 
 class LogbookViewSet(viewsets.ModelViewSet):
@@ -66,6 +89,11 @@ class LogbookViewSet(viewsets.ModelViewSet):
         end_date = self.request.query_params.get('end_date')
         if end_date:
             qs = qs.filter(tanggal__lte=end_date)
+            
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            statuses = status_param.split(',')
+            qs = qs.filter(status__in=statuses)
 
         # Pencarian keyword
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
@@ -87,7 +115,7 @@ class LogbookViewSet(viewsets.ModelViewSet):
         return LogbookSerializer
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, status='perlu_verifikasi')
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -111,6 +139,79 @@ class LogbookViewSet(viewsets.ModelViewSet):
             if selisih > 3:
                 raise PermissionDenied('Logbook lebih dari 3 hari yang lalu tidak dapat dihapus.')
         instance.delete()
+
+    @action(detail=False, methods=['get'])
+    def inbox(self, request):
+        """Inbox logbook untuk diverifikasi oleh atasan"""
+        monitoring_level = get_monitoring_level(request.user)
+        if monitoring_level is None:
+            raise PermissionDenied('Anda tidak memiliki akses ke inbox verifikasi.')
+
+        qs = Logbook.objects.select_related('user', 'user__unit', 'uraian_tugas')
+        
+        if monitoring_level == 'unit':
+            qs = qs.filter(user__unit=request.user.unit)
+        else:
+            unit_id = request.query_params.get('unit_id')
+            if unit_id and unit_id.isdigit():
+                qs = qs.filter(user__unit_id=int(unit_id))
+                
+        # By default only show 'perlu_verifikasi', unless status is specified
+        status_param = request.query_params.get('status', 'perlu_verifikasi')
+        if status_param and status_param != 'all':
+            statuses = status_param.split(',')
+            qs = qs.filter(status__in=statuses)
+
+        start_date = request.query_params.get('start_date')
+        if start_date:
+            qs = qs.filter(tanggal__gte=start_date)
+
+        end_date = request.query_params.get('end_date')
+        if end_date:
+            qs = qs.filter(tanggal__lte=end_date)
+
+        search = request.query_params.get('search') or request.query_params.get('q')
+        if search:
+            q = search.strip()
+            qs = qs.filter(
+                Q(deskripsi__icontains=q) |
+                Q(nama_aktivitas__icontains=q) |
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q) |
+                Q(user__username__icontains=q)
+            )
+
+        qs = qs.order_by('-tanggal', '-jam_mulai')
+        return Response(LogbookSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def verifikasi(self, request, pk=None):
+        """Memverifikasi logbook (Setuju/Tolak)"""
+        monitoring_level = get_monitoring_level(request.user)
+        if monitoring_level is None:
+            raise PermissionDenied('Anda tidak memiliki akses verifikasi.')
+
+        instance = self.get_object()
+        
+        if monitoring_level == 'unit' and instance.user.unit != request.user.unit:
+            raise PermissionDenied('Anda hanya dapat memverifikasi pegawai di unit Anda.')
+
+        aksi = request.data.get('aksi')
+        catatan = request.data.get('catatan', '')
+
+        if aksi not in ['setuju', 'tolak']:
+            return Response({'error': 'Aksi tidak valid (setuju/tolak).'}, status=400)
+
+        if aksi == 'tolak' and not catatan.strip():
+            return Response({'error': 'Catatan penolakan wajib diisi.'}, status=400)
+
+        instance.status = 'disetujui' if aksi == 'setuju' else 'ditolak'
+        instance.catatan_verifikasi = catatan
+        instance.verified_by = request.user
+        instance.verified_at = timezone.now()
+        instance.save()
+
+        return Response(LogbookSerializer(instance).data)
 
     @action(detail=False, methods=['get'])
     def monitoring_summary(self, request):
@@ -138,6 +239,9 @@ class LogbookViewSet(viewsets.ModelViewSet):
             'today_durasi_format': durasi_today_str,
             'month_total_entries': month_qs.count(),
             'month_active_users': month_qs.values('user_id').distinct().count(),
+            'month_perlu_verifikasi': month_qs.filter(status='perlu_verifikasi').count(),
+            'month_disetujui': month_qs.filter(status='disetujui').count(),
+            'month_ditolak': month_qs.filter(status='ditolak').count(),
         }
         return Response(data)
 

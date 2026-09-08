@@ -34,7 +34,11 @@ import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
 import SystemMaintenance from './pages/System/SystemMaintenance';
 import AppLauncher from './pages/AppLauncher/AppLauncher';
-import MyLogbook from './pages/Logbook/MyLogbook';
+import LogbookBeranda from './pages/Logbook/LogbookBeranda';
+import LogbookAktivitas from './pages/Logbook/LogbookAktivitas';
+import LogbookVerifikasi from './pages/Logbook/LogbookVerifikasi';
+import LogbookLaporan from './pages/Logbook/LogbookLaporan';
+import LogbookLiveTrack from './pages/Logbook/LogbookLiveTrack';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -132,7 +136,11 @@ const AppRoutes = () => {
             <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
             <Route path="/kas-besar" element={<ProtectedRoute allow={canKasBesar}><KasBesar /></ProtectedRoute>} />
             <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
-            <Route path="/logbook" element={<ProtectedRoute><MyLogbook /></ProtectedRoute>} />
+            <Route path="/logbook" element={<ProtectedRoute><LogbookBeranda /></ProtectedRoute>} />
+            <Route path="/logbook/aktivitas" element={<ProtectedRoute><LogbookAktivitas /></ProtectedRoute>} />
+            <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
+            <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
+            <Route path="/logbook/live-track" element={<ProtectedRoute><LogbookLiveTrack /></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />

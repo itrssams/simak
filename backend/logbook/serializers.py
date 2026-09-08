@@ -1,5 +1,22 @@
 from rest_framework import serializers
-from .models import Logbook, Task, SesiKerja
+from .models import Logbook, Task, SesiKerja, UraianTugas
+
+
+class UraianTugasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UraianTugas
+        fields = ['id', 'deskripsi', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class UraianTugasInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UraianTugas
+        fields = ['deskripsi']
+
+    def validate_deskripsi(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('Uraian tugas tidak boleh kosong.')
+        return value.strip()
 
 
 class LogbookSerializer(serializers.ModelSerializer):
@@ -12,6 +29,12 @@ class LogbookSerializer(serializers.ModelSerializer):
     unit_nama = serializers.CharField(source='user.unit.nama', read_only=True, default='-')
     durasi_menit = serializers.IntegerField(read_only=True)
     durasi_format = serializers.CharField(read_only=True)
+    
+    # New E-Logbook fields
+    uraian_tugas_id = serializers.IntegerField(source='uraian_tugas.id', read_only=True, allow_null=True)
+    uraian_tugas_text = serializers.CharField(source='uraian_tugas.deskripsi', read_only=True, allow_null=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    verified_by_nama = serializers.SerializerMethodField()
 
     class Meta:
         model = Logbook
@@ -28,12 +51,22 @@ class LogbookSerializer(serializers.ModelSerializer):
             'jam_mulai',
             'jam_selesai',
             'deskripsi',
+            'uraian_tugas_id',
+            'uraian_tugas_text',
+            'nama_aktivitas',
+            'nilai_output',
+            'satuan_output',
+            'status',
+            'status_label',
+            'verified_by_nama',
+            'verified_at',
+            'catatan_verifikasi',
             'durasi_menit',
             'durasi_format',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'status', 'verified_at', 'catatan_verifikasi', 'created_at', 'updated_at']
 
     def get_user_nama(self, obj):
         if not obj.user:
@@ -41,8 +74,21 @@ class LogbookSerializer(serializers.ModelSerializer):
         full_name = f"{obj.user.first_name or ''} {obj.user.last_name or ''}".strip()
         return full_name or obj.user.username
 
+    def get_verified_by_nama(self, obj):
+        if not obj.verified_by:
+            return None
+        full_name = f"{obj.verified_by.first_name or ''} {obj.verified_by.last_name or ''}".strip()
+        return full_name or obj.verified_by.username
+
 
 class LogbookInputSerializer(serializers.ModelSerializer):
+    uraian_tugas_id = serializers.PrimaryKeyRelatedField(
+        queryset=UraianTugas.objects.all(),
+        source='uraian_tugas',
+        allow_null=True,
+        required=False
+    )
+
     class Meta:
         model = Logbook
         fields = [
@@ -50,6 +96,10 @@ class LogbookInputSerializer(serializers.ModelSerializer):
             'jam_mulai',
             'jam_selesai',
             'deskripsi',
+            'uraian_tugas_id',
+            'nama_aktivitas',
+            'nilai_output',
+            'satuan_output',
         ]
 
     def validate_deskripsi(self, value):
@@ -61,6 +111,11 @@ class LogbookInputSerializer(serializers.ModelSerializer):
         jam_mulai = data.get('jam_mulai') or getattr(self.instance, 'jam_mulai', None)
         jam_selesai = data.get('jam_selesai') or getattr(self.instance, 'jam_selesai', None)
         tanggal = data.get('tanggal') or getattr(self.instance, 'tanggal', None)
+        uraian_tugas = data.get('uraian_tugas', getattr(self.instance, 'uraian_tugas', None))
+        nama_aktivitas = data.get('nama_aktivitas', getattr(self.instance, 'nama_aktivitas', ''))
+
+        if not uraian_tugas and not nama_aktivitas.strip():
+            raise serializers.ValidationError({'nama_aktivitas': 'Nama aktivitas wajib diisi jika memilih uraian tugas lainnya.'})
 
         if jam_mulai and jam_selesai:
             if jam_mulai == jam_selesai:

@@ -4,7 +4,32 @@ from django.utils import timezone
 from datetime import datetime, date
 
 
+class UraianTugas(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='uraian_tugas_list'
+    )
+    deskripsi = models.TextField(verbose_name='Uraian Tugas / Job Description')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'logbook_uraian_tugas'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.deskripsi[:50]}"
+
+
 class Logbook(models.Model):
+    STATUS_CHOICES = [
+        ('perlu_verifikasi', 'Perlu Verifikasi'),
+        ('disetujui', 'Disetujui'),
+        ('ditolak', 'Ditolak'),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -14,7 +39,31 @@ class Logbook(models.Model):
     tanggal = models.DateField(default=timezone.now, verbose_name='Tanggal Pekerjaan')
     jam_mulai = models.TimeField(verbose_name='Jam Mulai')
     jam_selesai = models.TimeField(verbose_name='Jam Selesai')
+    
+    # E-Logbook style fields
+    uraian_tugas = models.ForeignKey(
+        UraianTugas, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='logbooks'
+    )
+    nama_aktivitas = models.CharField(max_length=300, blank=True, verbose_name='Nama Aktivitas')
     deskripsi = models.TextField(verbose_name='Uraian / Deskripsi Pekerjaan')
+    nilai_output = models.IntegerField(default=0, verbose_name='Nilai Output')
+    satuan_output = models.CharField(max_length=100, blank=True, verbose_name='Satuan Output')
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='perlu_verifikasi')
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='verified_logbooks'
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    catatan_verifikasi = models.TextField(blank=True, verbose_name='Catatan Verifikasi')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
