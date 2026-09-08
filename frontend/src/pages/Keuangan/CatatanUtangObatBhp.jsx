@@ -23,6 +23,7 @@ import {
     Search,
     ShieldCheck,
     Sparkles,
+    Tag,
     Trash2,
     Truck,
     User,
@@ -213,7 +214,7 @@ const getDefaultOrdering = (m) => {
 };
 
 const initialFilters = { search: '', vendor_id: '', status: '', sumber: 'semua', kategori: '', dari: '', sampai: '', ordering: '-verified_at', tipe_tanggal: 'titip' };
-const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '' };
+const initialVerifyForm = { tanggal_titip: todayISO(), keterangan_titip: '', vendor_id: '', kategori: 'OBAT DAN BHP' };
 const initialPaymentForm = { tanggal_rencana_bayar: todayISO(), jumlah_bayar: '', keterangan: '' };
 const initialManualForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan: '' };
 const initialEditForm = { vendor_id: '', nomor_faktur: '', nomor_spb: '', kategori: '', tanggal_faktur: todayISO(), tanggal_jatuh_tempo: '', tanggal_titip: todayISO(), nominal: '', keterangan_titip: '' };
@@ -259,14 +260,19 @@ export default function CatatanUtangObatBhp() {
     const masterVendorOptions = useMemo(() => {
         const list = [
             { value: '', label: '-- Pilih Vendor Master --' },
-            ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
+            ...vendors.map((v) => ({
+                value: String(v.id),
+                label: v.kategori ? `${v.nama} [${v.kategori}]` : v.nama,
+                kategori: v.kategori || '',
+            })),
         ];
         const extraTargets = [editTarget, verifyTarget];
         for (const target of extraTargets) {
             if (target?.vendor_id && !list.some((opt) => String(opt.value) === String(target.vendor_id))) {
                 list.push({
                     value: String(target.vendor_id),
-                    label: target.vendor_nama || `Vendor #${target.vendor_id}`
+                    label: target.vendor_nama || `Vendor #${target.vendor_id}`,
+                    kategori: target.kategori || '',
                 });
             }
         }
@@ -406,9 +412,11 @@ export default function CatatanUtangObatBhp() {
 
     const openVerify = (row) => {
         setVerifyTarget(row);
+        const defaultKategori = row.kategori || (row.sumber === 'logistik' ? 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' : 'OBAT DAN BHP');
         setVerifyForm({
             ...initialVerifyForm,
             vendor_id: row.vendor_id_hint ? String(row.vendor_id_hint) : '',
+            kategori: defaultKategori,
         });
     };
 
@@ -425,6 +433,7 @@ export default function CatatanUtangObatBhp() {
             const payload = {
                 app_siaga_faktur_id: verifyTarget.app_siaga_faktur_id,
                 sumber,
+                kategori: verifyForm.kategori || undefined,
                 tanggal_titip: verifyForm.tanggal_titip,
                 keterangan_titip: verifyForm.keterangan_titip,
             };
@@ -1277,6 +1286,10 @@ export default function CatatanUtangObatBhp() {
                                     <span className="val">{getRefNo(verifyTarget)}</span>
                                 </div>
                                 <div className="utang-verify-row">
+                                    <span className="lbl">Kategori Default</span>
+                                    <span className="val"><KategoriChip kategori={verifyTarget.kategori || (verifyTarget.sumber === 'logistik' ? 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' : 'OBAT DAN BHP')} /></span>
+                                </div>
+                                <div className="utang-verify-row">
                                     <span className="lbl">Jatuh Tempo</span>
                                     <span className="val">{['logistik', 'keuangan'].includes(verifyTarget.sumber) ? '—' : dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
                                 </div>
@@ -1343,12 +1356,37 @@ export default function CatatanUtangObatBhp() {
                                         options={masterVendorOptions}
                                         value={verifyForm.vendor_id}
                                         displayLabel={verifyTarget?.vendor_nama || ''}
-                                        onChange={(val) => setVerifyForm({ ...verifyForm, vendor_id: val })}
+                                        onChange={(val) => {
+                                            const found = masterVendorOptions.find((opt) => String(opt.value) === String(val));
+                                            setVerifyForm((prev) => ({
+                                                ...prev,
+                                                vendor_id: val,
+                                                kategori: found?.kategori || prev.kategori,
+                                            }));
+                                        }}
                                         placeholder="-- Pilih Vendor Master --"
                                         className="utang-vendor-select"
                                     />
                                 </div>
                             )}
+
+                            <div className="utang-field-block">
+                                <label className="utang-field-lbl"><Tag size={15} /> Kategori Utang / Faktur <span className="utang-req">*</span></label>
+                                <select
+                                    className="utang-input"
+                                    value={verifyForm.kategori || ''}
+                                    onChange={(e) => setVerifyForm({ ...verifyForm, kategori: e.target.value })}
+                                    required
+                                >
+                                    <option value="">-- Pilih Kategori Faktur --</option>
+                                    {VENDOR_CATEGORIES.map((cat) => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                                <small style={{ display: 'block', marginTop: 4, color: '#64748b', fontSize: 11.5 }}>
+                                    Default terisi otomatis dari master vendor. Ubah jika faktur ini adalah peruntukan khusus (misal: ALAT KESEHATAN).
+                                </small>
+                            </div>
 
                             <div className="utang-field-block">
                                 <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Titip</label>
@@ -1934,6 +1972,10 @@ export default function CatatanUtangObatBhp() {
                                                 <span className="val"><StatusBadge status={detailTarget.status} label={detailTarget.status_label} /></span>
                                             </div>
                                             <div className="utang-verify-row">
+                                                <span className="lbl">Kategori</span>
+                                                <span className="val"><KategoriChip kategori={detailTarget.kategori} /></span>
+                                            </div>
+                                            <div className="utang-verify-row">
                                                 <span className="lbl">No. Faktur</span>
                                                 <span className="val mono">{detailTarget.nomor_faktur || '-'}</span>
                                             </div>
@@ -2302,7 +2344,10 @@ export default function CatatanUtangObatBhp() {
 function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     const vendorOptions = useMemo(() => [
         { value: '', label: 'Semua Vendor' },
-        ...vendors.map((v) => ({ value: String(v.id), label: v.nama })),
+        ...vendors.map((v) => ({
+            value: String(v.id),
+            label: v.kategori ? `${v.nama} [${v.kategori}]` : v.nama,
+        })),
     ], [vendors]);
 
     return (
@@ -2322,6 +2367,7 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                     title="Filter berdasarkan kategori vendor"
                 >
                     <option value="">Semua Kategori</option>
+                    <option value="__empty__">⚠️ Belum Diatur (Kosong)</option>
                     {VENDOR_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <select
@@ -2418,6 +2464,72 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
     );
 }
 
+function KategoriChip({ kategori }) {
+    if (!kategori || !kategori.trim()) {
+        return (
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontSize: '10px',
+                fontWeight: 600,
+                color: '#d97706',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px dashed rgba(245, 158, 11, 0.4)',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+            }}>
+                ⚠️ Belum Diatur
+            </span>
+        );
+    }
+    const cat = kategori.trim();
+    let bg = 'rgba(59, 130, 246, 0.08)';
+    let color = '#2563eb';
+    let border = '1px solid rgba(59, 130, 246, 0.2)';
+
+    if (cat === 'OBAT DAN BHP' || cat === 'OBAT & BHP') {
+        bg = 'rgba(16, 185, 129, 0.08)';
+        color = '#059669';
+        border = '1px solid rgba(16, 185, 129, 0.2)';
+    } else if (cat === 'ALAT KESEHATAN') {
+        bg = 'rgba(139, 92, 246, 0.08)';
+        color = '#7c3aed';
+        border = '1px solid rgba(139, 92, 246, 0.2)';
+    } else if (cat.includes('RUJUKAN') || cat.includes('LAB')) {
+        bg = 'rgba(236, 72, 153, 0.08)';
+        color = '#db2777';
+        border = '1px solid rgba(236, 72, 153, 0.2)';
+    } else if (cat.includes('PENUNJANG')) {
+        bg = 'rgba(245, 158, 11, 0.08)';
+        color = '#d97706';
+        border = '1px solid rgba(245, 158, 11, 0.2)';
+    } else if (cat.includes('ATK') || cat.includes('RUMAH TANGGA')) {
+        bg = 'rgba(14, 165, 233, 0.08)';
+        color = '#0284c7';
+        border = '1px solid rgba(14, 165, 233, 0.2)';
+    }
+
+    return (
+        <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            fontSize: '10px',
+            fontWeight: 600,
+            color,
+            background: bg,
+            border,
+            padding: '1px 6px',
+            borderRadius: '4px',
+            verticalAlign: 'middle',
+            whiteSpace: 'nowrap',
+        }}>
+            {cat}
+        </span>
+    );
+}
+
 function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll, onToggleItem }) {
     const allSelected = items.length > 0 && items.every(i => selectedKeys.includes(`${i.sumber}-${i.app_siaga_faktur_id}`));
 
@@ -2458,7 +2570,10 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
                             </td>
                             <td><SumberBadge sumber={item.sumber} /></td>
                             <td className="utang-name-cell">
-                                <strong>{item.vendor_nama || '-'}</strong>
+                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                    <strong>{item.vendor_nama || '-'}</strong>
+                                    <KategoriChip kategori={item.kategori} />
+                                </div>
                                 {item.sumber === 'logistik' && !item.vendor_id_hint && (
                                     <span className="utang-no-match-warn" title="Vendor tidak terdeteksi otomatis — wajib dipilih saat verifikasi">
                                         <AlertTriangle size={12} /> Pilih vendor
@@ -2528,7 +2643,10 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                     <tr key={item.id} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
-                            <strong style={isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>{item.vendor_nama || '-'}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                <strong style={isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>{item.vendor_nama || '-'}</strong>
+                                <KategoriChip kategori={item.kategori} />
+                            </div>
                             <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
                         </td>
                         <td>
@@ -2676,7 +2794,10 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                             />
                         </td>
                         <td className="utang-name-cell" style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
-                            <strong>{item.vendor_nama || '-'}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                <strong>{item.vendor_nama || '-'}</strong>
+                                <KategoriChip kategori={item.kategori} />
+                            </div>
                             <small className="utang-subtext">
                                 {item.nomor_spb ? `SPB: ${item.nomor_spb}` : item.app_siaga_faktur_id ? `SPB: RJ-${item.app_siaga_faktur_id}` : ''}
                             </small>
@@ -2779,7 +2900,10 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                     <tr key={item.id}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
-                            <strong>{item.vendor_nama || '-'}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                <strong>{item.vendor_nama || '-'}</strong>
+                                <KategoriChip kategori={item.kategori} />
+                            </div>
                             <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
                         </td>
                         <td>

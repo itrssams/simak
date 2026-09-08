@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye } from 'lucide-react';
+import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
@@ -69,7 +69,7 @@ export default function LogbookVerifikasi() {
         try {
             const params = {};
             if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
-            if (dateFilter) params.start_date = dateFilter; // for simplicity exact date or start
+            if (dateFilter) params.tanggal = dateFilter;
             if (statusFilter !== 'all') params.status = statusFilter;
 
             const res = await api.get('/logbook/inbox/', { params });
@@ -96,7 +96,7 @@ export default function LogbookVerifikasi() {
 
     const submitVerifikasi = async () => {
         if (verifikasiAksi === 'tolak' && !catatan.trim()) {
-            toast.error('Catatan penolakan wajib diisi.');
+            toast.error('Catatan penolakan wajib diisi agar pegawai dapat merevisinya.');
             return;
         }
 
@@ -118,58 +118,65 @@ export default function LogbookVerifikasi() {
     };
 
     return (
-        <div className="logbook-container">
-            <div className="logbook-header">
-                <div>
-                    <h2>Verifikasi Aktivitas</h2>
-                    <p>Inbox aktivitas bawahan yang perlu diverifikasi.</p>
+        <div className="logbook-page">
+            <div className="logbook-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div className="logbook-title">
+                    <span><CheckCheck size={22} /></span>
+                    <div>
+                        <h1>Verifikasi Logbook Bawahan</h1>
+                        <p>Tinjau dan validasi catatan aktivitas harian yang diajukan oleh staf dan bawahan langsung Anda.</p>
+                    </div>
                 </div>
             </div>
 
             <div className="logbook-card">
                 <div className="logbook-filters">
                     <div className="logbook-search-wrap">
-                        <Search size={18} className="logbook-search-icon" />
+                        <Search size={16} className="logbook-search-icon" />
                         <input
                             type="text"
-                            placeholder="Cari pegawai / aktivitas..."
+                            placeholder="Cari pegawai, unit, atau uraian..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="logbook-search-input"
                         />
+                        {search && (
+                            <button className="logbook-search-clear" onClick={() => setSearch('')} title="Reset pencarian">
+                                <X size={14} />
+                            </button>
+                        )}
                     </div>
-                    <div>
-                        <select 
-                            className="logbook-select" 
-                            style={{ height: '38px' }}
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="perlu_verifikasi">Status: Perlu Verifikasi</option>
-                            <option value="disetujui">Status: Disetujui</option>
-                            <option value="ditolak">Status: Ditolak</option>
-                            <option value="all">Status: Semua</option>
-                        </select>
-                    </div>
-                    <div>
+
+                    <select 
+                        className="logbook-filter-select"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="perlu_verifikasi">Perlu Verifikasi</option>
+                        <option value="disetujui">Disetujui</option>
+                        <option value="ditolak">Ditolak</option>
+                        <option value="all">Semua Status</option>
+                    </select>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <input 
                             type="date" 
-                            className="logbook-date-input" 
+                            className="logbook-filter-date" 
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
                         />
+                        {dateFilter && (
+                            <button className="logbook-btn-secondary" onClick={() => setDateFilter('')} style={{ height: '38px', padding: '0 12px' }}>
+                                Reset Tanggal
+                            </button>
+                        )}
                     </div>
-                    {dateFilter && (
-                        <button className="logbook-btn-cancel" onClick={() => setDateFilter('')}>
-                            Clear Date
-                        </button>
-                    )}
                 </div>
 
                 <div className="logbook-table-wrap">
                     {loading ? (
                         <div className="logbook-loading-box">
-                            <p>Memuat data...</p>
+                            <p>Memuat data verifikasi...</p>
                         </div>
                     ) : inbox.length === 0 ? (
                         <div className="logbook-empty-box">
@@ -177,47 +184,52 @@ export default function LogbookVerifikasi() {
                                 <CheckCircle2 size={32} />
                             </div>
                             <h3>Inbox Kosong</h3>
-                            <p>Tidak ada aktivitas yang sesuai dengan filter saat ini.</p>
+                            <p>Tidak ada aktivitas yang perlu diverifikasi pada filter saat ini.</p>
                         </div>
                     ) : (
                         <table className="logbook-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '50px', textAlign: 'center' }}>No</th>
-                                    <th>Pegawai</th>
-                                    <th>Aktivitas</th>
-                                    <th>Waktu / Output</th>
-                                    <th style={{ textAlign: 'center' }}>Status</th>
-                                    <th style={{ width: '130px', textAlign: 'center' }}>Aksi</th>
+                                    <th style={{ width: '56px', textAlign: 'center' }}>No</th>
+                                    <th style={{ width: '180px' }}>Pegawai</th>
+                                    <th>Aktivitas & Uraian</th>
+                                    <th style={{ width: '170px' }}>Tanggal & Waktu</th>
+                                    <th style={{ width: '130px', textAlign: 'center' }}>Status</th>
+                                    <th style={{ width: '110px', textAlign: 'center' }}>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {inbox.map((item, idx) => (
                                     <tr key={item.id}>
-                                        <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                                        <td>
-                                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.user_nama}</div>
-                                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.user_role_label} &middot; {item.unit_nama}</div>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <span className="logbook-row-idx">{idx + 1}</span>
                                         </td>
                                         <td>
-                                            <div style={{ fontWeight: 500, color: '#0f172a' }}>
+                                            <div style={{ fontWeight: 600 }}>{item.user_nama}</div>
+                                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                                                <span style={{ fontWeight: 500 }}>{item.user_role_label}</span> &bull; {item.unit_nama}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style={{ fontWeight: 600 }}>
                                                 {item.uraian_tugas_text || 'Lainnya'}
                                             </div>
                                             {(item.nama_aktivitas || item.deskripsi) && (
-                                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
-                                                    {item.nama_aktivitas || item.deskripsi.substring(0, 50) + (item.deskripsi.length > 50 ? '...' : '')}
+                                                <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px', lineHeight: 1.4 }}>
+                                                    {item.nama_aktivitas ? <strong>{item.nama_aktivitas} &mdash; </strong> : null}
+                                                    {item.deskripsi ? item.deskripsi.substring(0, 70) + (item.deskripsi.length > 70 ? '...' : '') : ''}
                                                 </div>
                                             )}
                                         </td>
                                         <td>
-                                            <div style={{ fontWeight: 500, color: '#0f172a', fontSize: '0.9rem' }}>
-                                                {formatDate(item.tanggal)}
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
-                                                {formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)} ({item.durasi_format})
+                                            <div className="logbook-table-date">{formatDate(item.tanggal)}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                                                <Clock size={12} style={{ color: '#0284c7' }} />
+                                                <span>{formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}</span>
+                                                <span>({item.durasi_format})</span>
                                             </div>
                                             {item.nilai_output > 0 && (
-                                                <div style={{ fontSize: '0.8rem', color: '#0ea5e9', marginTop: '2px', fontWeight: 500 }}>
+                                                <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '2px', fontWeight: 600 }}>
                                                     Output: {item.nilai_output} {item.satuan_output}
                                                 </div>
                                             )}
@@ -230,25 +242,25 @@ export default function LogbookVerifikasi() {
                                                 <button 
                                                     className="logbook-btn-icon logbook-text-gray" 
                                                     onClick={() => setDetailItem(item)}
-                                                    title="Detail"
+                                                    title="Lihat Detail"
                                                 >
-                                                    <Eye size={16} />
+                                                    <Eye size={15} />
                                                 </button>
                                                 {item.status === 'perlu_verifikasi' && (
                                                     <>
                                                         <button 
                                                             className="logbook-btn-icon logbook-text-green" 
                                                             onClick={() => handleAksiVerifikasi(item, 'setuju')}
-                                                            title="Setujui"
+                                                            title="Setujui Aktivitas"
                                                         >
-                                                            <Check size={16} strokeWidth={3} />
+                                                            <Check size={16} strokeWidth={2.5} />
                                                         </button>
                                                         <button 
                                                             className="logbook-btn-icon logbook-text-red" 
                                                             onClick={() => handleAksiVerifikasi(item, 'tolak')}
-                                                            title="Tolak"
+                                                            title="Tolak Aktivitas"
                                                         >
-                                                            <X size={16} strokeWidth={3} />
+                                                            <X size={16} strokeWidth={2.5} />
                                                         </button>
                                                     </>
                                                 )}
@@ -262,7 +274,7 @@ export default function LogbookVerifikasi() {
                 </div>
             </div>
 
-            {/* Modal Verifikasi */}
+            {/* Modal Konfirmasi Verifikasi (Setuju / Tolak) */}
             {verifikasiItem && (
                 <div className="logbook-modal-overlay" onClick={closeVerifikasiModal}>
                     <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
@@ -273,32 +285,39 @@ export default function LogbookVerifikasi() {
                             </button>
                         </div>
                         <div className="logbook-modal-body">
-                            <p>
-                                Anda akan <strong>{verifikasiAksi === 'setuju' ? 'MENYETUJUI' : 'MENOLAK'}</strong> aktivitas dari <strong>{verifikasiItem.user_nama}</strong>.
-                            </p>
+                            <div className="logbook-delete-body" style={{ padding: 0 }}>
+                                <p style={{ fontSize: '13.5px', margin: 0 }}>
+                                    Apakah Anda yakin ingin <strong>{verifikasiAksi === 'setuju' ? 'MENYETUJUI' : 'MENOLAK'}</strong> aktivitas yang diajukan oleh <strong>{verifikasiItem.user_nama}</strong>?
+                                </p>
+                                <div className="logbook-delete-item-preview" style={{ marginTop: '12px' }}>
+                                    <small>{formatDate(verifikasiItem.tanggal)} &bull; {verifikasiItem.durasi_format}</small>
+                                    <div>"{verifikasiItem.uraian_tugas_text || verifikasiItem.nama_aktivitas || verifikasiItem.deskripsi}"</div>
+                                </div>
+                            </div>
                             
                             {verifikasiAksi === 'tolak' && (
                                 <div className="logbook-field-group" style={{ marginTop: '16px' }}>
-                                    <label>Catatan Penolakan <span style={{color: 'red'}}>*</span></label>
+                                    <label>Catatan Alasan Penolakan <span style={{color: '#ef4444'}}>*</span></label>
                                     <textarea
                                         rows={3}
                                         value={catatan}
                                         onChange={(e) => setCatatan(e.target.value)}
                                         className="logbook-textarea"
-                                        placeholder="Berikan alasan mengapa aktivitas ini ditolak..."
+                                        placeholder="Berikan alasan spesifik mengapa aktivitas ini ditolak agar bawahan dapat merevisi..."
+                                        required
                                     />
                                 </div>
                             )}
                             
                             {verifikasiAksi === 'setuju' && (
                                 <div className="logbook-field-group" style={{ marginTop: '16px' }}>
-                                    <label>Catatan (Opsional)</label>
+                                    <label>Catatan Tambahan (Opsional)</label>
                                     <textarea
                                         rows={2}
                                         value={catatan}
                                         onChange={(e) => setCatatan(e.target.value)}
                                         className="logbook-textarea"
-                                        placeholder="Tambahkan catatan jika perlu..."
+                                        placeholder="Tambahkan catatan apresiasi atau arahan tambahan..."
                                     />
                                 </div>
                             )}
@@ -309,12 +328,11 @@ export default function LogbookVerifikasi() {
                             </button>
                             <button 
                                 type="button" 
-                                className={`logbook-btn-primary ${verifikasiAksi === 'tolak' ? 'danger' : ''}`}
-                                style={verifikasiAksi === 'setuju' ? { backgroundColor: '#10b981' } : { backgroundColor: '#ef4444' }}
+                                className={verifikasiAksi === 'setuju' ? 'logbook-btn-success' : 'logbook-btn-danger'}
                                 onClick={submitVerifikasi} 
                                 disabled={verifying}
                             >
-                                {verifying ? 'Memproses...' : (verifikasiAksi === 'setuju' ? 'Setujui' : 'Tolak')}
+                                {verifying ? 'Memproses...' : (verifikasiAksi === 'setuju' ? 'Ya, Setujui' : 'Ya, Tolak')}
                             </button>
                         </div>
                     </div>
@@ -326,61 +344,87 @@ export default function LogbookVerifikasi() {
                 <div className="logbook-modal-overlay" onClick={() => setDetailItem(null)}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
-                            <h3>Detail Aktivitas Bawahan</h3>
+                            <h3>Detail Aktivitas Pegawai</h3>
                             <button className="logbook-modal-close-btn" onClick={() => setDetailItem(null)}>
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="logbook-modal-body">
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Pegawai</span>
-                                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{detailItem.user_nama}</div>
-                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{detailItem.user_role_label} &middot; {detailItem.unit_nama}</div>
-                                </div>
-                                <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Tanggal & Waktu</span>
-                                    <div style={{ fontWeight: 500, color: '#0f172a' }}>
-                                        {formatDate(detailItem.tanggal)} &middot; {formatTime(detailItem.jam_mulai)} - {formatTime(detailItem.jam_selesai)} ({detailItem.durasi_format})
+                            <div className="logbook-detail-grid">
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Pegawai yang Mengajukan</span>
+                                    <div className="logbook-detail-value" style={{ fontWeight: 600, fontSize: '15px' }}>
+                                        {detailItem.user_nama}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                        {detailItem.user_role_label} &bull; Divisi/Unit: {detailItem.unit_nama}
                                     </div>
                                 </div>
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Status</span>
+
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Tanggal & Jam Aktivitas</span>
+                                    <div className="logbook-detail-value" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <strong>{formatDate(detailItem.tanggal)}</strong>
+                                        <span>&bull;</span>
+                                        <span>{formatTime(detailItem.jam_mulai)} - {formatTime(detailItem.jam_selesai)}</span>
+                                        <span className="logbook-duration-badge" style={{ marginTop: 0, padding: '2px 8px', fontSize: '11.5px' }}>
+                                            {detailItem.durasi_format}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Status Verifikasi</span>
                                     <div style={{ marginTop: '4px' }}>
                                         <StatusBadge status={detailItem.status} statusLabel={detailItem.status_label} />
                                     </div>
                                 </div>
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Uraian Tugas</span>
-                                    <div style={{ fontWeight: 500, color: '#0f172a' }}>{detailItem.uraian_tugas_text || 'Lainnya'}</div>
+
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Uraian Tugas Pokok</span>
+                                    <div className="logbook-detail-value">
+                                        {detailItem.uraian_tugas_text || 'Lainnya (Di luar uraian tugas pokok)'}
+                                    </div>
                                 </div>
+
                                 {detailItem.nama_aktivitas && (
-                                    <div>
-                                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Nama Aktivitas</span>
-                                        <div style={{ color: '#0f172a' }}>{detailItem.nama_aktivitas}</div>
+                                    <div className="logbook-detail-row">
+                                        <span className="logbook-detail-label">Nama Aktivitas</span>
+                                        <div className="logbook-detail-value" style={{ fontWeight: 600 }}>
+                                            {detailItem.nama_aktivitas}
+                                        </div>
                                     </div>
                                 )}
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Output</span>
-                                    <div style={{ color: '#0f172a' }}>
-                                        {detailItem.nilai_output > 0 ? `${detailItem.nilai_output} ${detailItem.satuan_output}` : '-'}
+
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Capaian / Nilai Output</span>
+                                    <div className="logbook-detail-value">
+                                        {detailItem.nilai_output > 0 ? (
+                                            <strong>{detailItem.nilai_output} {detailItem.satuan_output}</strong>
+                                        ) : (
+                                            <span style={{ color: '#94a3b8' }}>Tidak ada target output spesifik</span>
+                                        )}
                                     </div>
                                 </div>
-                                <div>
-                                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Deskripsi</span>
-                                    <div style={{ color: '#0f172a', whiteSpace: 'pre-wrap' }}>{detailItem.deskripsi}</div>
-                                </div>
-                                {detailItem.status === 'ditolak' && detailItem.catatan_verifikasi && (
-                                    <div style={{ backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', borderLeft: '4px solid #ef4444' }}>
-                                        <span style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: 'bold' }}>Catatan Penolakan:</span>
-                                        <div style={{ color: '#991b1b', marginTop: '4px' }}>{detailItem.catatan_verifikasi}</div>
+
+                                <div className="logbook-detail-row">
+                                    <span className="logbook-detail-label">Deskripsi Pekerjaan</span>
+                                    <div className="logbook-detail-value" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                        {detailItem.deskripsi}
                                     </div>
-                                )}
+                                </div>
+
                                 {detailItem.status === 'disetujui' && detailItem.catatan_verifikasi && (
-                                    <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '6px', borderLeft: '4px solid #22c55e' }}>
-                                        <span style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 'bold' }}>Catatan Persetujuan:</span>
-                                        <div style={{ color: '#166534', marginTop: '4px' }}>{detailItem.catatan_verifikasi}</div>
+                                    <div className="logbook-alert-box success">
+                                        <strong style={{ display: 'block', marginBottom: '3px', fontSize: '12px' }}>Catatan Persetujuan:</strong>
+                                        <div>{detailItem.catatan_verifikasi}</div>
+                                    </div>
+                                )}
+
+                                {detailItem.status === 'ditolak' && detailItem.catatan_verifikasi && (
+                                    <div className="logbook-alert-box danger">
+                                        <strong style={{ display: 'block', marginBottom: '3px', fontSize: '12px' }}>Catatan Penolakan:</strong>
+                                        <div>{detailItem.catatan_verifikasi}</div>
                                     </div>
                                 )}
                             </div>
@@ -389,15 +433,15 @@ export default function LogbookVerifikasi() {
                             <div className="logbook-modal-footer">
                                 <button 
                                     className="logbook-btn-danger" 
-                                    onClick={() => { setDetailItem(null); handleAksiVerifikasi(detailItem, 'tolak'); }}
+                                    onClick={() => { const item = detailItem; setDetailItem(null); handleAksiVerifikasi(item, 'tolak'); }}
                                 >
-                                    <X size={16} /> Tolak
+                                    <X size={15} /> Tolak
                                 </button>
                                 <button 
                                     className="logbook-btn-success" 
-                                    onClick={() => { setDetailItem(null); handleAksiVerifikasi(detailItem, 'setuju'); }}
+                                    onClick={() => { const item = detailItem; setDetailItem(null); handleAksiVerifikasi(item, 'setuju'); }}
                                 >
-                                    <Check size={16} /> Setujui
+                                    <Check size={15} /> Setujui
                                 </button>
                             </div>
                         )}

@@ -102,11 +102,14 @@ export default function LogbookBeranda() {
     const activeUraianTugas = uraianTugas.filter(item => item.is_active);
 
     return (
-        <div className="logbook-container">
-            <div className="logbook-header">
-                <div>
-                    <h2>Beranda Logbook</h2>
-                    <p>Kelola daftar uraian tugas / job description harian Anda.</p>
+        <div className="logbook-page">
+            <div className="logbook-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div className="logbook-title">
+                    <span><ClipboardList size={22} /></span>
+                    <div>
+                        <h1>Beranda & Uraian Tugas</h1>
+                        <p>Kelola daftar uraian tugas / job description harian Anda sebagai acuan logbook.</p>
+                    </div>
                 </div>
                 <button className="logbook-btn-primary" onClick={() => openModal()}>
                     <Plus size={16} /> Tambah Uraian Tugas
@@ -114,6 +117,12 @@ export default function LogbookBeranda() {
             </div>
 
             <div className="logbook-card">
+                <div className="logbook-card-head">
+                    <div className="logbook-card-title">
+                        <h2>Daftar Uraian Tugas Aktif</h2>
+                        <p>Total {activeUraianTugas.length} uraian tugas terdaftar</p>
+                    </div>
+                </div>
                 <div className="logbook-table-wrap">
                     {loading ? (
                         <div className="logbook-loading-box">
@@ -126,6 +135,9 @@ export default function LogbookBeranda() {
                             </div>
                             <h3>Belum Ada Uraian Tugas</h3>
                             <p>Anda belum mendaftarkan satupun uraian tugas. Klik tombol Tambah Uraian Tugas untuk mulai mendaftarkan job description Anda.</p>
+                            <button className="logbook-btn-primary" onClick={() => openModal()} style={{ marginTop: '12px' }}>
+                                <Plus size={16} /> Tambah Uraian Tugas
+                            </button>
                         </div>
                     ) : (
                         <table className="logbook-table">
@@ -139,23 +151,27 @@ export default function LogbookBeranda() {
                             <tbody>
                                 {activeUraianTugas.map((item, idx) => (
                                     <tr key={item.id}>
-                                        <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                                        <td>{item.deskripsi}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <span className="logbook-row-idx">{idx + 1}</span>
+                                        </td>
+                                        <td>
+                                            <span style={{ fontWeight: 500 }}>{item.deskripsi}</span>
+                                        </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                 <button 
                                                     className="logbook-btn-icon logbook-text-blue" 
                                                     onClick={() => openModal(item)}
-                                                    title="Edit"
+                                                    title="Edit Uraian Tugas"
                                                 >
-                                                    <Edit2 size={16} />
+                                                    <Edit2 size={15} />
                                                 </button>
                                                 <button 
                                                     className="logbook-btn-icon logbook-text-red" 
                                                     onClick={() => confirmDelete(item)}
-                                                    title="Hapus"
+                                                    title="Hapus Uraian Tugas"
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             </div>
                                         </td>
@@ -180,7 +196,7 @@ export default function LogbookBeranda() {
                         <form onSubmit={handleSubmit}>
                             <div className="logbook-modal-body">
                                 <div className="logbook-field-group">
-                                    <label>Deskripsi Uraian Tugas <span style={{color: 'red'}}>*</span></label>
+                                    <label>Deskripsi Uraian Tugas <span style={{color: '#ef4444'}}>*</span></label>
                                     <textarea
                                         rows={4}
                                         value={formData.deskripsi}
@@ -214,10 +230,11 @@ export default function LogbookBeranda() {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="logbook-modal-body">
+                        <div className="logbook-delete-body">
                             <p>Apakah Anda yakin ingin menghapus uraian tugas ini?</p>
-                            <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.9rem' }}>
-                                "{deleteItem.deskripsi}"
+                            <div className="logbook-delete-item-preview">
+                                <small>Deskripsi Tugas:</small>
+                                <div>"{deleteItem.deskripsi}"</div>
                             </div>
                         </div>
                         <div className="logbook-modal-footer">

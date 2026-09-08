@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Archive, BadgeDollarSign, Printer, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileSpreadsheet, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Tag, Trash2, Warehouse, X } from 'lucide-react';
+import { Archive, BadgeDollarSign, Printer, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, CreditCard, Eye, FilePlus2, FileSpreadsheet, FileText, Hash, Layers, Lock, Package, Pencil, Plus, ReceiptText, RefreshCw, Search, Send, ShieldAlert, Sparkles, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
@@ -122,11 +122,11 @@ const TITLES = {
 
 const emptyBarang = { kode_material: '', nama_barang: '', kemasan: '', satuan: 'PCS', isi: 1, merk: '', golongan: '', stok_minimum: 0 };
 const VENDOR_CATEGORIES = [
-    'OBAT & BHP',
+    'OBAT DAN BHP',
     'ALAT KESEHATAN',
     'PELAYANAN RUJUKAN DAN LABORATORIUM',
     'PENUNJANG PELAYANAN RS',
-    'ATK, CETAKAN, RUMAH TANGGA DLL.',
+    'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.',
     'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN',
     'KAS NEGARA',
     'BIAYA RUTIN GAJI KARYAWAN',
@@ -166,6 +166,7 @@ export default function Logistik() {
     const [permintaanStatusFilter, setPermintaanStatusFilter] = useState('all');
     const [vendorSumberFilter, setVendorSumberFilter] = useState('all');
     const [vendorKategoriFilter, setVendorKategoriFilter] = useState('');
+    const [autoPopulating, setAutoPopulating] = useState(false);
     const [detail, setDetail] = useState(null);
     const [confirmSubmitTarget, setConfirmSubmitTarget] = useState(null);
     const [activePurchase, setActivePurchase] = useState(null);
@@ -267,6 +268,19 @@ export default function Logistik() {
 
     const [searchParams] = useSearchParams();
     const urlSumber = searchParams.get('sumber');
+
+    const handleAutoPopulateCategories = async () => {
+        try {
+            setAutoPopulating(true);
+            const res = await api.post('/keuangan/logistik/vendor/auto-populate-categories/');
+            toast.success(res.data?.message || 'Kategori vendor berhasil diatur dan disinkronkan.');
+            fetchRows();
+        } catch (err) {
+            toast.error('Gagal mengatur kategori: ' + (err.response?.data?.error || err.message));
+        } finally {
+            setAutoPopulating(false);
+        }
+    };
 
     useEffect(() => {
         if (section === 'vendor') {
@@ -827,10 +841,11 @@ export default function Logistik() {
                                     <select
                                         className="inv-input"
                                         value={vendorKategoriFilter}
-                                        onChange={(e) => setVendorKategoriFilter(e.target.value)}
-                                        style={{ minWidth: 200, padding: '8px 12px', fontSize: '13px' }}
+                                        onChange={(e) => { setPage(1); setVendorKategoriFilter(e.target.value); }}
+                                        style={{ minWidth: 220, padding: '8px 12px', fontSize: '13px' }}
                                     >
                                         <option value="">Semua Kategori</option>
+                                        <option value="__empty__">⚠️ Belum Diatur (Kosong)</option>
                                         {VENDOR_CATEGORIES.map((cat) => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
@@ -841,6 +856,17 @@ export default function Logistik() {
                                         <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('logistik'); }}>Khusus Logistik</button>
                                         <button className={vendorSumberFilter === 'manual' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('manual'); }}>Khusus Manual</button>
                                     </div>
+                                    <button
+                                        className="inv-btn-secondary"
+                                        type="button"
+                                        onClick={handleAutoPopulateCategories}
+                                        disabled={autoPopulating}
+                                        title="Otomatis tentukan kategori default untuk vendor farmasi/logistik yang masih belum memiliki kategori"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '7px 12px', whiteSpace: 'nowrap' }}
+                                    >
+                                        <Sparkles size={15} style={{ color: '#d97706' }} />
+                                        {autoPopulating ? 'Menyinkronkan...' : 'Auto-Set Kategori'}
+                                    </button>
                                 </>
                             )}
                             {['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
@@ -1063,11 +1089,83 @@ function payload_error_fallback(section) {
     return section === 'penerimaan' ? 'Gagal menyimpan penerimaan.' : 'Gagal menyimpan SPB.';
 }
 
+function VendorCategoryBadge({ kategori }) {
+    if (!kategori || !kategori.trim()) {
+        return (
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: '#d97706',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px dashed rgba(245, 158, 11, 0.4)',
+                padding: '3px 8px',
+                borderRadius: '6px',
+            }}>
+                ⚠️ Belum Diatur
+            </span>
+        );
+    }
+    const cat = kategori.trim();
+    let bg = 'rgba(59, 130, 246, 0.1)';
+    let color = '#2563eb';
+    let border = '1px solid rgba(59, 130, 246, 0.25)';
+
+    if (cat === 'OBAT DAN BHP' || cat === 'OBAT & BHP') {
+        bg = 'rgba(16, 185, 129, 0.1)';
+        color = '#059669';
+        border = '1px solid rgba(16, 185, 129, 0.25)';
+    } else if (cat === 'ALAT KESEHATAN') {
+        bg = 'rgba(139, 92, 246, 0.1)';
+        color = '#7c3aed';
+        border = '1px solid rgba(139, 92, 246, 0.25)';
+    } else if (cat.includes('RUJUKAN') || cat.includes('LAB')) {
+        bg = 'rgba(236, 72, 153, 0.1)';
+        color = '#db2777';
+        border = '1px solid rgba(236, 72, 153, 0.25)';
+    } else if (cat.includes('PENUNJANG')) {
+        bg = 'rgba(245, 158, 11, 0.1)';
+        color = '#d97706';
+        border = '1px solid rgba(245, 158, 11, 0.25)';
+    } else if (cat.includes('ATK') || cat.includes('RUMAH TANGGA')) {
+        bg = 'rgba(14, 165, 233, 0.1)';
+        color = '#0284c7';
+        border = '1px solid rgba(14, 165, 233, 0.25)';
+    } else if (cat.includes('BPJS')) {
+        bg = 'rgba(20, 184, 166, 0.1)';
+        color = '#0d9488';
+        border = '1px solid rgba(20, 184, 166, 0.25)';
+    } else if (cat.includes('KAS NEGARA')) {
+        bg = 'rgba(239, 68, 68, 0.1)';
+        color = '#dc2626';
+        border = '1px solid rgba(239, 68, 68, 0.25)';
+    }
+
+    return (
+        <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            color,
+            background: bg,
+            border,
+            padding: '3px 9px',
+            borderRadius: '6px',
+            whiteSpace: 'nowrap',
+        }}>
+            {cat}
+        </span>
+    );
+}
+
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan }) {
     const { user } = useAuth();
     const headers = {
         barang: ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
-        vendor: ['Vendor & Kategori', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
+        vendor: ['Nama Rekanan / Vendor', 'Kategori Rekanan', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Status', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
         'barang-keluar': ['Nomor', 'Tanggal', 'Barang', 'Ruang', 'Qty', 'Harga', 'Status'],
@@ -1113,9 +1211,12 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
             <tr key={r.id}>
                 <td>
                     <div className="log-vendor-name-cell">
-                        <strong>{r.nama}</strong>
-                        {r.kategori && <small className="log-vendor-cat">{r.kategori}</small>}
+                        <strong style={{ fontSize: '0.92rem' }}>{r.nama}</strong>
+                        {r.id && <small style={{ color: '#94a3b8', fontSize: '0.75rem' }}>ID: #{r.id}</small>}
                     </div>
+                </td>
+                <td>
+                    <VendorCategoryBadge kategori={r.kategori} />
                 </td>
                 <td>
                     {r.sumber === 'logistik' && <Badge info>Logistik</Badge>}
@@ -1135,7 +1236,7 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
                 </td>
                 <td>
                     <div className="inv-row-actions">
-                        <button className="btn-edit" onClick={() => onEditVendor(r)} title="Edit vendor"><Pencil size={15} /></button>
+                        <button className="btn-edit" onClick={() => onEditVendor(r)} title="Edit vendor & kategori"><Pencil size={15} /></button>
                         <button className="btn-delete" onClick={() => onDeleteVendor(r)} title="Hapus vendor"><Trash2 size={15} /></button>
                     </div>
                 </td>

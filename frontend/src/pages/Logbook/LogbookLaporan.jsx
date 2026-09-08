@@ -12,8 +12,10 @@ import {
     X,
     AlertCircle,
     CheckCircle2,
-    XCircle
+    XCircle,
+    RotateCcw
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
@@ -57,13 +59,11 @@ const StatusBadge = ({ status, statusLabel }) => {
     }
 
     return (
-        <span className={`status-badge ${colorClass}`} style={{ zoom: 0.8 }}>
+        <span className={`status-badge ${colorClass}`} style={{ zoom: 0.85 }}>
             <Icon size={14} /> {statusLabel || status}
         </span>
     );
 };
-
-import { useAuth } from '../../context/AuthContext';
 
 export default function LogbookLaporan() {
     const { user } = useAuth();
@@ -84,11 +84,9 @@ export default function LogbookLaporan() {
     const debouncedMonSearch = useDebounce(monSearch, 500);
 
     const [unitList, setUnitList] = useState([]);
-    const [userList, setUserList] = useState([]);
-
     const [selectedUserDetail, setSelectedUserDetail] = useState(null);
 
-    // Determine monitoring level based on user prop (passed from Layout/App usually, but we can infer from /users/me or just try fetch)
+    // Determine monitoring level
     useEffect(() => {
         const level = (() => {
             if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
@@ -136,7 +134,7 @@ export default function LogbookLaporan() {
         } finally {
             setLoadingMonitor(false);
         }
-    }, [monitoringLevel, monStartDate, monEndDate, monUnitId, monUserId, monStatus, debouncedMonSearch]);
+    }, [monitoringLevel, monStartDate, monEndDate, monUnitId, monUserId, monStatus, debouncedMonSearch, toast]);
 
     useEffect(() => {
         if (monitoringLevel !== null) {
@@ -144,6 +142,15 @@ export default function LogbookLaporan() {
             fetchMonitoringData();
         }
     }, [monitoringLevel, fetchMonitoringSummary, fetchMonitoringData]);
+
+    const handleResetFilter = () => {
+        setMonStartDate(getTodayString());
+        setMonEndDate(getTodayString());
+        setMonUnitId('');
+        setMonUserId('');
+        setMonStatus('all');
+        setMonSearch('');
+    };
 
     const groupedUsers = useMemo(() => {
         const map = new Map();
@@ -217,22 +224,26 @@ export default function LogbookLaporan() {
 
     if (monitoringLevel === null) {
         return (
-            <div className="logbook-container" style={{ textAlign: 'center', padding: '40px' }}>
-                <AlertCircle size={48} color="#94a3b8" style={{ marginBottom: '16px' }} />
-                <h3>Akses Ditolak</h3>
-                <p>Anda tidak memiliki akses ke halaman Laporan & Monitoring Logbook.</p>
+            <div className="logbook-page">
+                <div className="logbook-empty-box" style={{ padding: '60px 20px' }}>
+                    <div className="logbook-empty-icon-wrap">
+                        <AlertCircle size={36} color="#ef4444" />
+                    </div>
+                    <h3>Akses Ditolak</h3>
+                    <p>Anda tidak memiliki akses otorisasi ke halaman Laporan & Monitoring Logbook.</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="logbook-page" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div className="logbook-hero" style={{ marginBottom: '24px' }}>
+        <div className="logbook-page">
+            <div className="logbook-hero">
                 <div className="logbook-title">
                     <span><Users size={22} /></span>
                     <div>
                         <h1>{monitoringLevel === 'all' ? 'Laporan & Monitoring Karyawan' : 'Laporan Unit Saya'}</h1>
-                        <p>Pantau catatan aktivitas harian bawahan dan export rekap bulanan.</p>
+                        <p>Pantau rekapitulasi catatan aktivitas harian bawahan, akumulasi jam kerja, dan ekspor laporan Excel.</p>
                     </div>
                 </div>
             </div>
@@ -244,7 +255,7 @@ export default function LogbookLaporan() {
                         <div className="card-info">
                             <span className="card-label">Total Kegiatan Hari Ini</span>
                             <span className="card-value">{summaryStats.today_total_entries}</span>
-                            <span className="card-subtext">Aktivitas diinput pegawai</span>
+                            <span className="card-subtext">Aktivitas diinput staf</span>
                         </div>
                         <span className="card-icon"><ClipboardList size={22} /></span>
                     </div>
@@ -262,7 +273,7 @@ export default function LogbookLaporan() {
                         <div className="card-info">
                             <span className="card-label">Perlu Verifikasi (Bulan Ini)</span>
                             <span className="card-value">{summaryStats.month_perlu_verifikasi}</span>
-                            <span className="card-subtext">Menunggu approval</span>
+                            <span className="card-subtext">Menunggu validasi atasan</span>
                         </div>
                         <span className="card-icon"><AlertCircle size={22} /></span>
                     </div>
@@ -270,7 +281,7 @@ export default function LogbookLaporan() {
             )}
 
             <div className="logbook-card">
-                {/* Filter Bar */}
+                {/* Filter Bar with SIMAK Standards */}
                 <div className="logbook-filter-bar">
                     <div className="logbook-filter-item">
                         <label>Mulai Tanggal</label>
@@ -278,8 +289,7 @@ export default function LogbookLaporan() {
                             type="date"
                             value={monStartDate}
                             onChange={(e) => setMonStartDate(e.target.value)}
-                            className="logbook-input"
-                            style={{ height: '34px', fontSize: '0.85rem' }}
+                            className="logbook-filter-date"
                         />
                     </div>
                     <div className="logbook-filter-item">
@@ -288,19 +298,17 @@ export default function LogbookLaporan() {
                             type="date"
                             value={monEndDate}
                             onChange={(e) => setMonEndDate(e.target.value)}
-                            className="logbook-input"
-                            style={{ height: '34px', fontSize: '0.85rem' }}
+                            className="logbook-filter-date"
                         />
                     </div>
 
                     {monitoringLevel === 'all' && (
                         <div className="logbook-filter-item">
-                            <label>Unit / Bagian</label>
+                            <label>Unit / Divisi</label>
                             <select
                                 value={monUnitId}
                                 onChange={(e) => setMonUnitId(e.target.value)}
-                                className="logbook-select"
-                                style={{ height: '34px', fontSize: '0.85rem' }}
+                                className="logbook-filter-select"
                             >
                                 <option value="">Semua Unit</option>
                                 {unitList.map(u => (
@@ -315,8 +323,7 @@ export default function LogbookLaporan() {
                         <select
                             value={monStatus}
                             onChange={(e) => setMonStatus(e.target.value)}
-                            className="logbook-select"
-                            style={{ height: '34px', fontSize: '0.85rem' }}
+                            className="logbook-filter-select"
                         >
                             <option value="all">Semua Status</option>
                             <option value="perlu_verifikasi">Perlu Verifikasi</option>
@@ -327,30 +334,49 @@ export default function LogbookLaporan() {
 
                     <div className="logbook-filter-item flex-1">
                         <label>Pencarian</label>
-                        <div className="logbook-search-input">
-                            <Search size={14} className="logbook-search-icon" />
+                        <div className="logbook-search-wrap" style={{ maxWidth: '100%' }}>
+                            <Search size={16} className="logbook-search-icon" />
                             <input
                                 type="text"
                                 placeholder="Cari nama pegawai..."
                                 value={monSearch}
                                 onChange={(e) => setMonSearch(e.target.value)}
-                                style={{ height: '34px', fontSize: '0.85rem' }}
+                                className="logbook-search-input"
                             />
                             {monSearch && (
-                                <button type="button" className="logbook-clear-btn" onClick={() => setMonSearch('')}>✕</button>
+                                <button type="button" className="logbook-search-clear" onClick={() => setMonSearch('')} title="Reset pencarian">
+                                    <X size={14} />
+                                </button>
                             )}
                         </div>
                     </div>
 
-                    <div className="logbook-filter-item" style={{ marginTop: '22px' }}>
-                        <button type="button" className="logbook-btn-secondary" onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }} title="Segarkan Data">
-                            <RefreshCw size={14} className={loadingMonitor ? 'logbook-spinner' : ''} />
+                    <div className="logbook-filter-item" style={{ flexDirection: 'row', gap: '8px', alignItems: 'center' }}>
+                        <button 
+                            type="button" 
+                            className="logbook-btn-secondary" 
+                            onClick={handleResetFilter} 
+                            title="Reset Filter"
+                        >
+                            <RotateCcw size={14} />
+                            <span>Reset</span>
                         </button>
-                    </div>
-
-                    <div className="logbook-filter-item" style={{ marginTop: '22px' }}>
-                        <button type="button" className="logbook-btn-export" onClick={handleExportExcel} title="Export ke Excel">
-                            <Download size={14} />
+                        <button 
+                            type="button" 
+                            className="logbook-btn-secondary" 
+                            onClick={() => { fetchMonitoringSummary(); fetchMonitoringData(); }} 
+                            title="Segarkan Data"
+                        >
+                            <RefreshCw size={14} className={loadingMonitor ? 'logbook-spinner' : ''} />
+                            <span>Segarkan</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            className="logbook-btn-export" 
+                            onClick={handleExportExcel} 
+                            title="Unduh Rekap Excel"
+                        >
+                            <Download size={15} />
                             <span>Export Excel</span>
                         </button>
                     </div>
@@ -360,7 +386,7 @@ export default function LogbookLaporan() {
                     {loadingMonitor ? (
                         <div className="logbook-loading-box">
                             <RefreshCw size={26} className="logbook-spinner" />
-                            <p>Memuat rekap laporan...</p>
+                            <p>Memuat rekap data laporan...</p>
                         </div>
                     ) : groupedUsers.length === 0 ? (
                         <div className="logbook-empty-box">
@@ -374,7 +400,7 @@ export default function LogbookLaporan() {
                         <table className="logbook-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '60px' }}>No</th>
+                                    <th style={{ width: '56px', textAlign: 'center' }}>No</th>
                                     <th>Nama Pegawai</th>
                                     <th style={{ width: '220px' }}>Unit / Bagian</th>
                                     <th style={{ width: '180px' }}>Total Aktivitas</th>
@@ -388,7 +414,7 @@ export default function LogbookLaporan() {
                                         onClick={() => setSelectedUserDetail(u)}
                                         title="Klik untuk melihat rincian aktivitas pekerjaan"
                                     >
-                                        <td>
+                                        <td style={{ textAlign: 'center' }}>
                                             <span className="logbook-row-idx">{idx + 1}</span>
                                         </td>
                                         <td>
@@ -412,7 +438,7 @@ export default function LogbookLaporan() {
                                                 <strong>{u.totalEntries}</strong> Pekerjaan
                                             </span>
                                             <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
-                                                {u.durasiShort}
+                                                Durasi: <strong>{u.durasiShort}</strong>
                                             </div>
                                         </td>
                                     </tr>
@@ -467,13 +493,13 @@ export default function LogbookLaporan() {
                                             </div>
                                         </div>
                                         <div className="logbook-item-body">
-                                            <div style={{ fontWeight: 500, color: '#0f172a', marginBottom: '4px' }}>
+                                            <div style={{ fontWeight: 600, marginBottom: '4px' }}>
                                                 {act.uraian_tugas_text || 'Lainnya'} {act.nama_aktivitas ? `- ${act.nama_aktivitas}` : ''}
                                             </div>
                                             <p className="logbook-item-text">{act.deskripsi}</p>
                                             {act.nilai_output > 0 && (
-                                                <div style={{ fontSize: '0.8rem', color: '#0ea5e9', marginTop: '4px', fontWeight: 500 }}>
-                                                    Output: {act.nilai_output} {act.satuan_output}
+                                                <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '6px', fontWeight: 600 }}>
+                                                    Target Capaian Output: {act.nilai_output} {act.satuan_output}
                                                 </div>
                                             )}
                                         </div>

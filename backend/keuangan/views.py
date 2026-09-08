@@ -4041,6 +4041,12 @@ def _build_pending_where(params):
     if vendor_id:
         where.append('t.id_rekanan = %s')
         values.append(vendor_id)
+    if kategori:
+        if kategori in ['__empty__', 'kosong']:
+            where.append("(r.kategori IS NULL OR TRIM(r.kategori) = '')")
+        else:
+            where.append("r.kategori = %s")
+            values.append(kategori)
     if dari:
         where.append('t.tgl_faktur >= %s')
         values.append(dari)
@@ -4063,6 +4069,7 @@ def _build_pending_where_logistik(params):
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
+    kategori = (params.get('kategori') or '').strip()
     dari = (params.get('dari') or '').strip()
     sampai = (params.get('sampai') or '').strip()
 
@@ -4073,6 +4080,12 @@ def _build_pending_where_logistik(params):
     if vendor_id:
         where.append('r.id_rekanan = %s')
         values.append(vendor_id)
+    if kategori:
+        if kategori in ['__empty__', 'kosong']:
+            where.append("(r.kategori IS NULL OR TRIM(r.kategori) = '')")
+        else:
+            where.append("r.kategori = %s")
+            values.append(kategori)
     if dari:
         where.append('t.tgl_spk >= %s')
         values.append(dari)
@@ -4204,6 +4217,7 @@ def _fetch_app_siaga_faktur(app_siaga_faktur_id):
                 t.no_faktur AS nomor_faktur,
                 t.id_rekanan AS vendor_id,
                 COALESCE(r.nama, '') AS vendor_nama,
+                COALESCE(r.kategori, '') AS vendor_kategori,
                 t.tgl_faktur AS tanggal_faktur,
                 t.tgl_jtempo AS tanggal_jatuh_tempo,
                 t.gtotal AS nominal
@@ -4233,6 +4247,7 @@ def _fetch_logistik_pembelian(pembelian_id):
                 r.id_rekanan AS vendor_id_hint,
                 t.rekanan AS rekanan_text,
                 COALESCE(r.nama, t.rekanan) AS vendor_nama_hint,
+                COALESCE(r.kategori, '') AS vendor_kategori_hint,
                 t.tgl_spk AS tanggal_faktur,
                 NULL AS tanggal_jatuh_tempo,
                 t.nilai AS nominal,
@@ -4328,7 +4343,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             qs = qs.filter(vendor_id=vendor_id)
 
         if kategori:
-            qs = qs.filter(kategori__icontains=kategori)
+            if kategori in ['__empty__', 'kosong']:
+                qs = qs.filter(models.Q(kategori__isnull=True) | models.Q(kategori=''))
+            else:
+                qs = qs.filter(kategori__icontains=kategori)
 
         if st == 'aktif':
             qs = qs.exclude(status__in=[UtangSupplier.STATUS_LUNAS, UtangSupplier.STATUS_DIBATALKAN])
@@ -6543,6 +6561,7 @@ class UtangMenungguVerifikasiView(APIView):
                 t.id_rekanan                            AS vendor_id,
                 t.id_rekanan                            AS vendor_id_hint,
                 CONVERT(COALESCE(r.nama, '') USING utf8mb4) AS vendor_nama,
+                CONVERT(COALESCE(NULLIF(r.kategori, ''), 'OBAT DAN BHP') USING utf8mb4) AS kategori,
                 t.tgl_faktur                            AS tanggal_faktur,
                 t.tgl_jtempo                            AS tanggal_jatuh_tempo,
                 t.total                                 AS total_sebelum_diskon,
@@ -6567,6 +6586,7 @@ class UtangMenungguVerifikasiView(APIView):
                 r.id_rekanan                            AS vendor_id,
                 r.id_rekanan                            AS vendor_id_hint,
                 CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
+                CONVERT(COALESCE(NULLIF(r.kategori, ''), 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.') USING utf8mb4) AS kategori,
                 t.tgl_spk                               AS tanggal_faktur,
                 NULL                                    AS tanggal_jatuh_tempo,
                 t.nilai                                 AS total_sebelum_diskon,
@@ -6591,6 +6611,7 @@ class UtangMenungguVerifikasiView(APIView):
                 0                                                                      AS vendor_id,
                 0                                                                      AS vendor_id_hint,
                 CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Kasir Petty Cash') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                'PENGISIAN PETTY CASH'                                                 AS kategori,
                 t.tanggal                                                              AS tanggal_faktur,
                 NULL                                                                   AS tanggal_jatuh_tempo,
                 t.nominal_diajukan                                                     AS total_sebelum_diskon,
@@ -6615,6 +6636,7 @@ class UtangMenungguVerifikasiView(APIView):
                 0                                                                      AS vendor_id,
                 0                                                                      AS vendor_id_hint,
                 CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Kasir') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                'KAS BESAR'                                                            AS kategori,
                 t.tanggal                                                              AS tanggal_faktur,
                 NULL                                                                   AS tanggal_jatuh_tempo,
                 t.nominal                                                              AS total_sebelum_diskon,
@@ -6639,6 +6661,7 @@ class UtangMenungguVerifikasiView(APIView):
                 0                                                                      AS vendor_id,
                 0                                                                      AS vendor_id_hint,
                 CONVERT(COALESCE(NULLIF(TRIM(CONCAT(usr.first_name, ' ', usr.last_name)), ''), usr.username, 'Pemohon Reimbursement') USING utf8mb4) COLLATE utf8mb4_general_ci AS vendor_nama,
+                'REIMBURSEMENT'                                                        AS kategori,
                 COALESCE(t.tanggal_nota, t.tanggal)                                    AS tanggal_faktur,
                 NULL                                                                   AS tanggal_jatuh_tempo,
                 t.nominal                                                              AS total_sebelum_diskon,
@@ -6667,6 +6690,8 @@ class UtangMenungguVerifikasiView(APIView):
             'tanggal_faktur': 'tanggal_faktur',
             'vendor': 'vendor_nama',
             '-vendor': 'vendor_nama DESC',
+            'kategori': 'kategori',
+            '-kategori': 'kategori DESC',
             'nomor_spb': 'nomor_spb',
             '-nomor_spb': 'nomor_spb DESC',
             'nomor_faktur': 'nomor_faktur',
@@ -6844,6 +6869,11 @@ class UtangMenungguVerifikasiView(APIView):
             faktur = _fetch_app_siaga_faktur(app_siaga_faktur_id)
             if not faktur:
                 return Response({'error': 'Faktur farmasi tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
+
+            kategori = (request.data.get('kategori') or faktur.get('vendor_kategori') or 'OBAT DAN BHP').strip()
+            if kategori == 'OBAT & BHP':
+                kategori = 'OBAT DAN BHP'
+
             utang = UtangSupplier.objects.create(
                 app_siaga_faktur_id=str(faktur['app_siaga_faktur_id']),
                 sumber=UtangSupplier.SUMBER_FARMASI,
@@ -6852,6 +6882,7 @@ class UtangMenungguVerifikasiView(APIView):
                 nomor_faktur=faktur.get('nomor_faktur') or '',
                 vendor_id=faktur.get('vendor_id') or 0,
                 vendor_nama=faktur.get('vendor_nama') or '',
+                kategori=kategori,
                 tanggal_faktur=faktur.get('tanggal_faktur'),
                 tanggal_jatuh_tempo=faktur.get('tanggal_jatuh_tempo'),
                 nominal=faktur.get('nominal') or 0,
@@ -6954,7 +6985,7 @@ class UtangMenungguVerifikasiView(APIView):
             # Validasi vendor_id ke rssams.rekanan
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT id_rekanan, nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1",
+                    "SELECT id_rekanan, nama, COALESCE(kategori, '') FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1",
                     [vendor_id],
                 )
                 rek = cursor.fetchone()
@@ -6963,7 +6994,7 @@ class UtangMenungguVerifikasiView(APIView):
                     {'vendor_id': 'Vendor tidak ditemukan di master rekanan.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            vendor_id_int, vendor_nama_rek = rek
+            vendor_id_int, vendor_nama_rek, vendor_kategori_rek = rek
 
             faktur = _fetch_logistik_pembelian(app_siaga_faktur_id)
             if not faktur:
@@ -6971,6 +7002,10 @@ class UtangMenungguVerifikasiView(APIView):
 
             is_cash = str(faktur.get('metode_pembayaran') or '').upper() == 'CASH'
             initial_status = UtangSupplier.STATUS_LUNAS if is_cash else UtangSupplier.STATUS_BELUM_DIBAYAR
+
+            kategori = (request.data.get('kategori') or vendor_kategori_rek or faktur.get('vendor_kategori_hint') or 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.').strip()
+            if kategori == 'OBAT & BHP':
+                kategori = 'OBAT DAN BHP'
 
             utang = UtangSupplier.objects.create(
                 app_siaga_faktur_id=str(faktur['app_siaga_faktur_id']),
@@ -6980,6 +7015,7 @@ class UtangMenungguVerifikasiView(APIView):
                 nomor_faktur=faktur.get('nomor_faktur') or '',
                 vendor_id=vendor_id_int,
                 vendor_nama=vendor_nama_rek,
+                kategori=kategori,
                 tanggal_faktur=faktur.get('tanggal_faktur'),
                 tanggal_jatuh_tempo=None,  # tran_beli_brg_log tidak punya jatuh tempo
                 nominal=faktur.get('nominal') or 0,
@@ -7209,8 +7245,9 @@ class UtangVendorOptionsView(APIView):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id_rekanan AS id, nama
+                SELECT id_rekanan AS id, nama, COALESCE(kategori, '') AS kategori, COALESCE(sumber, 'farmasi') AS sumber
                 FROM rssams.rekanan
+                WHERE del = 'N'
                 ORDER BY nama
                 """
             )

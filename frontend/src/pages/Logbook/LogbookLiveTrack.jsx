@@ -5,13 +5,13 @@ import './MyLogbook.css';
 
 export default function LogbookLiveTrack() {
     return (
-        <div className="logbook-page" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div className="logbook-hero" style={{ marginBottom: '24px' }}>
+        <div className="logbook-page">
+            <div className="logbook-hero">
                 <div className="logbook-title">
                     <span><Play size={22} /></span>
                     <div>
                         <h1>Live Track (Realtime)</h1>
-                        <p>Catat pekerjaan Anda secara realtime dengan fitur timer.</p>
+                        <p>Catat dan lacak aktivitas pekerjaan Anda secara realtime dengan timer interaktif.</p>
                     </div>
                 </div>
             </div>

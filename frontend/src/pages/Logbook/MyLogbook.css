@@ -66,7 +66,8 @@
 }
 
 /* ── Base Container ── */
-.logbook-page {
+.logbook-page,
+.logbook-container {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -79,8 +80,42 @@
   color: #0f172a;
 }
 
-[data-theme="dark"] .logbook-page {
+[data-theme="dark"] .logbook-page,
+[data-theme="dark"] .logbook-container {
   color: #f8fafc;
+}
+
+/* ── Generic Header Support ── */
+.logbook-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.logbook-header h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 850;
+  letter-spacing: -0.3px;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .logbook-header h2 {
+  color: #f8fafc;
+}
+
+.logbook-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13.5px;
+}
+
+[data-theme="dark"] .logbook-header p {
+  color: #94a3b8;
 }
 
 /* ── Standard SIMAK Hero Header ── */
@@ -1415,4 +1450,338 @@
 .logbook-btn-success:hover {
   background: #059669;
   box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+}
+
+/* ── Dark Mode for Status Badges ── */
+[data-theme="dark"] .status-badge-gray {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .status-badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .status-badge-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="dark"] .status-badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Filters Bar ── */
+.logbook-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .logbook-filters {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Search Wrap & Input ── */
+.logbook-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+}
+
+.logbook-search-wrap .logbook-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.logbook-search-wrap input.logbook-search-input,
+.logbook-search-input-field {
+  width: 100%;
+  height: 38px;
+  padding: 0 34px 0 38px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .logbook-search-wrap input.logbook-search-input,
+[data-theme="dark"] .logbook-search-input-field {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+.logbook-search-wrap input.logbook-search-input:focus,
+.logbook-search-input-field:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="dark"] .logbook-search-wrap input.logbook-search-input:focus,
+[data-theme="dark"] .logbook-search-input-field:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.logbook-search-wrap .logbook-search-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.logbook-search-wrap .logbook-search-clear:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Action Icon Buttons ── */
+.logbook-btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="dark"] .logbook-btn-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.logbook-btn-icon.logbook-text-blue {
+  color: #0284c7;
+}
+
+.logbook-btn-icon.logbook-text-blue:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.35);
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .logbook-btn-icon.logbook-text-blue {
+  color: #38bdf8;
+}
+
+.logbook-btn-icon.logbook-text-red {
+  color: #ef4444;
+}
+
+.logbook-btn-icon.logbook-text-red:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .logbook-btn-icon.logbook-text-red {
+  color: #f87171;
+}
+
+.logbook-btn-icon.logbook-text-green {
+  color: #10b981;
+}
+
+.logbook-btn-icon.logbook-text-green:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .logbook-btn-icon.logbook-text-green {
+  color: #34d399;
+}
+
+.logbook-btn-icon.logbook-text-gray {
+  color: #64748b;
+}
+
+.logbook-btn-icon.logbook-text-gray:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: scale(1.08);
+}
+
+[data-theme="dark"] .logbook-btn-icon.logbook-text-gray {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .logbook-btn-icon.logbook-text-gray:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+/* ── Date & Detail Helpers ── */
+.logbook-table-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+[data-theme="dark"] .logbook-table-date {
+  color: #cbd5e1;
+}
+
+.logbook-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.logbook-detail-label {
+  font-size: 11.5px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+[data-theme="dark"] .logbook-detail-label {
+  color: #94a3b8;
+}
+
+.logbook-detail-value {
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .logbook-detail-value {
+  color: #f8fafc;
+}
+
+.logbook-alert-box {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border-left: 4px solid;
+}
+
+.logbook-alert-box.danger {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+[data-theme="dark"] .logbook-alert-box.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.logbook-alert-box.success {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #166534;
+}
+
+[data-theme="dark"] .logbook-alert-box.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.logbook-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.2);
+  color: #0284c7;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+[data-theme="dark"] .logbook-duration-badge {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+}
+
+.logbook-filter-select,
+.logbook-filter-date {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .logbook-filter-select,
+[data-theme="dark"] .logbook-filter-date {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+.logbook-filter-select:focus,
+.logbook-filter-date:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="dark"] .logbook-filter-select:focus,
+[data-theme="dark"] .logbook-filter-date:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.logbook-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Responsive Queries ── */
+@media (max-width: 640px) {
+  .logbook-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .logbook-filters,
+  .logbook-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .logbook-search-wrap {
+    max-width: 100%;
+  }
 }

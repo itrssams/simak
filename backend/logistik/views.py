@@ -357,8 +357,11 @@ class LogistikVendorViewSet(viewsets.ViewSet):
                 where += " AND sumber = %s"
                 params.append(sumber)
         if has_kategori and kategori:
-            where += " AND kategori = %s"
-            params.append(kategori)
+            if kategori in ['__empty__', 'kosong', 'none']:
+                where += " AND (kategori IS NULL OR TRIM(kategori) = '')"
+            else:
+                where += " AND kategori = %s"
+                params.append(kategori)
 
         if search:
             search_conds = ['nama LIKE %s', 'alamat LIKE %s', 'telp LIKE %s', 'kc LIKE %s']
@@ -431,9 +434,11 @@ class LogistikVendorViewSet(viewsets.ViewSet):
             data.get('telp') or '',
             data.get('kc') or '',
         ]
+        new_cat = None
         if has_kategori and 'kategori' in data:
+            new_cat = (data.get('kategori') or '').strip()
             updates.append('kategori = %s')
-            params.append(data.get('kategori') or '')
+            params.append(new_cat)
         if has_sumber and 'sumber' in data:
             updates.append('sumber = %s')
             params.append((data.get('sumber') or 'farmasi').strip().lower())
@@ -447,17 +452,78 @@ class LogistikVendorViewSet(viewsets.ViewSet):
                 """,
                 params,
             )
-        return Response({'detail': 'OK'})
+            # Sync to UtangSupplier for this vendor if category was updated
+            if new_cat:
+                cursor.execute(
+                    "UPDATE keuangan_utang_supplier SET kategori = %s WHERE vendor_id = %s AND (kategori IS NULL OR TRIM(kategori) = '' OR kategori = 'OBAT & BHP')",
+                    [new_cat, pk]
+                )
+        return Response({'detail': 'OK', 'kategori': new_cat})
 
     def destroy(self, request, pk=None):
         with connection.cursor() as cursor:
             cursor.execute("UPDATE rssams.rekanan SET del = 'Y' WHERE id_rekanan = %s", [pk])
         return Response(status=204)
 
+    @action(detail=False, methods=['post'], url_path='auto-populate-categories')
+    def auto_populate_categories(self, request):
+        """Auto-populate missing vendor categories based on standard healthcare / PBF patterns."""
+        cols = _get_rekanan_columns()
+        if 'kategori' not in cols:
+            return Response({'error': 'Kolom kategori tidak tersedia di database rekanan.'}, status=400)
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id_rekanan, nama, sumber FROM rssams.rekanan WHERE del = 'N' AND (kategori IS NULL OR TRIM(kategori) = '')")
+            rows = cursor.fetchall()
+
+            updated = 0
+            for r_id, r_nama, r_sumber in rows:
+                u = (r_nama or '').upper()
+                if any(w in u for w in ['DENTAL', 'DENT', 'ALKES', 'ALAT KESEHATAN', 'IMPLANT', 'SURGIKA', 'CONMED', 'DISPO', 'ENDO INDONESIA', 'BIOMEDICAL', 'SINAR RODA', 'ITAMA RANORAYA', 'IDS MEDICAL']):
+                    cat = 'ALAT KESEHATAN'
+                elif any(w in u for w in ['GAS', 'SAMATOR', 'MURNI GAS']):
+                    cat = 'PENUNJANG PELAYANAN RS'
+                elif any(w in u for w in ['RS AWS', 'RS DIRGAHAYU', 'LABORATORIUM', 'LAB ']):
+                    cat = 'PELAYANAN RUJUKAN DAN LABORATORIUM'
+                elif (r_sumber or 'farmasi') == 'farmasi':
+                    cat = 'OBAT DAN BHP'
+                else:
+                    cat = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.'
+
+                cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [cat, r_id])
+                cursor.execute("UPDATE keuangan_utang_supplier SET kategori = %s WHERE vendor_id = %s AND (kategori IS NULL OR TRIM(kategori) = '')", [cat, r_id])
+                updated += 1
+
+            # Standardize legacy 'OBAT & BHP' to 'OBAT DAN BHP'
+            cursor.execute("UPDATE rssams.rekanan SET kategori = 'OBAT DAN BHP' WHERE kategori = 'OBAT & BHP'")
+            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE kategori = 'OBAT & BHP'")
+
+            # Standardize legacy 'ATK, CETAKAN, RUMAH TANGGA DLL.'
+            cursor.execute("UPDATE rssams.rekanan SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE kategori = 'ATK, CETAKAN, RUMAH TANGGA DLL.'")
+            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE kategori = 'ATK, CETAKAN, RUMAH TANGGA DLL.'")
+
+            # Standardize empty categories in UtangSupplier based on source
+            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE sumber = 'farmasi' AND (kategori IS NULL OR TRIM(kategori) = '')")
+            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE sumber = 'logistik' AND (kategori IS NULL OR TRIM(kategori) = '')")
+
+            # Sync any remaining empty utang directly from vendor master
+            cursor.execute("""
+                UPDATE keuangan_utang_supplier u
+                JOIN rssams.rekanan r ON r.id_rekanan = u.vendor_id
+                SET u.kategori = r.kategori
+                WHERE (u.kategori IS NULL OR TRIM(u.kategori) = '') AND r.kategori IS NOT NULL AND TRIM(r.kategori) != ''
+            """)
+
+        return Response({
+            'message': f'Berhasil mengisi kategori pada {updated} vendor dan menyinkronkan seluruh catatan utang.',
+            'total_updated': updated,
+        })
+
     @action(detail=False, methods=['get'], url_path='options')
     def options(self, request):
         cols = _get_rekanan_columns()
         has_sumber = 'sumber' in cols
+        has_kategori = 'kategori' in cols
 
         sumber = request.query_params.get('sumber') or 'all'
         where = "WHERE del = 'N'"
@@ -472,7 +538,9 @@ class LogistikVendorViewSet(viewsets.ViewSet):
             else:
                 where += " AND sumber = %s"
                 params.append(sumber)
-        rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama FROM rssams.rekanan {where} ORDER BY nama", params)
+        kategori_sel = ", COALESCE(kategori, '') AS kategori" if has_kategori else ", '' AS kategori"
+        sumber_sel = ", COALESCE(sumber, 'farmasi') AS sumber" if has_sumber else ", 'farmasi' AS sumber"
+        rows = legacy_fetchall(f"SELECT id_rekanan AS id, nama {kategori_sel} {sumber_sel} FROM rssams.rekanan {where} ORDER BY nama", params)
         return Response({'results': rows})
 
 
