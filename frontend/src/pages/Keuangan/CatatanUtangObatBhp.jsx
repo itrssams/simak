@@ -140,6 +140,26 @@ const calcUmurUtang = (tanggal_titip) => {
     const days = diffDays < 0 ? 0 : diffDays;
     return `${days} Hari`;
 };
+const formatTitipDateSuffix = (value) => {
+    if (!value) return '';
+    const str = String(value).slice(0, 10);
+    const parts = str.split('-');
+    if (parts.length === 3) {
+        const [, month, day] = parts;
+        if (day && month) {
+            return `(${day.padStart(2, '0')}/${month.padStart(2, '0')})`;
+        }
+    }
+    try {
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) {
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            return `(${day}/${month})`;
+        }
+    } catch {}
+    return '';
+};
 const parseMoneyInput = (value) => {
     if (value === '' || value === null || value === undefined) return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -454,7 +474,12 @@ export default function CatatanUtangObatBhp() {
         setVendorDepositInfo(null);
         const katLabel = row.kategori_vendor || row.kategori || (row.sumber === 'logistik' ? 'Logistik' : 'Obat & BHP');
         const fakturNo = row.nomor_faktur || row.nomor_spb || '';
-        const defaultKet = `Pembayaran ${katLabel} ${fakturNo}`.replace(/\s+/g, ' ').trim();
+        const titipSuffix = formatTitipDateSuffix(row.tanggal_titip);
+        const parts = [`Pembayaran ${katLabel} ${fakturNo}`];
+        if (titipSuffix && !fakturNo.includes(titipSuffix)) {
+            parts.push(titipSuffix);
+        }
+        const defaultKet = parts.join(' ').replace(/\s+/g, ' ').trim();
 
         setPaymentForm({
             ...initialPaymentForm,
