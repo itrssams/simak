@@ -6044,32 +6044,35 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 qs = qs.filter(status=status_param)
         if sumber_filter and sumber_filter != 'semua':
             qs = qs.filter(utang__sumber=sumber_filter)
-        tipe_tgl = (params.get('tipe_tanggal') or '').strip()
-        if dari:
-            if tipe_tgl == 'titip':
-                qs = qs.filter(utang__tanggal_titip__gte=dari)
-            elif tipe_tgl == 'rencana':
-                qs = qs.filter(tanggal_rencana_bayar__gte=dari)
-            elif tipe_tgl == 'pengajuan':
-                qs = qs.filter(created_at__date__gte=dari)
-            else:
-                if status_param == 'pending':
-                    qs = qs.filter(Q(tanggal_rencana_bayar__gte=dari) | Q(created_at__date__gte=dari))
-                else:
-                    qs = qs.filter(tanggal_proses__gte=dari)
+        is_histori_view = (params.get('mode') == 'histori' or status_param in ['realisasi', 'realisasi_lunas', 'realisasi_sebagian', 'retur'] or (status_param and str(status_param).startswith('realisasi')))
 
-        if sampai:
-            if tipe_tgl == 'titip':
-                qs = qs.filter(utang__tanggal_titip__lte=sampai)
-            elif tipe_tgl == 'rencana':
-                qs = qs.filter(tanggal_rencana_bayar__lte=sampai)
-            elif tipe_tgl == 'pengajuan':
-                qs = qs.filter(created_at__date__lte=sampai)
-            else:
-                if status_param == 'pending':
-                    qs = qs.filter(Q(tanggal_rencana_bayar__lte=sampai) | Q(created_at__date__lte=sampai))
+        if is_histori_view:
+            # Riwayat Pembayaran SELALU memfilter tanggal_proses (Tanggal Pembayaran / Realisasi Kas Keluar)
+            if dari:
+                qs = qs.filter(tanggal_proses__gte=dari)
+            if sampai:
+                qs = qs.filter(tanggal_proses__lte=sampai)
+        elif status_param == 'pending' or params.get('mode') == 'pengajuan':
+            tipe_tgl = (params.get('tipe_tanggal') or 'rencana').strip()
+            if dari:
+                if tipe_tgl == 'titip':
+                    qs = qs.filter(utang__tanggal_titip__gte=dari)
+                elif tipe_tgl == 'pengajuan':
+                    qs = qs.filter(created_at__date__gte=dari)
                 else:
-                    qs = qs.filter(tanggal_proses__lte=sampai)
+                    qs = qs.filter(tanggal_rencana_bayar__gte=dari)
+            if sampai:
+                if tipe_tgl == 'titip':
+                    qs = qs.filter(utang__tanggal_titip__lte=sampai)
+                elif tipe_tgl == 'pengajuan':
+                    qs = qs.filter(created_at__date__lte=sampai)
+                else:
+                    qs = qs.filter(tanggal_rencana_bayar__lte=sampai)
+        else:
+            if dari:
+                qs = qs.filter(tanggal_proses__gte=dari)
+            if sampai:
+                qs = qs.filter(tanggal_proses__lte=sampai)
 
         order = _utang_order_clause(params.get('ordering'), {
             'vendor': 'utang__vendor_nama',

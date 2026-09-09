@@ -409,7 +409,8 @@ export default function CatatanUtangObatBhp() {
         setSelectedPengajuanIds([]);
         setFilters(prev => ({
             ...prev,
-            ordering: getDefaultOrdering(mode)
+            ordering: getDefaultOrdering(mode),
+            tipe_tanggal: mode === 'histori' ? 'bayar' : mode === 'pengajuan' ? 'rencana' : 'titip',
         }));
     }, [mode]);
 
@@ -2493,16 +2494,23 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                     </select>
                 )}
                 {mode === 'histori' && (
-                    <select
-                        className="dki-select"
-                        value={filters.tipe_tanggal || 'bayar'}
-                        onChange={(e) => setFilters({ ...filters, tipe_tanggal: e.target.value })}
-                        title="Pilih jenis tanggal untuk filter rentang periode riwayat pembayaran"
-                        style={{ minWidth: 145 }}
-                    >
-                        <option value="bayar">Periode: Tgl Bayar</option>
-                        <option value="titip">Periode: Tgl Titip</option>
-                    </select>
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '0 12px',
+                        height: '42px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '14px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#1d4ed8',
+                        whiteSpace: 'nowrap'
+                    }}>
+                        <CalendarDays size={15} style={{ color: '#2563eb' }} />
+                        <span>Periode: Tgl Bayar</span>
+                    </div>
                 )}
                 {mode === 'pengajuan' && (
                     <select
@@ -2521,7 +2529,7 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                     dari={filters.dari}
                     sampai={filters.sampai}
                     onChange={({ dari, sampai }) => setFilters({ ...filters, dari, sampai })}
-                    placeholder="Pilih Periode Tanggal"
+                    placeholder={mode === 'histori' ? "Pilih Periode Tgl Bayar" : mode === 'pengajuan' ? "Pilih Periode Rencana Bayar" : "Pilih Periode Tanggal"}
                 />
                 <button className="dki-filter-reset" type="button" onClick={onReset}><FilterX size={15} /> Reset</button>
             </div>
