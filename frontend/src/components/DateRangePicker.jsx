@@ -207,6 +207,16 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
         return days;
     }, [viewYear, viewMonth]);
 
+    const yearOptions = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const start = currentYear - 10;
+        const end = currentYear + 5;
+        const set = new Set();
+        for (let y = start; y <= end; y++) set.add(y);
+        if (viewYear) set.add(Number(viewYear));
+        return Array.from(set).sort((a, b) => a - b);
+    }, [viewYear]);
+
     const triggerText = useMemo(() => {
         if (dari && sampai) {
             return `${formatDateShort(dari)} — ${formatDateShort(sampai)}`;
@@ -259,9 +269,28 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
                         <button type="button" className="drp-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">
                             <ChevronLeft size={17} />
                         </button>
-                        <span className="drp-month-title">
-                            {MONTH_NAMES[viewMonth]} {viewYear}
-                        </span>
+                        <div className="drp-selectors">
+                            <select
+                                className="drp-select drp-select-month"
+                                value={viewMonth}
+                                onChange={(e) => setViewMonth(parseInt(e.target.value, 10))}
+                                aria-label="Pilih Bulan"
+                            >
+                                {MONTH_NAMES.map((name, idx) => (
+                                    <option key={idx} value={idx}>{name}</option>
+                                ))}
+                            </select>
+                            <select
+                                className="drp-select drp-select-year"
+                                value={viewYear}
+                                onChange={(e) => setViewYear(parseInt(e.target.value, 10))}
+                                aria-label="Pilih Tahun"
+                            >
+                                {yearOptions.map((y) => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
+                        </div>
                         <button type="button" className="drp-nav-btn" onClick={nextMonth} aria-label="Bulan berikutnya">
                             <ChevronRight size={17} />
                         </button>

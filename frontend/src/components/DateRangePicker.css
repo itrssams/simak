@@ -129,6 +129,50 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
+    gap: 6px;
+}
+
+.drp-selectors {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+}
+
+.drp-select {
+    height: 32px;
+    padding: 0 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s ease;
+}
+
+.drp-select:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.drp-select:focus {
+    border-color: #3b82f6;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.drp-select-month {
+    flex: 1.2;
+    max-width: 125px;
+}
+
+.drp-select-year {
+    flex: 1;
+    max-width: 85px;
 }
 
 .drp-month-title {
