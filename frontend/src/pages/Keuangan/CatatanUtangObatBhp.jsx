@@ -2492,6 +2492,31 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                         <option value="jatuh_tempo">Periode: Jatuh Tempo</option>
                     </select>
                 )}
+                {mode === 'histori' && (
+                    <select
+                        className="dki-select"
+                        value={filters.tipe_tanggal || 'bayar'}
+                        onChange={(e) => setFilters({ ...filters, tipe_tanggal: e.target.value })}
+                        title="Pilih jenis tanggal untuk filter rentang periode riwayat pembayaran"
+                        style={{ minWidth: 145 }}
+                    >
+                        <option value="bayar">Periode: Tgl Bayar</option>
+                        <option value="titip">Periode: Tgl Titip</option>
+                    </select>
+                )}
+                {mode === 'pengajuan' && (
+                    <select
+                        className="dki-select"
+                        value={filters.tipe_tanggal || 'rencana'}
+                        onChange={(e) => setFilters({ ...filters, tipe_tanggal: e.target.value })}
+                        title="Pilih jenis tanggal untuk filter rentang periode pengajuan"
+                        style={{ minWidth: 160 }}
+                    >
+                        <option value="rencana">Periode: Rencana Bayar</option>
+                        <option value="titip">Periode: Tgl Titip</option>
+                        <option value="pengajuan">Periode: Tgl Diajukan</option>
+                    </select>
+                )}
                 <DateRangePicker
                     dari={filters.dari}
                     sampai={filters.sampai}
