@@ -6281,7 +6281,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws = wb.active
         ws.title = "Pengajuan Pembayaran"
 
-        ws.merge_cells('A1:G1')
+        ws.merge_cells('A1:J1')
         ws['A1'] = 'REKAP PENGAJUAN PEMBAYARAN UTANG SUPPLIER'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
@@ -6290,8 +6290,8 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws['A2'].font = Font(italic=True, size=10)
 
         headers = [
-            'No', 'Sumber', 'Vendor / Supplier', 'Umur Utang',
-            'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)'
+            'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. Faktur',
+            'Tgl Titip', 'Umur Utang', 'Jumlah Bayar (Rp)', 'Keterangan', 'Pengaju (Operator)'
         ]
         ws.append([])
         ws.append(headers)
@@ -6354,10 +6354,13 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 if utang and utang.tanggal_titip:
                     days = (today_date - utang.tanggal_titip).days
                     umur_utang_str = f"{max(0, days)} Hari"
+                    tgl_titip_str = utang.tanggal_titip.strftime('%d-%m-%Y')
                 else:
                     umur_utang_str = '-'
+                    tgl_titip_str = '-'
 
                 sumber_label = utang.get_sumber_display() if utang else '-'
+                faktur_str = (utang.nomor_faktur or '-') if utang else '-'
                 operator = item.created_by.username if item.created_by else '-'
 
                 clean_ket = item.keterangan or ''
@@ -6373,6 +6376,9 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     global_index,
                     sumber_label,
                     utang.vendor_nama if utang else '-',
+                    kat_label if kat_label != 'TANPA KATEGORI' else '-',
+                    faktur_str,
+                    tgl_titip_str,
                     umur_utang_str,
                     float(jumlah),
                     clean_ket,
@@ -6381,52 +6387,54 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 global_index += 1
 
                 row_num = ws.max_row
-                for col in range(1, 8):
+                for col in range(1, 11):
                     c = ws.cell(row=row_num, column=col)
                     c.border = thin_border
-                    if col in [1, 2, 4]:
-                        c.alignment = Alignment(horizontal='center')
-                    elif col == 5:
+                    if col in [1, 2, 5, 6, 7]:
+                        c.alignment = Alignment(horizontal='center', vertical='center')
+                    elif col == 8:
                         c.number_format = '#,##0.00'
-                        c.alignment = Alignment(horizontal='right')
+                        c.alignment = Alignment(horizontal='right', vertical='center')
+                    else:
+                        c.alignment = Alignment(horizontal='left', vertical='center')
 
             # Subtotal per vendor tepat setelah kelompok vendor berakhir
             subtotal_row = ws.max_row + 1
             ws.cell(row=subtotal_row, column=1, value=f'SUBTOTAL {vendor_nama.upper()}')
-            ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=4)
+            ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=7)
             
-            subtotal_cell = ws.cell(row=subtotal_row, column=5, value=float(vendor_subtotal))
+            subtotal_cell = ws.cell(row=subtotal_row, column=8, value=float(vendor_subtotal))
             subtotal_cell.number_format = '#,##0.00'
 
-            for col in range(1, 8):
+            for col in range(1, 11):
                 c = ws.cell(row=subtotal_row, column=col)
                 c.fill = subtotal_fill
                 c.font = subtotal_font
                 c.border = thin_border
                 if col == 1:
                     c.alignment = Alignment(horizontal='right', vertical='center')
-                elif col == 5:
+                elif col == 8:
                     c.alignment = Alignment(horizontal='right', vertical='center')
 
         # Baris Grand Total Pengajuan
         grand_row = ws.max_row + 1
         ws.cell(row=grand_row, column=1, value='GRAND TOTAL PENGAJUAN')
-        ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=4)
+        ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=7)
         
-        grand_cell = ws.cell(row=grand_row, column=5, value=float(grand_total))
+        grand_cell = ws.cell(row=grand_row, column=8, value=float(grand_total))
         grand_cell.number_format = '#,##0.00'
 
         grand_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
         grand_font = Font(bold=True, color='FFFFFF')
 
-        for col in range(1, 8):
+        for col in range(1, 11):
             c = ws.cell(row=grand_row, column=col)
             c.fill = grand_fill
             c.font = grand_font
             c.border = thin_border
             if col == 1:
                 c.alignment = Alignment(horizontal='right', vertical='center')
-            elif col == 5:
+            elif col == 8:
                 c.alignment = Alignment(horizontal='right', vertical='center')
 
         # ─────────────────────────────────────────────────────────────
@@ -6502,12 +6510,15 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         col_widths = {
             'A': 8,
-            'B': 22,
-            'C': 35,
-            'D': 24,
+            'B': 18,
+            'C': 34,
+            'D': 30,
             'E': 22,
-            'F': 38,
-            'G': 20,
+            'F': 14,
+            'G': 14,
+            'H': 22,
+            'I': 36,
+            'J': 20,
         }
         for col_letter, width in col_widths.items():
             ws.column_dimensions[col_letter].width = width

@@ -675,7 +675,17 @@ export default function CatatanUtangObatBhp() {
             toast.success('File Excel berhasil diunduh.');
         } catch (err) {
             console.error('Error export excel:', err);
-            toast.error(errorMessage(err, 'Gagal mengunduh file Excel.'));
+            let msg = 'Gagal mengunduh file Excel.';
+            if (err?.response?.data instanceof Blob) {
+                try {
+                    const text = await err.response.data.text();
+                    const json = JSON.parse(text);
+                    msg = json.detail || json.error || msg;
+                } catch {}
+            } else {
+                msg = errorMessage(err, msg);
+            }
+            toast.error(msg);
         }
     };
 
@@ -2647,7 +2657,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                     <th>Sumber</th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur & Tanggal" field="nomor_faktur" onSort={onSort} />
-                    <SortTh label="Umur Utang" field="tanggal_titip" onSort={onSort} />
+                    <SortTh label="Tgl Titip & Umur" field="tanggal_titip" onSort={onSort} />
                     <SortTh label="Sisa Utang" field="nominal" onSort={onSort} right />
                     <SortTh label="Status" field="status" onSort={onSort} />
                     <SortTh label="Verifikator" field="verified_at" onSort={onSort} />
@@ -2685,14 +2695,18 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                             {isDibatalkan ? (
                                 <strong className="utang-mono" style={{ opacity: 0.5 }}>—</strong>
                             ) : (
-                                <>
-                                    <strong className="utang-mono">{calcUmurUtang(item.tanggal_titip)}</strong>
+                                <div>
+                                    <strong className="utang-mono" style={{ color: '#0369a1', display: 'block', fontSize: '0.86rem', fontWeight: 700 }}>
+                                        {item.tanggal_titip ? dateLabel(item.tanggal_titip) : '-'}
+                                    </strong>
                                     {item.tanggal_titip ? (
-                                        <small className="utang-subtext">Titip: {dateLabel(item.tanggal_titip)}</small>
+                                        <small className="utang-subtext" style={{ fontWeight: 600, color: '#64748b' }}>
+                                            {calcUmurUtang(item.tanggal_titip)}
+                                        </small>
                                     ) : (
                                         <small className="utang-subtext" style={{ opacity: 0.6 }}>-</small>
                                     )}
-                                </>
+                                </div>
                             )}
                         </td>
                         <td className="utang-right">
@@ -2829,8 +2843,13 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                         </td>
                         <td style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
-                            {item.tanggal_titip && (
-                                <small className="utang-subtext">Tgl Titip: {dateLabel(item.tanggal_titip)} ({calcUmurUtang(item.tanggal_titip)})</small>
+                            {item.tanggal_titip ? (
+                                <div style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 700, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span>📅 Titip: {dateLabel(item.tanggal_titip)}</span>
+                                    <span style={{ color: '#64748b', fontWeight: 500 }}>({calcUmurUtang(item.tanggal_titip)})</span>
+                                </div>
+                            ) : (
+                                <small className="utang-subtext">Tgl Titip: -</small>
                             )}
                             <small className="utang-subtext">Rencana Bayar: {dateLabel(item.tanggal_rencana_bayar)}</small>
                         </td>

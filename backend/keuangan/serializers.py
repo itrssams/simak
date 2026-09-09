@@ -557,6 +557,7 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source='get_status_display', read_only=True)
     nomor_faktur = serializers.CharField(source='utang.nomor_faktur', read_only=True)
     vendor_nama = serializers.CharField(source='utang.vendor_nama', read_only=True)
+    kategori = serializers.CharField(source='utang.kategori', read_only=True)
     nominal = serializers.DecimalField(source='utang.nominal', max_digits=25, decimal_places=2, read_only=True)
     sumber = serializers.CharField(source='utang.sumber', read_only=True)
     sumber_label = serializers.CharField(source='utang.get_sumber_display', read_only=True)
@@ -567,7 +568,7 @@ class PembayaranUtangSerializer(serializers.ModelSerializer):
     class Meta:
         model = PembayaranUtang
         fields = [
-            'id', 'utang', 'nomor_faktur', 'vendor_nama', 'nominal',
+            'id', 'utang', 'nomor_faktur', 'vendor_nama', 'kategori', 'nominal',
             'sumber', 'sumber_label', 'nomor_spb', 'app_siaga_faktur_id',
             'tanggal_titip',
             'tanggal_rencana_bayar', 'tanggal_proses', 'tanggal_app',
