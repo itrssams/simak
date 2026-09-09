@@ -6260,6 +6260,273 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def export_excel(self, request):
         from itertools import groupby
 
+        is_histori = (request.query_params.get('mode') == 'histori' or request.query_params.get('status') in ['realisasi', 'realisasi_lunas', 'realisasi_sebagian', 'retur'])
+
+        if is_histori:
+            qs = self.get_queryset()
+            if not request.query_params.get('status'):
+                qs = qs.filter(Q(status__startswith='realisasi') | Q(status='realisasi') | Q(status='retur'))
+            qs = qs.select_related('utang', 'created_by')
+
+            ids_param = request.query_params.get('ids')
+            if ids_param:
+                try:
+                    ids = [int(x.strip()) for x in str(ids_param).split(',') if x.strip()]
+                    if ids:
+                        qs = qs.filter(id__in=ids)
+                except (ValueError, TypeError):
+                    pass
+
+            qs = list(qs)
+            qs.sort(key=lambda item: (
+                (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else '').upper(),
+                item.tanggal_proses or (item.created_at.date() if item.created_at else timezone.localdate()),
+                item.id
+            ))
+
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Riwayat Pembayaran"
+
+            ws.merge_cells('A1:K1')
+            ws['A1'] = 'REKAP RIWAYAT PEMBAYARAN UTANG SUPPLIER'
+            ws['A1'].font = Font(bold=True, size=14)
+            ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+            dari = request.query_params.get('dari')
+            sampai = request.query_params.get('sampai')
+            periode_str = f" | Periode: {dari or 'Awal'} s/d {sampai or 'Sekarang'}" if (dari or sampai) else ""
+            ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}{periode_str}'
+            ws['A2'].font = Font(italic=True, size=10)
+
+            headers = [
+                'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. Faktur',
+                'Tgl Titip', 'Tgl Bayar', 'Jumlah Bayar (Rp)', 'Status', 'Keterangan', 'Operator'
+            ]
+            ws.append([])
+            ws.append(headers)
+
+            header_row = 4
+            header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+            header_font = Font(bold=True, color='FFFFFF')
+
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=header_row, column=col_num)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+
+            thin_border = Border(
+                left=Side(style='thin', color='CBD5E1'),
+                right=Side(style='thin', color='CBD5E1'),
+                top=Side(style='thin', color='CBD5E1'),
+                bottom=Side(style='thin', color='CBD5E1')
+            )
+            subtotal_fill = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+            subtotal_font = Font(bold=True, color='0F172A')
+
+            global_index = 1
+            grand_total = Decimal('0')
+
+            def get_vendor_name(item):
+                return (item.utang.vendor_nama if item.utang and item.utang.vendor_nama else 'TANPA VENDOR').strip()
+
+            cat_stats_pay = defaultdict(lambda: {'count': 0, 'total': Decimal('0')})
+            status_dict = dict(PembayaranUtang.STATUS_CHOICES)
+
+            for vendor_nama, group_items in groupby(qs, key=get_vendor_name):
+                items_list = list(group_items)
+                vendor_subtotal = Decimal('0')
+
+                for item in items_list:
+                    raw_jumlah = item.jumlah_bayar or Decimal('0')
+                    jumlah = -raw_jumlah if item.status == 'retur' else raw_jumlah
+                    vendor_subtotal += jumlah
+                    grand_total += jumlah
+
+                    utang = item.utang
+                    kat_raw = (utang.kategori or '').strip().upper() if utang else ''
+                    if kat_raw.startswith('PELAYANAN RUJUKAN'):
+                        kat_label = 'PELAYANAN RUJUKAN DAN LABORATORIUM'
+                    elif kat_raw.startswith('PENUNJANG PELAYANAN'):
+                        kat_label = 'PENUNJANG PELAYANAN RS'
+                    elif kat_raw.startswith('BIAYA ATK'):
+                        kat_label = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.'
+                    elif kat_raw.startswith('BIAYA RUTIN JASA PEL'):
+                        kat_label = 'BIAYA RUTIN JASA PELAYANAN DLL'
+                    elif kat_raw.startswith('IURAN BPJS'):
+                        kat_label = 'IURAN BPJS KESEHATAN DAN BPJS KETENAGAKERJAAN'
+                    else:
+                        kat_label = kat_raw or 'TANPA KATEGORI'
+
+                    cat_stats_pay[kat_label]['count'] += 1
+                    cat_stats_pay[kat_label]['total'] += jumlah
+
+                    tgl_titip_str = utang.tanggal_titip.strftime('%d-%m-%Y') if (utang and utang.tanggal_titip) else '-'
+                    tgl_bayar_str = item.tanggal_proses.strftime('%d-%m-%Y') if item.tanggal_proses else '-'
+                    sumber_label = utang.get_sumber_display() if utang else '-'
+                    faktur_str = (utang.nomor_faktur or '-') if utang else '-'
+                    operator = item.created_by.username if item.created_by else '-'
+                    status_lbl = status_dict.get(item.status, item.status.replace('_', ' ').title())
+                    clean_ket = item.keterangan or '-'
+
+                    ws.append([
+                        global_index,
+                        sumber_label,
+                        utang.vendor_nama if utang else '-',
+                        kat_label if kat_label != 'TANPA KATEGORI' else '-',
+                        faktur_str,
+                        tgl_titip_str,
+                        tgl_bayar_str,
+                        float(jumlah),
+                        status_lbl,
+                        clean_ket,
+                        operator,
+                    ])
+                    global_index += 1
+
+                    row_num = ws.max_row
+                    for col in range(1, 12):
+                        c = ws.cell(row=row_num, column=col)
+                        c.border = thin_border
+                        if col in [1, 2, 5, 6, 7, 9]:
+                            c.alignment = Alignment(horizontal='center', vertical='center')
+                        elif col == 8:
+                            c.number_format = '#,##0.00'
+                            c.alignment = Alignment(horizontal='right', vertical='center')
+                        else:
+                            c.alignment = Alignment(horizontal='left', vertical='center')
+
+                # Subtotal per vendor
+                subtotal_row = ws.max_row + 1
+                ws.cell(row=subtotal_row, column=1, value=f'SUBTOTAL {vendor_nama.upper()}')
+                ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=7)
+
+                subtotal_cell = ws.cell(row=subtotal_row, column=8, value=float(vendor_subtotal))
+                subtotal_cell.number_format = '#,##0.00'
+
+                for col in range(1, 12):
+                    c = ws.cell(row=subtotal_row, column=col)
+                    c.fill = subtotal_fill
+                    c.font = subtotal_font
+                    c.border = thin_border
+                    if col == 1:
+                        c.alignment = Alignment(horizontal='right', vertical='center')
+                    elif col == 8:
+                        c.alignment = Alignment(horizontal='right', vertical='center')
+
+            # Baris Grand Total Riwayat
+            grand_row = ws.max_row + 1
+            ws.cell(row=grand_row, column=1, value='GRAND TOTAL REALISASI PEMBAYARAN')
+            ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=7)
+
+            grand_cell = ws.cell(row=grand_row, column=8, value=float(grand_total))
+            grand_cell.number_format = '#,##0.00'
+
+            grand_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+            grand_font = Font(bold=True, color='FFFFFF')
+
+            for col in range(1, 12):
+                c = ws.cell(row=grand_row, column=col)
+                c.fill = grand_fill
+                c.font = grand_font
+                c.border = thin_border
+                if col == 1:
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                elif col == 8:
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+
+            # TABEL RINGKASAN PEMBAYARAN PER KATEGORI
+            ws.append([])
+            ws.append([])
+            sum_p_title = ws.max_row + 1
+            ws.cell(row=sum_p_title, column=1, value='RINGKASAN REALISASI PEMBAYARAN PER KATEGORI')
+            ws.cell(row=sum_p_title, column=1).font = Font(bold=True, size=12, color='0F172A')
+            ws.merge_cells(start_row=sum_p_title, start_column=1, end_row=sum_p_title, end_column=5)
+
+            cat_p_head_row = sum_p_title + 1
+            cat_p_headers = ['No', 'Kategori', 'Jumlah Transaksi', 'Total Realisasi Bayar (Rp)', '% Dari Total']
+            cat_p_fill = PatternFill(start_color='0F766E', end_color='0F766E', fill_type='solid')
+
+            for c_idx, h_text in enumerate(cat_p_headers, 1):
+                c = ws.cell(row=cat_p_head_row, column=c_idx, value=h_text)
+                c.fill = cat_p_fill
+                c.font = Font(bold=True, color='FFFFFF')
+                c.alignment = Alignment(horizontal='center', vertical='center')
+                c.border = thin_border
+
+            cur_p_row = cat_p_head_row + 1
+            cat_p_num = 1
+            for k_name, stats in sorted(cat_stats_pay.items(), key=lambda x: x[1]['total'], reverse=True):
+                pct_val = (float(stats['total']) / float(grand_total)) if grand_total > 0 else 0.0
+
+                c_no = ws.cell(row=cur_p_row, column=1, value=cat_p_num)
+                c_no.alignment = Alignment(horizontal='center', vertical='center')
+
+                c_kat = ws.cell(row=cur_p_row, column=2, value=k_name)
+                c_kat.alignment = Alignment(horizontal='left', vertical='center')
+                c_kat.font = Font(bold=True, color='1E293B')
+
+                c_cnt = ws.cell(row=cur_p_row, column=3, value=stats['count'])
+                c_cnt.alignment = Alignment(horizontal='center', vertical='center')
+
+                c_tot = ws.cell(row=cur_p_row, column=4, value=float(stats['total']))
+                c_tot.number_format = '#,##0.00'
+                c_tot.alignment = Alignment(horizontal='right', vertical='center')
+
+                c_pct = ws.cell(row=cur_p_row, column=5, value=pct_val)
+                c_pct.number_format = '0.00%'
+                c_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+                for col_i in range(1, 6):
+                    ws.cell(row=cur_p_row, column=col_i).border = thin_border
+
+                cur_p_row += 1
+                cat_p_num += 1
+
+            # Total baris ringkasan pengajuan kategori
+            ws.cell(row=cur_p_row, column=1, value='TOTAL')
+            ws.merge_cells(start_row=cur_p_row, start_column=1, end_row=cur_p_row, end_column=2)
+            ws.cell(row=cur_p_row, column=3, value=sum(s['count'] for s in cat_stats_pay.values())).alignment = Alignment(horizontal='center', vertical='center')
+
+            c_gtot = ws.cell(row=cur_p_row, column=4, value=float(grand_total))
+            c_gtot.number_format = '#,##0.00'
+            c_gtot.alignment = Alignment(horizontal='right', vertical='center')
+
+            c_gtot_pct = ws.cell(row=cur_p_row, column=5, value=1.0 if grand_total > 0 else 0.0)
+            c_gtot_pct.number_format = '0.00%'
+            c_gtot_pct.alignment = Alignment(horizontal='right', vertical='center')
+
+            for col_i in range(1, 6):
+                c = ws.cell(row=cur_p_row, column=col_i)
+                c.fill = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+                c.font = Font(bold=True, color='0F172A')
+                c.border = thin_border
+                if col_i == 1:
+                    c.alignment = Alignment(horizontal='center', vertical='center')
+
+            col_widths = {
+                'A': 8,   # No
+                'B': 16,  # Sumber
+                'C': 34,  # Vendor / Supplier
+                'D': 30,  # Kategori
+                'E': 22,  # No. Faktur
+                'F': 14,  # Tgl Titip
+                'G': 14,  # Tgl Bayar
+                'H': 22,  # Jumlah Bayar (Rp)
+                'I': 20,  # Status
+                'J': 36,  # Keterangan
+                'K': 18,  # Operator
+            }
+            for col_letter, width in col_widths.items():
+                ws.column_dimensions[col_letter].width = width
+
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename="Rekap_Riwayat_Pembayaran_Utang_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+            wb.save(response)
+            return response
+
+        # MODE PENGAJUAN PEMBAYARAN (PENDING)
         qs = self.get_queryset().filter(status=PembayaranUtang.STATUS_PENDING).select_related('utang', 'created_by')
         ids_param = request.query_params.get('ids')
         if ids_param:

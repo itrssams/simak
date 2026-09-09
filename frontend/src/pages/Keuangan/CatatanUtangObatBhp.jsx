@@ -646,6 +646,11 @@ export default function CatatanUtangObatBhp() {
                 } else {
                     fileName = `Daftar_Pengajuan_Utang_${todayISO()}.xlsx`;
                 }
+            } else if (mode === 'histori') {
+                exportEndpoint = '/keuangan/pembayaran-utang/export-excel/';
+                activeFilters.mode = 'histori';
+                activeFilters.status = activeFilters.status || 'realisasi';
+                fileName = `Rekap_Riwayat_Pembayaran_Utang_${todayISO()}.xlsx`;
             } else if (mode === 'aktif') {
                 if (!activeFilters.status) activeFilters.status = 'aktif';
                 exportEndpoint = '/keuangan/utang-supplier/export-excel/';
@@ -1130,7 +1135,7 @@ export default function CatatanUtangObatBhp() {
                                 </button>
                             </>
                         )}
-                        {(mode === 'aktif' || mode === 'semua' || (mode === 'pengajuan' && selectedPengajuanIds.length === 0)) && (
+                        {(mode === 'aktif' || mode === 'semua' || mode === 'histori' || (mode === 'pengajuan' && selectedPengajuanIds.length === 0)) && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
@@ -2949,6 +2954,11 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                                 <KategoriChip kategori={item.kategori} />
                             </div>
                             <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
+                            {item.tanggal_titip && (
+                                <small className="utang-subtext" style={{ color: '#0369a1', fontWeight: 600 }}>
+                                    Titip: {dateLabel(item.tanggal_titip)}
+                                </small>
+                            )}
                         </td>
                         <td>
                             <strong>{dateLabel(item.tanggal_proses || item.tanggal_realisasi)}</strong>
