@@ -6203,7 +6203,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             
             pembayaran.status = 'batal'
             pembayaran.keterangan = f"{pembayaran.keterangan or ''} [DIBATALKAN REALISASI]".strip()
-            pembayaran.save(update_fields=['status', 'keterangan', 'updated_at'])
+            pembayaran.save(update_fields=['status', 'keterangan'])
             
             # Jika utang adalah pengisian petty cash, tarik kembali penambahan saldo
             _handle_petty_cash_payment_batal_realisasi(pembayaran, request.user)

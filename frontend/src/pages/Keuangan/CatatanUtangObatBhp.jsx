@@ -2703,7 +2703,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => {
+                {items.map((item, idx) => {
                     const isPendingApproval = item.status === 'diajukan' || item.status === 'sebagian_diajukan';
                     const isNoSisa = Number(item.sisa_utang || 0) <= 0;
                     const isDibatalkan = item.status === 'dibatalkan';
@@ -2713,7 +2713,7 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                     const canBatalkan = item.status !== 'lunas' && !isDibatalkan && Number(item.total_dibayar || 0) === 0;
 
                     return (
-                    <tr key={item.id} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
+                    <tr key={item.id ? `utang-act-${item.id}-${idx}` : `utang-act-idx-${idx}`} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
                             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
@@ -2978,8 +2978,8 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                 </tr>
             </thead>
             <tbody>
-                {items.map((item) => (
-                    <tr key={item.id}>
+                {items.map((item, idx) => (
+                    <tr key={item.id ? `hist-${item.id}-${idx}` : `hist-idx-${idx}`}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
                             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
