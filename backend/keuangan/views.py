@@ -5594,11 +5594,30 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws.title = "Daftar Utang Supplier"
 
         ws.merge_cells('A1:O1')
-        ws['A1'] = 'REKAP DAFTAR UTANG SUPPLIER'
+        st_param = request.query_params.get('status')
+        if st_param == 'aktif':
+            title_text = 'REKAP DAFTAR UTANG SUPPLIER (HUTANG AKTIF / BELUM LUNAS)'
+        elif st_param in ['semua', 'all']:
+            title_text = 'REKAP SEMUA DAFTAR UTANG SUPPLIER'
+        else:
+            title_text = 'REKAP DAFTAR UTANG SUPPLIER'
+        ws['A1'] = title_text
         ws['A1'].font = Font(bold=True, size=14, color='1E293B')
         ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
 
-        ws['A2'] = f'Tanggal Export: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        dari = request.query_params.get('dari')
+        sampai = request.query_params.get('sampai')
+        tipe_tgl = (request.query_params.get('tipe_tanggal') or 'titip').strip()
+        tipe_labels = {
+            'titip': 'Tgl Titip',
+            'bayar': 'Tgl Bayar',
+            'faktur': 'Tgl Faktur',
+            'jatuh_tempo': 'Jatuh Tempo',
+        }
+        tipe_lbl = tipe_labels.get(tipe_tgl, 'Tgl Titip')
+
+        periode_str = f" | Periode ({tipe_lbl}): {dari or 'Awal'} s/d {sampai or 'Sekarang'}" if (dari or sampai) else ""
+        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}{periode_str}'
         ws['A2'].font = Font(italic=True, size=10, color='64748B')
 
         headers = [
@@ -6578,7 +6597,17 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
 
-        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}'
+        dari = request.query_params.get('dari')
+        sampai = request.query_params.get('sampai')
+        tipe_tgl = (request.query_params.get('tipe_tanggal') or 'rencana').strip()
+        tipe_labels = {
+            'rencana': 'Rencana Bayar',
+            'titip': 'Tgl Titip',
+            'pengajuan': 'Tgl Diajukan',
+        }
+        tipe_lbl = tipe_labels.get(tipe_tgl, 'Rencana Bayar')
+        periode_str = f" | Periode ({tipe_lbl}): {dari or 'Awal'} s/d {sampai or 'Sekarang'}" if (dari or sampai) else ""
+        ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}{periode_str}'
         ws['A2'].font = Font(italic=True, size=10)
 
         headers = [

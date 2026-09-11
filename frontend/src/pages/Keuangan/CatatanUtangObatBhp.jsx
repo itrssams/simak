@@ -2643,8 +2643,8 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
                             </td>
                             <td><SumberBadge sumber={item.sumber} /></td>
                             <td className="utang-name-cell">
-                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                                    <strong>{item.vendor_nama || '-'}</strong>
+                                <strong style={{ display: 'block' }}>{item.vendor_nama || '-'}</strong>
+                                <div style={{ marginTop: '2px', marginBottom: '2px' }}>
                                     <KategoriChip kategori={item.kategori} />
                                 </div>
                                 {item.sumber === 'logistik' && !item.vendor_id_hint && (
@@ -2716,8 +2716,10 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                     <tr key={item.id ? `utang-act-${item.id}-${idx}` : `utang-act-idx-${idx}`} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                                <strong style={isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>{item.vendor_nama || '-'}</strong>
+                            <strong style={{ display: 'block', ...(isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : {}) }}>
+                                {item.vendor_nama || '-'}
+                            </strong>
+                            <div style={{ marginTop: '2px', marginBottom: '2px' }}>
                                 <KategoriChip kategori={item.kategori} />
                             </div>
                             <small className="utang-subtext">SPB: {getRefNo(item)} • ID: {item.vendor_id}</small>
@@ -2871,8 +2873,8 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                             />
                         </td>
                         <td className="utang-name-cell" style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                                <strong>{item.vendor_nama || '-'}</strong>
+                            <strong style={{ display: 'block' }}>{item.vendor_nama || '-'}</strong>
+                            <div style={{ marginTop: '2px', marginBottom: '2px' }}>
                                 <KategoriChip kategori={item.kategori} />
                             </div>
                             <small className="utang-subtext">
@@ -2982,8 +2984,8 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                     <tr key={item.id ? `hist-${item.id}-${idx}` : `hist-idx-${idx}`}>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                                <strong>{item.vendor_nama || '-'}</strong>
+                            <strong style={{ display: 'block' }}>{item.vendor_nama || '-'}</strong>
+                            <div style={{ marginTop: '2px', marginBottom: '2px' }}>
                                 <KategoriChip kategori={item.kategori} />
                             </div>
                             <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
