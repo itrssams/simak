@@ -54,6 +54,7 @@ const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
 const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || u?.view_kas_besar || isDirekturUp(u);
 const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || u?.is_keuangan || isDirekturUp(u);
+const canPettyCash = (u) => Boolean(u?.is_superuser || isManajerUp(u) || u?.is_keuangan || u?.is_petty_cash_cashier || u?.view_petty_cash);
 const canLaporanPettyCash = (u) => u?.is_superuser || isManajerUp(u) || u?.is_petty_cash_cashier || u?.is_keuangan || u?.view_petty_cash;
 const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isDirekturUp(u);
@@ -66,7 +67,7 @@ const ProtectedRoute = ({ children, allow }) => {
     const { user, loading } = useAuth();
     if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to="/login" />;
-    if (allow && !allow(user)) return <Navigate to="/petty-cash" />;
+    if (allow && !allow(user)) return <Navigate to="/" />;
     return <Layout>{children}</Layout>;
 };
 
@@ -131,8 +132,8 @@ const AppRoutes = () => {
             <Route path="/apps" element={<ProtectedRoute><AppLauncher /></ProtectedRoute>} />
             <Route path="/dashboard-analytics" element={<ProtectedRoute allow={(u) => canAkuntansi(u) || isManajerUp(u)}><Dashboard /></ProtectedRoute>} />
 
-            {/* Semua role */}
-            <Route path="/petty-cash" element={<ProtectedRoute><PettyCash /></ProtectedRoute>} />
+            {/* Petty Cash, Kas Besar & Reimbursement */}
+            <Route path="/petty-cash" element={<ProtectedRoute allow={canPettyCash}><PettyCash /></ProtectedRoute>} />
             <Route path="/kas-besar" element={<ProtectedRoute allow={canKasBesar}><KasBesar /></ProtectedRoute>} />
             <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
             <Route path="/logbook" element={<ProtectedRoute><LogbookBeranda /></ProtectedRoute>} />

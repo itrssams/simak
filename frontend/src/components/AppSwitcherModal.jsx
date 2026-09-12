@@ -44,6 +44,8 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
     const canCatatanUtang = user?.is_superuser || user?.akses_catatan_utang;
     const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
     const canKasBesar = user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isDirekturUp;
+    const canReimbursement = Boolean(user?.is_superuser || user?.akses_reimbursement || isKeuangan || isDirekturUp);
+    const canPettyCash = Boolean(user?.is_superuser || isManajerUp || isKeuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
     const isDriverAccess = user?.is_driver || isDirekturUp;
 
     const allApps = useMemo(() => [
@@ -79,13 +81,13 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
         },
         {
             id: 'petty-cash',
-            name: 'Petty Cash',
+            name: canPettyCash ? 'Petty Cash' : (canKasBesar ? 'Kas Besar' : 'Reimbursement'),
             icon: WalletCards,
             color: '#22c55e',
             glowColor: 'rgba(34, 197, 94, 0.45)',
             glassGlow: 'rgba(34, 197, 94, 0.22)',
-            path: '/petty-cash',
-            allowed: true,
+            path: canPettyCash ? '/petty-cash' : (canKasBesar ? '/kas-besar' : '/reimbursement'),
+            allowed: Boolean(canPettyCash || canKasBesar || canReimbursement),
         },
         {
             id: 'logbook',

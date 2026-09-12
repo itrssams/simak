@@ -855,8 +855,8 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                             <li className="mu-summary-item green"><CheckCircle2 size={14} /> Hak Approval & Monitor (Sesuai Jabatan)</li>
                                         )}
                                         {form.is_keuangan && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Akses Penagihan & Invoice</li>}
-                                        {form.is_petty_cash_cashier && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Kas Petty Cash</li>}
-                                        {(!form.is_petty_cash_cashier && form.view_petty_cash) ? <li className="mu-summary-item gray"><Eye size={14} /> Lihat Data Petty Cash</li> : null}
+                                        {form.is_petty_cash_cashier && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Kas Petty Cash (Kasir)</li>}
+                                        {(!form.is_petty_cash_cashier && form.view_petty_cash) ? <li className="mu-summary-item gray"><Eye size={14} /> Akses & Lihat Data Petty Cash</li> : null}
                                         {form.akses_kas_besar && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Kas Besar</li>}
                                         {(!form.akses_kas_besar && form.view_kas_besar) ? <li className="mu-summary-item gray"><Eye size={14} /> Lihat Data Kas Besar</li> : null}
                                         {form.akses_reimbursement && <li className="mu-summary-item dark"><CheckCircle2 size={14} /> Kelola Reimbursement</li>}
@@ -919,7 +919,7 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                             <tr>
                                                 <td>
                                                     <strong>Petty Cash</strong>
-                                                    <small>Lihat: semua data PC / Kelola: kasir & cairkan</small>
+                                                    <small>Lihat: akses & monitor data PC / Kelola: kasir & cairkan</small>
                                                 </td>
                                                 <td className="mu-perm-single">
                                                     <PermissionToggle checked={form.view_petty_cash} onChange={(c) => setForm({ ...form, view_petty_cash: c })} />

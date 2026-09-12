@@ -151,6 +151,16 @@ def can_view_petty_cash_all(user):
         or getattr(user, 'view_petty_cash', False)
     )
 
+def can_access_petty_cash(user):
+    """Bisa mengakses modul Petty Cash."""
+    return user.is_authenticated and (
+        user.is_superuser
+        or is_manajer_or_above(user)
+        or getattr(user, 'is_keuangan', False)
+        or getattr(user, 'is_petty_cash_cashier', False)
+        or getattr(user, 'view_petty_cash', False)
+    )
+
 def can_access_reimbursement(user):
     return user.is_authenticated and (
         getattr(user, 'akses_reimbursement', False)
@@ -7935,13 +7945,12 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return PettyCashSerializer
 
     def get_queryset(self):
+        if not can_access_petty_cash(self.request.user):
+            return PettyCash.objects.none()
+
         qs = PettyCash.objects.select_related('created_by', 'disetujui_oleh', 'dicairkan_oleh', 'laporan_disetujui_oleh').prefetch_related('laporan').all()
         
-        can_view_all = (
-            is_manajer_or_above(self.request.user)
-            or is_petty_cash_cashier(self.request.user)
-            or getattr(self.request.user, 'view_petty_cash', False)
-        )
+        can_view_all = can_view_petty_cash_all(self.request.user)
         if not can_view_all:
             qs = qs.filter(created_by=self.request.user)
         
@@ -7954,6 +7963,8 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        if not can_access_petty_cash(self.request.user):
+            raise PermissionDenied("Anda tidak memiliki akses ke Petty Cash.")
         serializer.save(created_by=self.request.user)
 
     def get_serializer_context(self):

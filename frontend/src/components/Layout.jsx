@@ -85,21 +85,16 @@ const MENU_MANAJER_DIREKTUR = [
 const MENU_DIREKTUR_ONLY = [
     { label: 'Manajemen User', path: '/admin/users', icon: 'users' },
 ];
-const MENU_KARYAWAN_KASIR = [
-    { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
-];
+const MENU_KARYAWAN_KASIR = [];
 const MENU_KEPALA_SEKSI = [
-    { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
     { label: 'Inventaris', path: '/inventaris', icon: 'inventory' },
 ];
 const MENU_DRIVER = [
-    { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
     { label: 'Driver', path: '/driver', icon: 'driver' },
 ];
 const MENU_IT = [
     { label: 'IT Center', path: '/it', icon: 'it' },
     { label: 'Audit Log', path: '/audit-log', icon: 'audit' },
-    { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
     {
         label: 'Laporan', icon: 'laporan', children: [
             { label: 'Laporan IT', path: '/laporan/it' },
@@ -189,6 +184,7 @@ function orderMenus(items) {
 function getMenuItems(user) {
     const role = user?.role;
     const base = [];
+    const canPC = Boolean(user?.is_superuser || isManajerUp(user) || user?.is_keuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
     if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK])));
     if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
     else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
@@ -199,6 +195,9 @@ function getMenuItems(user) {
     if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
     if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
     if (user?.is_logistik || user?.view_logistik) base.push(...MENU_LOGISTIK);
+    if (canPC && !['manajer', 'wakil_direktur', 'direktur'].includes(role) && !user?.is_superuser) {
+        base.push({ label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' });
+    }
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -424,24 +423,27 @@ const getActiveModuleConfig = (pathname, user) => {
 
     // 5. Petty Cash & Reimbursement
     if (pathname.startsWith('/petty-cash') || pathname.startsWith('/kas-besar') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
-        const canKasBesar = user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isManajerUp(user);
-        const canReimbursement = user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturUp(user);
-        const menus = [
-            { label: 'Petty Cash', path: '/petty-cash' },
-        ];
+        const canPettyCash = Boolean(user?.is_superuser || isManajerUp(user) || user?.is_keuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
+        const canKasBesar = Boolean(user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isManajerUp(user));
+        const canReimbursement = Boolean(user?.is_superuser || user?.akses_reimbursement || user?.is_keuangan || isDirekturUp(user));
+        const canLaporanPC = Boolean(isManajerUp(user) || user?.is_petty_cash_cashier || user?.is_keuangan || user?.view_petty_cash || user?.is_superuser);
+
+        const menus = [];
+        if (canPettyCash) {
+            menus.push({ label: 'Petty Cash', path: '/petty-cash' });
+        }
         if (canKasBesar) {
             menus.push({ label: 'Kas Besar', path: '/kas-besar' });
         }
         if (canReimbursement) {
             menus.push({ label: 'Reimbursement', path: '/reimbursement' });
         }
-        const canLaporanPC = isManajerUp(user) || user?.is_petty_cash_cashier || user?.is_keuangan || user?.view_petty_cash || user?.is_superuser;
         if (canLaporanPC) {
             menus.push({ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' });
         }
         return {
             id: 'petty-cash',
-            title: 'Petty Cash',
+            title: canPettyCash ? 'Petty Cash' : (canKasBesar ? 'Kas Besar' : 'Reimbursement'),
             icon: WalletCards,
             iconColor: '#22c55e',
             menus,

@@ -94,6 +94,8 @@ export default function AppLauncher() {
     const canAkuntansi = user?.is_superuser || user?.is_akuntansi;
     const canKasBesar = user?.is_superuser || user?.akses_kas_besar || user?.view_kas_besar || isDirekturUp;
     const canReimbursement = user?.is_superuser || user?.akses_reimbursement || isKeuangan || isDirekturUp;
+    const canPettyCash = Boolean(user?.is_superuser || isManajerUp || isKeuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
+    const canLaporanPC = Boolean(isManajerUp || user?.is_petty_cash_cashier || isKeuangan || user?.view_petty_cash || user?.is_superuser);
     const isDriverAccess = user?.is_driver || isDirekturUp;
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
@@ -158,20 +160,20 @@ export default function AppLauncher() {
         },
         {
             id: 'petty-cash',
-            name: 'Petty Cash',
-            subtitle: 'Kas Kecil, Kas Besar & Reimbursement',
+            name: canPettyCash ? 'Petty Cash' : (canKasBesar ? 'Kas Besar' : 'Reimbursement'),
+            subtitle: canPettyCash ? 'Kas Kecil, Kas Besar & Reimbursement' : (canKasBesar ? 'Pengajuan & Pencatatan Kas Besar' : 'Pengajuan Reimbursement Operasional'),
             icon: WalletCards,
             color: '#22c55e',
             glowColor: 'rgba(34, 197, 94, 0.45)',
             glassGlow: 'rgba(34, 197, 94, 0.22)',
             glassGlowLight: 'rgba(34, 197, 94, 0.15)',
-            path: '/petty-cash',
-            allowed: true,
+            path: canPettyCash ? '/petty-cash' : (canKasBesar ? '/kas-besar' : '/reimbursement'),
+            allowed: Boolean(canPettyCash || canKasBesar || canReimbursement),
             submenus: [
-                { label: 'Petty Cash', path: '/petty-cash' },
+                ...(canPettyCash ? [{ label: 'Petty Cash', path: '/petty-cash' }] : []),
                 ...(canKasBesar ? [{ label: 'Kas Besar', path: '/kas-besar' }] : []),
                 ...(canReimbursement ? [{ label: 'Reimbursement', path: '/reimbursement' }] : []),
-                ...(isManajerUp ? [{ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' }] : []),
+                ...(canLaporanPC ? [{ label: 'Laporan Petty Cash', path: '/laporan/petty-cash' }] : []),
             ],
         },
         {
