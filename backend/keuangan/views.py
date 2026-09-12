@@ -7957,7 +7957,12 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         st     = self.request.query_params.get('status')
         dari   = self.request.query_params.get('dari')
         sampai = self.request.query_params.get('sampai')
-        if st:     qs = qs.filter(status=st)
+        if st:
+            statuses = [s.strip() for s in st.split(',') if s.strip()]
+            if len(statuses) == 1:
+                qs = qs.filter(status=statuses[0])
+            elif len(statuses) > 1:
+                qs = qs.filter(status__in=statuses)
         if dari:   qs = qs.filter(tanggal__gte=dari)
         if sampai: qs = qs.filter(tanggal__lte=sampai)
         return qs
@@ -8781,7 +8786,12 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         dari   = self.request.query_params.get('dari')
         sampai = self.request.query_params.get('sampai')
         search = self.request.query_params.get('search')
-        if st:     qs = qs.filter(status=st)
+        if st:
+            statuses = [s.strip() for s in st.split(',') if s.strip()]
+            if len(statuses) == 1:
+                qs = qs.filter(status=statuses[0])
+            elif len(statuses) > 1:
+                qs = qs.filter(status__in=statuses)
         if dari:   qs = qs.filter(tanggal__gte=dari)
         if sampai: qs = qs.filter(tanggal__lte=sampai)
         if search:

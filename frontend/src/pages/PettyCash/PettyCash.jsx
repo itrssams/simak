@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToastState } from '../../context/ToastContext';
 import { createPortal } from 'react-dom';
-import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2, FileSpreadsheet, Download, CalendarDays, RotateCcw, Hourglass, Printer } from 'lucide-react';
+import { Clock, Check, Search, BookOpen, X, AlertTriangle, Paperclip, ClipboardList, User, ArrowRight, ArrowRightLeft, AlertCircle, Wallet, Receipt, DollarSign, Plus, History, FileText, Trash2, ZoomIn, ZoomOut, RotateCw, Maximize2, FileSpreadsheet, Download, CalendarDays, RotateCcw, Hourglass, Printer, Filter, ChevronDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
@@ -76,6 +76,132 @@ const PC_STEPS = [
 ];
 const ORDER = ['pending', 'disetujui', 'dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'selesai'];
 
+function StatusMultiSelect({ value = [], onChange, statusCfg = {} }) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+
+    const selected = useMemo(() => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        return [value];
+    }, [value]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        if (open) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [open]);
+
+    const toggleStatus = (statusKey) => {
+        if (selected.includes(statusKey)) {
+            onChange(selected.filter(k => k !== statusKey));
+        } else {
+            onChange([...selected, statusKey]);
+        }
+    };
+
+    const selectAll = () => {
+        onChange(Object.keys(statusCfg));
+    };
+
+    const clearAll = () => {
+        onChange([]);
+    };
+
+    const renderButtonLabel = () => {
+        if (selected.length === 0) {
+            return <span className="pc-ms-placeholder">Semua Status</span>;
+        }
+        if (selected.length === 1) {
+            const item = statusCfg[selected[0]];
+            return (
+                <span className="pc-ms-badge-single" style={{ background: item?.bg, color: item?.color }}>
+                    <span className="pc-ms-dot" style={{ background: item?.dot }} />
+                    {item?.label || selected[0]}
+                </span>
+            );
+        }
+        if (selected.length === Object.keys(statusCfg).length) {
+            return <span className="pc-ms-placeholder">Semua Status ({selected.length})</span>;
+        }
+        return (
+            <span className="pc-ms-badge-multi">
+                <span className="pc-ms-count">{selected.length}</span> Status dipilih
+            </span>
+        );
+    };
+
+    return (
+        <div className="pc-ms-wrap" ref={wrapRef}>
+            <button
+                type="button"
+                className={`pc-ms-trigger ${open ? 'open' : ''} ${selected.length > 0 ? 'has-value' : ''}`}
+                onClick={() => setOpen(prev => !prev)}
+                title="Filter berdasarkan status"
+            >
+                <div className="pc-ms-content">
+                    <Filter size={13} className="pc-ms-icon" />
+                    {renderButtonLabel()}
+                </div>
+                <div className="pc-ms-icons-right">
+                    {selected.length > 0 && (
+                        <span
+                            className="pc-ms-clear-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                clearAll();
+                            }}
+                            title="Hapus filter status"
+                        >
+                            <X size={12} />
+                        </span>
+                    )}
+                    <ChevronDown size={14} className={`pc-ms-chevron ${open ? 'rotate' : ''}`} />
+                </div>
+            </button>
+
+            {open && (
+                <div className="pc-ms-dropdown">
+                    <div className="pc-ms-header">
+                        <span className="pc-ms-title">Filter Status</span>
+                        <div className="pc-ms-actions">
+                            <button type="button" className="pc-ms-action-link" onClick={selectAll}>Pilih Semua</button>
+                            <span className="pc-ms-action-sep">•</span>
+                            <button type="button" className="pc-ms-action-link" onClick={clearAll}>Reset</button>
+                        </div>
+                    </div>
+                    <div className="pc-ms-list">
+                        {Object.entries(statusCfg).map(([key, cfg]) => {
+                            const isChecked = selected.includes(key);
+                            return (
+                                <label key={key} className={`pc-ms-item ${isChecked ? 'selected' : ''}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => toggleStatus(key)}
+                                        className="pc-ms-checkbox"
+                                    />
+                                    <span className="pc-ms-item-dot" style={{ background: cfg.dot || '#94a3b8' }} />
+                                    <span className="pc-ms-item-label">{cfg.label}</span>
+                                    {isChecked && <Check size={14} className="pc-ms-check-icon" />}
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, dariVal, onDari, sampaiVal, onSampai, onReset, hasFilter }) {
     return (
         <div className="pc-filter-bar">
@@ -84,10 +210,7 @@ function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, 
                     <Search size={15} />
                     <input className="pc-filter-input" placeholder="Cari nomor atau keperluan..." value={searchVal} onChange={e => onSearch(e.target.value)} />
                 </div>
-                <select className="pc-filter-select" value={statusVal} onChange={e => onStatus(e.target.value)}>
-                    <option value="">Semua Status</option>
-                    {Object.entries(statusCfg).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                </select>
+                <StatusMultiSelect value={statusVal} onChange={onStatus} statusCfg={statusCfg} />
                 <DateRangePicker
                     dari={dateToStr(dariVal)}
                     sampai={dateToStr(sampaiVal)}
@@ -133,7 +256,7 @@ export default function PettyCash() {
     const [allPC, setAllPC] = useState([]);
     const [loadingPC, setLoadingPC] = useState(true);
     const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
+    const [filterStatus, setFilterStatus] = useState([]);
     const [filterDari, setFilterDari] = useState(null);
     const [filterSampai, setFilterSampai] = useState(null);
     const [page, setPage] = useState(1);
@@ -284,7 +407,7 @@ export default function PettyCash() {
         if (canReimbursement) setLoadingRB(true);
         try {
             const [pcRes, allPcRes, rbRes, saldoRes, penambahanRes] = await Promise.all([
-                api.get('/keuangan/petty-cash/', { params: pageParams(page, pageSizePC, { status: filterStatus || undefined, dari: dateToStr(filterDari), sampai: dateToStr(filterSampai) }) }).catch(e => null),
+                api.get('/keuangan/petty-cash/', { params: pageParams(page, pageSizePC, { status: Array.isArray(filterStatus) ? (filterStatus.length > 0 ? filterStatus.join(',') : undefined) : (filterStatus || undefined), dari: dateToStr(filterDari), sampai: dateToStr(filterSampai) }) }).catch(e => null),
                 api.get('/keuangan/petty-cash/').catch(e => null),
                 canReimbursement
                     ? api.get('/keuangan/reimbursement/', { params: pageParams(pageRB, pageSizeRB, { status: filterStatusRB || undefined, dari: dateToStr(filterDariRB), sampai: dateToStr(filterSampaiRB) }) }).catch(e => null)
@@ -326,7 +449,11 @@ export default function PettyCash() {
 
     // Filtered PC
     const filteredPC = useMemo(() => listPC.filter(i => {
-        if (filterStatus && i.status !== filterStatus) return false;
+        if (Array.isArray(filterStatus) && filterStatus.length > 0) {
+            if (!filterStatus.includes(i.status)) return false;
+        } else if (typeof filterStatus === 'string' && filterStatus) {
+            if (i.status !== filterStatus) return false;
+        }
         if (search) { const q = search.toLowerCase(); if (!i.no_pengajuan?.toLowerCase().includes(q) && !i.keperluan?.toLowerCase().includes(q)) return false; }
         if (filterDari && new Date(i.tanggal) < filterDari) return false;
         if (filterSampai) { const s = new Date(filterSampai); s.setHours(23, 59, 59); if (new Date(i.tanggal) > s) return false; }
@@ -884,7 +1011,7 @@ export default function PettyCash() {
             [],
             ['Tanggal Cetak / Ekspor', new Date().toLocaleString('id-ID')],
             ['Periode Tanggal', `${filterDari ? dateToStr(filterDari) : 'Semua'} s/d ${filterSampai ? dateToStr(filterSampai) : 'Sekarang'}`],
-            ['Filter Status', filterStatus ? (PC_STATUS[filterStatus]?.label || filterStatus) : 'Semua Status'],
+            ['Filter Status', Array.isArray(filterStatus) ? (filterStatus.length > 0 ? filterStatus.map(s => PC_STATUS[s]?.label || s).join(', ') : 'Semua Status') : (filterStatus ? (PC_STATUS[filterStatus]?.label || filterStatus) : 'Semua Status')],
             ['Pencarian', search || '-'],
             [],
         ];
@@ -1122,7 +1249,7 @@ export default function PettyCash() {
                                     className="pc-money-card pc-money-beredar"
                                     style={{ cursor: 'pointer' }}
                                     onClick={() => {
-                                        setFilterStatus('dicairkan');
+                                        setFilterStatus(['dicairkan']);
                                         const tableEl = document.getElementById('pc-table-section');
                                         if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth' });
                                     }}
@@ -1206,8 +1333,8 @@ export default function PettyCash() {
                     </div>
                     <StableFilterBar searchVal={search} onSearch={setSearch} statusVal={filterStatus} onStatus={setFilterStatus}
                         statusCfg={PC_STATUS} dariVal={filterDari} onDari={setFilterDari} sampaiVal={filterSampai} onSampai={setFilterSampai}
-                        hasFilter={!!(search || filterStatus || filterDari || filterSampai)}
-                        onReset={() => { setSearch(''); setFilterStatus(''); setFilterDari(null); setFilterSampai(null); }} />
+                        hasFilter={!!(search || (Array.isArray(filterStatus) ? filterStatus.length > 0 : filterStatus) || filterDari || filterSampai)}
+                        onReset={() => { setSearch(''); setFilterStatus([]); setFilterDari(null); setFilterSampai(null); }} />
 
                     {loadingPC ? <div className="pc-empty-state">Memuat data...</div>
                         : pagedPC.length === 0 ? <div className="pc-empty-state">Tidak ada data.</div>
