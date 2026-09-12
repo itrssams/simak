@@ -137,7 +137,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             glowColor: 'rgba(148, 163, 184, 0.45)',
             glassGlow: 'rgba(148, 163, 184, 0.22)',
             path: '/audit-log',
-            allowed: Boolean(isManajerUp || isIT),
+            allowed: Boolean(user?.is_superuser),
         },
         {
             id: 'manajemen-user',

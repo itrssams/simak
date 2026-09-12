@@ -17,7 +17,7 @@ SENSITIVE_KEYS = {
 def can_view_audit(user):
     if not user or not user.is_authenticated:
         return False
-    return user.is_superuser or user.role in ('direktur', 'wakil_direktur', 'manajer') or getattr(user, 'is_it', False)
+    return bool(user.is_superuser)
 
 
 def get_client_ip(request):

@@ -257,7 +257,7 @@ export default function AppLauncher() {
             glassGlow: 'rgba(148, 163, 184, 0.22)',
             glassGlowLight: 'rgba(148, 163, 184, 0.15)',
             path: '/audit-log',
-            allowed: Boolean(isManajerUp || isIT),
+            allowed: Boolean(user?.is_superuser),
             submenus: [
                 { label: 'Riwayat Aktivitas User', path: '/audit-log' },
             ],

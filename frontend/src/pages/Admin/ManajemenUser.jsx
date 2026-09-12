@@ -1007,7 +1007,7 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                             <tr>
                                                 <td>
                                                     <strong>IT Center</strong>
-                                                    <small>Akses IT Center dan Audit Log sistem</small>
+                                                    <small>Akses modul IT Center dan ticketing</small>
                                                 </td>
                                                 <td colSpan={2} className="mu-perm-single">
                                                     <PermissionToggle checked={form.is_it} onChange={(c) => setForm({ ...form, is_it: c })} />

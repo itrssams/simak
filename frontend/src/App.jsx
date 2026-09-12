@@ -167,7 +167,7 @@ const AppRoutes = () => {
             <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u)}><Logistik /></ProtectedRoute>} />
 
             {/* Lainnya */}
-            <Route path="/audit-log" element={<ProtectedRoute allow={(u) => isManajerUp(u) || isIT(u)}><AuditLog /></ProtectedRoute>} />
+            <Route path="/audit-log" element={<ProtectedRoute allow={isSuperuserOnly}><AuditLog /></ProtectedRoute>} />
             <Route path="/pengumuman" element={<ProtectedRoute allow={isManajerUp}><Pengumuman /></ProtectedRoute>} />
             <Route path="/inventaris" element={FEATURE_INVENTARIS_ENABLED ? <ProtectedRoute allow={isKepalaSeksiUp}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />

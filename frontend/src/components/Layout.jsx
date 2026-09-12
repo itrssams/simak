@@ -68,11 +68,11 @@ const renderIcon = (iconKey, overrideSize) => {
 
 const MENU_SUPERUSER_ONLY = [
     { label: 'Manajemen Sistem', path: '/admin/system-maintenance', icon: 'system' },
+    { label: 'Audit Log', path: '/audit-log', icon: 'audit' },
 ];
 
 const MENU_MANAJER_DIREKTUR = [
     { label: 'Dashboard', path: '/', icon: 'dashboard' },
-    { label: 'Audit Log', path: '/audit-log', icon: 'audit' },
     { label: 'Pengumuman', path: '/pengumuman', icon: 'announcement' },
     { label: 'Inventaris', path: '/inventaris', icon: 'inventory' },
     { label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' },
@@ -94,7 +94,6 @@ const MENU_DRIVER = [
 ];
 const MENU_IT = [
     { label: 'IT Center', path: '/it', icon: 'it' },
-    { label: 'Audit Log', path: '/audit-log', icon: 'audit' },
     {
         label: 'Laporan', icon: 'laporan', children: [
             { label: 'Laporan IT', path: '/laporan/it' },
@@ -502,8 +501,9 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 10. Audit Log (sama persis dengan sidebar sebelumnya)
+    // 10. Audit Log
     if (pathname.startsWith('/audit-log')) {
+        if (!user?.is_superuser) return null;
         return {
             id: 'audit-log',
             title: 'Audit Log',
