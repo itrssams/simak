@@ -2,23 +2,40 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from logbook.models import UraianTugas
 
-DEFAULT_ELOK_JOBDESCS = [
-    "Menyusun Rencana Kerja Anggaran (RKA) tahunan, serta menyelaraskannya dengan seluruh unit",
-    "Memantau dan mengevaluasi kinerja organisasi dan rencana tindak lanjutnya",
-    "Memetakan proses bisnis End-to-End Rumah Sakit, mengidentifikasi efisiensi alur kerja harian, dan merancang perbaikan sistem operasional.",
-    "Merancang, memperbarui, dan mendistribusikan kebijakan, PerDir, Standar Prosedur Operasional (SPO), SK, memo internal, Surat Edaran, formulir, dan informasi terdokumentasi lainnya",
-    "Menyelenggarakan program sosialisasi, edukasi berkelanjutan, aturan terbaru pemerintah, peraturan internal serta nilai-nilai budaya kerja (core values) kepada seluruh karyawan rumah sakit",
-    "Memfasilitasi program pemetaan masalah (problem-solving), mengelola wadah ide inovasi staf, serta mengawal implementasi proyek perbaikan berkelanjutan (Continuous Improvement/Kaizen) di seluruh unit kerja.",
-    "Menyusun dan menegosiasikan Nota Kesepahaman (MoU), Perjanjian Kerja Sama (PKS), berita acara kesepakatan, serta menjalin kemitraan dengan pihak asuransi, Perusahaan swasta, jaringan penunjang, asosiasi kesehatan, dan mitra strategis RS lainnya",
-    "Mengendalikan tata kelola kearsipan dan sistem pendistribusian dokumen kebijakan dan regulasi di seluruh RS.",
-    "Mengelola risiko, merekomendasikan strategi mitigasi dan pengendalian risiko yang bersumber dari internal, perubahan kebijakan kesehatan nasional, ataupun faktor eksternal lainnya.",
-    "Menganalisis data pasar, demografi pasien, peta kompetitor, dan peta potensi kemitraan RS untuk menentukan arah strategi promosi dan menyusun rencana strategi pemasaran",
-    "Mempromosikan layanan kepada pihak eksternal, menyediakan berbagai alat pemasaran, memberikan penawaran paket layanan yang tepat sasaran, dan mengevaluasi efektivitas program promosi",
-    "Mengelola dan menganalisis performa akun media sosial dan website resmi RS untuk meningkatkan brand awareness",
-    "Melakukan studi kelayakan peluang baru atas potensi pengembangan fasilitas dan layanan baru",
-    "Mengelola dan memberikan tanggapan atas keluhan pasien yang diterima melalui media sosial maupun secara langsung, serta berkoordinasi dengan unit terkait untuk penyelesaian masalah.",
-    "Mengoordinasikan pemenuhan dokumen standar Akreditasi RS, kredensialing BPJS, program nasional, ISO, dan standar nasional/internasional lainnya.",
-]
+JOBDESC_REGISTRY = {
+    'elok': [
+        "Menyusun Rencana Kerja Anggaran (RKA) tahunan, serta menyelaraskannya dengan seluruh unit",
+        "Memantau dan mengevaluasi kinerja organisasi dan rencana tindak lanjutnya",
+        "Memetakan proses bisnis End-to-End Rumah Sakit, mengidentifikasi efisiensi alur kerja harian, dan merancang perbaikan sistem operasional.",
+        "Merancang, memperbarui, dan mendistribusikan kebijakan, PerDir, Standar Prosedur Operasional (SPO), SK, memo internal, Surat Edaran, formulir, dan informasi terdokumentasi lainnya",
+        "Menyelenggarakan program sosialisasi, edukasi berkelanjutan, aturan terbaru pemerintah, peraturan internal serta nilai-nilai budaya kerja (core values) kepada seluruh karyawan rumah sakit",
+        "Memfasilitasi program pemetaan masalah (problem-solving), mengelola wadah ide inovasi staf, serta mengawal implementasi proyek perbaikan berkelanjutan (Continuous Improvement/Kaizen) di seluruh unit kerja.",
+        "Menyusun dan menegosiasikan Nota Kesepahaman (MoU), Perjanjian Kerja Sama (PKS), berita acara kesepakatan, serta menjalin kemitraan dengan pihak asuransi, Perusahaan swasta, jaringan penunjang, asosiasi kesehatan, dan mitra strategis RS lainnya",
+        "Mengendalikan tata kelola kearsipan dan sistem pendistribusian dokumen kebijakan dan regulasi di seluruh RS.",
+        "Mengelola risiko, merekomendasikan strategi mitigasi dan pengendalian risiko yang bersumber dari internal, perubahan kebijakan kesehatan nasional, ataupun faktor eksternal lainnya.",
+        "Menganalisis data pasar, demografi pasien, peta kompetitor, dan peta potensi kemitraan RS untuk menentukan arah strategi promosi dan menyusun rencana strategi pemasaran",
+        "Mempromosikan layanan kepada pihak eksternal, menyediakan berbagai alat pemasaran, memberikan penawaran paket layanan yang tepat sasaran, dan mengevaluasi efektivitas program promosi",
+        "Mengelola dan menganalisis performa akun media sosial dan website resmi RS untuk meningkatkan brand awareness",
+        "Melakukan studi kelayakan peluang baru atas potensi pengembangan fasilitas dan layanan baru",
+        "Mengelola dan memberikan tanggapan atas keluhan pasien yang diterima melalui media sosial maupun secara langsung, serta berkoordinasi dengan unit terkait untuk penyelesaian masalah.",
+        "Mengoordinasikan pemenuhan dokumen standar Akreditasi RS, kredensialing BPJS, program nasional, ISO, dan standar nasional/internasional lainnya.",
+    ],
+    'muly': [
+        "Melakukan proses seleksi karyawan, mulai dari penayangan lowongan, penyaringan berkas, penjadwalan wawancara, hingga pengujian calon karyawan baru",
+        "Menyiapkan draft, memfasilitasi penandatanganan, serta mengontrol masa perpanjangan atau penyesuaian status kerja pegawai.",
+        "Melaksanakan orientasi karyawan baru",
+        "Mengelola berkas Kepegawaian, fisik maupun digital",
+        "Mengompilasi kebutuhan pelatihan dari masing-masing unit dan program training/pengembangan",
+        "Membagikan form, memantau batas waktu pengisian penilaian kinerja berkala, serta merekap hasil penilaian kinerja karyawan",
+        "Mengusulkan dan melaksanakan skema penghargaan karyawan",
+        "Mengedarkan dan menganalisis hasil survei kekaryawanan",
+        "Melaksanakan assessment dan memfasilitasi uji kelayakan karyawan",
+        "Menyiapkan data pendukung untuk penggajian (data kehadiran dan potongan) agar perhitungan gaji akurat",
+        "Membantu pengurusan BPJS Kesehatan dan BPJS ketenagakerjaan",
+        "Mengelola proses manajemen talenta dan succession planning di masing-masing fungsi",
+        "Mengoordinasikan jadwal dan pelaksanaan MCU rutin harian/tahunan bagi seluruh karyawan",
+    ],
+}
 
 
 class Command(BaseCommand):
@@ -33,7 +50,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        username = options['username'].strip()
+        username = options['username'].strip().lower()
         User = get_user_model()
         user = User.objects.filter(username__iexact=username).first()
 
@@ -41,9 +58,15 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"User dengan username '{username}' tidak ditemukan di database."))
             return
 
+        jobdescs = JOBDESC_REGISTRY.get(username)
+        if not jobdescs:
+            self.stderr.write(self.style.ERROR(
+                f"Belum ada daftar jobdesc terdaftar untuk username '{username}'. Pilihan yang ada: {', '.join(JOBDESC_REGISTRY.keys())}"
+            ))
+            return
+
         self.stdout.write(self.style.SUCCESS(f"Mengimpor job description untuk: {user.username} ({user.get_full_name() or user.role})"))
 
-        jobdescs = DEFAULT_ELOK_JOBDESCS
         created_count = 0
         existing_count = 0
 
