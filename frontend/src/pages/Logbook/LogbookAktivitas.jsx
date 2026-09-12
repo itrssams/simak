@@ -112,6 +112,11 @@ export default function LogbookAktivitas() {
         return `${menit} menit`;
     }, [formData.jam_mulai, formData.jam_selesai]);
 
+    const selectedUraianTugas = useMemo(() => {
+        if (!formData.uraian_tugas_id || formData.uraian_tugas_id === 'lainnya') return null;
+        return uraianTugasOpts.find(opt => String(opt.id) === String(formData.uraian_tugas_id));
+    }, [formData.uraian_tugas_id, uraianTugasOpts]);
+
     // Detail Modal state
     const [detailItem, setDetailItem] = useState(null);
 
@@ -652,7 +657,8 @@ export default function LogbookAktivitas() {
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="logbook-modal-body">
-                                <div className="logbook-form-grid">
+                                {/* Row 1: Tanggal Aktivitas & Waktu Pengerjaan */}
+                                <div className="logbook-modal-row-3">
                                     <div className="logbook-field-group">
                                         <label>Tanggal Aktivitas <span style={{color: '#ef4444'}}>*</span></label>
                                         <DateField
@@ -661,43 +667,6 @@ export default function LogbookAktivitas() {
                                             placeholder="Pilih Tanggal Aktivitas"
                                         />
                                     </div>
-                                    <div className="logbook-field-group">
-                                        <label>Uraian Tugas <span style={{color: '#ef4444'}}>*</span></label>
-                                        <select
-                                            name="uraian_tugas_id"
-                                            value={formData.uraian_tugas_id}
-                                            onChange={handleFormChange}
-                                            className="logbook-select"
-                                            required
-                                        >
-                                            <option value="">Pilih Uraian Tugas...</option>
-                                            {uraianTugasOpts.map(opt => (
-                                                <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
-                                            ))}
-                                            <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
-                                        </select>
-                                        {uraianTugasOpts.length === 0 && (
-                                            <small style={{ color: '#f59e0b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                                                *Belum ada uraian tugas terdaftar. Anda dapat memilih "Lainnya" atau menambahkannya di tab Beranda.
-                                            </small>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="logbook-field-group logbook-full-width">
-                                        <label>
-                                            Nama Aktivitas {formData.uraian_tugas_id === 'lainnya' ? <span style={{color: '#ef4444'}}>*</span> : <span style={{color: '#64748b', fontSize: '11px', fontWeight: 400}}>(Opsional)</span>}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="nama_aktivitas"
-                                            value={formData.nama_aktivitas}
-                                            onChange={handleFormChange}
-                                            className="logbook-input"
-                                            placeholder={formData.uraian_tugas_id === 'lainnya' ? "Contoh: Rapat koordinasi lintas divisi" : "Contoh: Rekonsiliasi mutasi bank harian (opsional)"}
-                                            required={formData.uraian_tugas_id === 'lainnya'}
-                                        />
-                                    </div>
-
                                     <div className="logbook-field-group">
                                         <label>Jam Mulai <span style={{color: '#ef4444'}}>*</span></label>
                                         <input
@@ -720,19 +689,71 @@ export default function LogbookAktivitas() {
                                             required
                                         />
                                     </div>
+                                </div>
 
-                                    <div className="logbook-field-group logbook-full-width" style={{ marginTop: '-4px', marginBottom: '4px' }}>
-                                        {durationPreview ? (
-                                             <div className="logbook-duration-badge">
-                                                <Clock size={14} /> Total Durasi Terhitung: <strong>{durationPreview}</strong>
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
-                                                *Pilih jam mulai dan jam selesai untuk menghitung durasi aktivitas secara otomatis.
-                                            </div>
-                                        )}
-                                    </div>
+                                {/* Durasi Live Badge */}
+                                <div style={{ marginTop: '-4px', marginBottom: '2px' }}>
+                                    {durationPreview ? (
+                                        <div className="logbook-duration-badge">
+                                            <Clock size={14} /> Total Durasi Terhitung: <strong>{durationPreview}</strong>
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+                                            *Pilih jam mulai dan jam selesai untuk menghitung durasi aktivitas secara otomatis.
+                                        </div>
+                                    )}
+                                </div>
 
+                                {/* Row 2: Uraian Tugas (Full Width) */}
+                                <div className="logbook-field-group">
+                                    <label>Uraian Tugas <span style={{color: '#ef4444'}}>*</span></label>
+                                    <select
+                                        name="uraian_tugas_id"
+                                        value={formData.uraian_tugas_id}
+                                        onChange={handleFormChange}
+                                        className="logbook-select"
+                                        required
+                                    >
+                                        <option value="">Pilih Uraian Tugas...</option>
+                                        {uraianTugasOpts.map(opt => (
+                                            <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
+                                        ))}
+                                        <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
+                                    </select>
+                                    {selectedUraianTugas && (
+                                        <div className="logbook-jobdesc-preview">
+                                            <FileText size={15} className="logbook-jobdesc-preview-icon" />
+                                            <div className="logbook-jobdesc-preview-body">
+                                                <span className="logbook-jobdesc-preview-label">Deskripsi Lengkap Uraian Tugas:</span>
+                                                <p className="logbook-jobdesc-preview-text">{selectedUraianTugas.deskripsi}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {uraianTugasOpts.length === 0 && (
+                                        <small style={{ color: '#f59e0b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                            *Belum ada uraian tugas terdaftar. Anda dapat memilih "Lainnya" atau menambahkannya di tab Beranda.
+                                        </small>
+                                    )}
+                                </div>
+
+                                {/* Row 3: Nama Aktivitas (Full Width) */}
+                                <div className="logbook-field-group">
+                                    <label>
+                                        Nama Aktivitas {formData.uraian_tugas_id === 'lainnya' ? <span style={{color: '#ef4444'}}>*</span> : <span style={{color: '#64748b', fontSize: '11px', fontWeight: 400}}>(Opsional)</span>}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="nama_aktivitas"
+                                        value={formData.nama_aktivitas}
+                                        onChange={handleFormChange}
+                                        className="logbook-input"
+                                        placeholder={formData.uraian_tugas_id === 'lainnya' ? "Contoh: Rapat koordinasi lintas divisi" : "Contoh: Rekonsiliasi mutasi bank harian (opsional)"}
+                                        required={formData.uraian_tugas_id === 'lainnya'}
+                                    />
+                                </div>
+
+                                {/* Row 4: Nilai Output & Satuan Output (2-Kolom) */}
+                                <div className="logbook-form-grid">
                                     <div className="logbook-field-group">
                                         <label>Nilai Output</label>
                                         <input
@@ -756,19 +777,20 @@ export default function LogbookAktivitas() {
                                             placeholder="contoh: lembar, berkas, dokumen"
                                         />
                                     </div>
+                                </div>
 
-                                    <div className="logbook-field-group logbook-full-width">
-                                        <label>Uraian / Deskripsi Lengkap <span style={{color: '#ef4444'}}>*</span></label>
-                                        <textarea
-                                            rows={3}
-                                            name="deskripsi"
-                                            value={formData.deskripsi}
-                                            onChange={handleFormChange}
-                                            className="logbook-textarea"
-                                            placeholder="Jelaskan detail pekerjaan dan hasil yang dicapai..."
-                                            required
-                                        />
-                                    </div>
+                                {/* Row 5: Uraian / Deskripsi Lengkap (Full Width) */}
+                                <div className="logbook-field-group">
+                                    <label>Uraian / Deskripsi Lengkap <span style={{color: '#ef4444'}}>*</span></label>
+                                    <textarea
+                                        rows={3}
+                                        name="deskripsi"
+                                        value={formData.deskripsi}
+                                        onChange={handleFormChange}
+                                        className="logbook-textarea"
+                                        placeholder="Jelaskan detail pekerjaan dan hasil yang dicapai..."
+                                        required
+                                    />
                                 </div>
                             </div>
                             <div className="logbook-modal-footer">

@@ -848,6 +848,10 @@
 }
 
 .logbook-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: 38px;
   padding: 0 12px;
   background: #ffffff;
@@ -857,7 +861,14 @@
   font-size: 13px;
   font-family: inherit;
   outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logbook-select option {
+  max-width: 100%;
 }
 
 [data-theme="dark"] .logbook-select {
@@ -1276,14 +1287,22 @@
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .logbook-modal-row-3 {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.logbook-modal-row-3 > * {
+  min-width: 0;
 }
 
 @media (max-width: 540px) {
@@ -1309,6 +1328,8 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
+  width: 100%;
 }
 
 .logbook-field-group.flex-1 {
@@ -1529,12 +1550,82 @@
 /* ── Form Utils ── */
 .logbook-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.logbook-form-grid > * {
+  min-width: 0;
 }
 
 .logbook-full-width {
   grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Selected Jobdesc Preview Box */
+.logbook-jobdesc-preview {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.logbook-jobdesc-preview-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.logbook-jobdesc-preview-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.logbook-jobdesc-preview-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 3px;
+}
+
+.logbook-jobdesc-preview-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #0c4a6e;
+  overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .logbook-jobdesc-preview {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+[data-theme="dark"] .logbook-jobdesc-preview-icon {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .logbook-jobdesc-preview-label {
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .logbook-jobdesc-preview-text {
+  color: #e0f2fe;
 }
 
 .logbook-date-input {
@@ -1802,6 +1893,7 @@
   font-size: 14px;
   color: #0f172a;
   font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 [data-theme="dark"] .logbook-detail-value {
