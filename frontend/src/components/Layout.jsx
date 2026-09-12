@@ -529,8 +529,6 @@ const getActiveModuleConfig = (pathname, user) => {
             menus.push({ label: 'Verifikasi', path: '/logbook/verifikasi' });
             menus.push({ label: 'Laporan', path: '/logbook/laporan' });
         }
-        
-        menus.push({ label: 'Live Track', path: '/logbook/live-track' });
 
         return {
             id: 'logbook',

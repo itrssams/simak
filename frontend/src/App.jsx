@@ -38,7 +38,6 @@ import LogbookBeranda from './pages/Logbook/LogbookBeranda';
 import LogbookAktivitas from './pages/Logbook/LogbookAktivitas';
 import LogbookVerifikasi from './pages/Logbook/LogbookVerifikasi';
 import LogbookLaporan from './pages/Logbook/LogbookLaporan';
-import LogbookLiveTrack from './pages/Logbook/LogbookLiveTrack';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -140,7 +139,6 @@ const AppRoutes = () => {
             <Route path="/logbook/aktivitas" element={<ProtectedRoute><LogbookAktivitas /></ProtectedRoute>} />
             <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
-            <Route path="/logbook/live-track" element={<ProtectedRoute><LogbookLiveTrack /></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />

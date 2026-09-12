@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
@@ -275,7 +276,7 @@ export default function LogbookVerifikasi() {
             </div>
 
             {/* Modal Konfirmasi Verifikasi (Setuju / Tolak) */}
-            {verifikasiItem && (
+            {verifikasiItem && createPortal(
                 <div className="logbook-modal-overlay" onClick={closeVerifikasiModal}>
                     <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -336,11 +337,12 @@ export default function LogbookVerifikasi() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Detail Modal */}
-            {detailItem && (
+            {detailItem && createPortal(
                 <div className="logbook-modal-overlay" onClick={() => setDetailItem(null)}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -446,7 +448,8 @@ export default function LogbookVerifikasi() {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

@@ -1,15 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, ClipboardList } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+    Plus,
+    Edit2,
+    Trash2,
+    X,
+    ClipboardList,
+    Clock,
+    CheckCircle2,
+    AlertCircle,
+    CalendarCheck,
+    Hourglass,
+    ShieldCheck,
+    ArrowRight,
+    Target,
+    Calendar
+} from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
-import './MyLogbook.css'; // Reusing some base styles
+import './MyLogbook.css';
 
 export default function LogbookBeranda() {
     const toast = useToast();
-    const [uraianTugas, setUraianTugas] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
-    // Modal state
+    const [uraianTugas, setUraianTugas] = useState([]);
+    const [loadingUraian, setLoadingUraian] = useState(false);
+
+    // Dashboard stats
+    const [stats, setStats] = useState({
+        today_date: new Date().toISOString().split('T')[0],
+        today_count: 0,
+        today_minutes: 0,
+        today_durasi_format: '0 mnt',
+        month_count: 0,
+        month_minutes: 0,
+        month_durasi_format: '0 mnt',
+        month_disetujui: 0,
+        month_perlu_verifikasi: 0,
+        month_ditolak: 0,
+        total_uraian_tugas: 0,
+        recent_activities: []
+    });
+    const [loadingStats, setLoadingStats] = useState(true);
+
+    // Modal state Uraian Tugas
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({ deskripsi: '' });
     const [editingItem, setEditingItem] = useState(null);
@@ -19,22 +55,35 @@ export default function LogbookBeranda() {
     const [deleteItem, setDeleteItem] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
-    useEffect(() => {
-        fetchUraianTugas();
+    const fetchStats = useCallback(async () => {
+        setLoadingStats(true);
+        try {
+            const res = await api.get('/logbook/dashboard-stats/');
+            setStats(res.data);
+        } catch (err) {
+            console.error('Error loading dashboard stats:', err);
+        } finally {
+            setLoadingStats(false);
+        }
     }, []);
 
-    const fetchUraianTugas = async () => {
-        setLoading(true);
+    const fetchUraianTugas = useCallback(async () => {
+        setLoadingUraian(true);
         try {
             const res = await api.get('/logbook/uraian-tugas/');
             setUraianTugas(Array.isArray(res.data) ? res.data : (res.data?.results || []));
         } catch (err) {
-            console.error(err);
+            console.error('Error loading job descriptions:', err);
             toast.error('Gagal memuat data uraian tugas.');
         } finally {
-            setLoading(false);
+            setLoadingUraian(false);
         }
-    };
+    }, [toast]);
+
+    useEffect(() => {
+        fetchStats();
+        fetchUraianTugas();
+    }, [fetchStats, fetchUraianTugas]);
 
     const openModal = (item = null) => {
         if (item) {
@@ -71,6 +120,7 @@ export default function LogbookBeranda() {
             }
             closeModal();
             fetchUraianTugas();
+            fetchStats();
         } catch (err) {
             console.error(err);
             toast.error(err.response?.data?.deskripsi?.[0] || 'Gagal menyimpan uraian tugas');
@@ -90,6 +140,7 @@ export default function LogbookBeranda() {
             toast.success('Uraian tugas berhasil dihapus');
             closeDeleteConfirm();
             fetchUraianTugas();
+            fetchStats();
         } catch (err) {
             console.error(err);
             toast.error('Gagal menghapus uraian tugas');
@@ -98,95 +149,303 @@ export default function LogbookBeranda() {
         }
     };
 
-    // Filter out inactive items just in case, though backend should handle it or we can display them with a badge
-    const activeUraianTugas = uraianTugas.filter(item => item.is_active);
+    const activeUraianTugas = useMemo(() => {
+        return uraianTugas.filter(item => item.is_active);
+    }, [uraianTugas]);
 
     return (
         <div className="logbook-page">
-            <div className="logbook-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            {/* ════════════════ HERO HEADER ════════════════ */}
+            <div className="logbook-hero">
                 <div className="logbook-title">
-                    <span><ClipboardList size={22} /></span>
+                    <span><ClipboardList size={24} /></span>
                     <div>
-                        <h1>Beranda & Uraian Tugas</h1>
-                        <p>Kelola daftar uraian tugas / job description harian Anda sebagai acuan logbook.</p>
+                        <h1>Beranda Logbook</h1>
+                        <p>Ringkasan aktivitas kerja harian, status verifikasi, dan manajemen uraian tugas pokok</p>
                     </div>
                 </div>
-                <button className="logbook-btn-primary" onClick={() => openModal()}>
-                    <Plus size={16} /> Tambah Uraian Tugas
-                </button>
             </div>
 
-            <div className="logbook-card">
-                <div className="logbook-card-head">
-                    <div className="logbook-card-title">
-                        <h2>Daftar Uraian Tugas Aktif</h2>
-                        <p>Total {activeUraianTugas.length} uraian tugas terdaftar</p>
+            {/* ════════════════ STATS CARDS ════════════════ */}
+            <div className="logbook-stats-grid">
+                {/* Card Utama (Featured): Status Verifikasi Bulan Ini */}
+                <div className="logbook-stat-card featured">
+                    <div className="logbook-stat-top">
+                        <span className="logbook-stat-title">
+                            <ShieldCheck size={16} className="logbook-stat-icon-inline" />
+                            Status Verifikasi Bulan Ini
+                        </span>
+                        <span className="logbook-stat-badge-context">Approval</span>
                     </div>
-                </div>
-                <div className="logbook-table-wrap">
-                    {loading ? (
-                        <div className="logbook-loading-box">
-                            <p>Memuat data...</p>
-                        </div>
-                    ) : activeUraianTugas.length === 0 ? (
-                        <div className="logbook-empty-box">
-                            <div className="logbook-empty-icon-wrap">
-                                <ClipboardList size={32} />
+                    <div className="logbook-stat-featured-body">
+                        <div className="logbook-stat-main-metric">
+                            <div className="logbook-stat-value">
+                                {loadingStats ? '...' : `${stats.month_count} Total`}
                             </div>
-                            <h3>Belum Ada Uraian Tugas</h3>
-                            <p>Anda belum mendaftarkan satupun uraian tugas. Klik tombol Tambah Uraian Tugas untuk mulai mendaftarkan job description Anda.</p>
-                            <button className="logbook-btn-primary" onClick={() => openModal()} style={{ marginTop: '12px' }}>
-                                <Plus size={16} /> Tambah Uraian Tugas
-                            </button>
                         </div>
-                    ) : (
-                        <table className="logbook-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '60px', textAlign: 'center' }}>No</th>
-                                    <th>Uraian Tugas / Job Description</th>
-                                    <th style={{ width: '120px', textAlign: 'center' }}>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {activeUraianTugas.map((item, idx) => (
-                                    <tr key={item.id}>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <span className="logbook-row-idx">{idx + 1}</span>
-                                        </td>
-                                        <td>
-                                            <span style={{ fontWeight: 500 }}>{item.deskripsi}</span>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                <button 
-                                                    className="logbook-btn-icon logbook-text-blue" 
-                                                    onClick={() => openModal(item)}
-                                                    title="Edit Uraian Tugas"
-                                                >
-                                                    <Edit2 size={15} />
-                                                </button>
-                                                <button 
-                                                    className="logbook-btn-icon logbook-text-red" 
-                                                    onClick={() => confirmDelete(item)}
-                                                    title="Hapus Uraian Tugas"
-                                                >
-                                                    <Trash2 size={15} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
+                        <div className="logbook-stat-pills">
+                            <span className="logbook-stat-pill success" title="Disetujui oleh atasan">
+                                <CheckCircle2 size={12} /> {stats.month_disetujui} Disetujui
+                            </span>
+                            <span className="logbook-stat-pill warning" title="Menunggu verifikasi atasan">
+                                <Clock size={12} /> {stats.month_perlu_verifikasi} Menunggu
+                            </span>
+                            {stats.month_ditolak > 0 && (
+                                <span className="logbook-stat-pill danger" title="Perlu perbaikan / ditolak">
+                                    <AlertCircle size={12} /> {stats.month_ditolak} Ditolak
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card 2: Aktivitas Hari Ini */}
+                <div className="logbook-stat-card">
+                    <div className="logbook-stat-top">
+                        <span className="logbook-stat-title">
+                            <CalendarCheck size={16} className="logbook-stat-icon-inline" />
+                            Aktivitas Hari Ini
+                        </span>
+                    </div>
+                    <div className="logbook-stat-body">
+                        <div className="logbook-stat-value">
+                            {loadingStats ? '...' : `${stats.today_count} Aktivitas`}
+                        </div>
+                        <p className="logbook-stat-subtext">
+                            <Clock size={13} style={{ opacity: 0.8 }} />
+                            <span>Durasi kerja: <strong>{loadingStats ? '...' : stats.today_durasi_format}</strong></span>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Card 3: Jam Kerja Bulan Ini */}
+                <div className="logbook-stat-card">
+                    <div className="logbook-stat-top">
+                        <span className="logbook-stat-title">
+                            <Hourglass size={16} className="logbook-stat-icon-inline" />
+                            Jam Kerja Bulan Ini
+                        </span>
+                    </div>
+                    <div className="logbook-stat-body">
+                        <div className="logbook-stat-value">
+                            {loadingStats ? '...' : stats.month_durasi_format}
+                        </div>
+                        <p className="logbook-stat-subtext">
+                            <span>Akumulasi dari <strong>{loadingStats ? '...' : stats.month_count}</strong> logbook</span>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Card 4: Uraian Tugas Terdaftar */}
+                <div className="logbook-stat-card">
+                    <div className="logbook-stat-top">
+                        <span className="logbook-stat-title">
+                            <ClipboardList size={16} className="logbook-stat-icon-inline" />
+                            Uraian Tugas Pokok
+                        </span>
+                    </div>
+                    <div className="logbook-stat-body">
+                        <div className="logbook-stat-value">
+                            {loadingUraian ? '...' : `${activeUraianTugas.length} Job Desc`}
+                        </div>
+                        <p className="logbook-stat-subtext">
+                            <span>Tugas pokok acuan kinerja aktif</span>
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Modal Form */}
-            {isModalOpen && (
+            {/* ════════════════ 2-COLUMN MAIN CONTENT ════════════════ */}
+            <div className="logbook-dashboard-content">
+                {/* ── SISI KIRI: AKTIVITAS TERKINI ── */}
+                <div className="logbook-card">
+                    <div className="logbook-card-head">
+                        <div className="logbook-card-title">
+                            <h2>Aktivitas Terkini</h2>
+                            <p>Catatan logbook terbaru Anda</p>
+                        </div>
+                        <button
+                            className="logbook-btn-view-act"
+                            onClick={() => navigate('/logbook/aktivitas')}
+                            title="Buka halaman seluruh riwayat aktivitas"
+                        >
+                            <span>Lihat Semua</span>
+                            <ArrowRight size={14} />
+                        </button>
+                    </div>
+
+                    <div className="logbook-card-body">
+                        {loadingStats ? (
+                            <div className="logbook-loading-box">
+                                <p>Memuat aktivitas...</p>
+                            </div>
+                        ) : !stats.recent_activities || stats.recent_activities.length === 0 ? (
+                            <div className="logbook-empty-box" style={{ padding: '36px 20px' }}>
+                                <div className="logbook-empty-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+                                    <CalendarCheck size={30} />
+                                </div>
+                                <h3>Belum Ada Aktivitas Tercatat</h3>
+                                <p>Mulai hari kerja Anda dengan mencatat pekerjaan yang dilakukan agar terpantau dengan baik.</p>
+                                <button
+                                    className="logbook-btn-primary"
+                                    onClick={() => navigate('/logbook/aktivitas?action=new')}
+                                    style={{ marginTop: '14px' }}
+                                >
+                                    <Plus size={15} /> Catat Aktivitas Sekarang
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="logbook-feed-list">
+                                {stats.recent_activities.map((act) => {
+                                    const statusClass = `status-${act.status || 'perlu_verifikasi'}`;
+                                    return (
+                                        <div key={act.id} className={`logbook-feed-item ${statusClass}`}>
+                                            <div className="logbook-feed-top">
+                                                <div className="logbook-feed-time">
+                                                    <Clock size={13} />
+                                                    <span>
+                                                        {act.jam_mulai ? act.jam_mulai.substring(0, 5) : '-'} - {act.jam_selesai ? act.jam_selesai.substring(0, 5) : '-'}
+                                                    </span>
+                                                    {act.durasi_format && act.durasi_format !== '0 mnt' && (
+                                                        <span style={{ opacity: 0.8, fontWeight: 600 }}>
+                                                            ({act.durasi_format})
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Status Pill */}
+                                                <div>
+                                                    {act.status === 'disetujui' && (
+                                                        <span className="status-badge status-badge-green" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                                                            <CheckCircle2 size={12} /> Disetujui
+                                                        </span>
+                                                    )}
+                                                    {act.status === 'ditolak' && (
+                                                        <span className="status-badge status-badge-red" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                                                            <AlertCircle size={12} /> Ditolak
+                                                        </span>
+                                                    )}
+                                                    {act.status !== 'disetujui' && act.status !== 'ditolak' && (
+                                                        <span className="status-badge status-badge-yellow" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                                                            <Clock size={12} /> Menunggu Verifikasi
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <h4 className="logbook-feed-title">
+                                                {act.nama_aktivitas || act.deskripsi || '-'}
+                                            </h4>
+
+                                            {act.nama_aktivitas && act.deskripsi && act.deskripsi !== act.nama_aktivitas && (
+                                                <p className="logbook-feed-desc">
+                                                    {act.deskripsi}
+                                                </p>
+                                            )}
+
+                                            <div className="logbook-feed-meta">
+                                                <span className="logbook-jobdesc-tag" title={act.tanggal}>
+                                                    <Calendar size={12} style={{ opacity: 0.7 }} />
+                                                    <span>{act.tanggal}</span>
+                                                </span>
+                                                {act.uraian_tugas_text && (
+                                                    <span className="logbook-jobdesc-tag" title={act.uraian_tugas_text}>
+                                                        <ClipboardList size={12} style={{ opacity: 0.7 }} />
+                                                        <span>{act.uraian_tugas_text}</span>
+                                                    </span>
+                                                )}
+                                                {Number(act.nilai_output) > 0 && (
+                                                    <span className="logbook-output-tag">
+                                                        <Target size={12} style={{ opacity: 0.8 }} />
+                                                        <span>Output: {act.nilai_output} {act.satuan_output || ''}</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── SISI KANAN: DAFTAR URAIAN TUGAS (JOB DESC) ── */}
+                <div className="logbook-card">
+                    <div className="logbook-card-head">
+                        <div className="logbook-card-title">
+                            <h2>Uraian Tugas Pokok</h2>
+                            <p>{activeUraianTugas.length} job desc terdaftar</p>
+                        </div>
+                        <button
+                            className="logbook-btn-primary"
+                            onClick={() => openModal()}
+                            style={{ padding: '6px 14px', fontSize: '12.5px' }}
+                            title="Tambah uraian tugas baru"
+                        >
+                            <Plus size={14} /> Tambah
+                        </button>
+                    </div>
+
+                    <div className="logbook-card-body">
+                        {loadingUraian ? (
+                            <div className="logbook-loading-box">
+                                <p>Memuat uraian tugas...</p>
+                            </div>
+                        ) : activeUraianTugas.length === 0 ? (
+                            <div className="logbook-empty-box" style={{ padding: '36px 20px' }}>
+                                <div className="logbook-empty-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706' }}>
+                                    <ClipboardList size={30} />
+                                </div>
+                                <h3>Belum Ada Uraian Tugas</h3>
+                                <p>Daftarkan uraian tugas / job description harian Anda sebagai acuan pencatatan logbook.</p>
+                                <button
+                                    className="logbook-btn-primary"
+                                    onClick={() => openModal()}
+                                    style={{ marginTop: '14px' }}
+                                >
+                                    <Plus size={15} /> Tambah Uraian Tugas
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="logbook-jobdesc-list">
+                                {activeUraianTugas.map((item, idx) => (
+                                    <div key={item.id} className="logbook-jobdesc-card">
+                                        <div className="logbook-jobdesc-num">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="logbook-jobdesc-content">
+                                            <p className="logbook-jobdesc-text">
+                                                {item.deskripsi}
+                                            </p>
+                                        </div>
+                                        <div className="logbook-jobdesc-actions">
+                                            <button
+                                                className="logbook-btn-icon logbook-text-blue"
+                                                onClick={() => openModal(item)}
+                                                title="Edit Uraian Tugas"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button
+                                                className="logbook-btn-icon logbook-text-red"
+                                                onClick={() => confirmDelete(item)}
+                                                title="Hapus Uraian Tugas"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ════════════════ MODAL FORM URAIAN TUGAS ════════════════ */}
+            {isModalOpen && createPortal(
                 <div className="logbook-modal-overlay" onClick={closeModal}>
-                    <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
+                    <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
                             <h3>{editingItem ? 'Edit Uraian Tugas' : 'Tambah Uraian Tugas'}</h3>
                             <button className="logbook-modal-close-btn" onClick={closeModal}>
@@ -196,15 +455,19 @@ export default function LogbookBeranda() {
                         <form onSubmit={handleSubmit}>
                             <div className="logbook-modal-body">
                                 <div className="logbook-field-group">
-                                    <label>Deskripsi Uraian Tugas <span style={{color: '#ef4444'}}>*</span></label>
+                                    <label>Deskripsi Uraian Tugas / Job Description <span style={{ color: '#ef4444' }}>*</span></label>
                                     <textarea
                                         rows={4}
                                         value={formData.deskripsi}
                                         onChange={(e) => setFormData({ deskripsi: e.target.value })}
                                         className="logbook-textarea"
-                                        placeholder="Contoh: Menyusun laporan keuangan bulanan"
+                                        placeholder="Tuliskan tugas pokok pekerjaan Anda, contoh: Menyusun rekonsiliasi kas dan pelaporan harian..."
+                                        autoFocus
                                         required
                                     />
+                                    <small style={{ color: '#64748b', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                                        Uraian ini akan muncul sebagai opsi pilihan saat Anda mencatat logbook harian.
+                                    </small>
                                 </div>
                             </div>
                             <div className="logbook-modal-footer">
@@ -212,16 +475,17 @@ export default function LogbookBeranda() {
                                     Batal
                                 </button>
                                 <button type="submit" className="logbook-btn-primary" disabled={submitting}>
-                                    {submitting ? 'Menyimpan...' : 'Simpan'}
+                                    {submitting ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Tambah Tugas')}
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Delete Confirmation */}
-            {deleteItem && (
+            {/* ════════════════ MODAL DELETE CONFIRMATION ════════════════ */}
+            {deleteItem && createPortal(
                 <div className="logbook-modal-overlay" onClick={closeDeleteConfirm}>
                     <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -231,7 +495,7 @@ export default function LogbookBeranda() {
                             </button>
                         </div>
                         <div className="logbook-delete-body">
-                            <p>Apakah Anda yakin ingin menghapus uraian tugas ini?</p>
+                            <p>Apakah Anda yakin ingin menghapus uraian tugas ini dari daftar aktif?</p>
                             <div className="logbook-delete-item-preview">
                                 <small>Deskripsi Tugas:</small>
                                 <div>"{deleteItem.deskripsi}"</div>
@@ -246,7 +510,8 @@ export default function LogbookBeranda() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

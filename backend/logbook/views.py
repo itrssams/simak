@@ -57,7 +57,7 @@ class LogbookViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Logbook.objects.select_related('user', 'user__unit')
+        qs = Logbook.objects.select_related('user', 'user__unit', 'uraian_tugas', 'verified_by')
         monitoring_level = get_monitoring_level(user)
 
         # Filter akses data
@@ -162,6 +162,10 @@ class LogbookViewSet(viewsets.ModelViewSet):
             statuses = status_param.split(',')
             qs = qs.filter(status__in=statuses)
 
+        tanggal = request.query_params.get('tanggal')
+        if tanggal:
+            qs = qs.filter(tanggal=tanggal)
+
         start_date = request.query_params.get('start_date')
         if start_date:
             qs = qs.filter(tanggal__gte=start_date)
@@ -212,6 +216,52 @@ class LogbookViewSet(viewsets.ModelViewSet):
         instance.save()
 
         return Response(LogbookSerializer(instance).data)
+
+    @action(detail=False, methods=['get'], url_path='dashboard-stats')
+    def dashboard_stats(self, request):
+        """Statistik beranda logbook untuk pengguna yang login"""
+        user = request.user
+        today = timezone.localdate()
+        first_day_of_month = today.replace(day=1)
+
+        user_qs = Logbook.objects.filter(user=user)
+        today_qs = user_qs.filter(tanggal=today).order_by('-jam_mulai', '-created_at')
+        month_qs = user_qs.filter(tanggal__gte=first_day_of_month, tanggal__lte=today)
+
+        total_menit_today = sum(item.durasi_menit for item in today_qs)
+        jam_today = total_menit_today // 60
+        sisa_menit_today = total_menit_today % 60
+        durasi_today_str = f"{jam_today} jam {sisa_menit_today} mnt" if (jam_today > 0 and sisa_menit_today > 0) else (f"{jam_today} jam" if jam_today > 0 else f"{sisa_menit_today} mnt")
+
+        total_menit_month = sum(item.durasi_menit for item in month_qs)
+        jam_month = total_menit_month // 60
+        sisa_menit_month = total_menit_month % 60
+        durasi_month_str = f"{jam_month} jam {sisa_menit_month} mnt" if (jam_month > 0 and sisa_menit_month > 0) else (f"{jam_month} jam" if jam_month > 0 else f"{sisa_menit_month} mnt")
+
+        total_uraian = UraianTugas.objects.filter(user=user, is_active=True).count()
+
+        recent_activities = list(today_qs[:5])
+        if len(recent_activities) < 5:
+            exclude_ids = [a.id for a in recent_activities]
+            additional = list(user_qs.exclude(id__in=exclude_ids).order_by('-tanggal', '-jam_mulai', '-created_at')[:(5 - len(recent_activities))])
+            recent_activities.extend(additional)
+
+        serializer = LogbookSerializer(recent_activities, many=True)
+
+        return Response({
+            'today_date': today.strftime('%Y-%m-%d'),
+            'today_count': today_qs.count(),
+            'today_minutes': total_menit_today,
+            'today_durasi_format': durasi_today_str if total_menit_today > 0 else '0 mnt',
+            'month_count': month_qs.count(),
+            'month_minutes': total_menit_month,
+            'month_durasi_format': durasi_month_str if total_menit_month > 0 else '0 mnt',
+            'month_disetujui': month_qs.filter(status='disetujui').count(),
+            'month_perlu_verifikasi': month_qs.filter(status='perlu_verifikasi').count(),
+            'month_ditolak': month_qs.filter(status='ditolak').count(),
+            'total_uraian_tugas': total_uraian,
+            'recent_activities': serializer.data,
+        })
 
     @action(detail=False, methods=['get'])
     def monitoring_summary(self, request):

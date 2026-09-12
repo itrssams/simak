@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     Play, 
     Pause, 
@@ -350,7 +351,7 @@ export default function TaskLogbook() {
             </div>
 
             {/* ── Modal Create Task ── */}
-            {isModalOpen && (
+            {isModalOpen && createPortal(
                 <div className="logbook-modal-overlay" onClick={() => setIsModalOpen(false)}>
                     <div className="logbook-modal-card" onClick={e => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -404,7 +405,8 @@ export default function TaskLogbook() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

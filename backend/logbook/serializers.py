@@ -120,35 +120,6 @@ class LogbookInputSerializer(serializers.ModelSerializer):
         if jam_mulai and jam_selesai:
             if jam_mulai == jam_selesai:
                 raise serializers.ValidationError({'jam_selesai': 'Jam selesai tidak boleh sama persis dengan jam mulai.'})
-                
-            # Cek overlap jam
-            if 'request' in self.context:
-                user = self.context['request'].user
-                existing = Logbook.objects.filter(user=user, tanggal=tanggal)
-                if self.instance:
-                    existing = existing.exclude(pk=self.instance.pk)
-                
-                # Convert to absolute minutes for overlap check
-                def to_mins(t):
-                    return t.hour * 60 + t.minute
-                    
-                new_start = to_mins(jam_mulai)
-                new_end = to_mins(jam_selesai)
-                if new_end < new_start:
-                    new_end += 24 * 60  # Lintas tengah malam
-                    
-                for entry in existing:
-                    e_start = to_mins(entry.jam_mulai)
-                    e_end = to_mins(entry.jam_selesai)
-                    if e_end < e_start:
-                        e_end += 24 * 60
-                        
-                    # Overlap condition: max(start1, start2) < min(end1, end2)
-                    if max(new_start, e_start) < min(new_end, e_end):
-                        raise serializers.ValidationError({
-                            'jam_mulai': f'Jam tumpang tindih dengan "{entry.deskripsi}" '
-                                         f'({entry.jam_mulai.strftime("%H:%M")} - {entry.jam_selesai.strftime("%H:%M")})'
-                        })
 
         return data
 

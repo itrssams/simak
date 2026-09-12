@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
     ClipboardList,
@@ -773,7 +774,7 @@ export default function MyLogbook() {
             {/* ══════════════════════════════════════════════════════════════════ */}
             {/* MODAL: DETAIL AKTIVITAS PEGAWAI (DIREKSI VIEW)                      */}
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {selectedUserDetail && (
+            {selectedUserDetail && createPortal(
                 <div className="logbook-modal-overlay" onClick={() => setSelectedUserDetail(null)}>
                     <div className="logbook-modal-card lg" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -830,13 +831,14 @@ export default function MyLogbook() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ══════════════════════════════════════════════════════════════════ */}
             {/* MODAL 1: TAMBAH / EDIT LOGBOOK                                      */}
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {isModalOpen && (
+            {isModalOpen && createPortal(
                 <div className="logbook-modal-overlay" onClick={closeModal}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -929,13 +931,14 @@ export default function MyLogbook() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ══════════════════════════════════════════════════════════════════ */}
             {/* MODAL 2: KONFIRMASI HAPUS                                          */}
             {/* ══════════════════════════════════════════════════════════════════ */}
-            {deleteItem && (
+            {deleteItem && createPortal(
                 <div className="logbook-modal-overlay" onClick={closeDeleteConfirm}>
                     <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
@@ -974,7 +977,8 @@ export default function MyLogbook() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
