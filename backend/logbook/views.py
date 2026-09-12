@@ -123,6 +123,10 @@ class LogbookViewSet(viewsets.ModelViewSet):
         if instance.user != self.request.user and not self.request.user.is_superuser:
             raise PermissionDenied('Anda hanya dapat mengedit logbook milik Anda sendiri.')
             
+        # Aktivitas yang sudah diverifikasi (disetujui/ditolak) terkunci permanen
+        if instance.status != 'perlu_verifikasi' and not self.request.user.is_superuser:
+            raise PermissionDenied(f'Aktivitas dengan status "{instance.get_status_display()}" terkunci dan tidak dapat diubah.')
+
         # Kunci retroaktif
         if not self.request.user.is_superuser:
             selisih = (timezone.localdate() - instance.tanggal).days
@@ -134,6 +138,10 @@ class LogbookViewSet(viewsets.ModelViewSet):
         if instance.user != self.request.user and not self.request.user.is_superuser:
             raise PermissionDenied('Anda hanya dapat menghapus logbook milik Anda sendiri.')
             
+        # Aktivitas yang sudah diverifikasi (disetujui/ditolak) terkunci permanen
+        if instance.status != 'perlu_verifikasi' and not self.request.user.is_superuser:
+            raise PermissionDenied(f'Aktivitas dengan status "{instance.get_status_display()}" terkunci dan tidak dapat dihapus.')
+
         if not self.request.user.is_superuser:
             selisih = (timezone.localdate() - instance.tanggal).days
             if selisih > 3:

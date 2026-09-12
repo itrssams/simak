@@ -523,7 +523,7 @@ export default function LogbookAktivitas() {
                                 {aktivitas.map((item, idx) => {
                                     const isOwnActivity = item.user_id === user?.id;
                                     const canVerify = isAtasan && !isOwnActivity && item.status === 'perlu_verifikasi';
-                                    const canEditDelete = isOwnActivity && (item.status === 'perlu_verifikasi' || item.status === 'ditolak');
+                                    const canEditDelete = isOwnActivity && item.status === 'perlu_verifikasi';
 
                                     return (
                                         <tr key={item.id}>
