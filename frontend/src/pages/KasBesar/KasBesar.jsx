@@ -1594,18 +1594,18 @@ export default function KasBesar() {
                             subtitle="Review realisasi dana sebelum proses kas besar bisa dilanjutkan."
                         />
                         {modalApprovalLaporan.laporan && (
-                            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #e2e8f0' }}>
+                            <div className="pc-approval-review-card">
+                                <div className="pc-review-header">
                                     <div>
-                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0 }}>{modalApprovalLaporan.no_pengajuan}</p>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                        <p className="pc-review-id">{modalApprovalLaporan.no_pengajuan}</p>
+                                        <div className="pc-review-user">
                                             <User size={13} style={{ color: '#10b981' }} />
-                                            <span>Diajukan Oleh: <strong style={{ color: '#1e293b' }}>{modalApprovalLaporan.created_by_name || '-'}</strong></span>
+                                            <span>Diajukan Oleh: <strong>{modalApprovalLaporan.created_by_name || '-'}</strong></span>
                                         </div>
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalApprovalLaporan.tanggal)}</span>
+                                    <span className="pc-review-date">{fmtTgl(modalApprovalLaporan.tanggal)}</span>
                                 </div>
-                                <div style={{ fontSize: 13, color: '#334155', marginBottom: 12, lineHeight: 1.45 }}>
+                                <div className="pc-review-desc">
                                     <div><strong>Keperluan:</strong> {modalApprovalLaporan.keperluan}</div>
                                     {modalApprovalLaporan.keterangan && (
                                         <div className="pc-popup-keterangan" style={{ marginTop: 6 }}>
@@ -1613,37 +1613,37 @@ export default function KasBesar() {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Tgl Laporan</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
-                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Tgl Nota / Belanja</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_nota || modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
+                                <div className="pc-review-grid">
+                                    <div><p className="pc-review-label">Tgl Laporan</p><p className="pc-review-value">{fmtTgl(modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
+                                    <div><p className="pc-review-label">Tgl Nota / Belanja</p><p className="pc-review-value">{fmtTgl(modalApprovalLaporan.laporan.tanggal_nota || modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>
-                                    <div><p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Dana Digunakan (Riil)</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
+                                <div className="pc-review-grid">
+                                    <div><p className="pc-review-label">Dana Dicairkan</p><p className="pc-review-value large">{fmt(modalApprovalLaporan.nominal)}</p></div>
+                                    <div><p className="pc-review-label">Dana Digunakan (Riil)</p><p className="pc-review-value large">{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
                                 </div>
                                 {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, background: '#f0fdf4', padding: '8px 12px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Subtotal Belanja</p><p style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
-                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Potongan Diskon</p><p style={{ fontSize: 14, fontWeight: 700, color: '#15803d' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
+                                    <div className="pc-review-diskon-box">
+                                        <div><p className="diskon-label">Subtotal Belanja</p><p className="diskon-val">{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
+                                        <div><p className="diskon-label">Potongan Diskon</p><p className="diskon-val">- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
                                     </div>
                                 )}
                                 {(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) < 0 ? (
-                                     <div style={{ padding: '12px 14px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe', marginBottom: 12 }}>
-                                         <p style={{ fontSize: 12, color: '#1e40af', fontWeight: 600, marginBottom: 2 }}>Kekurangan Dana (Over-Budget)</p>
-                                         <p style={{ fontSize: 20, fontWeight: 800, color: '#2563eb', margin: 0 }}>{fmt(Math.abs(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan))}</p>
-                                         <p style={{ fontSize: 12, color: '#1d4ed8', margin: '4px 0 0', lineHeight: 1.4 }}>
+                                     <div className="pc-review-shortage-box">
+                                         <p className="shortage-label">Kekurangan Dana (Over-Budget)</p>
+                                         <p className="shortage-val">{fmt(Math.abs(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan))}</p>
+                                         <p className="shortage-note">
                                              ℹ️ Menyetujui laporan ini akan <strong>otomatis menerbitkan Reimbursement</strong> senilai kekurangan dana dan dicatatkan di Catatan Utang ("Menunggu Verifikasi").
                                          </p>
                                      </div>
                                  ) : (
-                                     <div style={{ padding: '10px 14px', background: (modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) > 0 ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: `1px solid ${(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) > 0 ? '#86efac' : '#f1f5f9'}`, marginBottom: 12 }}>
-                                         <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Selisih / Kembalian ke Kasir</p>
-                                         <p style={{ fontSize: 20, fontWeight: 700, color: (modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) > 0 ? '#166534' : '#475569' }}>{fmt(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan)}</p>
+                                     <div className={`pc-review-selisih-box${(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) > 0 ? '' : ' zero'}`}>
+                                         <p className="pc-review-selisih-label">Selisih / Kembalian ke Kasir</p>
+                                         <p className={`pc-review-selisih-val${(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan) > 0 ? '' : ' zero'}`}>{fmt(modalApprovalLaporan.nominal - modalApprovalLaporan.laporan.nominal_digunakan)}</p>
                                      </div>
                                  )}
                                 {modalApprovalLaporan.laporan.items && modalApprovalLaporan.laporan.items.length > 0 ? (
                                     <div style={{ marginBottom: 14 }}>
-                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                                             Rincian Akun Biaya Pengeluaran:
                                         </p>
                                         <div className="pc-items-table-wrapper">
@@ -1661,30 +1661,30 @@ export default function KasBesar() {
                                                         <tr key={it.id || idx}>
                                                             <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
                                                             <td>
-                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
-                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                                <div className="pc-item-row-title">{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div className="pc-item-row-pos">{it.pos_biaya}</div>}
                                                             </td>
-                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                            <td className="pc-item-row-desc">{it.deskripsi}</td>
+                                                            <td className="pc-item-row-val">{fmt(it.nilai)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
                                                     {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
                                                         <>
-                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
+                                                            <tr className="pc-items-tfoot-subtotal">
+                                                                <td colSpan={3} className="label">Subtotal Belanja</td>
+                                                                <td className="val">{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
                                                             </tr>
-                                                            <tr style={{ background: '#f8fafc' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
+                                                            <tr className="pc-items-tfoot-diskon">
+                                                                <td colSpan={3} className="label">Potongan Diskon</td>
+                                                                <td className="val">- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
                                                             </tr>
                                                         </>
                                                     )}
-                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
+                                                    <tr className="pc-items-tfoot-total">
+                                                        <td colSpan={3} className="label">Total Pengeluaran Riil</td>
+                                                        <td className="val">{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -1693,8 +1693,8 @@ export default function KasBesar() {
                                 ) : (
                                     modalApprovalLaporan.laporan.rincian && (
                                         <div style={{ marginBottom: 12 }}>
-                                            <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Rincian Belanja</p>
-                                            <p style={{ fontSize: 13, color: '#334155' }}>{modalApprovalLaporan.laporan.rincian}</p>
+                                            <p style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Rincian Belanja</p>
+                                            <p style={{ fontSize: 13, color: '#cbd5e1' }}>{modalApprovalLaporan.laporan.rincian}</p>
                                         </div>
                                     )
                                 )}

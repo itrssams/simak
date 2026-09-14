@@ -2184,18 +2184,18 @@ export default function PettyCash() {
                             subtitle="Review realisasi dana sebelum proses petty cash bisa dilanjutkan."
                         />
                         {modalApprovalLaporan.laporan && (
-                            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #e2e8f0' }}>
+                            <div className="pc-approval-review-card">
+                                <div className="pc-review-header">
                                     <div>
-                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0 }}>{modalApprovalLaporan.no_pengajuan}</p>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                        <p className="pc-review-id">{modalApprovalLaporan.no_pengajuan}</p>
+                                        <div className="pc-review-user">
                                             <User size={13} style={{ color: '#10b981' }} />
-                                            <span>Diajukan Oleh: <strong style={{ color: '#1e293b' }}>{modalApprovalLaporan.created_by_name || '-'}</strong></span>
+                                            <span>Diajukan Oleh: <strong>{modalApprovalLaporan.created_by_name || '-'}</strong></span>
                                         </div>
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalApprovalLaporan.tanggal)}</span>
+                                    <span className="pc-review-date">{fmtTgl(modalApprovalLaporan.tanggal)}</span>
                                 </div>
-                                <div style={{ fontSize: 13, color: '#334155', marginBottom: 12, lineHeight: 1.45 }}>
+                                <div className="pc-review-desc">
                                     <div><strong>Keperluan:</strong> {modalApprovalLaporan.keperluan}</div>
                                     {modalApprovalLaporan.keterangan && (
                                         <div className="pc-popup-keterangan" style={{ marginTop: 6 }}>
@@ -2203,27 +2203,27 @@ export default function PettyCash() {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                    <div><p style={S.dk}>Tgl Laporan</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
-                                    <div><p style={S.dk}>Tgl Nota / Belanja</p><p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalApprovalLaporan.laporan.tanggal_nota || modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
+                                <div className="pc-review-grid">
+                                    <div><p className="pc-review-label">Tgl Laporan</p><p className="pc-review-value">{fmtTgl(modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
+                                    <div><p className="pc-review-label">Tgl Nota / Belanja</p><p className="pc-review-value">{fmtTgl(modalApprovalLaporan.laporan.tanggal_nota || modalApprovalLaporan.laporan.tanggal_laporan)}</p></div>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                    <div><p style={S.dk}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.nominal)}</p></div>
-                                    <div><p style={S.dk}>Dana Digunakan (Riil)</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
+                                <div className="pc-review-grid">
+                                    <div><p className="pc-review-label">Dana Dicairkan</p><p className="pc-review-value large">{fmt(modalApprovalLaporan.nominal)}</p></div>
+                                    <div><p className="pc-review-label">Dana Digunakan (Riil)</p><p className="pc-review-value large">{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</p></div>
                                 </div>
                                 {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12, background: '#f0fdf4', padding: '8px 12px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Subtotal Belanja</p><p style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
-                                        <div><p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>Potongan Diskon</p><p style={{ fontSize: 14, fontWeight: 700, color: '#15803d' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
+                                    <div className="pc-review-diskon-box">
+                                        <div><p className="diskon-label">Subtotal Belanja</p><p className="diskon-val">{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</p></div>
+                                        <div><p className="diskon-label">Potongan Diskon</p><p className="diskon-val">- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
                                     </div>
                                 )}
-                                <div style={{ padding: '10px 14px', background: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: `1px solid ${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#86efac' : '#f1f5f9'}`, marginBottom: 12 }}>
-                                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Selisih / Kembalian</p>
-                                    <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalApprovalLaporan.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
+                                <div className={`pc-review-selisih-box${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>
+                                    <p className="pc-review-selisih-label">Selisih / Kembalian</p>
+                                    <p className={`pc-review-selisih-val${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
                                 </div>
                                 {modalApprovalLaporan.laporan.items && modalApprovalLaporan.laporan.items.length > 0 ? (
                                     <div style={{ marginBottom: 14 }}>
-                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                                             Rincian Akun Biaya Pengeluaran:
                                         </p>
                                         <div className="pc-items-table-wrapper">
@@ -2241,30 +2241,30 @@ export default function PettyCash() {
                                                         <tr key={it.id || idx}>
                                                             <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
                                                             <td>
-                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
-                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                                <div className="pc-item-row-title">{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div className="pc-item-row-pos">{it.pos_biaya}</div>}
                                                             </td>
-                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                            <td className="pc-item-row-desc">{it.deskripsi}</td>
+                                                            <td className="pc-item-row-val">{fmt(it.nilai)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
                                                     {Number(modalApprovalLaporan.laporan.diskon) > 0 && (
                                                         <>
-                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
+                                                            <tr className="pc-items-tfoot-subtotal">
+                                                                <td colSpan={3} className="label">Subtotal Belanja</td>
+                                                                <td className="val">{fmt(modalApprovalLaporan.laporan.subtotal || (Number(modalApprovalLaporan.laporan.nominal_digunakan) + Number(modalApprovalLaporan.laporan.diskon)))}</td>
                                                             </tr>
-                                                            <tr style={{ background: '#f8fafc' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
+                                                            <tr className="pc-items-tfoot-diskon">
+                                                                <td colSpan={3} className="label">Potongan Diskon</td>
+                                                                <td className="val">- {fmt(modalApprovalLaporan.laporan.diskon)}</td>
                                                             </tr>
                                                         </>
                                                     )}
-                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
+                                                    <tr className="pc-items-tfoot-total">
+                                                        <td colSpan={3} className="label">Total Pengeluaran Riil</td>
+                                                        <td className="val">{fmt(modalApprovalLaporan.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -2339,20 +2339,24 @@ export default function PettyCash() {
             {modalKonfirmasi && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal lg">
-                        <h2 style={S.mt}>Konfirmasi Pengembalian</h2>
+                        <ModalHeader
+                            icon={<Wallet size={18} />}
+                            title="Konfirmasi Pengembalian"
+                            subtitle={`Konfirmasi penerimaan sisa dana petty cash (${modalKonfirmasi.no_pengajuan})`}
+                        />
                         {modalKonfirmasi.laporan && (
-                            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid #e2e8f0' }}>
+                            <div className="pc-approval-review-card">
+                                <div className="pc-review-header">
                                     <div>
-                                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', margin: 0 }}>{modalKonfirmasi.no_pengajuan}</p>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                        <p className="pc-review-id">{modalKonfirmasi.no_pengajuan}</p>
+                                        <div className="pc-review-user">
                                             <User size={13} style={{ color: '#10b981' }} />
-                                            <span>Diajukan Oleh: <strong style={{ color: '#1e293b' }}>{modalKonfirmasi.created_by_name || '-'}</strong></span>
+                                            <span>Diajukan Oleh: <strong>{modalKonfirmasi.created_by_name || '-'}</strong></span>
                                         </div>
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#64748b' }}>{fmtTgl(modalKonfirmasi.tanggal)}</span>
+                                    <span className="pc-review-date">{fmtTgl(modalKonfirmasi.tanggal)}</span>
                                 </div>
-                                <div style={{ fontSize: 13, color: '#334155', marginBottom: 12, lineHeight: 1.45 }}>
+                                <div className="pc-review-desc">
                                     <div><strong>Keperluan:</strong> {modalKonfirmasi.keperluan}</div>
                                     {modalKonfirmasi.keterangan && (
                                         <div className="pc-popup-keterangan" style={{ marginTop: 6 }}>
@@ -2360,17 +2364,17 @@ export default function PettyCash() {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                                    <div><p style={S.dk}>Dana Dicairkan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalKonfirmasi.nominal)}</p></div>
-                                    <div><p style={S.dk}>Dana Digunakan</p><p style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</p></div>
+                                <div className="pc-review-grid">
+                                    <div><p className="pc-review-label">Dana Dicairkan</p><p className="pc-review-value large">{fmt(modalKonfirmasi.nominal)}</p></div>
+                                    <div><p className="pc-review-label">Dana Digunakan</p><p className="pc-review-value large">{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</p></div>
                                 </div>
-                                <div style={{ padding: '10px 14px', background: Number(modalKonfirmasi.laporan.selisih) > 0 ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: `1px solid ${Number(modalKonfirmasi.laporan.selisih) > 0 ? '#86efac' : '#f1f5f9'}` }}>
-                                    <p style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Kembalian ke Kasir</p>
-                                    <p style={{ fontSize: 20, fontWeight: 700, color: Number(modalKonfirmasi.laporan.selisih) > 0 ? '#166534' : '#475569' }}>{fmt(modalKonfirmasi.laporan.selisih)}</p>
+                                <div className={`pc-review-selisih-box${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>
+                                    <p className="pc-review-selisih-label">Kembalian ke Kasir</p>
+                                    <p className={`pc-review-selisih-val${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalKonfirmasi.laporan.selisih)}</p>
                                 </div>
                                 {modalKonfirmasi.laporan.items && modalKonfirmasi.laporan.items.length > 0 && (
                                     <div style={{ marginTop: 12 }}>
-                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                                             Rincian Akun Biaya Pengeluaran:
                                         </p>
                                         <div className="pc-items-table-wrapper">
@@ -2388,18 +2392,18 @@ export default function PettyCash() {
                                                         <tr key={it.id || idx}>
                                                             <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
                                                             <td>
-                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
-                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                                <div className="pc-item-row-title">{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div className="pc-item-row-pos">{it.pos_biaya}</div>}
                                                             </td>
-                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                            <td className="pc-item-row-desc">{it.deskripsi}</td>
+                                                            <td className="pc-item-row-val">{fmt(it.nilai)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr style={{ background: '#f8fafc' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Digunakan</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</td>
+                                                    <tr className="pc-items-tfoot-total">
+                                                        <td colSpan={3} className="label">Total Digunakan</td>
+                                                        <td className="val">{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
