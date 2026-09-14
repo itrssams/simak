@@ -1402,18 +1402,7 @@ export default function PettyCash() {
                                                 <StatusBadge cfg={PC_STATUS} status={item.status} />
                                                 {item.status === 'dicairkan' && item.laporan && item.catatan_tolak && (
                                                     <div style={{ marginTop: 3 }}>
-                                                        <span style={{
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: 4,
-                                                            fontSize: 10.5,
-                                                            fontWeight: 700,
-                                                            color: '#b91c1c',
-                                                            background: '#fef2f2',
-                                                            border: '1px solid #fecaca',
-                                                            padding: '1px 6px',
-                                                            borderRadius: 4
-                                                        }}>
+                                                        <span className="pc-lpj-rejected-badge">
                                                             LPJ Ditolak
                                                         </span>
                                                     </div>
@@ -1429,8 +1418,7 @@ export default function PettyCash() {
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
                                                         <button
-                                                            className="pc-btn-sm p"
-                                                            style={item.laporan && item.catatan_tolak ? { background: '#fef2f2', color: '#b91c1c', borderColor: '#fca5a5' } : {}}
+                                                            className={`pc-btn-sm p${item.laporan && item.catatan_tolak ? ' revisi' : ''}`}
                                                             onClick={() => openLaporanModal(item)}
                                                             title={item.laporan && item.catatan_tolak ? 'Perbaiki laporan penggunaan yang ditolak' : 'Submit laporan penggunaan'}
                                                         >
@@ -1603,21 +1591,12 @@ export default function PettyCash() {
                         {modalDetail.laporan && (
                             <ModalSection icon={<FileText size={14} />} title="Laporan Penggunaan">
                                 {modalDetail.status === 'dicairkan' && modalDetail.catatan_tolak && (
-                                    <div style={{
-                                        background: '#fff1f2',
-                                        border: '1px solid #fecdd3',
-                                        borderRadius: 8,
-                                        padding: '10px 14px',
-                                        marginBottom: 14,
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: 10
-                                    }}>
-                                        <AlertTriangle size={18} style={{ color: '#e11d48', flexShrink: 0, marginTop: 2 }} />
-                                        <div style={{ fontSize: 13, color: '#9f1239' }}>
+                                    <div className="pc-rejection-callout">
+                                        <AlertTriangle size={18} className="pc-rejection-callout-icon" />
+                                        <div>
                                             <strong style={{ display: 'block', marginBottom: 3 }}>Laporan Penggunaan Ditolak:</strong>
                                             <span style={{ fontWeight: 600 }}>"{modalDetail.catatan_tolak}"</span>
-                                            <div style={{ marginTop: 4, fontSize: 11.5, color: '#be123c' }}>
+                                            <div className="pc-rejection-callout-sub">
                                                 Silakan periksa berkas nota dan rincian belanja di bawah ini untuk melihat jika ada kesalahan upload. Anda dapat memperbarui laporan dengan menekan tombol <strong>Perbaiki Laporan</strong>.
                                             </div>
                                         </div>
@@ -1656,30 +1635,30 @@ export default function PettyCash() {
                                                         <tr key={it.id || idx}>
                                                             <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
                                                             <td>
-                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
-                                                                {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                                <div className="pc-item-row-title">{it.kode_akun} - {it.nama_akun}</div>
+                                                                {it.pos_biaya && <div className="pc-item-row-pos">{it.pos_biaya}</div>}
                                                             </td>
-                                                            <td style={{ color: '#334155' }}>{it.deskripsi}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
+                                                            <td className="pc-item-row-desc">{it.deskripsi}</td>
+                                                            <td className="pc-item-row-val">{fmt(it.nilai)}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                                 <tfoot>
                                                     {Number(modalDetail.laporan.diskon) > 0 && (
                                                         <>
-                                                            <tr style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#475569', padding: '6px 12px' }}>Subtotal Belanja</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#1e293b', padding: '6px 12px' }}>{fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))}</td>
+                                                            <tr className="pc-items-tfoot-subtotal">
+                                                                <td colSpan={3} className="label">Subtotal Belanja</td>
+                                                                <td className="val">{fmt(modalDetail.laporan.subtotal || (Number(modalDetail.laporan.nominal_digunakan) + Number(modalDetail.laporan.diskon)))}</td>
                                                             </tr>
-                                                            <tr style={{ background: '#f8fafc' }}>
-                                                                <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>Potongan Diskon</td>
-                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#059669', padding: '6px 12px' }}>- {fmt(modalDetail.laporan.diskon)}</td>
+                                                            <tr className="pc-items-tfoot-diskon">
+                                                                <td colSpan={3} className="label">Potongan Diskon</td>
+                                                                <td className="val">- {fmt(modalDetail.laporan.diskon)}</td>
                                                             </tr>
                                                         </>
                                                     )}
-                                                    <tr style={{ background: '#f1f5f9', borderTop: '1px solid #cbd5e1' }}>
-                                                        <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b', padding: '10px 12px' }}>Total Pengeluaran Riil</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb', padding: '10px 12px' }}>{fmt(modalDetail.laporan.nominal_digunakan)}</td>
+                                                    <tr className="pc-items-tfoot-total">
+                                                        <td colSpan={3} className="label">Total Pengeluaran Riil</td>
+                                                        <td className="val">{fmt(modalDetail.laporan.nominal_digunakan)}</td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -2066,13 +2045,8 @@ export default function PettyCash() {
                                             </table>
                                         </div>
                                     ) : (
-                                        <div style={{
-                                            padding: '12px 16px',
-                                            background: '#f8fafc',
-                                            borderRadius: 8,
-                                            border: '1px dashed #cbd5e1'
-                                        }}>
-                                            <span style={{ fontSize: 12.5, color: '#64748b' }}>
+                                        <div className="pc-empty-hint-box">
+                                            <span>
                                                 Tidak ada diskon / potongan belanja. Klik tombol <strong>"+ Tambah Baris Diskon"</strong> di atas jika struk/nota belanja memiliki potongan harga.
                                             </span>
                                         </div>
@@ -2087,7 +2061,7 @@ export default function PettyCash() {
                                     </div>
                                     <div className="pc-report-calc-row">
                                         <span>Subtotal Belanja:</span>
-                                        <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>{fmt(subtotalLaporanItems)}</strong>
+                                        <strong className="pc-calc-subtotal">{fmt(subtotalLaporanItems)}</strong>
                                     </div>
                                     {totalDiskon > 0 && (
                                         <div className="pc-report-calc-row">
@@ -2152,8 +2126,8 @@ export default function PettyCash() {
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan (Bisa Lebih Dari 1 Nota)">
                             {modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url) && (
-                                <div style={{ marginBottom: 14, padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                                    <p style={{ margin: '0 0 8px 0', fontSize: 12.5, fontWeight: 700, color: '#334155' }}>
+                                <div className="pc-existing-attachments-box">
+                                    <p className="pc-existing-attachments-title">
                                         Nota / Berkas Sebelumnya yang Pernah Diunggah:
                                     </p>
                                     <ExistingAttachmentsList
@@ -2162,7 +2136,7 @@ export default function PettyCash() {
                                         label="Nota Sebelumnya"
                                         onPreview={setImagePreview}
                                     />
-                                    <p style={{ margin: '8px 0 0 0', fontSize: 11.5, color: '#64748b' }}>
+                                    <p className="pc-existing-attachments-note">
                                         {notaList.length > 0 ? (
                                             <strong style={{ color: '#059669' }}>✓ File baru di bawah akan menggantikan nota sebelumnya saat laporan disimpan.</strong>
                                         ) : (
@@ -4098,7 +4072,7 @@ function MultiAttachmentUploader({ items, onRemove, onPreview, onPick }) {
         <div>
             <div className="pc-file-zone" onClick={onPick} style={{ cursor: 'pointer' }}>
                 <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: items.length > 0 ? '#166534' : '#475569', marginBottom: 2 }}>
+                    <p className={`pc-file-zone-title${items.length > 0 ? ' has-items' : ''}`}>
                         {items.length > 0 ? `${items.length} file nota / struk dipilih` : 'Upload Nota / Struk Bukti Belanja (Wajib) *'}
                     </p>
                     <p style={{ fontSize: 11, color: '#94a3b8' }}>
