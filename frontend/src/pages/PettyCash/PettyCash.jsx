@@ -1236,6 +1236,38 @@ export default function PettyCash() {
         XLSX.writeFile(wb, `Rekap_PettyCash_${titlePeriode}.xlsx`);
     };
 
+    const handleLihatRekapPengajuan = (item) => {
+        if (!item) return;
+        if (item.status === 'pending') {
+            // Pengajuan yang sedang pending mewakili siklus pengeluaran berjalan saat ini
+            setRekapFilterMode('berjalan');
+        } else {
+            // Pengajuan yang disetujui: cari siklus penambahan saldo yang berelasi
+            const matchingCycle = topUpCycles.find(c =>
+                c.topUpItem && (
+                    c.topUpItem.keterangan?.includes(item.no_pengajuan) ||
+                    (item.tanggal && c.topUpItem.created_at && c.topUpItem.created_at.slice(0, 10) === item.tanggal.slice(0, 10))
+                )
+            );
+            if (matchingCycle) {
+                setRekapFilterMode('siklus');
+                setRekapSiklusKey(matchingCycle.key);
+            } else if (item.tanggal) {
+                const dt = new Date(item.tanggal);
+                if (!isNaN(dt.getTime())) {
+                    setRekapFilterMode('bulan');
+                    setRekapBulan(dt.getMonth() + 1);
+                    setRekapTahun(dt.getFullYear());
+                } else {
+                    setRekapFilterMode('semua');
+                }
+            } else {
+                setRekapFilterMode('semua');
+            }
+        }
+        setModalPrintRekap(true);
+    };
+
     const handleExportExcelPC = () => {
         const dataToExport = search ? filteredPC : listPC;
         if (!dataToExport || dataToExport.length === 0) {
@@ -3139,11 +3171,49 @@ export default function PettyCash() {
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            {isDirekturWadir && item.status === 'pending' ? (
-                                                                <button className="pc-btn-sm g" onClick={() => { setFormApvSaldo({ aksi: 'setujui', nominal_diajukan: item.nominal_diajukan || '', catatan_tolak: '' }); resetError(); setModalApprovalSaldo(item); }}>Proses</button>
-                                                            ) : (
-                                                                <span style={{ color: '#94a3b8' }}>-</span>
-                                                            )}
+                                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="pc-btn-sm"
+                                                                    onClick={() => handleLihatRekapPengajuan(item)}
+                                                                    style={{
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 5,
+                                                                        padding: '4px 10px',
+                                                                        fontSize: 11.5,
+                                                                        fontWeight: 650,
+                                                                        background: '#f8fafc',
+                                                                        border: '1px solid #cbd5e1',
+                                                                        color: '#0f172a',
+                                                                        borderRadius: 6,
+                                                                        cursor: 'pointer',
+                                                                        whiteSpace: 'nowrap'
+                                                                    }}
+                                                                    title={`Lihat rekap rincian pengeluaran untuk pengajuan ${item.no_pengajuan}`}
+                                                                >
+                                                                    <FileText size={12.5} style={{ color: '#0284c7' }} />
+                                                                    <span>Lihat Rekap</span>
+                                                                </button>
+                                                                {isDirekturWadir && item.status === 'pending' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="pc-btn-sm g"
+                                                                        style={{ padding: '4px 10px', fontSize: 11.5, fontWeight: 700 }}
+                                                                        onClick={() => {
+                                                                            setFormApvSaldo({
+                                                                                aksi: 'setujui',
+                                                                                nominal_diajukan: item.nominal_diajukan || '',
+                                                                                catatan_tolak: ''
+                                                                            });
+                                                                            resetError();
+                                                                            setModalApprovalSaldo(item);
+                                                                        }}
+                                                                    >
+                                                                        Proses
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
