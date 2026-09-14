@@ -3361,25 +3361,31 @@ export default function PettyCash() {
 
             {/* Modal Preview & Cetak Rekap Pengeluaran PC Sejak Top-Up Terakhir */}
             {modalPrintRekap && createPortal(
-                <div className="pc-overlay">
-                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 960 }}>
-                        <div className="pc-modal-head" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 14 }}>
+                <div className="pc-overlay" onClick={() => setModalPrintRekap(false)}>
+                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 960 }} onClick={(e) => e.stopPropagation()}>
+                        <div className="pc-modal-head" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 14, alignItems: 'center' }}>
                             <span className="pc-modal-title-icon"><Printer size={18} /></span>
                             <div className="pc-modal-head-copy">
                                 <h2 className="pc-modal-head-title">Cetak Rekap Pengeluaran Kas Kecil</h2>
                                 <p className="pc-modal-head-subtitle">Dokumen dasar pengajuan pengisian kembali (top-up) saldo kas kecil sejak top-up terakhir</p>
                             </div>
-                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                            <div className="pc-rekap-head-actions">
                                 <button
                                     type="button"
-                                    className="pc-btn-primary"
+                                    className="pc-rekap-btn-print"
                                     onClick={() => window.print()}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#059669', borderColor: '#059669' }}
                                 >
-                                    <Printer size={15} /> Cetak Dokumen / PDF
+                                    <Printer size={16} />
+                                    <span>Cetak Dokumen / PDF</span>
                                 </button>
-                                <button type="button" className="pc-btn-ghost" onClick={() => setModalPrintRekap(false)}>
-                                    <X size={16} /> Tutup
+                                <button
+                                    type="button"
+                                    className="pc-rekap-btn-close"
+                                    onClick={() => setModalPrintRekap(false)}
+                                    title="Tutup jendela pratinjau"
+                                >
+                                    <X size={16} />
+                                    <span>Tutup</span>
                                 </button>
                             </div>
                         </div>
@@ -3400,7 +3406,7 @@ export default function PettyCash() {
                                             RS SIAGA AL MUNAWWARAH SAMARINDA
                                         </h2>
                                         <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#334155' }}>
-                                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: humas.rssams@gmail.com
                                         </p>
                                     </div>
                                     <div style={{ width: 68, height: 68, flexShrink: 0 }} />
@@ -3499,6 +3505,26 @@ export default function PettyCash() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Modal Footer Actions */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 18, paddingTop: 14, borderTop: '1px solid #e2e8f0' }}>
+                            <button
+                                type="button"
+                                className="pc-rekap-btn-close"
+                                onClick={() => setModalPrintRekap(false)}
+                            >
+                                <X size={15} />
+                                <span>Tutup</span>
+                            </button>
+                            <button
+                                type="button"
+                                className="pc-rekap-btn-print"
+                                onClick={() => window.print()}
+                            >
+                                <Printer size={15} />
+                                <span>Cetak Dokumen / PDF</span>
+                            </button>
+                        </div>
                     </div>
                 </div>,
                 document.body
@@ -3518,7 +3544,7 @@ export default function PettyCash() {
                             RS SIAGA AL MUNAWWARAH SAMARINDA
                         </h2>
                         <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
-                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: humas.rssams@gmail.com
                         </p>
                     </div>
                     <div style={{ width: 55, height: 55, flexShrink: 0 }} />
