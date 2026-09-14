@@ -47,6 +47,10 @@ const resolveMediaUrl = (url) => {
     return clean.startsWith('/') ? clean : `/${clean}`;
 };
 const RIWAYAT_SALDO_PER_PAGE = 8;
+const NAMA_BULAN = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
 
 const PC_STATUS = {
     pending: { label: 'Pending', bg: '#fff7ed', color: '#c2410c', dot: '#f97316' },
@@ -277,6 +281,13 @@ export default function PettyCash() {
     const [formAlihkanKB, setFormAlihkanKB] = useState({ nominal_kas_besar: '', keterangan: '' });
     const [modalNotifyIT, setModalNotifyIT] = useState(false);
     const [modalPrintRekap, setModalPrintRekap] = useState(false);
+    const [allRB, setAllRB] = useState([]);
+    const [rekapFilterMode, setRekapFilterMode] = useState('berjalan'); // 'berjalan' | 'bulan' | 'siklus' | 'rentang' | 'semua'
+    const [rekapBulan, setRekapBulan] = useState(() => new Date().getMonth() + 1);
+    const [rekapTahun, setRekapTahun] = useState(() => new Date().getFullYear());
+    const [rekapSiklusKey, setRekapSiklusKey] = useState('berjalan');
+    const [rekapDari, setRekapDari] = useState('');
+    const [rekapSampai, setRekapSampai] = useState('');
 
     const [formPC, setFormPC] = useState({ tanggal: todayStr(), keperluan: '', nominal: '', keterangan: '' });
     const [berkasPC, setBerkasPC] = useState(null);
@@ -449,11 +460,14 @@ export default function PettyCash() {
         setLoadingPC(true);
         if (canReimbursement) setLoadingRB(true);
         try {
-            const [pcRes, allPcRes, rbRes, saldoRes, penambahanRes] = await Promise.all([
+            const [pcRes, allPcRes, rbRes, allRbRes, saldoRes, penambahanRes] = await Promise.all([
                 api.get('/keuangan/petty-cash/', { params: pageParams(page, pageSizePC, { status: Array.isArray(filterStatus) ? (filterStatus.length > 0 ? filterStatus.join(',') : undefined) : (filterStatus || undefined), dari: dateToStr(filterDari), sampai: dateToStr(filterSampai) }) }).catch(e => null),
                 api.get('/keuangan/petty-cash/').catch(e => null),
                 canReimbursement
                     ? api.get('/keuangan/reimbursement/', { params: pageParams(pageRB, pageSizeRB, { status: filterStatusRB || undefined, dari: dateToStr(filterDariRB), sampai: dateToStr(filterSampaiRB) }) }).catch(e => null)
+                    : Promise.resolve(null),
+                canReimbursement
+                    ? api.get('/keuangan/reimbursement/').catch(e => null)
                     : Promise.resolve(null),
                 canSeeSaldo
                     ? api.get('/keuangan/saldo-petty-cash/').catch(e => null)
@@ -474,6 +488,9 @@ export default function PettyCash() {
             } else {
                 setListRB([]);
                 setTotalRB(0);
+            }
+            if (allRbRes?.data) {
+                setAllRB(getResults(allRbRes.data));
             }
             if (saldoRes?.data?.saldo) {
                 setSaldo(saldoRes.data.saldo);
@@ -995,6 +1012,72 @@ export default function PettyCash() {
         unit: r.unit_pengaju || r.created_by_unit || '',
     });
 
+    // Riwayat siklus top up saldo petty cash (dihitung dari setiap penambahan saldo di riwayatSaldo)
+    const topUpCycles = useMemo(() => {
+        const penambahanIndices = [];
+        riwayatSaldo.forEach((r, idx) => {
+            if (r.jenis === 'penambahan') penambahanIndices.push(idx);
+        });
+
+        const cycles = [];
+
+        // 1. Siklus Berjalan (Sejak top up terakhir)
+        const firstPIdx = penambahanIndices.length > 0 ? penambahanIndices[0] : -1;
+        const currentList = firstPIdx === -1
+            ? riwayatSaldo.filter(r => r.jenis === 'pengurangan')
+            : riwayatSaldo.slice(0, firstPIdx).filter(r => r.jenis === 'pengurangan');
+        const lastTopUpDate = firstPIdx !== -1 ? riwayatSaldo[firstPIdx].created_at : null;
+
+        cycles.push({
+            key: 'berjalan',
+            label: `Siklus Berjalan (Sejak ${lastTopUpDate ? fmtTgl(lastTopUpDate) : 'Awal'})`,
+            shortLabel: 'Siklus Berjalan',
+            items: currentList,
+            total: currentList.reduce((s, it) => s + Number(it.jumlah || 0), 0),
+            isCurrent: true,
+            tanggal: lastTopUpDate || todayStr(),
+        });
+
+        // 2. Masing-masing siklus top up sebelumnya
+        for (let i = 0; i < penambahanIndices.length; i++) {
+            const pIdx = penambahanIndices[i];
+            const nextPIdx = i + 1 < penambahanIndices.length ? penambahanIndices[i + 1] : riwayatSaldo.length;
+            const topUpItem = riwayatSaldo[pIdx];
+            const cycleItems = riwayatSaldo.slice(pIdx + 1, nextPIdx).filter(r => r.jenis === 'pengurangan');
+
+            const isSaldoAwal = topUpItem.keterangan?.toLowerCase().includes('saldo awal');
+            if (isSaldoAwal && cycleItems.length === 0) continue;
+
+            cycles.push({
+                key: `topup-${topUpItem.id}`,
+                label: `Top-Up ${fmtTgl(topUpItem.created_at)} (${cycleItems.length} Trx - ${fmt(topUpItem.jumlah)})`,
+                shortLabel: `Top-Up ${fmtTgl(topUpItem.created_at)}`,
+                topUpItem,
+                items: cycleItems,
+                total: cycleItems.reduce((s, it) => s + Number(it.jumlah || 0), 0),
+                isCurrent: false,
+                tanggal: topUpItem.created_at,
+            });
+        }
+
+        return cycles;
+    }, [riwayatSaldo]);
+
+    // Daftar bulan yang memiliki riwayat transaksi pengurangan (format YYYY-MM)
+    const availableMonthsInHistory = useMemo(() => {
+        const setYm = new Set();
+        riwayatSaldo.forEach(r => {
+            if (r.jenis === 'pengurangan' && r.created_at) {
+                setYm.add(r.created_at.slice(0, 7));
+            }
+        });
+        allPC.forEach(p => {
+            const dt = p.laporan?.tanggal_nota || p.tanggal;
+            if (dt) setYm.add(dt.slice(0, 7));
+        });
+        return Array.from(setYm).sort().reverse();
+    }, [riwayatSaldo, allPC]);
+
     // Perhitungan otomatis pemakaian belanja sejak top up saldo terakhir
     const pemakaianSejakTopUp = useMemo(() => {
         const lastTopUpIndex = riwayatSaldo.findIndex(r => r.jenis === 'penambahan');
@@ -1008,11 +1091,69 @@ export default function PettyCash() {
         return pemakaianSejakTopUp.reduce((sum, r) => sum + Number(r.jumlah || 0), 0);
     }, [pemakaianSejakTopUp]);
 
-    // Detail rekapitulasi penggunaan belanja sejak top up terakhir (untuk print-out / dasar pengajuan top up)
+    // Daftar transaksi belanja yang aktif sesuai filter periode yang dipilih user
+    const activeRekapItems = useMemo(() => {
+        if (rekapFilterMode === 'berjalan') {
+            return pemakaianSejakTopUp;
+        }
+        if (rekapFilterMode === 'bulan') {
+            const yyyyMm = `${rekapTahun}-${String(rekapBulan).padStart(2, '0')}`;
+            return riwayatSaldo.filter(r => {
+                if (r.jenis !== 'pengurangan') return false;
+                const matchedPC = allPC.find(p => p.no_pengajuan && r.keterangan?.includes(p.no_pengajuan));
+                const matchedRB = allRB.find(rb => rb.no_reimbursement && r.keterangan?.includes(rb.no_reimbursement));
+                const dt = r.created_at || matchedPC?.tanggal || matchedRB?.tanggal || '';
+                const notaDt = matchedPC?.laporan?.tanggal_nota || matchedRB?.tanggal_nota || '';
+                return dt.startsWith(yyyyMm) || notaDt.startsWith(yyyyMm);
+            });
+        }
+        if (rekapFilterMode === 'siklus') {
+            const found = topUpCycles.find(c => c.key === rekapSiklusKey);
+            return found ? found.items : [];
+        }
+        if (rekapFilterMode === 'rentang') {
+            return riwayatSaldo.filter(r => {
+                if (r.jenis !== 'pengurangan') return false;
+                const matchedPC = allPC.find(p => p.no_pengajuan && r.keterangan?.includes(p.no_pengajuan));
+                const dt = (r.created_at || matchedPC?.tanggal || '').slice(0, 10);
+                if (rekapDari && dt < rekapDari) return false;
+                if (rekapSampai && dt > rekapSampai) return false;
+                return true;
+            });
+        }
+        if (rekapFilterMode === 'semua') {
+            return riwayatSaldo.filter(r => r.jenis === 'pengurangan');
+        }
+        return pemakaianSejakTopUp;
+    }, [rekapFilterMode, rekapBulan, rekapTahun, rekapSiklusKey, rekapDari, rekapSampai, pemakaianSejakTopUp, riwayatSaldo, allPC, allRB, topUpCycles]);
+
+    const totalRekapNominal = useMemo(() => {
+        return activeRekapItems.reduce((sum, r) => sum + Number(r.jumlah || 0), 0);
+    }, [activeRekapItems]);
+
+    const rekapPeriodeLabel = useMemo(() => {
+        if (rekapFilterMode === 'bulan') {
+            const namaBulan = NAMA_BULAN[rekapBulan - 1];
+            return `Periode: Bulan ${namaBulan} ${rekapTahun}`;
+        }
+        if (rekapFilterMode === 'siklus') {
+            const found = topUpCycles.find(c => c.key === rekapSiklusKey);
+            return found ? `Lampiran Rekap ${found.label}` : 'Lampiran Pengajuan Pengisian Saldo Kas Kecil';
+        }
+        if (rekapFilterMode === 'rentang') {
+            return `Periode: ${rekapDari ? fmtTgl(rekapDari) : 'Awal'} s/d ${rekapSampai ? fmtTgl(rekapSampai) : 'Sekarang'}`;
+        }
+        if (rekapFilterMode === 'semua') {
+            return 'Semua Catatan Riwayat Pengeluaran Belanja Kas Kecil';
+        }
+        return '(Dasar Lampiran Pengajuan Pengisian Kembali / Top Up Saldo)';
+    }, [rekapFilterMode, rekapBulan, rekapTahun, rekapSiklusKey, rekapDari, rekapSampai, topUpCycles]);
+
+    // Detail rekapitulasi penggunaan belanja sesuai periode aktif (untuk pratinjau, cetak PDF, & ekspor)
     const rekapDataWithDetails = useMemo(() => {
-        return pemakaianSejakTopUp.map((r, idx) => {
+        return activeRekapItems.map((r, idx) => {
             const matchedPC = allPC.find(p => p.no_pengajuan && r.keterangan?.includes(p.no_pengajuan));
-            const matchedRB = listRB.find(rb => rb.no_reimbursement && r.keterangan?.includes(rb.no_reimbursement));
+            const matchedRB = allRB.find(rb => rb.no_reimbursement && r.keterangan?.includes(rb.no_reimbursement));
 
             let noReferensi = matchedPC?.no_pengajuan || matchedRB?.no_reimbursement || '-';
             let tanggalNota = matchedPC?.laporan?.tanggal_nota || matchedPC?.tanggal || matchedRB?.tanggal_nota || matchedRB?.tanggal || r.created_at;
@@ -1040,7 +1181,60 @@ export default function PettyCash() {
                 nominal,
             };
         });
-    }, [pemakaianSejakTopUp, allPC, listRB]);
+    }, [activeRekapItems, allPC, allRB]);
+
+    const handleExportExcelRekap = () => {
+        if (!rekapDataWithDetails || rekapDataWithDetails.length === 0) {
+            setError('Tidak ada data rekap pengeluaran untuk diekspor.');
+            return;
+        }
+
+        const titlePeriode = rekapFilterMode === 'bulan'
+            ? `Bulan_${NAMA_BULAN[rekapBulan - 1]}_${rekapTahun}`
+            : rekapPeriodeLabel.replace(/[()]/g, '').trim().replace(/\s+/g, '_');
+
+        const headerRows = [
+            ['RS SIAGA AL MUNAWWARAH SAMARINDA'],
+            ['REKAPITULASI PENGELUARAN BELANJA PETTY CASH'],
+            [`${rekapPeriodeLabel}`],
+            [`Tanggal Cetak: ${fmtTgl(todayStr())}`],
+            [''],
+            ['No', 'No. Referensi', 'Tanggal Nota', 'Pemohon', 'Unit', 'Akun Biaya', 'Deskripsi Kebutuhan', 'Nominal (Rp)']
+        ];
+
+        const dataRows = rekapDataWithDetails.map(item => [
+            item.no,
+            item.noReferensi,
+            item.tanggal ? (typeof item.tanggal === 'string' ? item.tanggal.slice(0, 10) : item.tanggal) : '-',
+            item.pemohon,
+            item.unit,
+            item.akunBiaya,
+            item.keterangan,
+            item.nominal
+        ]);
+
+        const totalRow = [
+            '', '', '', '', '', '', 'TOTAL PENGELUARAN:', totalRekapNominal
+        ];
+
+        const fullAoa = [...headerRows, ...dataRows, [''], totalRow];
+
+        const ws = XLSX.utils.aoa_to_sheet(fullAoa);
+        ws['!cols'] = [
+            { wch: 6 },
+            { wch: 18 },
+            { wch: 14 },
+            { wch: 22 },
+            { wch: 18 },
+            { wch: 25 },
+            { wch: 40 },
+            { wch: 16 },
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Rekap Pengeluaran');
+        XLSX.writeFile(wb, `Rekap_PettyCash_${titlePeriode}.xlsx`);
+    };
 
     const handleExportExcelPC = () => {
         const dataToExport = search ? filteredPC : listPC;
@@ -3083,38 +3277,88 @@ export default function PettyCash() {
                             </div>
 
                             {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR */}
+                            {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR / PER SIKLUS */}
                             <div className="pc-split-right">
                                 <div className="pc-split-right-head">
-                                    <div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
                                         <p style={{ fontSize: 13.5, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <History size={16} style={{ color: '#059669' }} />
-                                            Penggunaan Sejak Top Up Terakhir
+                                            Rincian Pengeluaran Kas Kecil
                                         </p>
-                                        <p style={{ fontSize: 11, color: '#64748b', margin: '3px 0 0' }}>
-                                            Rincian riil pengeluaran kas kecil yang mendasari pengisian kembali
-                                        </p>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                            <select
+                                                value={rekapFilterMode === 'siklus' ? rekapSiklusKey : (rekapFilterMode === 'bulan' ? `m-${rekapTahun}-${rekapBulan}` : rekapFilterMode)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === 'berjalan') {
+                                                        setRekapFilterMode('berjalan');
+                                                    } else if (val === 'semua') {
+                                                        setRekapFilterMode('semua');
+                                                    } else if (val.startsWith('topup-')) {
+                                                        setRekapFilterMode('siklus');
+                                                        setRekapSiklusKey(val);
+                                                    } else if (val.startsWith('m-')) {
+                                                        const parts = val.split('-');
+                                                        setRekapFilterMode('bulan');
+                                                        setRekapTahun(Number(parts[1]));
+                                                        setRekapBulan(Number(parts[2]));
+                                                    }
+                                                }}
+                                                style={{ fontSize: 11.5, padding: '3px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontWeight: 600, color: '#1e293b', background: '#fff', maxWidth: '100%' }}
+                                            >
+                                                <option value="berjalan">⚡ Siklus Berjalan (Sejak Top-Up Terakhir)</option>
+                                                {topUpCycles.filter(c => !c.isCurrent).map(c => (
+                                                    <option key={c.key} value={c.key}>🔄 {c.label}</option>
+                                                ))}
+                                                {availableMonthsInHistory.map(ym => {
+                                                    const [y, m] = ym.split('-');
+                                                    const bName = NAMA_BULAN[Number(m) - 1];
+                                                    return (
+                                                        <option key={ym} value={`m-${y}-${Number(m)}`}>📅 Bulan {bName} {y}</option>
+                                                    );
+                                                })}
+                                                <option value="semua">📋 Semua Catatan Riwayat</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                                         <button
                                             type="button"
                                             className="pc-btn-sm n"
                                             onClick={() => setModalPrintRekap(true)}
                                             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: 6 }}
-                                            title="Cetak Rekapitulasi Rincian Belanja Sejak Top Up Terakhir"
+                                            title="Buka Pratinjau Lengkap, Filter Periode, & Cetak Rekapitulasi"
                                         >
                                             <Printer size={13} /> Cetak Lampiran Rekap
                                         </button>
                                         <div>
-                                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total Rincian:</span>
-                                            <p style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', margin: 0 }}>{fmt(totalPemakaianSejakTopUp)}</p>
+                                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total:</span>
+                                            <p style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', margin: 0 }}>{fmt(totalRekapNominal)}</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="pc-split-right-content">
-                                    {pemakaianSejakTopUp.length === 0 ? (
+                                    {activeRekapItems.length === 0 ? (
                                         <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                                            Belum ada transaksi pemakaian sejak top up terakhir.
+                                            Belum ada transaksi pemakaian pada periode ini.
+                                            {rekapFilterMode === 'berjalan' && topUpCycles.some(c => !c.isCurrent) && (
+                                                <div style={{ marginTop: 10 }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const prevCycle = topUpCycles.find(c => !c.isCurrent);
+                                                            if (prevCycle) {
+                                                                setRekapFilterMode('siklus');
+                                                                setRekapSiklusKey(prevCycle.key);
+                                                            }
+                                                        }}
+                                                        style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+                                                    >
+                                                        Lihat riwayat belanja pada top up sebelumnya →
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <table className="pc-saldo-table" style={{ width: '100%', minWidth: 'unset', fontSize: 12 }}>
@@ -3128,7 +3372,7 @@ export default function PettyCash() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {pemakaianSejakTopUp.map((r, idx) => {
+                                                {activeRekapItems.map((r, idx) => {
                                                     const actor = saldoActor(r);
                                                     return (
                                                         <tr key={r.id || idx}>
@@ -3154,11 +3398,11 @@ export default function PettyCash() {
                                     )}
                                 </div>
 
-                                {pemakaianSejakTopUp.length > 0 && (
+                                {activeRekapItems.length > 0 && (
                                     <div className="pc-split-right-foot">
-                                        <span style={{ color: '#64748b', fontWeight: 600 }}>{pemakaianSejakTopUp.length} transaksi pemakaian</span>
+                                        <span style={{ color: '#64748b', fontWeight: 600 }}>{activeRekapItems.length} transaksi pemakaian</span>
                                         <span style={{ fontWeight: 700, color: '#1e293b' }}>
-                                            Total Pemakaian: <strong style={{ color: '#dc2626', fontWeight: 800, marginLeft: 4 }}>{fmt(totalPemakaianSejakTopUp)}</strong>
+                                            Total Pemakaian: <strong style={{ color: '#dc2626', fontWeight: 800, marginLeft: 4 }}>{fmt(totalRekapNominal)}</strong>
                                         </span>
                                     </div>
                                 )}
@@ -3359,34 +3603,153 @@ export default function PettyCash() {
                 </div>
             )}
 
-            {/* Modal Preview & Cetak Rekap Pengeluaran PC Sejak Top-Up Terakhir */}
+            {/* Modal Preview & Cetak Rekap Pengeluaran PC Sejak Top-Up Terakhir / Sesuai Periode */}
             {modalPrintRekap && createPortal(
                 <div className="pc-overlay" onClick={() => setModalPrintRekap(false)}>
-                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 960 }} onClick={(e) => e.stopPropagation()}>
+                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 1000 }} onClick={(e) => e.stopPropagation()}>
                         <div className="pc-modal-head" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 14, alignItems: 'center' }}>
                             <span className="pc-modal-title-icon"><Printer size={18} /></span>
                             <div className="pc-modal-head-copy">
                                 <h2 className="pc-modal-head-title">Cetak Rekap Pengeluaran Kas Kecil</h2>
-                                <p className="pc-modal-head-subtitle">Dokumen dasar pengajuan pengisian kembali (top-up) saldo kas kecil sejak top-up terakhir</p>
+                                <p className="pc-modal-head-subtitle">Dokumen dasar lampiran & pelaporan pengeluaran petty cash per periode atau siklus</p>
                             </div>
-                            <div className="pc-rekap-head-actions">
+                            <div className="pc-rekap-head-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <button
                                     type="button"
-                                    className="pc-rekap-btn-print"
-                                    onClick={() => window.print()}
+                                    onClick={handleExportExcelRekap}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                    title="Download file Excel rekapitulasi sesuai periode yang dipilih"
                                 >
-                                    <Printer size={16} />
-                                    <span>Cetak Dokumen / PDF</span>
+                                    <Download size={14} /> Ekspor Excel
                                 </button>
                                 <button
                                     type="button"
-                                    className="pc-rekap-btn-close"
+                                    onClick={() => window.print()}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                >
+                                    <Printer size={14} /> Cetak / PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    className="pc-btn-ghost"
+                                    style={{ padding: '6px 10px', fontSize: 13 }}
                                     onClick={() => setModalPrintRekap(false)}
-                                    title="Tutup jendela pratinjau"
+                                    title="Tutup"
                                 >
                                     <X size={16} />
-                                    <span>Tutup</span>
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* Filter Toolbar Periode Rekap */}
+                        <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '12px 16px', marginTop: 14, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>Pilih Periode:</span>
+                                <div style={{ display: 'inline-flex', background: '#e2e8f0', borderRadius: 6, padding: 2 }}>
+                                    <button
+                                        type="button"
+                                        style={{ padding: '4px 10px', fontSize: 11.5, border: 'none', background: rekapFilterMode === 'berjalan' ? '#fff' : 'transparent', color: rekapFilterMode === 'berjalan' ? '#0f172a' : '#64748b', fontWeight: 700, borderRadius: 5, cursor: 'pointer', boxShadow: rekapFilterMode === 'berjalan' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}
+                                        onClick={() => setRekapFilterMode('berjalan')}
+                                    >
+                                        ⚡ Siklus Berjalan
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{ padding: '4px 10px', fontSize: 11.5, border: 'none', background: rekapFilterMode === 'bulan' ? '#fff' : 'transparent', color: rekapFilterMode === 'bulan' ? '#0f172a' : '#64748b', fontWeight: 700, borderRadius: 5, cursor: 'pointer', boxShadow: rekapFilterMode === 'bulan' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}
+                                        onClick={() => setRekapFilterMode('bulan')}
+                                    >
+                                        📅 Per Bulan
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{ padding: '4px 10px', fontSize: 11.5, border: 'none', background: rekapFilterMode === 'siklus' ? '#fff' : 'transparent', color: rekapFilterMode === 'siklus' ? '#0f172a' : '#64748b', fontWeight: 700, borderRadius: 5, cursor: 'pointer', boxShadow: rekapFilterMode === 'siklus' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}
+                                        onClick={() => {
+                                            setRekapFilterMode('siklus');
+                                            if (!rekapSiklusKey && topUpCycles.length > 0) {
+                                                setRekapSiklusKey(topUpCycles[0].key);
+                                            }
+                                        }}
+                                    >
+                                        🔄 Per Siklus Top-Up
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{ padding: '4px 10px', fontSize: 11.5, border: 'none', background: rekapFilterMode === 'rentang' ? '#fff' : 'transparent', color: rekapFilterMode === 'rentang' ? '#0f172a' : '#64748b', fontWeight: 700, borderRadius: 5, cursor: 'pointer', boxShadow: rekapFilterMode === 'rentang' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}
+                                        onClick={() => setRekapFilterMode('rentang')}
+                                    >
+                                        📆 Rentang Tanggal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{ padding: '4px 10px', fontSize: 11.5, border: 'none', background: rekapFilterMode === 'semua' ? '#fff' : 'transparent', color: rekapFilterMode === 'semua' ? '#0f172a' : '#64748b', fontWeight: 700, borderRadius: 5, cursor: 'pointer', boxShadow: rekapFilterMode === 'semua' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}
+                                        onClick={() => setRekapFilterMode('semua')}
+                                    >
+                                        📋 Semua Riwayat
+                                    </button>
+                                </div>
+
+                                {/* Mode Controls */}
+                                {rekapFilterMode === 'bulan' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <select
+                                            className="pc-input"
+                                            style={{ padding: '4px 8px', fontSize: 12, width: 'auto', fontWeight: 600 }}
+                                            value={rekapBulan}
+                                            onChange={(e) => setRekapBulan(Number(e.target.value))}
+                                        >
+                                            {NAMA_BULAN.map((name, idx) => (
+                                                <option key={idx + 1} value={idx + 1}>{name}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            className="pc-input"
+                                            style={{ padding: '4px 8px', fontSize: 12, width: 'auto', fontWeight: 600 }}
+                                            value={rekapTahun}
+                                            onChange={(e) => setRekapTahun(Number(e.target.value))}
+                                        >
+                                            {[currYear - 1, currYear, currYear + 1].map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {rekapFilterMode === 'siklus' && (
+                                    <select
+                                        className="pc-input"
+                                        style={{ padding: '4px 8px', fontSize: 12, width: 'auto', fontWeight: 600 }}
+                                        value={rekapSiklusKey}
+                                        onChange={(e) => setRekapSiklusKey(e.target.value)}
+                                    >
+                                        {topUpCycles.map(c => (
+                                            <option key={c.key} value={c.key}>{c.label}</option>
+                                        ))}
+                                    </select>
+                                )}
+
+                                {rekapFilterMode === 'rentang' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <input
+                                            type="date"
+                                            className="pc-input"
+                                            style={{ padding: '3px 8px', fontSize: 12, width: 'auto' }}
+                                            value={rekapDari}
+                                            onChange={(e) => setRekapDari(e.target.value)}
+                                        />
+                                        <span style={{ fontSize: 12, color: '#64748b' }}>s/d</span>
+                                        <input
+                                            type="date"
+                                            className="pc-input"
+                                            style={{ padding: '3px 8px', fontSize: 12, width: 'auto' }}
+                                            value={rekapSampai}
+                                            onChange={(e) => setRekapSampai(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ fontSize: 12, color: '#0f172a', fontWeight: 700 }}>
+                                {activeRekapItems.length} Transaksi • Total: <span style={{ color: '#dc2626' }}>{fmt(totalRekapNominal)}</span>
                             </div>
                         </div>
 
@@ -3418,7 +3781,7 @@ export default function PettyCash() {
                                         REKAPITULASI PENGELUARAN BELANJA PETTY CASH
                                     </h3>
                                     <p style={{ margin: '3px 0 0', fontSize: 11, color: '#64748b' }}>
-                                        (Dasar Lampiran Pengajuan Pengisian Kembali / Top Up Saldo)
+                                        {rekapPeriodeLabel}
                                     </p>
                                 </div>
 
@@ -3430,7 +3793,7 @@ export default function PettyCash() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
-                                        <div>Total Realisasi Terpakai: <strong style={{ color: '#dc2626' }}>{fmt(totalPemakaianSejakTopUp)}</strong></div>
+                                        <div>Total Pengeluaran: <strong style={{ color: '#dc2626' }}>{fmt(totalRekapNominal)}</strong></div>
                                     </div>
                                 </div>
 
@@ -3450,8 +3813,8 @@ export default function PettyCash() {
                                     <tbody>
                                         {rekapDataWithDetails.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>
-                                                    Tidak ada catatan pengeluaran belanja sejak top up terakhir.
+                                                <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>
+                                                    Tidak ada catatan pengeluaran belanja pada periode ini.
                                                 </td>
                                             </tr>
                                         ) : (
@@ -3479,7 +3842,7 @@ export default function PettyCash() {
                                                 Total Pengeluaran Belanja Kas Kecil:
                                             </td>
                                             <td style={{ padding: '8px', textAlign: 'right', color: '#064e3b', fontSize: 12 }}>
-                                                {fmt(totalPemakaianSejakTopUp)}
+                                                {fmt(totalRekapNominal)}
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3488,19 +3851,16 @@ export default function PettyCash() {
                                 {/* Signatures */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, textAlign: 'center', marginTop: 32, fontSize: 11 }}>
                                     <div>
-                                        <p style={{ margin: '0 0 50px' }}>Diajukan Oleh,<br /><strong>Kasir Kas Kecil</strong></p>
+                                        <p style={{ margin: '0 0 50px' }}>Diajukan Oleh,<br /><strong>Petugas Petty Cash</strong></p>
                                         <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
-                                        <span style={{ fontSize: 10, color: '#64748b' }}>Petugas Petty Cash</span>
                                     </div>
                                     <div>
                                         <p style={{ margin: '0 0 50px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
-                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>
-                                        <span style={{ fontSize: 10, color: '#64748b' }}>Bagian Keuangan</span>
+                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>                                        
                                     </div>
                                     <div>
-                                        <p style={{ margin: '0 0 50px' }}>Menyetujui,<br /><strong>Wakil Direktur / Pimpinan</strong></p>
-                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>
-                                        <span style={{ fontSize: 10, color: '#64748b' }}>Pimpinan RS</span>
+                                        <p style={{ margin: '0 0 50px' }}>Menyetujui,<br /><strong>Wakil Direktur Umum & Keuangan</strong></p>
+                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>                                        
                                     </div>
                                 </div>
                             </div>
@@ -3515,6 +3875,14 @@ export default function PettyCash() {
                             >
                                 <X size={15} />
                                 <span>Tutup</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleExportExcelRekap}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                            >
+                                <Download size={15} />
+                                <span>Ekspor Excel</span>
                             </button>
                             <button
                                 type="button"
@@ -3555,7 +3923,7 @@ export default function PettyCash() {
                         REKAPITULASI PENGELUARAN BELANJA PETTY CASH
                     </h3>
                     <p style={{ margin: '2px 0 0', fontSize: 10, color: '#444' }}>
-                        (Dasar Lampiran Pengajuan Pengisian Kembali / Top Up Saldo Kas Kecil)
+                        {rekapPeriodeLabel}
                     </p>
                 </div>
 
@@ -3566,7 +3934,7 @@ export default function PettyCash() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
-                        <div>Total Realisasi Terpakai: <strong>{fmt(totalPemakaianSejakTopUp)}</strong></div>
+                        <div>Total Pengeluaran: <strong>{fmt(totalRekapNominal)}</strong></div>
                     </div>
                 </div>
 
@@ -3586,7 +3954,7 @@ export default function PettyCash() {
                         {rekapDataWithDetails.length === 0 ? (
                             <tr>
                                 <td colSpan={7} style={{ textAlign: 'center', padding: 14 }}>
-                                    Tidak ada catatan pengeluaran belanja sejak top up terakhir.
+                                    Tidak ada catatan pengeluaran belanja pada periode ini.
                                 </td>
                             </tr>
                         ) : (
@@ -3614,7 +3982,7 @@ export default function PettyCash() {
                                 Total Pengeluaran Belanja Kas Kecil:
                             </td>
                             <td style={{ padding: '6px', textAlign: 'right', fontSize: 11 }}>
-                                {fmt(totalPemakaianSejakTopUp)}
+                                {fmt(totalRekapNominal)}
                             </td>
                         </tr>
                     </tfoot>
