@@ -975,7 +975,8 @@
 }
 
 .pc-saldo-modal{
-  max-width:min(980px,96vw)!important;
+  max-width:min(1220px,96vw)!important;
+  width:100%!important;
   padding:0!important;
   overflow:hidden!important;
   background:rgba(248,250,252,.96)!important;
