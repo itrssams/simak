@@ -3388,13 +3388,22 @@ export default function PettyCash() {
                         <div style={{ background: '#f8fafc', padding: '20px', borderRadius: 8, marginTop: 14 }}>
                             <div style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '24px 30px', borderRadius: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                                 {/* Kop */}
-                                <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
-                                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#064e3b', letterSpacing: '0.04em' }}>
-                                        RS SIAGA AL-MUNAWWARAH SAMARINDA
-                                    </h2>
-                                    <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#334155' }}>
-                                        Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
-                                    </p>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
+                                    <img
+                                        src="/logo.png"
+                                        alt="Logo RS"
+                                        style={{ width: 68, height: 68, objectFit: 'contain', flexShrink: 0 }}
+                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                    />
+                                    <div style={{ flex: 1, textAlign: 'center', padding: '0 16px' }}>
+                                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#064e3b', letterSpacing: '0.04em' }}>
+                                            RS SIAGA AL MUNAWWARAH SAMARINDA
+                                        </h2>
+                                        <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#334155' }}>
+                                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                                        </p>
+                                    </div>
+                                    <div style={{ width: 68, height: 68, flexShrink: 0 }} />
                                 </div>
 
                                 {/* Title */}
@@ -3497,13 +3506,22 @@ export default function PettyCash() {
 
             {/* Print-Only Container for Native Browser Print */}
             <div className="pc-print-sheet">
-                <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#000', letterSpacing: '0.04em' }}>
-                        RS SIAGA AL-MUNAWWARAH SAMARINDA
-                    </h2>
-                    <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
-                        Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
-                    </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
+                    <img
+                        src="/logo.png"
+                        alt="Logo RS"
+                        style={{ width: 55, height: 55, objectFit: 'contain', flexShrink: 0 }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <div style={{ flex: 1, textAlign: 'center', padding: '0 12px' }}>
+                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#000', letterSpacing: '0.04em' }}>
+                            RS SIAGA AL MUNAWWARAH SAMARINDA
+                        </h2>
+                        <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
+                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: siagasamarinda@gmail.com
+                        </p>
+                    </div>
+                    <div style={{ width: 55, height: 55, flexShrink: 0 }} />
                 </div>
 
                 <div style={{ textAlign: 'center', marginBottom: 14 }}>
