@@ -364,6 +364,49 @@ export default function KasBesar() {
         });
     };
 
+    const openLaporanModal = (item) => {
+        resetError();
+        if (item.laporan) {
+            setFormLaporan({
+                tanggal_laporan: item.laporan.tanggal_laporan || todayStr(),
+                tanggal_nota: item.laporan.tanggal_nota || item.laporan.tanggal_laporan || (item.tanggal ? String(item.tanggal) : todayStr()),
+                nominal_digunakan: item.laporan.nominal_digunakan || '',
+                rincian: item.laporan.rincian || '',
+                diskon: item.laporan.diskon || ''
+            });
+            if (item.laporan.items && item.laporan.items.length > 0) {
+                setLaporanItems(item.laporan.items.map(it => ({
+                    kode_akun: it.kode_akun || '',
+                    nama_akun: it.nama_akun || '',
+                    pos_biaya: it.pos_biaya || '',
+                    deskripsi: it.deskripsi || '',
+                    qty: Number(it.qty) || 1,
+                    harga_satuan: it.harga_satuan ? String(it.harga_satuan) : '',
+                    nilai: it.nilai ? String(it.nilai) : ''
+                })));
+            } else {
+                setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            }
+            if (Number(item.laporan.diskon) > 0) {
+                setDiskonItems([{ deskripsi: 'Potongan Diskon Nota', nilai: String(item.laporan.diskon) }]);
+            } else {
+                setDiskonItems([]);
+            }
+        } else {
+            setFormLaporan({
+                tanggal_laporan: todayStr(),
+                tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(),
+                nominal_digunakan: '',
+                rincian: '',
+                diskon: ''
+            });
+            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            setDiskonItems([]);
+        }
+        clearNotaList();
+        setModalLaporan(item);
+    };
+
     const handleLaporanKB = async () => {
         setError('');
         const tglLaporan = formLaporan.tanggal_laporan || todayStr();
@@ -398,7 +441,8 @@ export default function KasBesar() {
             return setError('Total nominal rincian pengeluaran harus lebih besar dari Rp 0.');
         }
 
-        if (notaList.length === 0) {
+        const hasExistingFiles = modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url);
+        if (notaList.length === 0 && !hasExistingFiles) {
             return setError('Wajib mengunggah minimal 1 bukti nota / struk belanja.');
         }
 
@@ -419,14 +463,16 @@ export default function KasBesar() {
             fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
 
-            notaList.forEach(item => {
-                if (item.file) {
-                    fd.append('nota', item.file);
-                }
-            });
+            if (notaList && notaList.length > 0) {
+                notaList.forEach(item => {
+                    if (item.file) {
+                        fd.append('nota', item.file);
+                    }
+                });
+            }
 
             await api.post(`/keuangan/kas-besar/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-            showSuccess('Laporan penggunaan kas besar berhasil disubmit!');
+            showSuccess(modalLaporan.laporan ? 'Perbaikan laporan penggunaan kas besar berhasil disubmit!' : 'Laporan penggunaan kas besar berhasil disubmit!');
             setModalLaporan(null);
             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
@@ -592,10 +638,30 @@ export default function KasBesar() {
                                         {(() => {
                                             const st = getStatusDisplay(item);
                                             return (
+                                                <>
                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 99, background: st.bg, color: st.color, fontSize: 11.5, fontWeight: 600 }}>
                                                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                                                     {st.label}
                                                 </span>
+                                                {item.status === 'dicairkan' && item.laporan && item.catatan_tolak && (
+                                                    <div style={{ marginTop: 3 }}>
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 4,
+                                                            fontSize: 10.5,
+                                                            fontWeight: 700,
+                                                            color: '#b91c1c',
+                                                            background: '#fef2f2',
+                                                            border: '1px solid #fecaca',
+                                                            padding: '1px 6px',
+                                                            borderRadius: 4
+                                                        }}>
+                                                            LPJ Ditolak
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                </>
                                             );
                                         })()}
                                     </td>
@@ -619,7 +685,14 @@ export default function KasBesar() {
                                             )}
                                             <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>Detail</button>
                                             {item.status === 'dicairkan' && item.created_by === user?.id && (
-                                                <button className="pc-btn-sm p" onClick={() => { setModalLaporan(item); setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]); setDiskonItems([]); setNotaList([]); setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '', diskon: '' }); }}>Laporan</button>
+                                                <button
+                                                    className="pc-btn-sm p"
+                                                    style={item.laporan && item.catatan_tolak ? { background: '#fef2f2', color: '#b91c1c', borderColor: '#fca5a5' } : {}}
+                                                    onClick={() => openLaporanModal(item)}
+                                                    title={item.laporan && item.catatan_tolak ? 'Perbaiki laporan penggunaan yang ditolak' : 'Submit laporan penggunaan'}
+                                                >
+                                                    {item.laporan && item.catatan_tolak ? 'Perbaiki Laporan' : 'Laporan'}
+                                                </button>
                                             )}
                                             {item.status === 'menunggu_approval_laporan' && isDirekturWadir && (
                                                 <button className="pc-btn-sm g" onClick={() => { setModalApprovalLaporan(item); setApprovalLaporanForm({ aksi: 'setujui', catatan_tolak: '' }); }}>Approval Laporan</button>
@@ -865,6 +938,27 @@ export default function KasBesar() {
 
                         {modalDetail.laporan && (
                             <ModalSection icon={<FileText size={14} />} title="Laporan Penggunaan Dana">
+                                {modalDetail.status === 'dicairkan' && modalDetail.catatan_tolak && (
+                                    <div style={{
+                                        background: '#fff1f2',
+                                        border: '1px solid #fecdd3',
+                                        borderRadius: 8,
+                                        padding: '10px 14px',
+                                        marginBottom: 14,
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 10
+                                    }}>
+                                        <AlertTriangle size={18} style={{ color: '#e11d48', flexShrink: 0, marginTop: 2 }} />
+                                        <div style={{ fontSize: 13, color: '#9f1239' }}>
+                                            <strong style={{ display: 'block', marginBottom: 3 }}>Laporan Penggunaan Ditolak:</strong>
+                                            <span style={{ fontWeight: 600 }}>"{modalDetail.catatan_tolak}"</span>
+                                            <div style={{ marginTop: 4, fontSize: 11.5, color: '#be123c' }}>
+                                                Silakan periksa berkas nota dan rincian belanja di bawah ini untuk melihat jika ada kesalahan upload. Anda dapat memperbarui laporan dengan menekan tombol <strong>Perbaiki Laporan</strong>.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="pc-detail-grid" style={{ marginBottom: 12 }}>
                                     <div className="pc-detail-item">
                                         <p className="pc-detail-label">Nominal Digunakan (Riil)</p>
@@ -920,31 +1014,36 @@ export default function KasBesar() {
                                                 padding: '3px 10px',
                                                 borderRadius: 99,
                                                 background: modalDetail.reimbursement_info.status === 'dicairkan' ? '#dcfce7' : '#fef3c7',
-                                                color: modalDetail.reimbursement_info.status === 'dicairkan' ? '#166534' : '#b45309',
-                                                border: `1px solid ${modalDetail.reimbursement_info.status === 'dicairkan' ? '#86efac' : '#fcd34d'}`
+                                                color: modalDetail.reimbursement_info.status === 'dicairkan' ? '#166534' : '#92400e',
                                             }}>
-                                                {modalDetail.reimbursement_info.status === 'dicairkan' ? '✓ Sudah Dicairkan' : `Status: ${modalDetail.reimbursement_info.status_label || modalDetail.reimbursement_info.status}`}
+                                                {modalDetail.reimbursement_info.status_display || modalDetail.reimbursement_info.status}
                                             </span>
                                         </div>
                                     </div>
                                 )}
 
                                 {modalDetail.laporan.items && modalDetail.laporan.items.length > 0 && (
-                                    <div className="pc-table-wrap" style={{ marginTop: 10, border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                                        <table className="pc-table">
+                                    <div style={{ marginTop: 12 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                                            Rincian Akun Biaya Pengeluaran:
+                                        </p>
+                                        <table className="pc-items-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Kategori Akun Biaya</th>
-                                                    <th>Deskripsi</th>
-                                                    <th style={{ textAlign: 'right' }}>Nilai (Rp)</th>
+                                                    <th style={{ width: '38%' }}>Akun Biaya</th>
+                                                    <th>Deskripsi Belanja</th>
+                                                    <th style={{ textAlign: 'right', width: '130px' }}>Nilai</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {modalDetail.laporan.items.map(it => (
-                                                    <tr key={it.id}>
-                                                        <td><strong>{it.kode_akun}</strong> - {it.nama_akun}</td>
-                                                        <td>{it.deskripsi}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(it.nilai)}</td>
+                                                {modalDetail.laporan.items.map((it, idx) => (
+                                                    <tr key={it.id || idx}>
+                                                        <td>
+                                                            <div style={{ fontWeight: 700, color: '#0f172a' }}>{it.kode_akun} - {it.nama_akun}</div>
+                                                            {it.pos_biaya && <div style={{ fontSize: '11px', color: '#64748b' }}>{it.pos_biaya}</div>}
+                                                        </td>
+                                                        <td style={{ color: '#334155' }}>{it.deskripsi}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{fmt(it.nilai)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -970,22 +1069,29 @@ export default function KasBesar() {
                                     </div>
                                 )}
 
-                                {modalDetail.laporan.fotos && modalDetail.laporan.fotos.length > 0 && (
-                                    <div style={{ marginTop: 14 }}>
-                                        <p className="pc-detail-label">Bukti Nota / Struk ({modalDetail.laporan.fotos.length} foto)</p>
-                                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
-                                            {modalDetail.laporan.fotos.map(f => (
-                                                <div key={f.id} onClick={() => setImagePreview(resolveMediaUrl(f.file))} style={{ cursor: 'pointer', border: '1px solid #cbd5e1', borderRadius: 8, padding: 4, background: '#fff' }}>
-                                                    <img src={resolveMediaUrl(f.file)} alt="Nota" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6 }} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                <ExistingAttachmentsList
+                                    list={modalDetail.laporan.berkas_nota_list}
+                                    fallbackUrl={modalDetail.laporan.nota_url}
+                                    label="Bukti Nota / Struk"
+                                    onPreview={setImagePreview}
+                                />
                             </ModalSection>
                         )}
 
                         <div className="pc-modal-footer">
+                            {modalDetail.status === 'dicairkan' && (modalDetail.created_by === user?.id || isDirekturWadir) && (
+                                <button
+                                    className="pc-btn-primary"
+                                    style={modalDetail.laporan && modalDetail.catatan_tolak ? { background: '#dc2626', borderColor: '#b91c1c' } : {}}
+                                    onClick={() => {
+                                        const target = modalDetail;
+                                        setModalDetail(null);
+                                        openLaporanModal(target);
+                                    }}
+                                >
+                                    <FileText size={15} /> {modalDetail.laporan && modalDetail.catatan_tolak ? 'Perbaiki Laporan' : 'Submit Laporan'}
+                                </button>
+                            )}
                             <button className="pc-btn-primary" onClick={() => setModalDetail(null)}>Tutup</button>
                         </div>
                     </div>
@@ -1454,6 +1560,26 @@ export default function KasBesar() {
                             </div>
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan (Bisa Lebih Dari 1 Nota)">
+                            {modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url) && (
+                                <div style={{ marginBottom: 14, padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                                    <p style={{ margin: '0 0 8px 0', fontSize: 12.5, fontWeight: 700, color: '#334155' }}>
+                                        Nota / Berkas Sebelumnya yang Pernah Diunggah:
+                                    </p>
+                                    <ExistingAttachmentsList
+                                        list={modalLaporan.laporan.berkas_nota_list}
+                                        fallbackUrl={modalLaporan.laporan.nota_url}
+                                        label="Nota Sebelumnya"
+                                        onPreview={setImagePreview}
+                                    />
+                                    <p style={{ margin: '8px 0 0 0', fontSize: 11.5, color: '#64748b' }}>
+                                        {notaList.length > 0 ? (
+                                            <strong style={{ color: '#059669' }}>✓ File baru di bawah akan menggantikan nota sebelumnya saat laporan disimpan.</strong>
+                                        ) : (
+                                            <span>* File di atas adalah yang Anda upload sebelumnya. Jika Anda salah upload file, unggah file nota baru yang benar di bawah ini.</span>
+                                        )}
+                                    </p>
+                                </div>
+                            )}
                             <input
                                 ref={notaRef}
                                 type="file"
@@ -1474,9 +1600,9 @@ export default function KasBesar() {
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanKB}
-                                disabled={saving || notaList.length === 0 || totalLaporanItems <= 0}
+                                disabled={saving || (!notaList.length && !modalLaporan.laporan?.berkas_nota_list?.length && !modalLaporan.laporan?.nota_url) || totalLaporanItems <= 0}
                             >
-                                {saving ? 'Menyimpan...' : 'Submit Laporan'}
+                                {saving ? 'Menyimpan...' : (modalLaporan.laporan ? 'Submit Ulang Laporan' : 'Submit Laporan')}
                             </button>
                         </div>
                     </div>

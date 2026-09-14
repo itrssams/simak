@@ -8026,8 +8026,8 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({'error': 'Laporan penggunaan hanya dapat disubmit oleh pemohon.'}, status=403)
         if instance.status != 'dicairkan':
             return Response({'error': 'Laporan hanya bisa disubmit setelah dana dicairkan.'}, status=400)
-        if hasattr(instance, 'laporan'):
-            return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
+
+        is_revisi = hasattr(instance, 'laporan')
 
         # Ambil seluruh file nota yang diupload (support multiple files)
         uploaded_files = request.FILES.getlist('nota') or request.FILES.getlist('nota_files') or request.FILES.getlist('files')
@@ -8036,7 +8036,8 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             if single_f:
                 uploaded_files = [single_f]
 
-        if not uploaded_files and not request.data.get('nota'):
+        has_existing_files = is_revisi and (instance.laporan.foto_list.exists() or bool(instance.laporan.nota))
+        if not uploaded_files and not request.data.get('nota') and not has_existing_files:
             return Response({'error': 'Minimal harus ada 1 file nota / bukti struk pengeluaran yang diunggah.'}, status=400)
 
         # Parse items rincian pengeluaran jika dikirimkan
@@ -8102,21 +8103,51 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             primary_file = uploaded_files[0] if uploaded_files else None
-            laporan = serializer.save(
-                petty_cash=instance,
-                selisih=selisih,
-                subtotal=subtotal_req,
-                diskon=diskon_req,
-                nota=primary_file
-            )
 
-            # Simpan seluruh file nota ke FotoLaporanPenggunaan
-            for idx, f in enumerate(uploaded_files):
-                FotoLaporanPenggunaan.objects.create(
-                    laporan=laporan,
-                    foto=f,
-                    urutan=idx + 1
+            if is_revisi:
+                laporan = instance.laporan
+                laporan.tanggal_laporan = serializer.validated_data['tanggal_laporan']
+                if serializer.validated_data.get('tanggal_nota'):
+                    laporan.tanggal_nota = serializer.validated_data['tanggal_nota']
+                laporan.nominal_digunakan = nominal_digunakan
+                laporan.subtotal = subtotal_req
+                laporan.diskon = diskon_req
+                laporan.selisih = selisih
+                if data.get('rincian'):
+                    laporan.rincian = data.get('rincian')
+                elif serializer.validated_data.get('rincian'):
+                    laporan.rincian = serializer.validated_data['rincian']
+
+                if primary_file:
+                    laporan.nota = primary_file
+                laporan.save()
+
+                if uploaded_files:
+                    laporan.foto_list.all().delete()
+                    for idx, f in enumerate(uploaded_files):
+                        FotoLaporanPenggunaan.objects.create(
+                            laporan=laporan,
+                            foto=f,
+                            urutan=idx + 1
+                        )
+
+                laporan.items.all().delete()
+            else:
+                laporan = serializer.save(
+                    petty_cash=instance,
+                    selisih=selisih,
+                    subtotal=subtotal_req,
+                    diskon=diskon_req,
+                    nota=primary_file
                 )
+
+                # Simpan seluruh file nota ke FotoLaporanPenggunaan
+                for idx, f in enumerate(uploaded_files):
+                    FotoLaporanPenggunaan.objects.create(
+                        laporan=laporan,
+                        foto=f,
+                        urutan=idx + 1
+                    )
 
             for it in parsed_items:
                 try:
@@ -8169,14 +8200,13 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             if not catatan:
                 return Response({'error': 'Catatan tolak wajib diisi.'}, status=400)
             with transaction.atomic():
-                laporan.delete()
                 instance.status = 'dicairkan'
                 instance.catatan_tolak = catatan
                 instance.laporan_disetujui_oleh = None
                 instance.laporan_disetujui_at = None
                 instance.save()
             return Response({
-                'message': 'Laporan penggunaan ditolak. User dapat upload laporan ulang.',
+                'message': 'Laporan penggunaan ditolak. User dapat memeriksa berkas dan mengupload perbaikan laporan.',
                 'status': instance.status,
             }, status=status.HTTP_200_OK)
 
@@ -8468,8 +8498,8 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({'error': 'Laporan penggunaan hanya dapat disubmit oleh pemohon.'}, status=403)
         if instance.status != 'dicairkan':
             return Response({'error': 'Laporan hanya bisa disubmit setelah dana dicairkan.'}, status=400)
-        if hasattr(instance, 'laporan'):
-            return Response({'error': 'Laporan sudah pernah disubmit.'}, status=400)
+
+        is_revisi = hasattr(instance, 'laporan')
 
         uploaded_files = request.FILES.getlist('nota') or request.FILES.getlist('nota_files') or request.FILES.getlist('files')
         if not uploaded_files:
@@ -8477,7 +8507,8 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             if single_f:
                 uploaded_files = [single_f]
 
-        if not uploaded_files and not request.data.get('nota'):
+        has_existing_files = is_revisi and (instance.laporan.foto_list.exists() or bool(instance.laporan.nota))
+        if not uploaded_files and not request.data.get('nota') and not has_existing_files:
             return Response({'error': 'Minimal harus ada 1 file nota / bukti struk pengeluaran yang diunggah.'}, status=400)
 
         raw_items = request.data.get('items')
@@ -8536,20 +8567,50 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         with transaction.atomic():
             primary_file = uploaded_files[0] if uploaded_files else None
-            laporan = serializer.save(
-                kas_besar=instance,
-                selisih=selisih,
-                subtotal=subtotal_req,
-                diskon=diskon_req,
-                nota=primary_file
-            )
 
-            for idx, f in enumerate(uploaded_files):
-                FotoLaporanKasBesar.objects.create(
-                    laporan=laporan,
-                    foto=f,
-                    urutan=idx + 1
+            if is_revisi:
+                laporan = instance.laporan
+                laporan.tanggal_laporan = serializer.validated_data['tanggal_laporan']
+                if serializer.validated_data.get('tanggal_nota'):
+                    laporan.tanggal_nota = serializer.validated_data['tanggal_nota']
+                laporan.nominal_digunakan = nominal_digunakan
+                laporan.subtotal = subtotal_req
+                laporan.diskon = diskon_req
+                laporan.selisih = selisih
+                if data.get('rincian'):
+                    laporan.rincian = data.get('rincian')
+                elif serializer.validated_data.get('rincian'):
+                    laporan.rincian = serializer.validated_data['rincian']
+
+                if primary_file:
+                    laporan.nota = primary_file
+                laporan.save()
+
+                if uploaded_files:
+                    laporan.foto_list.all().delete()
+                    for idx, f in enumerate(uploaded_files):
+                        FotoLaporanKasBesar.objects.create(
+                            laporan=laporan,
+                            foto=f,
+                            urutan=idx + 1
+                        )
+
+                laporan.items.all().delete()
+            else:
+                laporan = serializer.save(
+                    kas_besar=instance,
+                    selisih=selisih,
+                    subtotal=subtotal_req,
+                    diskon=diskon_req,
+                    nota=primary_file
                 )
+
+                for idx, f in enumerate(uploaded_files):
+                    FotoLaporanKasBesar.objects.create(
+                        laporan=laporan,
+                        foto=f,
+                        urutan=idx + 1
+                    )
 
             for it in parsed_items:
                 try:
@@ -8601,14 +8662,13 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             if not catatan:
                 return Response({'error': 'Catatan tolak wajib diisi.'}, status=400)
             with transaction.atomic():
-                laporan.delete()
                 instance.status = 'dicairkan'
                 instance.catatan_tolak = catatan
                 instance.laporan_disetujui_oleh = None
                 instance.laporan_disetujui_at = None
                 instance.save()
             return Response({
-                'message': 'Laporan penggunaan ditolak. User dapat upload laporan ulang.',
+                'message': 'Laporan penggunaan ditolak. User dapat memeriksa berkas dan mengupload perbaikan laporan.',
                 'status': instance.status,
             }, status=status.HTTP_200_OK)
 

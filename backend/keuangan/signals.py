@@ -3,10 +3,9 @@ from django.dispatch import receiver
 from django.core.files.storage import default_storage
 import os
 from .models import (
-    
     PettyCash, LaporanPenggunaan, Reimbursement,
     FotoPettyCash, FotoLaporanPenggunaan, FotoReimbursement,
-    
+    KasBesar, LaporanPenggunaanKasBesar, FotoLaporanKasBesar,
 )
 
 
@@ -115,6 +114,37 @@ def delete_replaced_foto_laporan_penggunaan_file(sender, instance, **kwargs):
 @receiver(pre_save, sender=FotoReimbursement)
 def delete_replaced_foto_reimbursement_file(sender, instance, **kwargs):
     delete_replaced_file(instance, FotoReimbursement, 'foto')
+
+
+@receiver(pre_delete, sender=KasBesar)
+def delete_kas_besar_file(sender, instance, **kwargs):
+    delete_storage_file(instance.berkas)
+
+
+@receiver(pre_delete, sender=LaporanPenggunaanKasBesar)
+def delete_laporan_penggunaan_kas_besar_file(sender, instance, **kwargs):
+    delete_storage_file(instance.nota)
+
+
+@receiver(pre_delete, sender=FotoLaporanKasBesar)
+def delete_foto_laporan_kas_besar_file(sender, instance, **kwargs):
+    delete_storage_file(instance.foto)
+
+
+@receiver(pre_save, sender=KasBesar)
+def delete_replaced_kas_besar_file(sender, instance, **kwargs):
+    delete_replaced_file(instance, KasBesar, 'berkas')
+
+
+@receiver(pre_save, sender=LaporanPenggunaanKasBesar)
+def delete_replaced_laporan_penggunaan_kas_besar_file(sender, instance, **kwargs):
+    delete_replaced_file(instance, LaporanPenggunaanKasBesar, 'nota')
+
+
+@receiver(pre_save, sender=FotoLaporanKasBesar)
+def delete_replaced_foto_laporan_kas_besar_file(sender, instance, **kwargs):
+    delete_replaced_file(instance, FotoLaporanKasBesar, 'foto')
+
 
 
 

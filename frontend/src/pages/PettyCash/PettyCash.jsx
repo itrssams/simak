@@ -359,6 +359,49 @@ export default function PettyCash() {
 
     const totalLaporanItems = totalPengeluaranRiil;
 
+    const openLaporanModal = (item) => {
+        resetError();
+        if (item.laporan) {
+            setFormLaporan({
+                tanggal_laporan: item.laporan.tanggal_laporan || todayStr(),
+                tanggal_nota: item.laporan.tanggal_nota || item.laporan.tanggal_laporan || (item.tanggal ? String(item.tanggal) : todayStr()),
+                nominal_digunakan: item.laporan.nominal_digunakan || '',
+                rincian: item.laporan.rincian || '',
+                diskon: item.laporan.diskon || ''
+            });
+            if (item.laporan.items && item.laporan.items.length > 0) {
+                setLaporanItems(item.laporan.items.map(it => ({
+                    kode_akun: it.kode_akun || '',
+                    nama_akun: it.nama_akun || '',
+                    pos_biaya: it.pos_biaya || '',
+                    deskripsi: it.deskripsi || '',
+                    qty: Number(it.qty) || 1,
+                    harga_satuan: it.harga_satuan ? String(it.harga_satuan) : '',
+                    nilai: it.nilai ? String(it.nilai) : ''
+                })));
+            } else {
+                setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            }
+            if (Number(item.laporan.diskon) > 0) {
+                setDiskonItems([{ deskripsi: 'Potongan Diskon Nota', nilai: String(item.laporan.diskon) }]);
+            } else {
+                setDiskonItems([]);
+            }
+        } else {
+            setFormLaporan({
+                tanggal_laporan: todayStr(),
+                tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(),
+                nominal_digunakan: '',
+                rincian: '',
+                diskon: ''
+            });
+            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
+            setDiskonItems([]);
+        }
+        clearNotaList();
+        setModalLaporan(item);
+    };
+
     // RB state
     const [listRB, setListRB] = useState([]);
     const [loadingRB, setLoadingRB] = useState(true);
@@ -572,7 +615,8 @@ export default function PettyCash() {
             return setError(`Total nominal digunakan (${fmt(nominalDigunakan)}) melebihi dana dicairkan (${fmt(modalLaporan.nominal)}).`);
         }
 
-        if (!notaList || notaList.length === 0) {
+        const hasExistingFiles = modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url);
+        if ((!notaList || notaList.length === 0) && !hasExistingFiles) {
             return setError('Minimal harus ada 1 file nota / struk bukti pengeluaran belanja yang diunggah.');
         }
 
@@ -593,13 +637,15 @@ export default function PettyCash() {
             fd.append('rincian', rincianText);
             fd.append('items', JSON.stringify(validItems));
 
-            // Append all nota files
-            notaList.forEach(it => {
-                fd.append('nota', it.file);
-            });
+            // Append all nota files if newly uploaded
+            if (notaList && notaList.length > 0) {
+                notaList.forEach(it => {
+                    fd.append('nota', it.file);
+                });
+            }
 
             await api.post(`/keuangan/petty-cash/${modalLaporan.id}/laporan/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-            showSuccess('Laporan penggunaan berhasil disubmit!');
+            showSuccess(modalLaporan.laporan ? 'Perbaikan laporan penggunaan berhasil disubmit!' : 'Laporan penggunaan berhasil disubmit!');
             setModalLaporan(null);
             setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
             setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
@@ -1352,7 +1398,27 @@ export default function PettyCash() {
                                                 <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.created_by_name}</p>
                                             </td>
                                             <td style={{ fontWeight: 700, color: '#1a4731' }}>{fmt(item.nominal)}</td>
-                                            <td><StatusBadge cfg={PC_STATUS} status={item.status} /></td>
+                                            <td>
+                                                <StatusBadge cfg={PC_STATUS} status={item.status} />
+                                                {item.status === 'dicairkan' && item.laporan && item.catatan_tolak && (
+                                                    <div style={{ marginTop: 3 }}>
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 4,
+                                                            fontSize: 10.5,
+                                                            fontWeight: 700,
+                                                            color: '#b91c1c',
+                                                            background: '#fef2f2',
+                                                            border: '1px solid #fecaca',
+                                                            padding: '1px 6px',
+                                                            borderRadius: 4
+                                                        }}>
+                                                            LPJ Ditolak
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td style={{ textAlign: 'right' }}>
                                                 <div className="pc-action-cell">
                                                     {isDirekturWadir && item.status === 'pending' && (
@@ -1362,14 +1428,14 @@ export default function PettyCash() {
                                                         <button className="pc-btn-sm b" onClick={() => { resetError(); setModalCairkan(item); }}>Cairkan</button>
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isDirekturWadir) && (
-                                                        <button className="pc-btn-sm p" onClick={() => {
-                                                            setFormLaporan({ tanggal_laporan: todayStr(), tanggal_nota: item.tanggal ? String(item.tanggal) : todayStr(), nominal_digunakan: '', rincian: '', diskon: '' });
-                                                            setLaporanItems([{ kode_akun: '', nama_akun: '', pos_biaya: '', deskripsi: '', qty: 1, harga_satuan: '', nilai: '' }]);
-                                                            setDiskonItems([]);
-                                                            clearNotaList();
-                                                            resetError();
-                                                            setModalLaporan(item);
-                                                        }}>Laporan</button>
+                                                        <button
+                                                            className="pc-btn-sm p"
+                                                            style={item.laporan && item.catatan_tolak ? { background: '#fef2f2', color: '#b91c1c', borderColor: '#fca5a5' } : {}}
+                                                            onClick={() => openLaporanModal(item)}
+                                                            title={item.laporan && item.catatan_tolak ? 'Perbaiki laporan penggunaan yang ditolak' : 'Submit laporan penggunaan'}
+                                                        >
+                                                            {item.laporan && item.catatan_tolak ? 'Perbaiki Laporan' : 'Laporan'}
+                                                        </button>
                                                     )}
                                                     {item.status === 'dicairkan' && (item.created_by === user?.id || isPettyCashCashier || isDirekturWadir) && (
                                                         <button
@@ -1525,7 +1591,7 @@ export default function PettyCash() {
                             {modalDetail.keterangan && <InfoBlock label="Keterangan" value={modalDetail.keterangan} />}
                             {modalDetail.catatan_tolak && (
                                 <div className="pc-rejection">
-                                    <strong>{modalDetail.status === 'dibatalkan' ? 'Alasan Pembatalan:' : 'Catatan Tolak:'}</strong> {modalDetail.catatan_tolak.replace(/^Dibatalkan:\s*/, '')}
+                                    <strong>{modalDetail.status === 'dibatalkan' ? 'Alasan Pembatalan:' : (modalDetail.status === 'dicairkan' && modalDetail.laporan ? 'Catatan Penolakan Laporan:' : 'Catatan Tolak:')}</strong> {modalDetail.catatan_tolak.replace(/^Dibatalkan:\s*/, '')}
                                 </div>
                             )}
                         </ModalSection>
@@ -1536,6 +1602,27 @@ export default function PettyCash() {
                         )}
                         {modalDetail.laporan && (
                             <ModalSection icon={<FileText size={14} />} title="Laporan Penggunaan">
+                                {modalDetail.status === 'dicairkan' && modalDetail.catatan_tolak && (
+                                    <div style={{
+                                        background: '#fff1f2',
+                                        border: '1px solid #fecdd3',
+                                        borderRadius: 8,
+                                        padding: '10px 14px',
+                                        marginBottom: 14,
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 10
+                                    }}>
+                                        <AlertTriangle size={18} style={{ color: '#e11d48', flexShrink: 0, marginTop: 2 }} />
+                                        <div style={{ fontSize: 13, color: '#9f1239' }}>
+                                            <strong style={{ display: 'block', marginBottom: 3 }}>Laporan Penggunaan Ditolak:</strong>
+                                            <span style={{ fontWeight: 600 }}>"{modalDetail.catatan_tolak}"</span>
+                                            <div style={{ marginTop: 4, fontSize: 11.5, color: '#be123c' }}>
+                                                Silakan periksa berkas nota dan rincian belanja di bawah ini untuk melihat jika ada kesalahan upload. Anda dapat memperbarui laporan dengan menekan tombol <strong>Perbaiki Laporan</strong>.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <DetailGrid items={[
                                     ['Tgl Laporan', fmtTgl(modalDetail.laporan.tanggal_laporan)],
                                     ['Tgl Nota / Belanja', fmtTgl(modalDetail.laporan.tanggal_nota || modalDetail.laporan.tanggal_laporan)],
@@ -1623,6 +1710,19 @@ export default function PettyCash() {
                                     }}
                                 >
                                     <X size={15} /> Batalkan Pengajuan
+                                </button>
+                            )}
+                            {modalDetail.status === 'dicairkan' && (modalDetail.created_by === user?.id || isDirekturWadir) && (
+                                <button
+                                    className="pc-btn-primary"
+                                    style={modalDetail.laporan && modalDetail.catatan_tolak ? { background: '#dc2626', borderColor: '#b91c1c' } : {}}
+                                    onClick={() => {
+                                        const target = modalDetail;
+                                        setModalDetail(null);
+                                        openLaporanModal(target);
+                                    }}
+                                >
+                                    <FileText size={15} /> {modalDetail.laporan && modalDetail.catatan_tolak ? 'Perbaiki Laporan' : 'Submit Laporan'}
                                 </button>
                             )}
                             <button className="pc-btn-ghost" onClick={() => setModalDetail(null)}>Tutup</button>
@@ -2051,6 +2151,26 @@ export default function PettyCash() {
                             </div>
                         </ModalSection>
                         <ModalSection icon={<Paperclip size={14} />} title="Lampiran Laporan (Bisa Lebih Dari 1 Nota)">
+                            {modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url) && (
+                                <div style={{ marginBottom: 14, padding: '12px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                                    <p style={{ margin: '0 0 8px 0', fontSize: 12.5, fontWeight: 700, color: '#334155' }}>
+                                        Nota / Berkas Sebelumnya yang Pernah Diunggah:
+                                    </p>
+                                    <ExistingAttachmentsList
+                                        list={modalLaporan.laporan.berkas_nota_list}
+                                        fallbackUrl={modalLaporan.laporan.nota_url}
+                                        label="Nota Sebelumnya"
+                                        onPreview={setImagePreview}
+                                    />
+                                    <p style={{ margin: '8px 0 0 0', fontSize: 11.5, color: '#64748b' }}>
+                                        {notaList.length > 0 ? (
+                                            <strong style={{ color: '#059669' }}>✓ File baru di bawah akan menggantikan nota sebelumnya saat laporan disimpan.</strong>
+                                        ) : (
+                                            <span>* File di atas adalah yang Anda upload sebelumnya. Jika Anda salah upload file, unggah file nota baru yang benar di bawah ini.</span>
+                                        )}
+                                    </p>
+                                </div>
+                            )}
                             <input
                                 ref={notaRef}
                                 type="file"
@@ -2071,9 +2191,9 @@ export default function PettyCash() {
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanPC}
-                                disabled={saving || notaList.length === 0 || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}
+                                disabled={saving || (!notaList.length && !modalLaporan.laporan?.berkas_nota_list?.length && !modalLaporan.laporan?.nota_url) || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}
                             >
-                                {saving ? 'Menyimpan...' : 'Submit Laporan'}
+                                {saving ? 'Menyimpan...' : (modalLaporan.laporan ? 'Submit Ulang Laporan' : 'Submit Laporan')}
                             </button>
                         </div>
                     </div>
