@@ -3163,35 +3163,63 @@
 }
 
 @media print {
-  body * {
-    visibility: hidden !important;
+  /* Sembunyikan seluruh root aplikasi, modal, header, dan sidebar dari print flow */
+  body > *:not(#pc-print-area) {
+    display: none !important;
   }
-  .pc-print-sheet,
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #pc-print-area,
+  .pc-print-sheet {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-sizing: border-box !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+
+  #pc-print-area *,
   .pc-print-sheet * {
     visibility: visible !important;
   }
-  .pc-print-sheet {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    background: #ffffff !important;
-    color: #000000 !important;
-    padding: 10mm 14mm;
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
+
+  #pc-print-area table {
+    width: 100% !important;
+    page-break-inside: auto;
   }
+
+  #pc-print-area tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  #pc-print-area tfoot {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  #pc-print-area .pc-print-signatures {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   @page {
     size: A4 portrait;
-    margin: 8mm;
-  }
-  .pc-overlay,
-  .pc-modal,
-  .sidebar,
-  .app-header,
-  nav {
-    display: none !important;
+    margin: 10mm 10mm;
   }
 }
 

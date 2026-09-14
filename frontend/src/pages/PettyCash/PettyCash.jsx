@@ -3114,16 +3114,7 @@ export default function PettyCash() {
                                         <p className="pc-saldo-section-title"><Plus size={15} /> Pengajuan Pengisian Kembali Saldo</p>
                                         <p className="pc-saldo-section-sub">Daftar permintaan top up / pengisian kembali saldo petty cash.</p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-                                        <button
-                                            type="button"
-                                            className="pc-btn-sm n"
-                                            onClick={() => setModalPrintRekap(true)}
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: 6 }}
-                                            title="Cetak Rekapitulasi Rincian Belanja Sejak Top Up Terakhir"
-                                        >
-                                            <Printer size={13} /> Cetak Rekap Pemakaian
-                                        </button>
+                                    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>                                        
                                         <span className="pc-saldo-badge pending">{saldoStats.pending} Menunggu</span>
                                         <span className="pc-saldo-badge disetujui">{saldoStats.disetujui} Disetujui</span>
                                         <span className="pc-saldo-badge ditolak">{saldoStats.ditolak} Ditolak</span>
@@ -3682,33 +3673,7 @@ export default function PettyCash() {
                             <div className="pc-modal-head-copy">
                                 <h2 className="pc-modal-head-title">Cetak Rekap Pengeluaran Kas Kecil</h2>
                                 <p className="pc-modal-head-subtitle">Dokumen dasar lampiran & pelaporan pengeluaran petty cash per periode atau siklus</p>
-                            </div>
-                            <div className="pc-rekap-head-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <button
-                                    type="button"
-                                    onClick={handleExportExcelRekap}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                                    title="Download file Excel rekapitulasi sesuai periode yang dipilih"
-                                >
-                                    <Download size={14} /> Ekspor Excel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => window.print()}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                                >
-                                    <Printer size={14} /> Cetak / PDF
-                                </button>
-                                <button
-                                    type="button"
-                                    className="pc-btn-ghost"
-                                    style={{ padding: '6px 10px', fontSize: 13 }}
-                                    onClick={() => setModalPrintRekap(false)}
-                                    title="Tutup"
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
+                            </div>                            
                         </div>
 
                         {/* Document Preview Box (Simulates Printed Paper) */}
@@ -3857,113 +3822,116 @@ export default function PettyCash() {
             )}
 
             {/* Print-Only Container for Native Browser Print */}
-            <div className="pc-print-sheet">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
-                    <img
-                        src="/logo.png"
-                        alt="Logo RS"
-                        style={{ width: 55, height: 55, objectFit: 'contain', flexShrink: 0 }}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                    <div style={{ flex: 1, textAlign: 'center', padding: '0 12px' }}>
-                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#000', letterSpacing: '0.04em' }}>
-                            RS SIAGA AL MUNAWWARAH SAMARINDA
-                        </h2>
-                        <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
-                            Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: humas.rssams@gmail.com
+            {createPortal(
+                <div id="pc-print-area" className="pc-print-sheet">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
+                        <img
+                            src="/logo.png"
+                            alt="Logo RS"
+                            style={{ width: 55, height: 55, objectFit: 'contain', flexShrink: 0 }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                        <div style={{ flex: 1, textAlign: 'center', padding: '0 12px' }}>
+                            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#000', letterSpacing: '0.04em' }}>
+                                RS SIAGA AL MUNAWWARAH SAMARINDA
+                            </h2>
+                            <p style={{ margin: '3px 0 0', fontSize: 10, color: '#333' }}>
+                                Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: humas.rssams@gmail.com
+                            </p>
+                        </div>
+                        <div style={{ width: 55, height: 55, flexShrink: 0 }} />
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                        <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            REKAPITULASI PENGELUARAN BELANJA PETTY CASH
+                        </h3>
+                        <p style={{ margin: '2px 0 0', fontSize: 10, color: '#444' }}>
+                            {rekapPeriodeLabel}
                         </p>
                     </div>
-                    <div style={{ width: 55, height: 55, flexShrink: 0 }} />
-                </div>
 
-                <div style={{ textAlign: 'center', marginBottom: 14 }}>
-                    <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        REKAPITULASI PENGELUARAN BELANJA PETTY CASH
-                    </h3>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: '#444' }}>
-                        {rekapPeriodeLabel}
-                    </p>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 12, borderBottom: '1px solid #ccc', paddingBottom: 6 }}>
-                    <div>
-                        <div>Tanggal Cetak: <strong>{fmtTgl(todayStr())}</strong></div>
-                        <div>Plafon Saldo Tetap: <strong>Rp 5.000.000</strong></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, marginBottom: 12, borderBottom: '1px solid #ccc', paddingBottom: 6 }}>
+                        <div>
+                            <div>Tanggal Cetak: <strong>{fmtTgl(todayStr())}</strong></div>
+                            <div>Plafon Saldo Tetap: <strong>Rp 5.000.000</strong></div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
+                            <div>Total Pengeluaran: <strong>{fmt(totalRekapNominal)}</strong></div>
+                        </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div>Sisa Saldo Kasir: <strong>{fmt(saldoNominal)}</strong></div>
-                        <div>Total Pengeluaran: <strong>{fmt(totalRekapNominal)}</strong></div>
-                    </div>
-                </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, marginBottom: 14 }}>
-                    <thead>
-                        <tr style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
-                            <th style={{ padding: '5px 6px', width: 24, textAlign: 'center' }}>No</th>
-                            <th style={{ padding: '5px 6px', width: 85 }}>No. Ref</th>
-                            <th style={{ padding: '5px 6px', width: 75 }}>Tgl Nota</th>
-                            <th style={{ padding: '5px 6px', width: 130 }}>Pemohon / Unit</th>
-                            <th style={{ padding: '5px 6px', width: 140 }}>Akun Biaya</th>
-                            <th style={{ padding: '5px 6px' }}>Deskripsi Kebutuhan</th>
-                            <th style={{ padding: '5px 6px', width: 95, textAlign: 'right' }}>Nominal (Rp)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rekapDataWithDetails.length === 0 ? (
-                            <tr>
-                                <td colSpan={7} style={{ textAlign: 'center', padding: 14 }}>
-                                    Tidak ada catatan pengeluaran belanja pada periode ini.
-                                </td>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, marginBottom: 14 }}>
+                        <thead>
+                            <tr style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
+                                <th style={{ padding: '5px 6px', width: 24, textAlign: 'center' }}>No</th>
+                                <th style={{ padding: '5px 6px', width: 85 }}>No. Ref</th>
+                                <th style={{ padding: '5px 6px', width: 75 }}>Tgl Nota</th>
+                                <th style={{ padding: '5px 6px', width: 130 }}>Pemohon / Unit</th>
+                                <th style={{ padding: '5px 6px', width: 140 }}>Akun Biaya</th>
+                                <th style={{ padding: '5px 6px' }}>Deskripsi Kebutuhan</th>
+                                <th style={{ padding: '5px 6px', width: 95, textAlign: 'right' }}>Nominal (Rp)</th>
                             </tr>
-                        ) : (
-                            rekapDataWithDetails.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
-                                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>{item.no}</td>
-                                    <td style={{ padding: '4px 6px', fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
-                                    <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
-                                    <td style={{ padding: '4px 6px' }}>
-                                        <strong>{item.pemohon}</strong>
-                                        {item.unit && <div style={{ fontSize: 9, color: '#555' }}>{item.unit}</div>}
-                                    </td>
-                                    <td style={{ padding: '4px 6px' }}>{item.akunBiaya}</td>
-                                    <td style={{ padding: '4px 6px' }}>{item.keterangan}</td>
-                                    <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                        {fmt(item.nominal)}
+                        </thead>
+                        <tbody>
+                            {rekapDataWithDetails.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} style={{ textAlign: 'center', padding: 14 }}>
+                                        Tidak ada catatan pengeluaran belanja pada periode ini.
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                    <tfoot>
-                        <tr style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: 800 }}>
-                            <td colSpan={6} style={{ padding: '6px', textAlign: 'right', textTransform: 'uppercase' }}>
-                                Total Pengeluaran Belanja Kas Kecil:
-                            </td>
-                            <td style={{ padding: '6px', textAlign: 'right', fontSize: 11 }}>
-                                {fmt(totalRekapNominal)}
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                            ) : (
+                                rekapDataWithDetails.map((item, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+                                        <td style={{ padding: '4px 6px', textAlign: 'center' }}>{item.no}</td>
+                                        <td style={{ padding: '4px 6px', fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
+                                        <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
+                                        <td style={{ padding: '4px 6px' }}>
+                                            <strong>{item.pemohon}</strong>
+                                            {item.unit && <div style={{ fontSize: 9, color: '#555' }}>{item.unit}</div>}
+                                        </td>
+                                        <td style={{ padding: '4px 6px' }}>{item.akunBiaya}</td>
+                                        <td style={{ padding: '4px 6px' }}>{item.keterangan}</td>
+                                        <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                            {fmt(item.nominal)}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', fontWeight: 800 }}>
+                                <td colSpan={6} style={{ padding: '6px', textAlign: 'right', textTransform: 'uppercase' }}>
+                                    Total Pengeluaran Belanja Kas Kecil:
+                                </td>
+                                <td style={{ padding: '6px', textAlign: 'right', fontSize: 11 }}>
+                                    {fmt(totalRekapNominal)}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center', marginTop: 24, fontSize: 10 }}>
-                    <div>
-                        <p style={{ margin: '0 0 45px' }}>Diajukan Oleh,<br /><strong>Kasir Kas Kecil</strong></p>
-                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
-                        <span style={{ fontSize: 9, color: '#555' }}>Petugas Petty Cash</span>
+                    <div className="pc-print-signatures" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center', marginTop: 24, fontSize: 10, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                        <div>
+                            <p style={{ margin: '0 0 45px' }}>Diajukan Oleh,<br /><strong>Kasir Kas Kecil</strong></p>
+                            <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
+                            <span style={{ fontSize: 9, color: '#555' }}>Petugas Petty Cash</span>
+                        </div>
+                        <div>
+                            <p style={{ margin: '0 0 45px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
+                            <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>
+                            <span style={{ fontSize: 9, color: '#555' }}>Bagian Keuangan</span>
+                        </div>
+                        <div>
+                            <p style={{ margin: '0 0 45px' }}>Menyetujui,<br /><strong>Wakil Direktur Umum & Keuangan</strong></p>
+                            <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>
+                            <span style={{ fontSize: 9, color: '#555' }}>Pimpinan RS</span>
+                        </div>
                     </div>
-                    <div>
-                        <p style={{ margin: '0 0 45px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
-                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>
-                        <span style={{ fontSize: 9, color: '#555' }}>Bagian Keuangan</span>
-                    </div>
-                    <div>
-                        <p style={{ margin: '0 0 45px' }}>Menyetujui,<br /><strong>Wakil Direktur / Pimpinan</strong></p>
-                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>
-                        <span style={{ fontSize: 9, color: '#555' }}>Pimpinan RS</span>
-                    </div>
-                </div>
-            </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }
