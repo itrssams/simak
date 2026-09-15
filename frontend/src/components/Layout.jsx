@@ -519,7 +519,6 @@ const getActiveModuleConfig = (pathname, user) => {
     if (pathname.startsWith('/logbook')) {
         const monitoringLevel = (() => {
             if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
-            if (['manajer', 'kepala_seksi'].includes(user?.role)) return 'unit';
             return null;
         })();
         const menus = [
