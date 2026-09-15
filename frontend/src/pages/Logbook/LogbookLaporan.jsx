@@ -90,7 +90,6 @@ export default function LogbookLaporan() {
     useEffect(() => {
         const level = (() => {
             if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
-            if (['manajer', 'kepala_seksi'].includes(user?.role)) return 'unit';
             return null;
         })();
         setMonitoringLevel(level);

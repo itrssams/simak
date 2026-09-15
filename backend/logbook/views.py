@@ -22,8 +22,6 @@ def get_monitoring_level(user):
         return None
     if user.is_superuser or user.role in ('direktur', 'wakil_direktur'):
         return 'all'
-    if user.role in ('kepala_seksi', 'manajer'):
-        return 'unit'
     return None
 
 

@@ -84,7 +84,6 @@ export default function MyLogbook() {
     const monitoringLevel = useMemo(() => {
         if (!user) return null;
         if (user.is_superuser || ['direktur', 'wakil_direktur'].includes(user.role?.toLowerCase())) return 'all';
-        if (['manajer', 'kepala_seksi'].includes(user.role?.toLowerCase())) return 'unit';
         return null;
     }, [user]);
 

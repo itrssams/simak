@@ -47,7 +47,7 @@ const StatusBadge = ({ status, statusLabel }) => {
 
 export default function LogbookAktivitas() {
     const { user } = useAuth();
-    const isAtasan = Boolean(user?.is_superuser || ['direktur', 'wakil_direktur', 'manajer', 'kepala_seksi'].includes(user?.role));
+    const isAtasan = Boolean(user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role));
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const [aktivitas, setAktivitas] = useState([]);
