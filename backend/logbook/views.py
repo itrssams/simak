@@ -61,8 +61,10 @@ class LogbookViewSet(viewsets.ModelViewSet):
         monitoring_level = get_monitoring_level(user)
 
         # Filter akses data
-        if monitoring_level is None:
-            # Karyawan biasa hanya melihat logbook miliknya sendiri
+        is_mine = self.request.query_params.get('mine') == 'true'
+        
+        if is_mine or monitoring_level is None:
+            # Karyawan biasa (atau request khusus MyLogbook) hanya melihat logbook miliknya sendiri
             qs = qs.filter(user=user)
         elif monitoring_level == 'unit':
             # Manajer/Kepala Seksi hanya melihat unitnya sendiri

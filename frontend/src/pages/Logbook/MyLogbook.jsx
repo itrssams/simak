@@ -126,7 +126,7 @@ export default function MyLogbook() {
     const fetchMyLogbooks = useCallback(async () => {
         setLoadingMy(true);
         try {
-            const params = {};
+            const params = { mine: 'true' };
             if (myFilterDate) params.tanggal = myFilterDate;
             if (debouncedMySearch.trim()) params.q = debouncedMySearch.trim();
 
