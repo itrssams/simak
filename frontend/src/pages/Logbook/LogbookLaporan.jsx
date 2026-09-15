@@ -89,8 +89,8 @@ export default function LogbookLaporan() {
     // Determine monitoring level
     useEffect(() => {
         const level = (() => {
-            if (user?.is_superuser || ['direktur', 'wakil_direktur'].includes(user?.role)) return 'all';
-            if (['manajer', 'kepala_seksi'].includes(user?.role)) return 'unit';
+            if (user?.is_superuser || ['direktur', 'wakil_direktur', 'manajer'].includes(user?.role)) return 'all';
+            if (['kepala_seksi'].includes(user?.role)) return 'unit';
             return null;
         })();
         setMonitoringLevel(level);
