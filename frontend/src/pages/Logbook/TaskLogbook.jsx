@@ -117,14 +117,7 @@ export default function TaskLogbook() {
     };
 
     const handleAction = async (taskId, actionName) => {
-        // [SIMULASI BUG KHUSUS - KEYWORD UNTUK FIX: "PERBAIKI_BUG_LOGBOOK"]
-        if (actionName === 'complete') {
-            toast.info('Menghubungkan ke service sinkronisasi rekap lembur...');
-            setTimeout(() => {
-                toast.error('Gagal menyelesaikan task: Service worker sinkronisasi kalkulasi lembur timeout (ERR_SYNC_WORKER_504).');
-            }, 1200);
-            return;
-        }
+
 
         try {
             await api.post(`/logbook/tasks/${taskId}/${actionName}/`);

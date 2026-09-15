@@ -38,6 +38,7 @@ import LogbookBeranda from './pages/Logbook/LogbookBeranda';
 import LogbookAktivitas from './pages/Logbook/LogbookAktivitas';
 import LogbookVerifikasi from './pages/Logbook/LogbookVerifikasi';
 import LogbookLaporan from './pages/Logbook/LogbookLaporan';
+import TaskLogbook from './pages/Logbook/TaskLogbook';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -138,6 +139,7 @@ const AppRoutes = () => {
             <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
             <Route path="/logbook" element={<ProtectedRoute><LogbookBeranda /></ProtectedRoute>} />
             <Route path="/logbook/aktivitas" element={<ProtectedRoute><LogbookAktivitas /></ProtectedRoute>} />
+            <Route path="/logbook/live-track" element={<ProtectedRoute><TaskLogbook /></ProtectedRoute>} />
             <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
 

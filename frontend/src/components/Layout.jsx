@@ -524,6 +524,7 @@ const getActiveModuleConfig = (pathname, user) => {
         const menus = [
             { label: 'Beranda', path: '/logbook' },
             { label: 'Aktivitas', path: '/logbook/aktivitas' },
+            { label: 'Live Track', path: '/logbook/live-track' },
         ];
         
         if (monitoringLevel !== null) {
