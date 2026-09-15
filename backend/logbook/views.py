@@ -20,9 +20,9 @@ def get_monitoring_level(user):
     """Return: 'all' (direktur), 'unit' (kepala_seksi/manajer), atau None"""
     if not user or not user.is_authenticated:
         return None
-    if user.is_superuser or user.role in ('direktur', 'wakil_direktur', 'manajer'):
+    if user.is_superuser or user.role in ('direktur', 'wakil_direktur'):
         return 'all'
-    if user.role in ('kepala_seksi',):
+    if user.role in ('kepala_seksi', 'manajer'):
         return 'unit'
     return None
 
