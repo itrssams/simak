@@ -31,8 +31,11 @@ class OptionalPaginationMixin:
 
 def is_it(user):
     if not user.is_authenticated: return False
-    if user.is_superuser: return True
-    return getattr(user, 'is_it', False)
+    if user.is_superuser or getattr(user, 'is_staff', False): return True
+    if getattr(user, 'is_it', False): return True
+    if hasattr(user, 'groups') and user.groups.filter(name__iexact='IT').exists(): return True
+    if getattr(user, 'unit', None) and 'it' in str(user.unit.nama).lower(): return True
+    return False
 
 class IsITPermission(BasePermission):
     def has_permission(self, request, view):
@@ -246,36 +249,70 @@ from rest_framework.exceptions import APIException
 
 def get_rssams_connection():
     from django.conf import settings
-    db_conf = getattr(settings, 'DATABASES', {}).get('default', {})
+    from django.db import connection
 
-    host = os.getenv('RSSAMS_DB_HOST') or os.getenv('DB_HOST') or db_conf.get('HOST') or '127.0.0.1'
+    db_conf = getattr(settings, 'DATABASES', {}).get('default', {})
+    primary_host = os.getenv('RSSAMS_DB_HOST') or os.getenv('DB_HOST') or db_conf.get('HOST') or '127.0.0.1'
     user = os.getenv('RSSAMS_DB_USER') or os.getenv('DB_USER') or db_conf.get('USER') or 'root'
 
-    if os.getenv('RSSAMS_DB_PASSWORD') is not None:
-        password = os.getenv('RSSAMS_DB_PASSWORD')
-    elif os.getenv('DB_PASSWORD') is not None:
-        password = os.getenv('DB_PASSWORD')
-    else:
-        password = db_conf.get('PASSWORD', '')
+    cfg_pass = os.getenv('RSSAMS_DB_PASSWORD')
+    if cfg_pass is None:
+        cfg_pass = os.getenv('DB_PASSWORD')
+    if cfg_pass is None:
+        cfg_pass = db_conf.get('PASSWORD', '')
 
     port = int(os.getenv('RSSAMS_DB_PORT') or os.getenv('DB_PORT') or db_conf.get('PORT') or 3306)
     database = os.getenv('RSSAMS_DB_NAME', 'rssams')
 
-    return MySQLdb.connect(
-        host=host,
-        user=user,
-        password=password,
-        port=port,
-        database=database,
-        charset='utf8mb4',
-        autocommit=True
-    )
+    hosts = [primary_host]
+    if primary_host == '127.0.0.1' and 'localhost' not in hosts:
+        hosts.append('localhost')
+    elif primary_host == 'localhost' and '127.0.0.1' not in hosts:
+        hosts.append('127.0.0.1')
+
+    passwords = [cfg_pass]
+    if '' not in passwords:
+        passwords.append('')
+    if 'root' not in passwords:
+        passwords.append('root')
+
+    last_error = None
+    for h in hosts:
+        for p in passwords:
+            try:
+                return MySQLdb.connect(
+                    host=h,
+                    user=user,
+                    password=p,
+                    port=port,
+                    database=database,
+                    charset='utf8mb4',
+                    autocommit=True
+                )
+            except MySQLdb.OperationalError as e:
+                last_error = e
+                if e.args[0] == 1049:  # Unknown database
+                    raise e
+            except Exception as e:
+                last_error = e
+
+    try:
+        connection.ensure_connection()
+        if connection.connection:
+            connection.connection.select_db(database)
+            return connection.connection
+    except Exception:
+        pass
+
+    if last_error:
+        raise last_error
+    raise Exception("Tidak dapat terhubung ke database RSSAMS.")
 
 class ApotikCorrectionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, action_type):
-        if not request.user.groups.filter(name='IT').exists() and not request.user.is_superuser:
+        if not is_it(request.user):
             return Response({"error": "Akses ditolak. Harus tim IT."}, status=403)
 
         no_tran = request.data.get('no_tran')

@@ -6,6 +6,24 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import APIException
 from .views import get_rssams_connection, is_it, IsITPermission
+import datetime
+from decimal import Decimal
+from django.db import connection as django_connection
+
+def serialize_val(v):
+    if v is None:
+        return None
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return v.strftime('%Y-%m-%d %H:%M:%S') if isinstance(v, datetime.datetime) else v.strftime('%Y-%m-%d')
+    if isinstance(v, Decimal):
+        return float(v)
+    if isinstance(v, bytes):
+        return v.decode('utf-8', errors='replace')
+    if isinstance(v, dict):
+        return {k: serialize_val(val) for k, val in v.items()}
+    if isinstance(v, list):
+        return [serialize_val(item) for item in v]
+    return v
 
 def recalculate_kunjung(cursor, no_kunj):
     # 1. Adm
@@ -90,8 +108,9 @@ class TransactionCorrectionView(APIView):
 
     def get(self, request, action_type):
         self.check_it_permission(request)
-        conn = get_rssams_connection()
+        conn = None
         try:
+            conn = get_rssams_connection()
             with conn.cursor(MySQLdb.cursors.DictCursor) as cursor:
                 if action_type == 'search':
                     q = request.query_params.get('q', '').strip()
@@ -104,7 +123,7 @@ class TransactionCorrectionView(APIView):
                         WHERE a.no = %s OR a.noreg = %s OR b.nama LIKE %s
                         ORDER BY a.tgl_masuk DESC LIMIT 50
                     """, [q, q, f"%{q}%"])
-                    return Response(cursor.fetchall())
+                    return Response(serialize_val(cursor.fetchall()))
                 
                 elif action_type == 'detail':
                     no_kunj = request.query_params.get('no_kunj')
@@ -241,7 +260,7 @@ class TransactionCorrectionView(APIView):
                     """, [no_kunj])
                     data['lainnya'] = cursor.fetchall()
                         
-                    return Response(data)
+                    return Response(serialize_val(data))
                 
                 else:
                     return Response({"error": "Unknown GET action"}, status=400)
@@ -251,12 +270,17 @@ class TransactionCorrectionView(APIView):
             traceback.print_exc()
             return Response({"error": str(e)}, status=500)
         finally:
-            conn.close()
+            if conn and conn != getattr(django_connection, 'connection', None):
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def post(self, request, action_type):
         self.check_it_permission(request)
-        conn = get_rssams_connection()
+        conn = None
         try:
+            conn = get_rssams_connection()
             with conn.cursor(MySQLdb.cursors.DictCursor) as cursor:
                 if action_type == 'update-date':
                     table = request.data.get('table')
@@ -505,4 +529,8 @@ class TransactionCorrectionView(APIView):
             traceback.print_exc()
             return Response({"error": str(e)}, status=500)
         finally:
-            conn.close()
+            if conn and conn != getattr(django_connection, 'connection', None):
+                try:
+                    conn.close()
+                except Exception:
+                    pass
