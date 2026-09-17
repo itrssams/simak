@@ -164,6 +164,10 @@ function Start-Production {
     Set-Location "$PSScriptRoot\backend"
 
     Write-Host ""
+    Write-Host "Menjalankan migrasi database (DB: simak)..." -ForegroundColor Yellow
+    & $python manage.py migrate --noinput
+
+    Write-Host ""
     Write-Host "Menjalankan Waitress (DB: simak)..." -ForegroundColor Green
     Write-Host ""
 

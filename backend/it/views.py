@@ -245,12 +245,31 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import APIException
 
 def get_rssams_connection():
-    host = os.getenv('DB_HOST', '127.0.0.1')
-    user = 'root'
-    password = os.getenv('MYSQL_ROOT_PASSWORD', 'root')
-    if not password:
-        password = 'root'
-    return MySQLdb.connect(host=host, user=user, password=password, database='rssams', charset='utf8mb4', autocommit=True)
+    from django.conf import settings
+    db_conf = getattr(settings, 'DATABASES', {}).get('default', {})
+
+    host = os.getenv('RSSAMS_DB_HOST') or os.getenv('DB_HOST') or db_conf.get('HOST') or '127.0.0.1'
+    user = os.getenv('RSSAMS_DB_USER') or os.getenv('DB_USER') or db_conf.get('USER') or 'root'
+
+    if os.getenv('RSSAMS_DB_PASSWORD') is not None:
+        password = os.getenv('RSSAMS_DB_PASSWORD')
+    elif os.getenv('DB_PASSWORD') is not None:
+        password = os.getenv('DB_PASSWORD')
+    else:
+        password = db_conf.get('PASSWORD', '')
+
+    port = int(os.getenv('RSSAMS_DB_PORT') or os.getenv('DB_PORT') or db_conf.get('PORT') or 3306)
+    database = os.getenv('RSSAMS_DB_NAME', 'rssams')
+
+    return MySQLdb.connect(
+        host=host,
+        user=user,
+        password=password,
+        port=port,
+        database=database,
+        charset='utf8mb4',
+        autocommit=True
+    )
 
 class ApotikCorrectionView(APIView):
     permission_classes = [IsAuthenticated]
