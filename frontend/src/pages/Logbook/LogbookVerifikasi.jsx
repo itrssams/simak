@@ -173,7 +173,7 @@ export default function LogbookVerifikasi() {
                         <Search size={16} className="logbook-search-icon" />
                         <input
                             type="text"
-                            placeholder="Cari pegawai, unit, atau uraian..."
+                            placeholder="Cari nama pegawai / karyawan..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="logbook-search-input"

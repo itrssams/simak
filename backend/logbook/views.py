@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 from django.http import HttpResponse
 from datetime import datetime, date
@@ -95,17 +96,31 @@ class LogbookViewSet(viewsets.ModelViewSet):
             statuses = status_param.split(',')
             qs = qs.filter(status__in=statuses)
 
-        # Pencarian keyword
+        # Pencarian khusus nama karyawan / username
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
         if search:
             q = search.strip()
-            qs = qs.filter(
-                Q(deskripsi__icontains=q) |
-                Q(user__first_name__icontains=q) |
-                Q(user__last_name__icontains=q) |
-                Q(user__username__icontains=q) |
-                Q(user__unit__nama__icontains=q)
+            qs = qs.annotate(
+                user_full_name=Concat('user__first_name', Value(' '), 'user__last_name')
             )
+            name_q = (
+                Q(user_full_name__icontains=q) |
+                Q(user__username__icontains=q) |
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q)
+            )
+            terms = q.split()
+            if len(terms) > 1:
+                sub_q = Q()
+                for term in terms:
+                    sub_q &= (
+                        Q(user_full_name__icontains=term) |
+                        Q(user__first_name__icontains=term) |
+                        Q(user__last_name__icontains=term) |
+                        Q(user__username__icontains=term)
+                    )
+                name_q |= sub_q
+            qs = qs.filter(name_q)
 
         return qs.order_by('-tanggal', '-jam_mulai', '-created_at')
 
@@ -185,13 +200,27 @@ class LogbookViewSet(viewsets.ModelViewSet):
         search = request.query_params.get('search') or request.query_params.get('q')
         if search:
             q = search.strip()
-            qs = qs.filter(
-                Q(deskripsi__icontains=q) |
-                Q(nama_aktivitas__icontains=q) |
-                Q(user__first_name__icontains=q) |
-                Q(user__last_name__icontains=q) |
-                Q(user__username__icontains=q)
+            qs = qs.annotate(
+                user_full_name=Concat('user__first_name', Value(' '), 'user__last_name')
             )
+            name_q = (
+                Q(user_full_name__icontains=q) |
+                Q(user__username__icontains=q) |
+                Q(user__first_name__icontains=q) |
+                Q(user__last_name__icontains=q)
+            )
+            terms = q.split()
+            if len(terms) > 1:
+                sub_q = Q()
+                for term in terms:
+                    sub_q &= (
+                        Q(user_full_name__icontains=term) |
+                        Q(user__first_name__icontains=term) |
+                        Q(user__last_name__icontains=term) |
+                        Q(user__username__icontains=term)
+                    )
+                name_q |= sub_q
+            qs = qs.filter(name_q)
 
         qs = qs.order_by('-tanggal', '-jam_mulai')
         return Response(LogbookSerializer(qs, many=True).data)

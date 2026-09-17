@@ -485,12 +485,12 @@ export default function LogbookAktivitas() {
                     </div>
 
                     <div className="logbook-filter-item flex-1" style={{ minWidth: '240px' }}>
-                        <label>Pencarian</label>
+                        <label>Cari Nama Karyawan</label>
                         <div className="logbook-search-wrap" style={{ maxWidth: '100%' }}>
                             <Search size={16} className="logbook-search-icon" />
                             <input
                                 type="text"
-                                placeholder={isAtasan ? "Cari pegawai, uraian tugas, aktivitas..." : "Cari uraian tugas, aktivitas, output..."}
+                                placeholder="Cari nama karyawan..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="logbook-search-input"
