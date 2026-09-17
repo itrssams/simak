@@ -76,22 +76,19 @@ services:
 
   legacy:
     build:
-      context: ./app_siaga
+      context: ../app_siaga/app_siaga
     container_name: simak-legacy
     restart: unless-stopped
     ports:
       - "8081:80"
     volumes:
-      - ./app_siaga:/var/www/html
+      - ../app_siaga/app_siaga:/var/www/html
     environment:
-      DB_HOST: db
+      DB_HOST: host.docker.internal
       DB_USER: root
       DB_PASS: root
       DB_NAME: rssams
       DB_PORT: 3306
-    depends_on:
-      db:
-        condition: service_healthy
 
 volumes:
   mysql_data:

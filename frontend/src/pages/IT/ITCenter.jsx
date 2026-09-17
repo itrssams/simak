@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useParams } from 'react-router-dom';
 import {
     Archive, CalendarClock, CheckCircle2, ClipboardList, DatabaseBackup, Edit3, Eye, EyeOff,
     FileText, Image, KeyRound, Laptop, Link as LinkIcon, Paperclip, Plus, RefreshCw, Search, ShieldCheck,
@@ -9,6 +10,7 @@ import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
+import './ITCenter.css';
 
 const tabs = [
     { key: 'backups', label: 'Backup', icon: DatabaseBackup },
@@ -171,15 +173,6 @@ const optionSets = {
     ],
 };
 
-const ideas = [
-    'Inventaris perangkat dan masa garansi',
-    'Checklist maintenance server, PC, printer, dan jaringan',
-    'Monitoring domain, SSL, hosting, dan lisensi aplikasi',
-    'Knowledge base solusi gangguan yang sering terjadi',
-    'Jadwal backup otomatis dan uji restore berkala',
-    'Daftar vendor, kontak teknis, dan riwayat pekerjaan vendor',
-];
-
 const formatDate = (value) => {
     if (!value) return '-';
     const date = new Date(value);
@@ -234,8 +227,9 @@ function Field({ label, children, wide }) {
 }
 
 export default function ITCenter() {
+    const { category } = useParams();
+    const activeTab = category || 'backups';
     const toast = useToast();
-    const [activeTab, setActiveTab] = useState('backups');
     const [rows, setRows] = useState([]);
     const [count, setCount] = useState(0);
     const [page, setPage] = useState(1);
@@ -245,7 +239,6 @@ export default function ITCenter() {
     const [modal, setModal] = useState(null);
     const [form, setForm] = useState(emptyForms.backups);
     const [secret, setSecret] = useState(null);
-    const [summary, setSummary] = useState({});
     const [users, setUsers] = useState([]);
     const [previewImage, setPreviewImage] = useState(null);
     const [ticketFotoInfo, setTicketFotoInfo] = useState(null);
@@ -254,6 +247,11 @@ export default function ITCenter() {
     const CurrentIcon = currentTab?.icon || ShieldCheck;
 
     const fetchRows = useCallback(async () => {
+        if (!endpoints[activeTab]) {
+            setRows([]);
+            setCount(0);
+            return;
+        }
         setLoading(true);
         try {
             const res = await api.get(endpoints[activeTab], {
@@ -268,26 +266,12 @@ export default function ITCenter() {
         }
     }, [activeTab, page, pageSize, search, toast]);
 
-    const fetchSummary = useCallback(async () => {
-        try {
-            const [backupRes, ticketRes, subscriptionRes] = await Promise.all([
-                api.get(`${endpoints.backups}summary/`),
-                api.get(`${endpoints.tickets}summary/`),
-                api.get(`${endpoints.subscriptions}summary/`),
-            ]);
-            setSummary({ backups: backupRes.data, tickets: ticketRes.data, subscriptions: subscriptionRes.data });
-        } catch {
-            setSummary({});
-        }
-    }, []);
+
 
     useEffect(() => {
         fetchRows();
     }, [fetchRows]);
 
-    useEffect(() => {
-        fetchSummary();
-    }, [fetchSummary]);
 
     useEffect(() => {
         api.get('/users/', { params: { page_size: 100 } })
@@ -295,12 +279,6 @@ export default function ITCenter() {
             .catch(() => setUsers([]));
     }, []);
 
-    const switchTab = (tab) => {
-        setActiveTab(tab);
-        setPage(1);
-        setSearch('');
-        setSecret(null);
-    };
 
     const openCreate = () => {
         setModal({ mode: 'create', tab: activeTab });
@@ -406,7 +384,6 @@ export default function ITCenter() {
             setModal(null);
             setTicketFotoInfo(null);
             fetchRows();
-            fetchSummary();
         } catch (err) {
             const data = err.response?.data;
             toast.error(typeof data === 'string' ? data : data?.error || 'Catatan IT gagal disimpan.');
@@ -420,7 +397,6 @@ export default function ITCenter() {
             await api.delete(`${endpoints[activeTab]}${row.id}/`);
             toast.success('Catatan IT berhasil dihapus.');
             fetchRows();
-            fetchSummary();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Catatan IT gagal dihapus.');
         }
@@ -437,39 +413,11 @@ export default function ITCenter() {
 
     return (
         <div className="pc-page it-page">
-            <style>{styles}</style>
-            <section className="pc-hero">
-                <div className="pc-hero-main">
-                    <div>
-                        <div className="pc-eyebrow"><ShieldCheck size={16} /> Area IT</div>
-                        <h1 className="pc-title">IT Center</h1>
-                        <p className="pc-subtitle">Kelola backup, audit operasional IT, permintaan perbaikan, akun penting, dan nomor remote access.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section className="pc-stats-mini">
-                <Metric icon={Archive} label="Catatan Backup" value={summary.backups?.total || 0} sub={`${summary.backups?.failed || 0} gagal`} color="#1d4ed8" bg="#eff6ff" />
-                <Metric icon={ClipboardList} label="Tiket Terbuka" value={(summary.tickets?.open || 0) + (summary.tickets?.in_progress || 0)} sub={`${summary.tickets?.urgent || 0} darurat`} color="#c2410c" bg="#fff7ed" />
-                <Metric icon={CheckCircle2} label="Tiket Selesai" value={summary.tickets?.done || 0} sub="Riwayat tersimpan" color="#166534" bg="#f0fdf4" />
-                <Metric icon={CalendarClock} label="Langganan" value={summary.subscriptions?.total || 0} sub={`${summary.subscriptions?.expiring || 0} hampir habis`} color="#7c3aed" bg="#f5f3ff" />
-            </section>
-
             <section className="pc-list-area">
-                <div className="pc-list-head">
+                <div className="pc-list-head" style={{ marginBottom: '16px' }}>
                     <div>
-                        <p className="pc-list-title">Administrasi IT</p>
-                        <p className="pc-list-subtitle">Pilih kategori catatan, filter data, lalu proses sesuai kebutuhan audit IT.</p>
-                    </div>
-                    <div className="pc-tabs">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            return (
-                                <button key={tab.key} className={`pc-tab-pill${activeTab === tab.key ? ' active' : ''}`} onClick={() => switchTab(tab.key)}>
-                                    <Icon size={15} /> {tab.label}
-                                </button>
-                            );
-                        })}
+                        <p className="pc-list-title">Administrasi {currentTab?.label || 'IT'}</p>
+                        <p className="pc-list-subtitle">Kelola dan filter data {currentTab?.label || ''} sesuai kebutuhan audit IT.</p>
                     </div>
                 </div>
 
@@ -490,7 +438,7 @@ export default function ITCenter() {
                                 <Search size={16} />
                                 <input className="pc-filter-input" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Cari catatan IT..." />
                             </div>
-                            <button className="pc-btn-sm n" onClick={() => { fetchRows(); fetchSummary(); }}><RefreshCw size={15} /> Refresh</button>
+                            <button className="pc-btn-sm n" onClick={() => { fetchRows(); }}><RefreshCw size={15} /> Refresh</button>
                         </div>
                     </div>
 
@@ -516,13 +464,6 @@ export default function ITCenter() {
                         buttonClassName="pc-page-btn"
                         selectClassName="pc-filter-select"
                     />
-                </div>
-            </section>
-
-            <section className="pc-section-card it-ideas">
-                <h2>Ide menu IT berikutnya</h2>
-                <div className="it-idea-grid">
-                    {ideas.map((idea) => <div key={idea}><CheckCircle2 size={16} /> {idea}</div>)}
                 </div>
             </section>
 
@@ -558,18 +499,7 @@ export default function ITCenter() {
     );
 }
 
-function Metric({ icon: Icon, label, value, sub, color, bg }) {
-    return (
-        <div className="pc-stat-mini">
-            <div className="pc-stat-icon" style={{ background: bg }}><Icon size={18} color={color} /></div>
-            <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>{label}</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{sub}</p>
-            </div>
-        </div>
-    );
-}
+
 
 function ModalHead({ icon, title, subtitle }) {
     return (
@@ -1085,72 +1015,3 @@ function renderForm(tab, form, setForm, users = [], mode = 'create', ticketFotoI
         </>
     );
 }
-
-const styles = `
-@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-.it-page{display:flex;flex-direction:column;gap:18px;color:#0f172a;animation:fadeInUp .4s ease both}
-.pc-hero{position:relative;overflow:hidden;border:1px solid #dfe9e4;border-radius:18px;background:linear-gradient(135deg,#f8fbf9 0%,#eef7f1 52%,#fffaf0 100%);padding:24px;box-shadow:0 14px 38px rgba(22,44,31,.08)}
-.pc-hero::after{content:'';position:absolute;right:-72px;top:-96px;width:260px;height:260px;border-radius:50%;background:rgba(26,71,49,.07);pointer-events:none}
-.pc-hero-main{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
-.pc-eyebrow{display:inline-flex;align-items:center;gap:8px;color:#1a4731;background:#e7f4ed;border:1px solid #cfe8da;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
-.pc-title{font-size:28px;font-weight:800;color:#12251a;letter-spacing:0;line-height:1.18;margin:0}
-.pc-subtitle{font-size:14px;color:#63766d;line-height:1.6;margin-top:8px;max-width:680px}
-.pc-hero-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.pc-action-primary,.pc-action-soft{height:40px;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s,box-shadow .15s,background .15s,border-color .15s;white-space:nowrap}
-.pc-action-primary{padding:0 15px;background:#1a4731;color:#fff;border:1px solid #1a4731;box-shadow:0 10px 22px rgba(26,71,49,.2)}
-.pc-action-primary:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(26,71,49,.25)}
-.pc-action-soft{padding:0 14px;background:#fff;color:#1a4731;border:1px solid #cfe8da}
-.pc-action-soft:hover{background:#f0fdf4;border-color:#9dd8b8}
-.pc-action-soft.gold{background:#c9a84c;color:#17251d;border-color:#c9a84c}.pc-action-soft.gold:hover{background:#b8923d}
-.pc-stats-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.pc-stat-mini{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 8px 24px rgba(15,23,42,.05);border:1px solid #e7eee9;display:flex;align-items:center;gap:14px;animation:fadeInUp .3s ease both}
-.pc-stat-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pc-list-area{margin-top:4px;padding:14px;border:1px solid #e1ece6;border-radius:20px;background:linear-gradient(180deg,#f8fbf9,#eef5f1);box-shadow:inset 0 1px 0 rgba(255,255,255,.75)}
-.pc-list-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px}
-.pc-list-title{font-size:16px;font-weight:800;color:#17251d;margin:0}
-.pc-list-subtitle{font-size:12px;color:#7b8d85;margin-top:4px}
-.pc-tabs{display:flex;gap:6px;margin:6px 0 0;background:#eaf1ed;border:1px solid #dce8e2;border-radius:14px;padding:5px;width:100%;max-width:720px}
-.pc-tab-pill{flex:1;padding:11px 18px;border:none;border-radius:10px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;background:transparent;color:#64748b;transition:background .18s,color .18s,box-shadow .18s;display:inline-flex;align-items:center;justify-content:center;gap:7px;outline:none}
-.pc-tab-pill.active{background:#fff;color:#1a4731;box-shadow:0 8px 18px rgba(15,23,42,.08)}
-.pc-tab-pill:hover:not(.active){color:#334155;background:rgba(0,0,0,.04)}
-.pc-section-card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 16px 42px rgba(15,23,42,.07);border:1px solid #e1ece6;margin-top:14px}
-.pc-table-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #edf3ef;background:linear-gradient(135deg,#fbfdfc,#f2f8f5)}
-.pc-table-titlebar p{margin:0}.pc-table-heading{font-size:15px;font-weight:800;color:#17251d}.pc-table-subheading{font-size:12px;color:#8aa097;margin-top:3px!important}
-.pc-filter-bar{display:flex;flex-direction:column;gap:8px;padding:16px 18px;border-bottom:1px solid #edf3ef;background:#fff}
-.pc-filter-row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap}
-.pc-filter-search{display:flex;align-items:center;gap:8px;min-width:260px;flex:1;border:1px solid #e2e8f0;border-radius:9px;background:#fff;padding:0 11px;color:#94a3b8;transition:border-color .15s,box-shadow .15s}
-.pc-filter-search:focus-within{border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.08)}
-.pc-filter-input{padding:7px 11px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;outline:none;background:#fff;transition:border-color .15s;min-width:0;box-sizing:border-box;flex:1}
-.pc-filter-search .pc-filter-input{border:none!important;padding:8px 0!important;box-shadow:none!important;background:transparent!important}
-.pc-filter-select{height:38px;padding:7px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;outline:none;background:#fff;transition:border-color .15s;flex-shrink:0}
-.pc-input,.pc-select,.pc-textarea{width:100%;padding:12px 14px;border:1px solid #dce8e2;border-radius:11px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1e293b;background:linear-gradient(180deg,#fff,#fbfdfc);outline:none;transition:border-color .15s,box-shadow .15s,background .15s;box-sizing:border-box}
-.pc-input:hover,.pc-select:hover,.pc-textarea:hover{border-color:#c8dcd1}.pc-input:focus,.pc-select:focus,.pc-textarea:focus{border-color:#2d6a4f;background:#fff;box-shadow:0 0 0 4px rgba(45,106,79,.09)}
-.pc-input:disabled{background:#f8fafc;color:#64748b}.pc-file-input{height:auto}.pc-textarea{resize:vertical;min-height:96px;line-height:1.55}
-.pc-field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}.pc-field.wide{grid-column:1/-1}.pc-label{font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em}
-.pc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.pc-it-form-grid{margin-top:8px}
-.pc-btn-primary{padding:10px 22px;background:linear-gradient(135deg,#1a4731 0%,#236348 100%);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;box-shadow:0 4px 12px rgba(26,71,49,.2)}
-.pc-btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,71,49,.3)}
-.pc-btn-ghost{padding:10px 20px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:background .15s}
-.pc-btn-ghost:hover{background:#e2e8f0}
-.pc-btn-sm{min-height:30px;padding:6px 11px;border-radius:8px;font-size:11.5px;font-weight:800;cursor:pointer;border:1px solid;font-family:'Plus Jakarta Sans',sans-serif;transition:background .14s,transform .1s,box-shadow .14s,border-color .14s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.pc-btn-sm:hover{transform:translateY(-1px)}.pc-btn-sm.n{border-color:#dce8e2;color:#475569;background:#fff}.pc-btn-sm.n:hover{background:#f8fbf9;border-color:#bfd5c9}.pc-btn-sm.g{border-color:#1a4731;color:#fff;background:#1a4731;box-shadow:0 8px 18px rgba(26,71,49,.18)}.pc-btn-sm.g:hover{background:#236348;border-color:#236348}.pc-btn-sm.b{border-color:#1d4ed8;color:#fff;background:#1d4ed8;box-shadow:0 8px 18px rgba(29,78,216,.16)}.pc-btn-sm.b:hover{background:#1e40af;border-color:#1e40af}.pc-btn-sm.r{border-color:#fecaca;color:#dc2626;background:#fff}.pc-btn-sm.r:hover{background:#fef2f2}
-.pc-action-cell{display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap;min-width:210px}
-.pc-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}.pc-table{width:100%;min-width:880px;border-collapse:separate;border-spacing:0}.pc-table thead th{padding:14px 16px;text-align:left;font-size:11px;font-weight:800;color:#6b7c74;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e6eee9;background:#f8fbf9}.pc-table tbody td{padding:14px 16px;font-size:13px;color:#334155;border-bottom:1px solid #edf3ef;vertical-align:middle;background:#fff}.pc-table tbody tr:last-child td{border-bottom:none}.pc-table tbody tr:hover td{background:#f7fbf9}.pc-table strong{display:block}.pc-table small{display:block;color:#94a3b8;margin-top:3px}
-.pc-empty-state{padding:54px 24px!important;text-align:center!important;color:#8aa097!important;background:linear-gradient(180deg,#fff,#fbfdfc)!important}
-.pc-pagination{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:14px 16px!important;border-top:1px solid #f1f5f9!important;flex-wrap:wrap!important;gap:10px!important}.pc-page-btn{width:32px;height:32px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;color:#475569;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;transition:all .14s}.pc-page-btn:hover:not(:disabled){border-color:#2d6a4f;color:#1a4731;background:#f0fdf4}.pc-page-btn:disabled{opacity:.4;cursor:not-allowed}
-.pc-it-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:850;white-space:nowrap;background:#f1f5f9;color:#475569}.pc-it-badge.success,.pc-it-badge.verified,.pc-it-badge.done,.pc-it-badge.active{background:#dcfce7;color:#166534}.pc-it-badge.failed,.pc-it-badge.urgent,.pc-it-badge.cancelled,.pc-it-badge.expired{background:#fee2e2;color:#b91c1c}.pc-it-badge.running,.pc-it-badge.in_progress,.pc-it-badge.high,.pc-it-badge.maintenance,.pc-it-badge.expiring{background:#ffedd5;color:#c2410c}.pc-it-badge.scheduled,.pc-it-badge.waiting{background:#e0f2fe;color:#075985}
-.pc-overlay{position:fixed;inset:0;width:100vw;height:100vh;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn .18s ease;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:18px}
-.pc-modal{background:linear-gradient(180deg,#fff,#fbfdfc);border-radius:20px;padding:30px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 26px 70px rgba(15,23,42,.24);animation:slideUp .22s ease}.pc-modal.lg{max-width:760px}
-.pc-modal-head{display:flex;align-items:flex-start;gap:12px;margin:0 0 18px}.pc-modal-title-icon{width:38px;height:38px;border-radius:12px;background:#e7f4ed;color:#1a4731;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.pc-modal-head-copy{min-width:0;flex:1}.pc-modal-head-title{margin:0;color:#13251b;font-size:20px;font-weight:800;letter-spacing:0;line-height:1.25}.pc-modal-head-subtitle{margin:4px 0 0;color:#7b8d85;font-size:12.5px;line-height:1.55}
-.pc-modal-summary{background:linear-gradient(135deg,#f8fbf9,#fff);border:1px solid #e1ece6;border-radius:16px;padding:16px 18px;margin-bottom:18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start}.pc-modal-summary-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#819189;margin:0 0 7px}.pc-modal-summary-value{font-size:24px;font-weight:800;color:#17251d;line-height:1.15;margin:0}.pc-modal-summary-desc{font-size:13px;color:#64748b;line-height:1.55;margin:9px 0 0}.pc-modal-summary-meta{font-size:12px;color:#8aa097;margin:7px 0 0}
-.pc-modal-section{border:1px solid #e7eee9;background:#fff;border-radius:16px;padding:16px 18px;margin-bottom:16px}.pc-modal-section-title{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13px;font-weight:800;color:#17251d;text-transform:uppercase;letter-spacing:.045em}.pc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px;margin-bottom:0}.pc-detail-item{min-width:0}.pc-detail-label{font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px}.pc-detail-value{font-size:14px;color:#1e293b;line-height:1.55;font-weight:600;margin:0;word-break:break-word}
-.pc-file-zone{position:relative;display:flex;align-items:center;gap:12px;width:100%;border:1.5px dashed #cfdcd5;border-radius:14px;background:#fbfdfc;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s}.pc-file-zone:hover{border-color:#2d6a4f;background:#f5fbf7}.pc-file-zone.has-file{border-style:solid;background:#f8fbf9}.pc-file-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}.pc-file-icon{width:38px;height:38px;border-radius:12px;background:#e7f4ed;color:#1a4731;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.pc-file-main{min-width:0;flex:1}.pc-file-title{display:block;font-size:13px;font-weight:800;color:#17251d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc-file-subtitle{display:block;font-size:11.5px;color:#8aa097;margin-top:3px}.pc-file-pick{position:relative;z-index:1;flex-shrink:0;border:1px solid #dce8e2;background:#fff;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:800;color:#1a4731}
-.pc-upload-preview{display:flex;gap:12px;align-items:center;border:1px solid #e1ece6;background:#fbfdfc;border-radius:14px;padding:10px 12px;margin:10px 0 0}.pc-upload-thumb{width:54px;height:54px;border-radius:12px;object-fit:cover;border:1px solid #dce8e2;cursor:pointer}.pc-upload-doc{width:54px;height:54px;border-radius:12px;background:#eef7f1;color:#1a4731;display:flex;align-items:center;justify-content:center;flex-shrink:0}.pc-upload-meta{min-width:0;flex:1}.pc-upload-name{font-size:13px;font-weight:800;color:#17251d;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc-upload-info{font-size:11.5px;color:#8aa097;margin:4px 0 0;line-height:1.4}
-.pc-modal-footer{display:flex;gap:12px;justify-content:flex-end;position:sticky;bottom:-30px;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 28%);margin:18px -30px -30px;padding:18px 30px 22px;border-top:1px solid rgba(225,236,230,.75)}
-.it-ideas{padding:16px}.it-ideas h2{font-size:18px;margin:0 0 12px;color:#17251d}.it-idea-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.it-idea-grid div{display:flex;align-items:center;gap:8px;padding:11px;border:1px solid #edf2f7;border-radius:10px;color:#334155;background:#f8fafc;font-weight:700}
-.it-image-preview{position:relative;width:min(920px,94vw);height:min(86vh,760px);display:grid;place-items:center}.it-image-preview img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 22px 70px rgba(15,23,42,.28)}.it-image-preview .pc-btn-sm{position:absolute;right:12px;top:12px}
-code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px}
-@media(max-width:900px){.pc-stats-mini,.it-idea-grid{grid-template-columns:1fr}.pc-hero-actions{justify-content:flex-start}.pc-tabs{max-width:none;overflow:auto}.pc-filter-row{flex-wrap:wrap}.pc-filter-search{min-width:100%}.pc-grid2,.pc-detail-grid{grid-template-columns:1fr}.pc-field.wide{grid-column:auto}.pc-action-primary,.pc-action-soft{width:100%}.pc-modal-summary-value{font-size:20px}.pc-modal-section{padding:14px;margin-bottom:12px}.pc-file-zone{align-items:flex-start}.pc-file-pick{display:none}.pc-upload-preview{align-items:flex-start}}
-`;

@@ -18,6 +18,7 @@ import {
     BarChart3,
     ClipboardList,
     Download,
+    MonitorCog,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
@@ -292,6 +293,28 @@ export default function AppLauncher() {
                 { label: 'Health & Storage Metrics', path: '/admin/system-maintenance' },
                 { label: 'Backup & Restore DB', path: '/admin/system-maintenance' },
                 { label: 'Optimasi Tabel MySQL', path: '/admin/system-maintenance' },
+            ],
+        },
+        {
+            id: 'it-center',
+            name: 'IT Center',
+            subtitle: 'Catatan & Modul IT',
+            icon: MonitorCog,
+            color: '#ef4444',
+            glowColor: 'rgba(239, 68, 68, 0.45)',
+            glassGlow: 'rgba(239, 68, 68, 0.22)',
+            glassGlowLight: 'rgba(239, 68, 68, 0.15)',
+            path: '/it',
+            allowed: Boolean(isIT),
+            submenus: [
+                { label: 'Dashboard IT', path: '/it' },
+                { label: 'Backup Database', path: '/it/backups' },
+                { label: 'Perbaikan IT', path: '/it/tickets' },
+                { label: 'Akun & Link', path: '/it/credentials' },
+                { label: 'Remote Access', path: '/it/remote' },
+                { label: 'Langganan', path: '/it/subscriptions' },
+                { label: 'Koreksi Data Transaksi', path: '/it/koreksi-transaksi' },
+                { label: 'Laporan IT', path: '/laporan/it' },
             ],
         },
         {

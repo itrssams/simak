@@ -236,8 +236,103 @@ class ITSubscriptionViewSet(ITBaseViewSet):
         soon = today + timezone.timedelta(days=30)
         return Response({
             'total': qs.count(),
-            'active': qs.filter(status='active').count(),
-            'expiring': qs.exclude(status__in=['expired', 'cancelled']).filter(end_date__gte=today, end_date__lte=soon).count(),
-            'expired': qs.filter(Q(status='expired') | Q(end_date__lt=today)).count(),
-            'yearly_cost': float(qs.exclude(status='cancelled').aggregate(t=Sum('cost'))['t'] or 0),
+            'expiring': qs.filter(end_date__lte=soon).count(),
         })
+
+import os
+import MySQLdb
+from rest_framework.views import APIView
+from rest_framework.exceptions import APIException
+
+def get_rssams_connection():
+    host = os.getenv('DB_HOST', '127.0.0.1')
+    user = 'root'
+    password = os.getenv('MYSQL_ROOT_PASSWORD', 'root')
+    if not password:
+        password = 'root'
+    return MySQLdb.connect(host=host, user=user, password=password, database='rssams', charset='utf8mb4', autocommit=True)
+
+class ApotikCorrectionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, action_type):
+        if not request.user.groups.filter(name='IT').exists() and not request.user.is_superuser:
+            return Response({"error": "Akses ditolak. Harus tim IT."}, status=403)
+
+        no_tran = request.data.get('no_tran')
+        if not no_tran:
+            return Response({"error": "no_tran wajib diisi"}, status=400)
+
+        conn = get_rssams_connection()
+        try:
+            with conn.cursor(MySQLdb.cursors.DictCursor) as cursor:
+                if action_type == 'change-date':
+                    new_date = request.data.get('new_date')
+                    if not new_date:
+                        return Response({"error": "new_date wajib diisi"}, status=400)
+                    
+                    cursor.execute("UPDATE tran_apt SET tgl = %s WHERE no = %s", [new_date, no_tran])
+                    cursor.execute("UPDATE item_tran_apt SET tgl = %s WHERE no LIKE %s", [new_date, f"{no_tran}%"])
+                    return Response({"message": f"Tanggal transaksi {no_tran} berhasil diubah menjadi {new_date}"})
+
+                elif action_type == 'move':
+                    target_kunj = request.data.get('target_kunj')
+                    if not target_kunj:
+                        return Response({"error": "target_kunj wajib diisi"}, status=400)
+
+                    # Get target kunjungan details
+                    cursor.execute("SELECT no, noreg, tgl, tgl_masuk FROM kunjung WHERE no = %s", [target_kunj])
+                    kunj_baru = cursor.fetchone()
+                    if not kunj_baru:
+                        return Response({"error": f"Kunjungan tujuan {target_kunj} tidak ditemukan"}, status=404)
+
+                    target_noreg = kunj_baru['noreg']
+                    
+                    # Get patient name
+                    cursor.execute("SELECT nama FROM regpasien WHERE id = %s", [target_noreg])
+                    pasien = cursor.fetchone()
+                    nama_pasien = pasien['nama'] if pasien else ''
+
+                    # Get old kunjungan from tran_apt
+                    cursor.execute("SELECT no_kunj FROM tran_apt WHERE no = %s", [no_tran])
+                    old_tran = cursor.fetchone()
+                    if not old_tran:
+                        return Response({"error": f"Transaksi apotik {no_tran} tidak ditemukan"}, status=404)
+                    
+                    old_kunj = old_tran['no_kunj']
+                    if old_kunj == target_kunj:
+                        return Response({"error": "Transaksi sudah berada di kunjungan tersebut"}, status=400)
+
+                    # 1. Update tran_apt
+                    cursor.execute(
+                        "UPDATE tran_apt SET no_kunj = %s, id_pasien = %s, nama = %s WHERE no = %s",
+                        [target_kunj, target_noreg, nama_pasien, no_tran]
+                    )
+
+                    # 2. Update item_tran_apt
+                    cursor.execute(
+                        "UPDATE item_tran_apt SET no_kunj = %s, noreg = %s WHERE no LIKE %s",
+                        [target_kunj, target_noreg, f"{no_tran}%"]
+                    )
+
+                    # 3. Recalculate farmasi for both kunjungans
+                    for kno in [old_kunj, target_kunj]:
+                        cursor.execute("SELECT SUM(total) as tot FROM tran_apt WHERE no_kunj = %s", [kno])
+                        res = cursor.fetchone()
+                        tot_farmasi = res['tot'] if res and res['tot'] else 0
+                        
+                        # Update kunjung
+                        cursor.execute("UPDATE kunjung SET farmasi = %s WHERE no = %s", [tot_farmasi, kno])
+                        # Recalculate jmlbyr
+                        cursor.execute("""
+                            UPDATE kunjung SET jmlbyr = adm + jasa + farmasi + tindakan + bhp + fisio + 
+                            lab + rad + kamar + alat + lainnya + ambulan WHERE no = %s
+                        """, [kno])
+
+                    return Response({"message": f"Transaksi {no_tran} berhasil dipindah ke kunjungan {target_kunj}"})
+                else:
+                    return Response({"error": "Invalid action_type"}, status=400)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        finally:
+            conn.close()

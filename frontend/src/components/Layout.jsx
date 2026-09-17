@@ -29,6 +29,7 @@ import {
     Server,
     ClipboardList,
     Download,
+    Pill,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -57,6 +58,7 @@ const IconConfig = {
     invoice: { icon: ReceiptText, size: 18 },
     debt: { icon: FileClock, size: 18 },
     kasbesar: { icon: WalletCards, size: 18 },
+    apotik: { icon: Pill, size: 18 },
 };
 
 const renderIcon = (iconKey, overrideSize) => {
@@ -93,7 +95,17 @@ const MENU_DRIVER = [
     { label: 'Driver', path: '/driver', icon: 'driver' },
 ];
 const MENU_IT = [
-    { label: 'IT Center', path: '/it', icon: 'it' },
+    {
+        label: 'IT Center', icon: 'it', children: [
+            { label: 'Dashboard IT', path: '/it' },
+            { label: 'Backup Database', path: '/it/backups' },
+            { label: 'Perbaikan IT', path: '/it/tickets' },
+            { label: 'Akun & Link', path: '/it/credentials' },
+            { label: 'Remote Access', path: '/it/remote' },
+            { label: 'Langganan', path: '/it/subscriptions' },
+        ]
+    },
+    { label: 'Koreksi Data Transaksi', path: '/it/koreksi-transaksi', icon: 'transaksi' },
     {
         label: 'Laporan', icon: 'laporan', children: [
             { label: 'Laporan IT', path: '/laporan/it' },
@@ -136,7 +148,7 @@ const MENU_LOGISTIK = [
 ];
 
 const FEATURE_INVENTARIS_ENABLED = false;
-const FEATURE_IT_ENABLED = false;
+const FEATURE_IT_ENABLED = true;
 const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
 
 function uniqueMenus(items) {
@@ -538,6 +550,26 @@ const getActiveModuleConfig = (pathname, user) => {
             icon: ClipboardList,
             iconColor: '#38bdf8',
             menus,
+        };
+    }
+
+    // 12. IT Center & Laporan IT
+    if (pathname.startsWith('/it') || pathname.startsWith('/laporan/it')) {
+        return {
+            id: 'it-center',
+            title: 'IT Center',
+            icon: MonitorCog,
+            iconColor: '#ef4444',
+            menus: [
+                { label: 'Dashboard', path: '/it' },
+                { label: 'Backup Database', path: '/it/backups' },
+                { label: 'Perbaikan IT', path: '/it/tickets' },
+                { label: 'Akun & Link', path: '/it/credentials' },
+                { label: 'Remote Access', path: '/it/remote' },
+                { label: 'Langganan', path: '/it/subscriptions' },
+                { label: 'Koreksi Data Transaksi', path: '/it/koreksi-transaksi' },
+                { label: 'Laporan IT', path: '/laporan/it' },
+            ],
         };
     }
 

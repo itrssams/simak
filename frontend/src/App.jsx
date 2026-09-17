@@ -39,6 +39,10 @@ import LogbookAktivitas from './pages/Logbook/LogbookAktivitas';
 import LogbookVerifikasi from './pages/Logbook/LogbookVerifikasi';
 import LogbookLaporan from './pages/Logbook/LogbookLaporan';
 import TaskLogbook from './pages/Logbook/TaskLogbook';
+import ITCenter from './pages/IT/ITCenter';
+import ITDashboard from './pages/IT/ITDashboard';
+import TransactionCorrection from './pages/IT/TransactionCorrection';
+import LaporanIT from './pages/Laporan/LaporanIT';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -61,7 +65,7 @@ const isKeuanganNonManajer = (u) => u?.is_keuangan && !isManajerUp(u);
 const isDriverAccess = (u) => u?.is_driver || isDirekturUp(u);
 const isBasicRole = (u) => ['karyawan', 'kepala_seksi'].includes(u?.role) && !u?.is_superuser && !u?.is_it && !u?.is_keuangan;
 const FEATURE_INVENTARIS_ENABLED = false;
-const FEATURE_IT_ENABLED = false;
+const FEATURE_IT_ENABLED = true;
 
 // ── Protected route dengan role guard ─────────────────────
 const ProtectedRoute = ({ children, allow }) => {
@@ -98,21 +102,24 @@ function IdleGuard() {
     });
 
     const handleStayLoggedIn = () => {
-        setShowWarning(false);
         resetTimer();
+        setShowWarning(false);
     };
 
-    const handleLogoutNow = () => {
-        setShowWarning(false);
-        logout();
-    };
+    if (!user) return null;
 
     return (
-        <IdleWarningModal
-            visible={showWarning}
-            onStayLoggedIn={handleStayLoggedIn}
-            onLogoutNow={handleLogoutNow}
-        />
+        <>
+            {showWarning && (
+                <IdleWarningModal
+                    onStayLoggedIn={handleStayLoggedIn}
+                    onLogout={() => {
+                        setShowWarning(false);
+                        logout();
+                    }}
+                />
+            )}
+        </>
     );
 }
 
@@ -172,11 +179,14 @@ const AppRoutes = () => {
             <Route path="/audit-log" element={<ProtectedRoute allow={isSuperuserOnly}><AuditLog /></ProtectedRoute>} />
             <Route path="/pengumuman" element={<ProtectedRoute allow={isManajerUp}><Pengumuman /></ProtectedRoute>} />
             <Route path="/inventaris" element={FEATURE_INVENTARIS_ENABLED ? <ProtectedRoute allow={isKepalaSeksiUp}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
-            <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><ITDashboard /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/it/koreksi-transaksi" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><TransactionCorrection /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/it/koreksi-apotik" element={<Navigate to="/it/koreksi-transaksi" replace />} />
+            <Route path="/it/:category" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><ITCenter /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/admin/users" element={<ProtectedRoute allow={isDirekturUp}><ManajemenUser /></ProtectedRoute>} />
             <Route path="/admin/system-maintenance" element={<ProtectedRoute allow={isSuperuserOnly}><SystemMaintenance /></ProtectedRoute>} />
             <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={canLaporanPettyCash}><LaporanPettyCash /></ProtectedRoute>} />
-            <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><Navigate to="/petty-cash" /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
+            <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><LaporanIT /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />
 
             {/* Fallback */}

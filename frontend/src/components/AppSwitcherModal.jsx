@@ -17,6 +17,7 @@ import {
     Search,
     X,
     Home,
+    MonitorCog,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './AppSwitcherModal.css';
@@ -158,6 +159,16 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             glassGlow: 'rgba(20, 184, 166, 0.22)',
             path: '/admin/system-maintenance',
             allowed: Boolean(user?.is_superuser),
+        },
+        {
+            id: 'it-center',
+            name: 'IT Center',
+            icon: MonitorCog,
+            color: '#ef4444',
+            glowColor: 'rgba(239, 68, 68, 0.45)',
+            glassGlow: 'rgba(239, 68, 68, 0.22)',
+            path: '/it',
+            allowed: Boolean(isIT),
         },
         {
             id: 'statistik-analitik',
