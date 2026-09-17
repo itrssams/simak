@@ -2508,6 +2508,16 @@
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+.logbook-card-pagination.logbook-table-pagination {
+  padding: 14px 18px;
+  margin-top: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .logbook-card-pagination.logbook-table-pagination {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
 .logbook-pagination-info {
   font-size: 12px;
   color: #64748b;

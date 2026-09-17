@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Edit2, Trash2, X, FileText, Search, Clock, AlertCircle, CheckCircle2, XCircle, RotateCcw, Check, Users, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, FileText, Search, Clock, AlertCircle, CheckCircle2, XCircle, RotateCcw, Check, Users, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
@@ -63,6 +63,44 @@ export default function LogbookAktivitas() {
     const [statusFilter, setStatusFilter] = useState(() => (isAtasan ? 'perlu_verifikasi' : 'all'));
     const [activePreset, setActivePreset] = useState('all'); // 'all' | 'this_month' | 'today' | 'custom'
     const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my'
+
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    // Reset pagination to page 1 on filter/search change
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, startDate, endDate, statusFilter, scopeFilter]);
+
+    const totalItems = aktivitas.length;
+    const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : Number(pageSize);
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+
+    useEffect(() => {
+        if (page > totalPages) {
+            setPage(totalPages);
+        }
+    }, [page, totalPages]);
+
+    const paginatedAktivitas = useMemo(() => {
+        if (pageSize === 'all') return aktivitas;
+        const start = (page - 1) * effectivePageSize;
+        return aktivitas.slice(start, start + effectivePageSize);
+    }, [aktivitas, page, pageSize, effectivePageSize]);
+
+    const pageNumbers = useMemo(() => {
+        if (totalPages <= 5) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (page <= 3) {
+            return [1, 2, 3, 4, '...', totalPages];
+        }
+        if (page >= totalPages - 2) {
+            return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '...', page - 1, page, page + 1, '...', totalPages];
+    }, [page, totalPages]);
 
     // Sinkronisasi status filter saat user auth pertama kali termuat
     const initialStatusSetRef = useRef(false);
@@ -509,6 +547,7 @@ export default function LogbookAktivitas() {
                             )}
                         </div>
                     ) : (
+                        <>
                         <table className="logbook-table">
                             <thead>
                                 <tr>
@@ -525,7 +564,8 @@ export default function LogbookAktivitas() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {aktivitas.map((item, idx) => {
+                                {paginatedAktivitas.map((item, idx) => {
+                                    const rowIdx = pageSize === 'all' ? idx + 1 : (page - 1) * effectivePageSize + idx + 1;
                                     const isOwnActivity = item.user_id === user?.id;
                                     const canVerify = isAtasan && !isOwnActivity && item.status === 'perlu_verifikasi';
                                     const canEditDelete = isOwnActivity && item.status === 'perlu_verifikasi';
@@ -533,7 +573,7 @@ export default function LogbookAktivitas() {
                                     return (
                                         <tr key={item.id}>
                                             <td style={{ textAlign: 'center' }}>
-                                                <span className="logbook-row-idx">{idx + 1}</span>
+                                                <span className="logbook-row-idx">{rowIdx}</span>
                                             </td>
                                             {isAtasan && scopeFilter === 'all' && (
                                                 <td>
@@ -641,6 +681,82 @@ export default function LogbookAktivitas() {
                                 })}
                             </tbody>
                         </table>
+                        
+                        {/* Pagination Aktivitas */}
+                        {totalItems > 0 && (
+                            <div className="logbook-card-pagination logbook-table-pagination">
+                                <div className="logbook-pagination-info">
+                                    {pageSize === 'all' ? (
+                                        <span>Menampilkan seluruh <strong>{totalItems}</strong> aktivitas</span>
+                                    ) : (
+                                        <span>
+                                            Menampilkan <strong>{Math.min((page - 1) * effectivePageSize + 1, totalItems)}–{Math.min(page * effectivePageSize, totalItems)}</strong> dari <strong>{totalItems}</strong> aktivitas
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="logbook-pagination-controls">
+                                    <div className="logbook-pagination-size">
+                                        <select
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                                setPageSize(val);
+                                                setPage(1);
+                                            }}
+                                            className="logbook-select-sm"
+                                            title="Jumlah data per halaman"
+                                        >
+                                            <option value={10}>10 / hal</option>
+                                            <option value={25}>25 / hal</option>
+                                            <option value={50}>50 / hal</option>
+                                            <option value={100}>100 / hal</option>
+                                            <option value="all">Semua</option>
+                                        </select>
+                                    </div>
+
+                                    {pageSize !== 'all' && totalPages > 1 && (
+                                        <div className="logbook-pagination-nav">
+                                            <button
+                                                type="button"
+                                                className="logbook-page-btn"
+                                                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                                                disabled={page === 1}
+                                                title="Halaman sebelumnya"
+                                            >
+                                                <ChevronLeft size={14} />
+                                            </button>
+
+                                            {pageNumbers.map((p, pIdx) => (
+                                                p === '...' ? (
+                                                    <span key={`dots-${pIdx}`} className="logbook-page-ellipsis">…</span>
+                                                ) : (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        className={`logbook-page-btn ${p === page ? 'active' : ''}`}
+                                                        onClick={() => setPage(p)}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                )
+                                            ))}
+
+                                            <button
+                                                type="button"
+                                                className="logbook-page-btn"
+                                                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                                                disabled={page === totalPages}
+                                                title="Halaman berikutnya"
+                                            >
+                                                <ChevronRight size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        </>
                     )}
                 </div>
             </div>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck } from 'lucide-react';
+import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
@@ -60,6 +60,43 @@ export default function LogbookVerifikasi() {
     const [verifikasiAksi, setVerifikasiAksi] = useState(null); // 'setuju' | 'tolak'
     const [catatan, setCatatan] = useState('');
     const [verifying, setVerifying] = useState(false);
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, dateFilter, statusFilter]);
+
+    const totalItems = inbox.length;
+    const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : Number(pageSize);
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+
+    useEffect(() => {
+        if (page > totalPages) {
+            setPage(totalPages);
+        }
+    }, [page, totalPages]);
+
+    const paginatedInbox = useMemo(() => {
+        if (pageSize === 'all') return inbox;
+        const start = (page - 1) * effectivePageSize;
+        return inbox.slice(start, start + effectivePageSize);
+    }, [inbox, page, pageSize, effectivePageSize]);
+
+    const pageNumbers = useMemo(() => {
+        if (totalPages <= 5) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (page <= 3) {
+            return [1, 2, 3, 4, '...', totalPages];
+        }
+        if (page >= totalPages - 2) {
+            return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '...', page - 1, page, page + 1, '...', totalPages];
+    }, [page, totalPages]);
 
     useEffect(() => {
         fetchInbox();
@@ -188,6 +225,7 @@ export default function LogbookVerifikasi() {
                             <p>Tidak ada aktivitas yang perlu diverifikasi pada filter saat ini.</p>
                         </div>
                     ) : (
+                        <>
                         <table className="logbook-table">
                             <thead>
                                 <tr>
@@ -200,77 +238,156 @@ export default function LogbookVerifikasi() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {inbox.map((item, idx) => (
-                                    <tr key={item.id}>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <span className="logbook-row-idx">{idx + 1}</span>
-                                        </td>
-                                        <td>
-                                            <div style={{ fontWeight: 600 }}>{item.user_nama}</div>
-                                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
-                                                <span style={{ fontWeight: 500 }}>{item.user_role_label}</span> &bull; {item.unit_nama}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div style={{ fontWeight: 600 }}>
-                                                {item.uraian_tugas_text || 'Lainnya'}
-                                            </div>
-                                            {(item.nama_aktivitas || item.deskripsi) && (
-                                                <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px', lineHeight: 1.4 }}>
-                                                    {item.nama_aktivitas ? <strong>{item.nama_aktivitas} &mdash; </strong> : null}
-                                                    {item.deskripsi ? item.deskripsi.substring(0, 70) + (item.deskripsi.length > 70 ? '...' : '') : ''}
+                                {paginatedInbox.map((item, idx) => {
+                                    const rowIdx = pageSize === 'all' ? idx + 1 : (page - 1) * effectivePageSize + idx + 1;
+                                    return (
+                                        <tr key={item.id}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span className="logbook-row-idx">{rowIdx}</span>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: 600 }}>{item.user_nama}</div>
+                                                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                                                    <span style={{ fontWeight: 500 }}>{item.user_role_label}</span> &bull; {item.unit_nama}
                                                 </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <div className="logbook-table-date">{formatDate(item.tanggal)}</div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
-                                                <Clock size={12} style={{ color: '#0284c7' }} />
-                                                <span>{formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}</span>
-                                                <span>({item.durasi_format})</span>
-                                            </div>
-                                            {item.nilai_output > 0 && (
-                                                <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '2px', fontWeight: 600 }}>
-                                                    Output: {item.nilai_output} {item.satuan_output}
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: 600 }}>
+                                                    {item.uraian_tugas_text || 'Lainnya'}
                                                 </div>
-                                            )}
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <StatusBadge status={item.status} statusLabel={item.status_label} />
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                                <button 
-                                                    className="logbook-btn-icon logbook-text-gray" 
-                                                    onClick={() => setDetailItem(item)}
-                                                    title="Lihat Detail"
-                                                >
-                                                    <Eye size={15} />
-                                                </button>
-                                                {item.status === 'perlu_verifikasi' && (
-                                                    <>
-                                                        <button 
-                                                            className="logbook-btn-icon logbook-text-green" 
-                                                            onClick={() => handleAksiVerifikasi(item, 'setuju')}
-                                                            title="Setujui Aktivitas"
-                                                        >
-                                                            <Check size={16} strokeWidth={2.5} />
-                                                        </button>
-                                                        <button 
-                                                            className="logbook-btn-icon logbook-text-red" 
-                                                            onClick={() => handleAksiVerifikasi(item, 'tolak')}
-                                                            title="Tolak Aktivitas"
-                                                        >
-                                                            <X size={16} strokeWidth={2.5} />
-                                                        </button>
-                                                    </>
+                                                {(item.nama_aktivitas || item.deskripsi) && (
+                                                    <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px', lineHeight: 1.4 }}>
+                                                        {item.nama_aktivitas ? <strong>{item.nama_aktivitas} &mdash; </strong> : null}
+                                                        {item.deskripsi ? item.deskripsi.substring(0, 70) + (item.deskripsi.length > 70 ? '...' : '') : ''}
+                                                    </div>
                                                 )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td>
+                                                <div className="logbook-table-date">{formatDate(item.tanggal)}</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                                                    <Clock size={12} style={{ color: '#0284c7' }} />
+                                                    <span>{formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}</span>
+                                                    <span>({item.durasi_format})</span>
+                                                </div>
+                                                {item.nilai_output > 0 && (
+                                                    <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '2px', fontWeight: 600 }}>
+                                                        Output: {item.nilai_output} {item.satuan_output}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <StatusBadge status={item.status} statusLabel={item.status_label} />
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                    <button 
+                                                        className="logbook-btn-icon logbook-text-gray" 
+                                                        onClick={() => setDetailItem(item)}
+                                                        title="Lihat Detail"
+                                                    >
+                                                        <Eye size={15} />
+                                                    </button>
+                                                    {item.status === 'perlu_verifikasi' && (
+                                                        <>
+                                                            <button 
+                                                                className="logbook-btn-icon logbook-text-green" 
+                                                                onClick={() => handleAksiVerifikasi(item, 'setuju')}
+                                                                title="Setujui Aktivitas"
+                                                            >
+                                                                <Check size={16} strokeWidth={2.5} />
+                                                            </button>
+                                                            <button 
+                                                                className="logbook-btn-icon logbook-text-red" 
+                                                                onClick={() => handleAksiVerifikasi(item, 'tolak')}
+                                                                title="Tolak Aktivitas"
+                                                            >
+                                                                <X size={16} strokeWidth={2.5} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
+
+                        {/* Pagination Verifikasi */}
+                        {totalItems > 0 && (
+                            <div className="logbook-card-pagination logbook-table-pagination">
+                                <div className="logbook-pagination-info">
+                                    {pageSize === 'all' ? (
+                                        <span>Menampilkan seluruh <strong>{totalItems}</strong> data verifikasi</span>
+                                    ) : (
+                                        <span>
+                                            Menampilkan <strong>{Math.min((page - 1) * effectivePageSize + 1, totalItems)}–{Math.min(page * effectivePageSize, totalItems)}</strong> dari <strong>{totalItems}</strong> data verifikasi
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="logbook-pagination-controls">
+                                    <div className="logbook-pagination-size">
+                                        <select
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                                                setPageSize(val);
+                                                setPage(1);
+                                            }}
+                                            className="logbook-select-sm"
+                                            title="Jumlah data per halaman"
+                                        >
+                                            <option value={10}>10 / hal</option>
+                                            <option value={25}>25 / hal</option>
+                                            <option value={50}>50 / hal</option>
+                                            <option value={100}>100 / hal</option>
+                                            <option value="all">Semua</option>
+                                        </select>
+                                    </div>
+
+                                    {pageSize !== 'all' && totalPages > 1 && (
+                                        <div className="logbook-pagination-nav">
+                                            <button
+                                                type="button"
+                                                className="logbook-page-btn"
+                                                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                                                disabled={page === 1}
+                                                title="Halaman sebelumnya"
+                                            >
+                                                <ChevronLeft size={14} />
+                                            </button>
+
+                                            {pageNumbers.map((p, pIdx) => (
+                                                p === '...' ? (
+                                                    <span key={`dots-${pIdx}`} className="logbook-page-ellipsis">…</span>
+                                                ) : (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        className={`logbook-page-btn ${p === page ? 'active' : ''}`}
+                                                        onClick={() => setPage(p)}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                )
+                                            ))}
+
+                                            <button
+                                                type="button"
+                                                className="logbook-page-btn"
+                                                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                                                disabled={page === totalPages}
+                                                title="Halaman berikutnya"
+                                            >
+                                                <ChevronRight size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        </>
                     )}
                 </div>
             </div>
