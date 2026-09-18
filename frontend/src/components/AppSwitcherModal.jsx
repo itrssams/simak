@@ -103,7 +103,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
         },
         {
             id: 'sdm',
-            name: 'SDM (Kepegawaian)',
+            name: 'SDM',
             icon: UserCheck,
             color: '#6366f1',
             glowColor: 'rgba(99, 102, 241, 0.45)',

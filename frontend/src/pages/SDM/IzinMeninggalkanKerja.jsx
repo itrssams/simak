@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import {
   LogOut,
@@ -36,6 +37,7 @@ const STATUS_CONFIG = {
 
 export default function IzinMeninggalkanKerja() {
   const { user } = useAuth();
+  const toast = useToast();
   const hasSdmAccess = Boolean(
     user?.is_superuser ||
     user?.is_sdm ||
@@ -45,8 +47,6 @@ export default function IzinMeninggalkanKerja() {
   const [activeTab, setActiveTab] = useState('saya');
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   // Data states
   const [izinSaya, setIzinSaya] = useState([]);
@@ -99,11 +99,9 @@ export default function IzinMeninggalkanKerja() {
 
   const showToast = (msg, isError = false) => {
     if (isError) {
-      setError(msg);
-      setTimeout(() => setError(''), 5000);
+      toast.error(msg);
     } else {
-      setSuccessMsg(msg);
-      setTimeout(() => setSuccessMsg(''), 4000);
+      toast.success(msg);
     }
   };
 
@@ -174,6 +172,30 @@ export default function IzinMeninggalkanKerja() {
     return izinSaya.find((i) => i.status === 'berjalan');
   }, [izinSaya]);
 
+  const activeDuration = useMemo(() => {
+    if (!activeMine?.jam_keluar || !activeMine?.jam_kembali) return null;
+    const [h1, m1] = activeMine.jam_keluar.slice(0, 5).split(':').map(Number);
+    const [h2, m2] = activeMine.jam_kembali.slice(0, 5).split(':').map(Number);
+    let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+    if (diff < 0) diff += 24 * 60;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    if (h > 0 && m > 0) return `${h} Jam ${m} Menit`;
+    if (h > 0) return `${h} Jam`;
+    return `${m} Menit`;
+  }, [activeMine]);
+
+  const formatTanggalIndo = (tglStr) => {
+    if (!tglStr) return '-';
+    try {
+      const [y, m, d] = tglStr.split('-');
+      const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${d} ${bulan[parseInt(m, 10) - 1]} ${y}`;
+    } catch {
+      return tglStr;
+    }
+  };
+
   // Handle Create Permit
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
@@ -220,20 +242,43 @@ export default function IzinMeninggalkanKerja() {
   // Handle Adjust Submit
   const handleAdjustSubmit = async (e) => {
     e.preventDefault();
-    if (!adjustForm.alasan_penyesuaian.trim()) {
+    const alasan = (adjustForm.alasan_penyesuaian || '').trim();
+    if (!alasan) {
       return showToast('Wajib mengisi alasan penyesuaian jam.', true);
+    }
+    if (alasan.length < 3) {
+      return showToast('Alasan penyesuaian minimal 3 karakter.', true);
+    }
+    if (adjustForm.jam_keluar && adjustForm.jam_kembali && adjustForm.jam_kembali <= adjustForm.jam_keluar) {
+      return showToast('Jam kembali harus lebih besar dari jam keluar.', true);
     }
 
     setActionLoading(true);
     try {
-      await api.post(`/sdm/izin-keluar/${adjustModalItem.id}/sesuaikan-jam/`, adjustForm);
+      await api.post(`/sdm/izin-keluar/${adjustModalItem.id}/sesuaikan-jam/`, {
+        ...adjustForm,
+        alasan_penyesuaian: alasan,
+      });
       showToast('Penyesuaian jam berhasil dicatat ke dalam histori.');
       setAdjustModalItem(null);
       fetchPersonalPermits();
       fetchStats();
       if (hasSdmAccess) fetchRekapData();
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Gagal menyesuaikan jam.';
+      const data = err.response?.data;
+      let msg = 'Gagal menyesuaikan jam.';
+      if (data) {
+        if (typeof data === 'string') {
+          msg = data;
+        } else if (data.error) {
+          msg = data.error;
+        } else if (data.detail) {
+          msg = data.detail;
+        } else if (typeof data === 'object') {
+          const firstVal = Object.values(data)[0];
+          msg = Array.isArray(firstVal) ? firstVal[0] : String(firstVal);
+        }
+      }
       showToast(msg, true);
     } finally {
       setActionLoading(false);
@@ -263,7 +308,20 @@ export default function IzinMeninggalkanKerja() {
       fetchStats();
       if (hasSdmAccess) fetchRekapData();
     } catch (err) {
-      const msg = err.response?.data?.error || err.response?.data?.detail || 'Gagal konfirmasi kepulangan.';
+      const data = err.response?.data;
+      let msg = 'Gagal konfirmasi kepulangan.';
+      if (data) {
+        if (typeof data === 'string') {
+          msg = data;
+        } else if (data.error) {
+          msg = data.error;
+        } else if (data.detail) {
+          msg = data.detail;
+        } else if (typeof data === 'object') {
+          const firstVal = Object.values(data)[0];
+          msg = Array.isArray(firstVal) ? firstVal[0] : String(firstVal);
+        }
+      }
       showToast(msg, true);
     } finally {
       setActionLoading(false);
@@ -324,20 +382,6 @@ export default function IzinMeninggalkanKerja() {
 
   return (
     <div className="sdm-wrapper">
-      {/* Toast Alert */}
-      {error && (
-        <div className="sdm-adjusted-alert" style={{ background: '#fee2e2', borderColor: '#fca5a5', color: '#991b1b' }}>
-          <AlertTriangle size={16} />
-          <span>{error}</span>
-        </div>
-      )}
-      {successMsg && (
-        <div className="sdm-adjusted-alert" style={{ background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }}>
-          <CheckCircle2 size={16} />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
       {/* ════════════════ HERO HEADER (SIMAK STANDARD) ════════════════ */}
       <div className="sdm-hero">
         <div className="sdm-hero-main">
@@ -404,54 +448,92 @@ export default function IzinMeninggalkanKerja() {
           {activeMine ? (
             <div className="sdm-active-hero">
               <div className="sdm-active-top">
-                <div className="sdm-live-pill">
-                  <span className="sdm-live-dot" />
-                  <span>SEDANG DI LUAR TEMPAT KERJA</span>
+                <div className="sdm-active-status-group">
+                  <div className="sdm-live-pill">
+                    <span className="sdm-live-dot" />
+                    <span>SEDANG DI LUAR TEMPAT KERJA</span>
+                  </div>
+                  <span className={`sdm-badge ${activeMine.kategori}`}>
+                    {activeMine.kategori_label}
+                  </span>
                 </div>
-                <span className={`sdm-badge ${activeMine.kategori}`} style={{ fontSize: '0.82rem', padding: '6px 14px' }}>
-                  {activeMine.kategori_label}
-                </span>
+
+                <div className="sdm-active-date-tag">
+                  <Calendar size={14} />
+                  <span>{formatTanggalIndo(activeMine.tanggal)}</span>
+                </div>
               </div>
 
               <div className="sdm-active-body">
                 <div className="sdm-active-info">
-                  <h3 className="sdm-active-keperluan">"{activeMine.keperluan}"</h3>
-                  <div className="sdm-active-times">
-                    <div className="sdm-time-chip">
-                      <span className="sdm-time-chip-lbl">Rencana Keluar</span>
-                      <span className="sdm-time-chip-val">{activeMine.jam_keluar?.slice(0, 5)} WIB</span>
-                    </div>
-                    <div className="sdm-time-chip">
-                      <span className="sdm-time-chip-lbl">Rencana Kembali</span>
-                      <span className="sdm-time-chip-val">{activeMine.jam_kembali?.slice(0, 5)} WIB</span>
-                    </div>
-                    {activeMine.is_adjusted && (
-                      <div className="sdm-time-chip" style={{ borderColor: 'rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.15)' }}>
-                        <span className="sdm-time-chip-lbl">Jadwal Awal</span>
-                        <span className="sdm-time-chip-val">
-                          {activeMine.jam_keluar_awal?.slice(0, 5)} - {activeMine.jam_kembali_awal?.slice(0, 5)}
-                        </span>
+                  <div className="sdm-active-keperluan-container">
+                    <span className="sdm-active-keperluan-label">KEPERLUAN / KEGIATAN:</span>
+                    <h3 className="sdm-active-keperluan">{activeMine.keperluan}</h3>
+                  </div>
+
+                  <div className="sdm-active-timeline">
+                    <div className="sdm-timeline-node">
+                      <div className="sdm-timeline-icon out">
+                        <LogOut size={16} />
                       </div>
-                    )}
+                      <div className="sdm-timeline-details">
+                        <span className="sdm-timeline-lbl">Jam Keluar</span>
+                        <strong className="sdm-timeline-val">
+                          {activeMine.jam_keluar?.slice(0, 5)} <small>WIB</small>
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="sdm-timeline-connector">
+                      <div className="sdm-timeline-line" />
+                      {activeDuration && (
+                        <span className="sdm-timeline-duration" title="Estimasi total durasi keluar kantor">
+                          <Clock size={12} />
+                          {activeDuration}
+                        </span>
+                      )}
+                      <ArrowRight size={14} className="sdm-timeline-arrow" />
+                    </div>
+
+                    <div className="sdm-timeline-node">
+                      <div className="sdm-timeline-icon in">
+                        <Clock size={16} />
+                      </div>
+                      <div className="sdm-timeline-details">
+                        <span className="sdm-timeline-lbl">Rencana Kembali</span>
+                        <strong className="sdm-timeline-val">
+                          {activeMine.jam_kembali?.slice(0, 5)} <small>WIB</small>
+                        </strong>
+                      </div>
+                    </div>
                   </div>
 
                   {activeMine.is_adjusted && (
-                    <div className="sdm-adjusted-alert">
-                      <Clock size={14} />
-                      <span>Waktu izin telah disesuaikan karena kendala di lapangan.</span>
+                    <div className="sdm-adjusted-banner">
+                      <div className="sdm-adjusted-banner-left">
+                        <span className="sdm-adjusted-tag">JADWAL DISESUAIKAN</span>
+                        <span>
+                          Rencana awal: <strong>{activeMine.jam_keluar_awal?.slice(0, 5)} – {activeMine.jam_kembali_awal?.slice(0, 5)} WIB</strong>
+                        </span>
+                      </div>
                       <button
-                        className="sdm-btn-batalkan"
-                        style={{ color: '#fef08a', textDecoration: 'underline', padding: 0 }}
+                        type="button"
+                        className="sdm-btn-history-link"
                         onClick={() => setLogsModalItem(activeMine)}
                       >
-                        Lihat Histori
+                        <History size={13} />
+                        Lihat Log Audit
                       </button>
                     </div>
                   )}
                 </div>
 
                 <div className="sdm-active-actions">
+                  <div className="sdm-actions-header">
+                    <span>Aksi Cepat</span>
+                  </div>
                   <button
+                    type="button"
                     className="sdm-btn-kembali"
                     onClick={() => openReturnModal(activeMine)}
                   >
@@ -459,6 +541,7 @@ export default function IzinMeninggalkanKerja() {
                     <span>Sudah Kembali</span>
                   </button>
                   <button
+                    type="button"
                     className="sdm-btn-sesuaikan"
                     onClick={() => openAdjustModal(activeMine)}
                   >
@@ -466,9 +549,11 @@ export default function IzinMeninggalkanKerja() {
                     <span>Sesuaikan Jam</span>
                   </button>
                   <button
+                    type="button"
                     className="sdm-btn-batalkan"
                     onClick={() => handleCancelPermit(activeMine)}
                   >
+                    <X size={14} />
                     <span>Batalkan Izin Ini</span>
                   </button>
                 </div>
@@ -1081,7 +1166,11 @@ export default function IzinMeninggalkanKerja() {
                     value={adjustForm.alasan_penyesuaian}
                     onChange={(e) => setAdjustForm({ ...adjustForm, alasan_penyesuaian: e.target.value })}
                     required
+                    minLength={3}
                   />
+                  <span style={{ fontSize: 12, color: '#64748b', marginTop: 4, display: 'block' }}>
+                    *Minimal 3 karakter untuk pencatatan log audit.
+                  </span>
                 </div>
               </div>
               <div className="sdm-modal-foot">

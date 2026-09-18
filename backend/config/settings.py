@@ -28,9 +28,9 @@ def resolve_env_path(value):
 DJANGO_ENV = os.getenv('DJANGO_ENV', 'development').strip().lower()
 ENV_FILE = os.getenv('ENV_FILE')
 if ENV_FILE:
-    load_dotenv(resolve_env_path(ENV_FILE), override=True)
+    load_dotenv(resolve_env_path(ENV_FILE), override=False)
 else:
-    load_dotenv(BASE_DIR / f'.env.{DJANGO_ENV}', override=True)
+    load_dotenv(BASE_DIR / f'.env.{DJANGO_ENV}', override=False)
     load_dotenv(BASE_DIR / '.env', override=False)
 
 def env_bool(name, default=False):

@@ -206,7 +206,7 @@ export default function AppLauncher() {
         },
         {
             id: 'sdm',
-            name: 'SDM (Kepegawaian)',
+            name: 'SDM',
             subtitle: 'Izin Meninggalkan Tempat Kerja',
             icon: UserCheck,
             color: '#6366f1',

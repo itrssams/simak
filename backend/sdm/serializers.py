@@ -81,11 +81,17 @@ class IzinKeluarCreateSerializer(serializers.ModelSerializer):
 class IzinKeluarAdjustSerializer(serializers.Serializer):
     jam_keluar = serializers.TimeField(required=False)
     jam_kembali = serializers.TimeField(required=False)
-    alasan_penyesuaian = serializers.CharField(required=True, min_length=5)
+    alasan_penyesuaian = serializers.CharField(required=True, min_length=3)
 
     def validate(self, attrs):
         if not attrs.get('jam_keluar') and not attrs.get('jam_kembali'):
             raise serializers.ValidationError('Minimal tentukan jam keluar atau jam kembali yang disesuaikan.')
+        jam_keluar = attrs.get('jam_keluar')
+        jam_kembali = attrs.get('jam_kembali')
+        if jam_keluar and jam_kembali and jam_kembali <= jam_keluar:
+            raise serializers.ValidationError({
+                'jam_kembali': 'Jam rencana kembali harus lebih besar dari jam keluar.'
+            })
         return attrs
 
 

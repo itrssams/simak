@@ -582,11 +582,11 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 13. SDM (Kepegawaian)
+    // 13. SDM
     if (pathname.startsWith('/sdm')) {
         return {
             id: 'sdm',
-            title: 'SDM (Kepegawaian)',
+            title: 'SDM',
             icon: Users,
             iconColor: '#6366f1',
             menus: [
