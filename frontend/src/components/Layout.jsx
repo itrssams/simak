@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     Bell,
+    User,
     LayoutDashboard,
     Users,
     Building2,
@@ -34,6 +35,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
 import AppSwitcherModal from './AppSwitcherModal';
+
+const resolveMediaUrl = (url) => {
+    if (!url) return null;
+    if (typeof url === 'string' && url.includes('backend:8000')) {
+        return url.replace(/^https?:\/\/backend:8000/, '');
+    }
+    return url;
+};
 
 const IconConfig = {
     dashboard: { icon: LayoutDashboard, size: 18 },
@@ -569,6 +578,19 @@ const getActiveModuleConfig = (pathname, user) => {
                 { label: 'Langganan', path: '/it/subscriptions' },
                 { label: 'Koreksi Data Transaksi', path: '/it/koreksi-transaksi' },
                 { label: 'Laporan IT', path: '/laporan/it' },
+            ],
+        };
+    }
+
+    // 13. SDM (Kepegawaian)
+    if (pathname.startsWith('/sdm')) {
+        return {
+            id: 'sdm',
+            title: 'SDM (Kepegawaian)',
+            icon: Users,
+            iconColor: '#6366f1',
+            menus: [
+                { label: 'Izin Meninggalkan Kerja', path: '/sdm/izin-kerja' },
             ],
         };
     }
@@ -1330,6 +1352,47 @@ export default function Layout({ children }) {
                     z-index: 320;
                     overflow: hidden;
                 }
+                .profile-avatar-img {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 999px;
+                    object-fit: cover;
+                }
+                .profile-item-btn {
+                    width: 100%;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 11px 14px;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--inv-text, #1e293b);
+                    background: transparent;
+                    font-size: 13px;
+                    font-weight: 700;
+                    text-align: left;
+                    transition: background .16s ease, color .16s ease;
+                    border-bottom: 1px solid rgba(226,232,240,.4);
+                }
+                .profile-item-btn svg {
+                    color: var(--inv-primary, #6366f1);
+                    flex-shrink: 0;
+                }
+                .profile-item-btn:hover {
+                    background: rgba(99,102,241,.08);
+                    color: var(--inv-primary, #6366f1);
+                }
+                [data-theme="dark"] .profile-item-btn {
+                    color: #f8fafc !important;
+                    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+                }
+                [data-theme="dark"] .profile-item-btn svg {
+                    color: #818cf8 !important;
+                }
+                [data-theme="dark"] .profile-item-btn:hover {
+                    background: rgba(99, 102, 241, 0.22) !important;
+                    color: #ffffff !important;
+                }
                 .profile-menu-head {
                     padding: 13px 14px;
                     background: linear-gradient(135deg, rgba(238,242,255,.82), rgba(236,254,255,.52));
@@ -1794,7 +1857,11 @@ export default function Layout({ children }) {
                             <div className="profile-role">{baseRoleLabel}</div>
                         </div>
                         <button className="profile-avatar" onClick={() => setProfileOpen(o => !o)} title={displayName}>
-                            {userInitial}
+                            {user?.foto ? (
+                                <img src={resolveMediaUrl(user.foto)} alt={displayName} className="profile-avatar-img" />
+                            ) : (
+                                userInitial
+                            )}
                         </button>
 
                         {profileOpen && (
@@ -1804,8 +1871,17 @@ export default function Layout({ children }) {
                                     <div className="profile-role">{roleLabel}</div>
                                 </div>
                                 <button
+                                    className="profile-item-btn"
+                                    onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                                    type="button"
+                                >
+                                    <User size={15} />
+                                    <span>Profil Saya</span>
+                                </button>
+                                <button
                                     className="profile-logout"
                                     onClick={() => { setProfileOpen(false); logout(); navigate('/login'); }}
+                                    type="button"
                                 >
                                     {renderIcon('logout')}
                                     <span>Keluar</span>

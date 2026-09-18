@@ -60,6 +60,7 @@ const initialForm = {
     view_logistik: false,
     is_logistik: false,
     is_akuntansi: false,
+    is_sdm: false,
     unit: '',
     password: '',
     is_active: true,
@@ -196,6 +197,7 @@ export default function ManajemenUser() {
             view_logistik: Boolean(u.view_logistik),
             is_logistik: Boolean(u.is_logistik),
             is_akuntansi: Boolean(u.is_akuntansi),
+            is_sdm: Boolean(u.is_sdm),
             unit: u.unit || '',
             password: '',
             is_active: u.is_active,
@@ -255,6 +257,7 @@ export default function ManajemenUser() {
                 view_logistik: form.view_logistik,
                 is_logistik: form.is_logistik,
                 is_akuntansi: form.is_akuntansi,
+                is_sdm: form.is_sdm,
                 unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
@@ -744,6 +747,7 @@ function RoleBadge({ user }) {
             {user?.akses_catatan_utang && <span className="mu-badge" style={{ background: '#fef9c3', color: '#854d0e', borderColor: '#fde68a' }}>Catatan Utang</span>}
             {user?.is_logistik && <span className="mu-badge" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#a5f3fc' }}>Logistik</span>}
             {user?.is_akuntansi && <span className="mu-badge" style={{ background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe' }}>Akuntansi</span>}
+            {user?.is_sdm && <span className="mu-badge" style={{ background: '#e0e7ff', color: '#3730a3', borderColor: '#c7d2fe' }}>SDM</span>}
         </div>
     );
 }
@@ -1011,6 +1015,32 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                                 </td>
                                                 <td colSpan={2} className="mu-perm-single">
                                                     <PermissionToggle checked={form.is_it} onChange={(c) => setForm({ ...form, is_it: c })} />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="mu-perm-section theme-sdm">
+                                    <div className="mu-perm-section-header">
+                                        <span className="mu-perm-section-icon">👥</span> Kepegawaian & SDM
+                                    </div>
+                                    <table className="mu-perm-matrix">
+                                        <thead>
+                                            <tr>
+                                                <th className="mu-perm-col-module">Modul</th>
+                                                <th className="mu-perm-col-view">Lihat</th>
+                                                <th className="mu-perm-col-action">Kelola</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>SDM / HRD</strong>
+                                                    <small>Rekapitulasi izin keluar RS, monitoring staf, & export laporan</small>
+                                                </td>
+                                                <td colSpan={2} className="mu-perm-single">
+                                                    <PermissionToggle checked={form.is_sdm} onChange={(c) => setForm({ ...form, is_sdm: c })} />
                                                 </td>
                                             </tr>
                                         </tbody>

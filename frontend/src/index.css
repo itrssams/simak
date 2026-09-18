@@ -234,6 +234,20 @@ textarea {
   border-bottom-color: #334155 !important;
 }
 
+[data-theme="dark"] .profile-item-btn {
+  color: #f8fafc !important;
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .profile-item-btn svg {
+  color: #818cf8 !important;
+}
+
+[data-theme="dark"] .profile-item-btn:hover {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #ffffff !important;
+}
+
 [data-theme="dark"] .profile-logout:hover {
   background: rgba(239, 68, 68, 0.15) !important;
 }
@@ -299,7 +313,7 @@ textarea {
 }
 
 [data-theme="dark"] :where(
-  .inv-hero, .dki-hero, .ap-hero, .mp-hero, .iv-hero, .utang-hero, .log-hero, .pc-hero, .mu-hero, .driver-hero, .audit-hero, .dash-hero, .db-hero, .idash-head, .pg-hero, .lp-hero, .it-hero, .logbook-hero
+  .inv-hero, .dki-hero, .ap-hero, .mp-hero, .iv-hero, .utang-hero, .log-hero, .pc-hero, .mu-hero, .driver-hero, .audit-hero, .dash-hero, .db-hero, .idash-head, .pg-hero, .lp-hero, .it-hero, .logbook-hero, .sdm-hero
 ) {
   background: transparent !important;
   border: none !important;

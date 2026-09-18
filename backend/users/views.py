@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
 from .models import Unit
 
@@ -129,3 +130,84 @@ class UserViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         user.set_password(serializer.validated_data['password'])
         user.save()
         return Response({'message': f'Password {user.username} berhasil direset.'})
+
+    @action(detail=False, methods=['get', 'patch'], url_path='me')
+    def me(self, request):
+        if request.method == 'GET':
+            from .serializers import UserSerializer
+            return Response(UserSerializer(request.user, context={'request': request}).data)
+
+        from .serializers import SelfProfileUpdateSerializer, UserSerializer
+        serializer = SelfProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({
+            'message': 'Profil berhasil diperbarui.',
+            'user': UserSerializer(request.user, context={'request': request}).data,
+        })
+
+    @action(detail=False, methods=['post'], url_path='change-password')
+    def change_password(self, request):
+        from .serializers import SelfChangePasswordSerializer
+        serializer = SelfChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+        try:
+            from system.audit import write_audit_log
+            write_audit_log(
+                request,
+                action='update',
+                description=f'{request.user.username} memperbarui password akunnya secara mandiri.',
+                metadata={'action': 'change_password'},
+            )
+        except Exception:
+            pass
+        return Response({'message': 'Password Anda berhasil diperbarui.'})
+
+    @action(detail=False, methods=['post'], url_path='upload-photo', parser_classes=[MultiPartParser, FormParser])
+    def upload_photo(self, request):
+        foto = request.FILES.get('foto')
+        if not foto:
+            return Response({'error': 'Berkas foto tidak ditemukan.'}, status=400)
+
+        if foto.size > 5 * 1024 * 1024:
+            return Response({'error': 'Ukuran foto maksimal 5MB.'}, status=400)
+
+        content_type = getattr(foto, 'content_type', '')
+        if not content_type.startswith('image/'):
+            return Response({'error': 'Format berkas harus berupa gambar (JPG, PNG, WEBP).'}, status=400)
+
+        # Hapus file foto lama dari storage jika ada
+        if request.user.foto:
+            try:
+                request.user.foto.delete(save=False)
+            except Exception:
+                pass
+
+        request.user.foto = foto
+        request.user.save()
+
+        from .serializers import UserSerializer
+        user_data = UserSerializer(request.user, context={'request': request}).data
+        return Response({
+            'message': 'Foto profil berhasil diperbarui.',
+            'foto': user_data.get('foto'),
+            'user': user_data,
+        })
+
+    @action(detail=False, methods=['delete'], url_path='delete-photo')
+    def delete_photo(self, request):
+        if request.user.foto:
+            try:
+                request.user.foto.delete(save=False)
+            except Exception:
+                pass
+            request.user.foto = None
+            request.user.save()
+
+        from .serializers import UserSerializer
+        return Response({
+            'message': 'Foto profil berhasil dihapus.',
+            'user': UserSerializer(request.user, context={'request': request}).data,
+        })

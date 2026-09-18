@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Search, Clock, Check, X, CheckCircle2, XCircle, AlertCircle, Eye, CheckCheck, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
@@ -45,6 +45,7 @@ export default function LogbookVerifikasi() {
     const toast = useToast();
     const [inbox, setInbox] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [exporting, setExporting] = useState(false);
     
     // Filter & Search
     const [search, setSearch] = useState('');
@@ -155,9 +156,47 @@ export default function LogbookVerifikasi() {
         }
     };
 
+    const handleExportExcel = async () => {
+        try {
+            setExporting(true);
+            toast.info('Menyiapkan file Excel verifikasi...');
+            const params = {};
+            if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
+            if (dateFilter) params.tanggal = dateFilter;
+            if (statusFilter !== 'all') params.status = statusFilter;
+
+            const res = await api.get('/logbook/export-inbox/', {
+                params,
+                responseType: 'blob',
+            });
+
+            const blob = new Blob([res.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const statusLabel = statusFilter === 'perlu_verifikasi' 
+                ? 'Menunggu_Verifikasi' 
+                : (statusFilter === 'all' ? 'Semua_Status' : statusFilter);
+            const dateLabel = dateFilter || 'Semua_Tanggal';
+            a.download = `Verifikasi_Logbook_${statusLabel}_${dateLabel}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success('File Excel verifikasi berhasil diunduh.');
+        } catch (err) {
+            console.error('Error exporting Excel:', err);
+            toast.error('Gagal mengunduh file Excel verifikasi.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
     return (
         <div className="logbook-page">
-            <div className="logbook-hero" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <div className="logbook-hero">
                 <div className="logbook-title">
                     <span><CheckCheck size={22} /></span>
                     <div>
@@ -209,6 +248,18 @@ export default function LogbookVerifikasi() {
                             </button>
                         )}
                     </div>
+
+                    <button 
+                        type="button" 
+                        className="logbook-btn-export" 
+                        onClick={handleExportExcel}
+                        disabled={exporting}
+                        style={{ marginLeft: 'auto' }}
+                        title="Export daftar verifikasi ke Excel (.xlsx)"
+                    >
+                        <Download size={16} />
+                        <span>{exporting ? 'Mengunduh...' : 'Export Excel'}</span>
+                    </button>
                 </div>
 
                 <div className="logbook-table-wrap">

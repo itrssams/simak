@@ -38,7 +38,9 @@ class User(AbstractUser):
     view_logistik = models.BooleanField(default=False)
     is_logistik = models.BooleanField(default=False)
     is_akuntansi = models.BooleanField(default=False)
+    is_sdm = models.BooleanField(default=False)
     unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    foto = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.username} ({self.role})"

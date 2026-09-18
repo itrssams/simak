@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'driver',
     'system',
     'logbook',
+    'sdm',
 ]
 
 

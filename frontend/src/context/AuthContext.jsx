@@ -3,6 +3,14 @@ import api from '../api/axiosConfig';
 
 const AuthContext = createContext();
 
+const resolveMediaUrl = (url) => {
+    if (!url) return null;
+    if (typeof url === 'string' && url.includes('backend:8000')) {
+        return url.replace(/^https?:\/\/backend:8000/, '');
+    }
+    return url;
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -10,7 +18,11 @@ export const AuthProvider = ({ children }) => {
     const fetchUserData = async () => {
         try {
             const res = await api.get('/auth/me/');
-            setUser(res.data);
+            const data = res.data;
+            if (data && data.foto) {
+                data.foto = resolveMediaUrl(data.foto);
+            }
+            setUser(data);
         } catch {
             setUser(null);
             localStorage.clear();
@@ -40,8 +52,19 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const updateUser = (patch) => {
+        setUser(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, ...patch };
+            if (updated.foto) {
+                updated.foto = resolveMediaUrl(updated.foto);
+            }
+            return updated;
+        });
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, refetchUser: fetchUserData, updateUser }}>
             {children}
         </AuthContext.Provider>
     );

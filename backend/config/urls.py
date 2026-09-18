@@ -19,7 +19,7 @@ from system.audit import write_audit_log
 def me_view(request):
     user = request.user
     from users.serializers import UserSerializer
-    return Response(UserSerializer(user).data)
+    return Response(UserSerializer(user, context={'request': request}).data)
 
 
 class AuditedTokenObtainPairView(TokenObtainPairView):
@@ -74,6 +74,7 @@ urlpatterns = [
     path('api/it/', include('it.urls')),
     path('api/inventaris/', include('inventaris.urls')),
     path('api/logbook/', include('logbook.urls')),
+    path('api/sdm/', include('sdm.urls')),
     
     # Serve React assets explicitly
     re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),

@@ -29,6 +29,11 @@ class LogbookSerializer(serializers.ModelSerializer):
     unit_nama = serializers.CharField(source='user.unit.nama', read_only=True, default='-')
     durasi_menit = serializers.IntegerField(read_only=True)
     durasi_format = serializers.CharField(read_only=True)
+    durasi_kerja_format = serializers.CharField(read_only=True)
+    durasi_lembur_format = serializers.CharField(read_only=True)
+    metode_input_label = serializers.CharField(source='get_metode_input_display', read_only=True)
+    task_id = serializers.IntegerField(source='task.id', read_only=True, allow_null=True)
+    task_no = serializers.CharField(source='task.no_task', read_only=True, allow_null=True)
     
     # New E-Logbook fields
     uraian_tugas_id = serializers.IntegerField(source='uraian_tugas.id', read_only=True, allow_null=True)
@@ -63,6 +68,14 @@ class LogbookSerializer(serializers.ModelSerializer):
             'catatan_verifikasi',
             'durasi_menit',
             'durasi_format',
+            'durasi_kerja',
+            'durasi_lembur',
+            'durasi_kerja_format',
+            'durasi_lembur_format',
+            'metode_input',
+            'metode_input_label',
+            'task_id',
+            'task_no',
             'created_at',
             'updated_at',
         ]
@@ -88,6 +101,12 @@ class LogbookInputSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False
     )
+    task_id = serializers.PrimaryKeyRelatedField(
+        queryset=Task.objects.all(),
+        source='task',
+        allow_null=True,
+        required=False
+    )
 
     class Meta:
         model = Logbook
@@ -100,6 +119,10 @@ class LogbookInputSerializer(serializers.ModelSerializer):
             'nama_aktivitas',
             'nilai_output',
             'satuan_output',
+            'durasi_kerja',
+            'durasi_lembur',
+            'metode_input',
+            'task_id',
         ]
 
     def validate_deskripsi(self, value):
@@ -136,15 +159,20 @@ class TaskSerializer(serializers.ModelSerializer):
     has_active_session = serializers.SerializerMethodField()
     durasi_kerja_format = serializers.SerializerMethodField()
     durasi_lembur_format = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     user_nama = serializers.SerializerMethodField()
+    is_owner = serializers.SerializerMethodField()
+    uraian_tugas_id = serializers.IntegerField(source='uraian_tugas.id', read_only=True, allow_null=True)
+    uraian_tugas_text = serializers.CharField(source='uraian_tugas.deskripsi', read_only=True, allow_null=True)
 
     class Meta:
         model = Task
         fields = [
-            'id', 'no_task', 'judul', 'deskripsi', 'status', 'started_at', 'completed_at',
+            'id', 'no_task', 'judul', 'deskripsi', 'uraian_tugas_id', 'uraian_tugas_text',
+            'nilai_output', 'satuan_output', 'status', 'started_at', 'completed_at',
             'total_menit_kerja', 'total_menit_lembur', 'created_at', 'updated_at',
             'sesi_list', 'has_active_session', 'durasi_kerja_format', 'durasi_lembur_format',
-            'user_nama'
+            'user_id', 'user_nama', 'is_owner'
         ]
         read_only_fields = ['id', 'no_task', 'started_at', 'completed_at', 'created_at', 'updated_at', 'total_menit_kerja', 'total_menit_lembur']
 
@@ -171,13 +199,32 @@ class TaskSerializer(serializers.ModelSerializer):
         full_name = f"{obj.user.first_name or ''} {obj.user.last_name or ''}".strip()
         return full_name or obj.user.username
 
+    def get_is_owner(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return True
+        return obj.user_id == request.user.id
+
 
 class TaskCreateSerializer(serializers.ModelSerializer):
+    uraian_tugas_id = serializers.PrimaryKeyRelatedField(
+        queryset=UraianTugas.objects.all(),
+        source='uraian_tugas',
+        required=False,
+        allow_null=True
+    )
+    auto_start = serializers.BooleanField(default=True, required=False, write_only=True)
+
     class Meta:
         model = Task
-        fields = ['judul', 'deskripsi']
+        fields = ['id', 'no_task', 'status', 'judul', 'deskripsi', 'uraian_tugas_id', 'nilai_output', 'satuan_output', 'auto_start']
+        read_only_fields = ['id', 'no_task', 'status']
 
     def validate_judul(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError('Judul task wajib diisi.')
         return value.strip()
+
+    def create(self, validated_data):
+        validated_data.pop('auto_start', None)
+        return super().create(validated_data)

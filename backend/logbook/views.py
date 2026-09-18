@@ -130,7 +130,24 @@ class LogbookViewSet(viewsets.ModelViewSet):
         return LogbookSerializer
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user, status='perlu_verifikasi')
+        data = serializer.validated_data
+        tanggal = data.get('tanggal')
+        jam_mulai = data.get('jam_mulai')
+        jam_selesai = data.get('jam_selesai')
+        durasi_kerja = 0
+        durasi_lembur = 0
+        if tanggal and jam_mulai and jam_selesai:
+            dt_mulai = datetime.combine(tanggal, jam_mulai)
+            dt_selesai = datetime.combine(tanggal, jam_selesai)
+            durasi_kerja, durasi_lembur = hitung_durasi_sesi(dt_mulai, dt_selesai)
+
+        serializer.save(
+            user=self.request.user,
+            status='perlu_verifikasi',
+            durasi_kerja=durasi_kerja,
+            durasi_lembur=durasi_lembur,
+            metode_input='manual'
+        )
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -147,7 +164,19 @@ class LogbookViewSet(viewsets.ModelViewSet):
             selisih = (timezone.localdate() - instance.tanggal).days
             if selisih > 3:
                 raise PermissionDenied('Logbook lebih dari 3 hari yang lalu tidak dapat diubah.')
-        serializer.save()
+
+        data = serializer.validated_data
+        tanggal = data.get('tanggal', instance.tanggal)
+        jam_mulai = data.get('jam_mulai', instance.jam_mulai)
+        jam_selesai = data.get('jam_selesai', instance.jam_selesai)
+        durasi_kerja = instance.durasi_kerja
+        durasi_lembur = instance.durasi_lembur
+        if tanggal and jam_mulai and jam_selesai:
+            dt_mulai = datetime.combine(tanggal, jam_mulai)
+            dt_selesai = datetime.combine(tanggal, jam_selesai)
+            durasi_kerja, durasi_lembur = hitung_durasi_sesi(dt_mulai, dt_selesai)
+
+        serializer.save(durasi_kerja=durasi_kerja, durasi_lembur=durasi_lembur)
 
     def perform_destroy(self, instance):
         if instance.user != self.request.user and not self.request.user.is_superuser:
@@ -163,14 +192,12 @@ class LogbookViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied('Logbook lebih dari 3 hari yang lalu tidak dapat dihapus.')
         instance.delete()
 
-    @action(detail=False, methods=['get'])
-    def inbox(self, request):
-        """Inbox logbook untuk diverifikasi oleh atasan"""
+    def _get_inbox_queryset(self, request):
         monitoring_level = get_monitoring_level(request.user)
         if monitoring_level is None:
             raise PermissionDenied('Anda tidak memiliki akses ke inbox verifikasi.')
 
-        qs = Logbook.objects.select_related('user', 'user__unit', 'uraian_tugas')
+        qs = Logbook.objects.select_related('user', 'user__unit', 'uraian_tugas', 'verified_by')
         
         if monitoring_level == 'unit':
             qs = qs.filter(user__unit=request.user.unit)
@@ -222,8 +249,171 @@ class LogbookViewSet(viewsets.ModelViewSet):
                 name_q |= sub_q
             qs = qs.filter(name_q)
 
-        qs = qs.order_by('-tanggal', '-jam_mulai')
+        return qs.order_by('-tanggal', '-jam_mulai')
+
+    @action(detail=False, methods=['get'])
+    def inbox(self, request):
+        """Inbox logbook untuk diverifikasi oleh atasan"""
+        qs = self._get_inbox_queryset(request)
         return Response(LogbookSerializer(qs, many=True).data)
+
+    @action(detail=False, methods=['get'], url_path='export-inbox')
+    def export_inbox(self, request):
+        """Export daftar inbox verifikasi logbook ke Excel (.xlsx) dengan filter aktif"""
+        qs = self._get_inbox_queryset(request)
+        status_param = request.query_params.get('status', 'perlu_verifikasi')
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Verifikasi Logbook"
+
+        # Styling
+        font_title = Font(name='Arial', size=14, bold=True, color='0F172A')
+        font_subtitle = Font(name='Arial', size=10, bold=True, color='334155')
+        font_meta = Font(name='Arial', size=9, italic=True, color='64748B')
+        font_th = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+        font_td = Font(name='Arial', size=9, color='0F172A')
+
+        fill_th = PatternFill(start_color='0284C7', end_color='0284C7', fill_type='solid')
+        fill_zebra = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
+
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1'),
+        )
+
+        status_text = "Menunggu Verifikasi" if status_param == 'perlu_verifikasi' else (
+            "Disetujui" if status_param == 'disetujui' else (
+                "Ditolak" if status_param == 'ditolak' else "Semua Status"
+            )
+        )
+
+        # Header Title
+        ws.merge_cells('A1:K1')
+        ws['A1'] = "DAFTAR VERIFIKASI LOGBOOK AKTIVITAS PEGAWAI"
+        ws['A1'].font = font_title
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+        ws.merge_cells('A2:K2')
+        unit_info = f"Unit: {request.user.unit.nama}" if request.user.unit else "Semua Unit"
+        ws['A2'] = f"Filter Status: {status_text} | {unit_info}"
+        ws['A2'].font = font_subtitle
+        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+
+        ws.merge_cells('A3:K3')
+        cetak_str = f"Dicetak pada: {timezone.localtime().strftime('%d/%m/%Y %H:%M')} WIB | Oleh Approver: {request.user.get_full_name() or request.user.username}"
+        ws['A3'] = cetak_str
+        ws['A3'].font = font_meta
+        ws['A3'].alignment = Alignment(horizontal='center', vertical='center')
+
+        ws.append([]) # Row 4 empty
+
+        headers = [
+            "No",
+            "Tanggal",
+            "Nama Pegawai",
+            "Unit / Bagian",
+            "Jam Kerja",
+            "Durasi Kerja",
+            "Lembur",
+            "Uraian Tugas & Aktivitas",
+            "Capaian Output",
+            "Status",
+            "Catatan Verifikasi"
+        ]
+        ws.append(headers) # Row 5
+
+        header_row = 5
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=header_row, column=col_idx)
+            cell.font = font_th
+            cell.fill = fill_th
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = thin_border
+
+        current_row = 6
+        for idx, item in enumerate(qs, 1):
+            user_nama = f"{item.user.first_name or ''} {item.user.last_name or ''}".strip() or item.user.username
+            unit_nama = item.user.unit.nama if item.user.unit else '-'
+            jam_str = f"{item.jam_mulai.strftime('%H:%M')} - {item.jam_selesai.strftime('%H:%M')}" if item.jam_mulai and item.jam_selesai else '-'
+            durasi_str = item.durasi_format or '-'
+            lembur_str = f"{item.durasi_lembur} mnt" if item.durasi_lembur > 0 else "-"
+            
+            # Combine uraian tugas, nama aktivitas, deskripsi
+            uraian_parts = []
+            if item.uraian_tugas:
+                uraian_parts.append(f"[{item.uraian_tugas.deskripsi}]")
+            if item.nama_aktivitas:
+                uraian_parts.append(item.nama_aktivitas)
+            if item.deskripsi and item.deskripsi != item.nama_aktivitas:
+                uraian_parts.append(item.deskripsi)
+            uraian_full = " — ".join(uraian_parts) if uraian_parts else "-"
+
+            output_str = f"{item.nilai_output} {item.satuan_output}" if item.nilai_output and item.satuan_output else "-"
+            status_display = item.get_status_display()
+            catatan_str = item.catatan_verifikasi or "-"
+
+            row_data = [
+                idx,
+                item.tanggal.strftime('%d/%m/%Y') if item.tanggal else '-',
+                user_nama,
+                unit_nama,
+                jam_str,
+                durasi_str,
+                lembur_str,
+                uraian_full,
+                output_str,
+                status_display,
+                catatan_str
+            ]
+            ws.append(row_data)
+
+            is_even = (idx % 2 == 0)
+            for col_idx in range(1, len(headers) + 1):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.font = font_td
+                cell.border = thin_border
+                if is_even:
+                    cell.fill = fill_zebra
+
+                if col_idx in (1, 2, 5, 6, 7, 9, 10):
+                    cell.alignment = Alignment(horizontal='center', vertical='top')
+                elif col_idx in (3, 4):
+                    cell.alignment = Alignment(horizontal='left', vertical='top')
+                else:
+                    cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+
+            current_row += 1
+
+        # Column widths
+        col_widths = {
+            1: 6,   # No
+            2: 13,  # Tanggal
+            3: 25,  # Nama Pegawai
+            4: 22,  # Unit
+            5: 16,  # Jam Kerja
+            6: 14,  # Durasi Kerja
+            7: 12,  # Lembur
+            8: 50,  # Uraian & Aktivitas
+            9: 16,  # Capaian Output
+            10: 18, # Status
+            11: 30  # Catatan Verifikasi
+        }
+        for col_idx, width in col_widths.items():
+            col_letter = get_column_letter(col_idx)
+            ws.column_dimensions[col_letter].width = width
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        safe_status = status_param.replace(',', '_')
+        filename = f"Verifikasi_Logbook_{safe_status}_{timezone.localdate().strftime('%Y%m%d')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
 
     @action(detail=True, methods=['post'])
     def verifikasi(self, request, pk=None):
@@ -467,14 +657,22 @@ def _hitung_total_task(task):
 class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = None
+    serializer_class = TaskSerializer
+
+    def _validate_ownership(self, task):
+        if task.user != self.request.user and not self.request.user.is_superuser:
+            raise PermissionDenied('Anda hanya dapat mengontrol atau memodifikasi task live track milik Anda sendiri.')
 
     def get_queryset(self):
         user = self.request.user
         qs = Task.objects.select_related('user', 'user__unit').prefetch_related('sesi_list')
+        
+        # Secara default, Live Track adalah pencatatan pribadi untuk user yang sedang aktif.
+        # User hanya melihat task miliknya sendiri, kecuali jika secara eksplisit meminta mode monitoring.
+        is_monitoring = self.request.query_params.get('monitoring') == 'true'
         monitoring_level = get_monitoring_level(user)
 
-        # Filter akses data
-        if monitoring_level is None:
+        if not is_monitoring or monitoring_level is None:
             qs = qs.filter(user=user)
         elif monitoring_level == 'unit':
             qs = qs.filter(user__unit=user.unit)
@@ -510,19 +708,52 @@ class TaskViewSet(viewsets.ModelViewSet):
             return TaskCreateSerializer
         return TaskSerializer
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(TaskSerializer(serializer.instance, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
     def perform_create(self, serializer):
-        task = serializer.save(user=self.request.user, started_at=timezone.now(), status='on_progress')
-        # Buat sesi kerja pertama
-        SesiKerja.objects.create(task=task, mulai=timezone.now())
+        auto_start = serializer.validated_data.get('auto_start', True)
+        if isinstance(auto_start, str):
+            auto_start = auto_start.lower() in ('true', '1')
+        if auto_start:
+            task = serializer.save(user=self.request.user, started_at=timezone.now(), status='on_progress')
+            SesiKerja.objects.create(task=task, mulai=timezone.now())
+        else:
+            task = serializer.save(user=self.request.user, started_at=None, status='pending')
 
     def perform_destroy(self, instance):
-        if instance.user != self.request.user and not self.request.user.is_superuser:
-            raise PermissionDenied('Anda hanya dapat menghapus task milik Anda sendiri.')
+        self._validate_ownership(instance)
+        Logbook.objects.filter(task=instance).delete()
         instance.delete()
+
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        """Memulai timer pertama kali untuk task yang berstatus pending"""
+        task = self.get_object()
+        self._validate_ownership(task)
+        if task.status == 'done':
+            return Response({'error': 'Task sudah selesai.'}, status=400)
+            
+        if task.sesi_list.filter(selesai__isnull=True).exists():
+            return Response({'error': 'Task sudah memiliki sesi aktif yang sedang berjalan.'}, status=400)
+            
+        now = timezone.now()
+        if not task.started_at:
+            task.started_at = now
+        task.status = 'on_progress'
+        task.save()
+        SesiKerja.objects.create(task=task, mulai=now)
+        
+        return Response(TaskSerializer(task, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
     def pause(self, request, pk=None):
         task = self.get_object()
+        self._validate_ownership(task)
         if task.status == 'done':
             return Response({'error': 'Task sudah selesai.'}, status=400)
             
@@ -540,26 +771,31 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.status = 'on_hold'
         _hitung_total_task(task)
         
-        return Response(TaskSerializer(task).data)
+        return Response(TaskSerializer(task, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
     def resume(self, request, pk=None):
         task = self.get_object()
+        self._validate_ownership(task)
         if task.status == 'done':
             return Response({'error': 'Task sudah selesai.'}, status=400)
             
         if task.sesi_list.filter(selesai__isnull=True).exists():
             return Response({'error': 'Task sudah memiliki sesi aktif.'}, status=400)
             
-        SesiKerja.objects.create(task=task, mulai=timezone.now())
+        now = timezone.now()
+        if not task.started_at:
+            task.started_at = now
+        SesiKerja.objects.create(task=task, mulai=now)
         task.status = 'on_progress'
         task.save()
         
-        return Response(TaskSerializer(task).data)
+        return Response(TaskSerializer(task, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         task = self.get_object()
+        self._validate_ownership(task)
         if task.status == 'done':
             return Response({'error': 'Task sudah selesai.'}, status=400)
             
@@ -575,12 +811,68 @@ class TaskViewSet(viewsets.ModelViewSet):
             
         task.status = 'done'
         task.completed_at = now
+
+        if 'judul' in request.data and request.data['judul'].strip():
+            task.judul = request.data['judul'].strip()
+        if 'deskripsi' in request.data:
+            task.deskripsi = request.data['deskripsi'].strip()
+        if 'nilai_output' in request.data:
+            try:
+                task.nilai_output = int(request.data['nilai_output'])
+            except (ValueError, TypeError):
+                pass
+        if 'satuan_output' in request.data:
+            task.satuan_output = str(request.data['satuan_output']).strip()
+        if 'uraian_tugas_id' in request.data:
+            ut_id = request.data['uraian_tugas_id']
+            if ut_id and str(ut_id) != 'lainnya':
+                task.uraian_tugas = UraianTugas.objects.filter(id=ut_id).first()
+            else:
+                task.uraian_tugas = None
+
         _hitung_total_task(task)
+
+        # Otomatis sinkronisasi ke tabel Logbook Harian
+        local_tz = timezone.get_current_timezone()
+        started_dt = task.started_at or now
+        started_local = started_dt.astimezone(local_tz)
+        completed_local = now.astimezone(local_tz)
+
+        logbook_entry = Logbook.objects.filter(task=task).first()
+        if not logbook_entry:
+            logbook_entry = Logbook.objects.create(
+                user=task.user,
+                tanggal=started_local.date(),
+                jam_mulai=started_local.time().replace(microsecond=0),
+                jam_selesai=completed_local.time().replace(microsecond=0),
+                uraian_tugas=task.uraian_tugas,
+                nama_aktivitas=task.judul,
+                deskripsi=task.deskripsi or task.judul,
+                nilai_output=task.nilai_output,
+                satuan_output=task.satuan_output,
+                durasi_kerja=task.total_menit_kerja,
+                durasi_lembur=task.total_menit_lembur,
+                status='perlu_verifikasi',
+                metode_input='live_track',
+                task=task
+            )
+        else:
+            logbook_entry.uraian_tugas = task.uraian_tugas
+            logbook_entry.nama_aktivitas = task.judul
+            logbook_entry.deskripsi = task.deskripsi or task.judul
+            logbook_entry.nilai_output = task.nilai_output
+            logbook_entry.satuan_output = task.satuan_output
+            logbook_entry.durasi_kerja = task.total_menit_kerja
+            logbook_entry.durasi_lembur = task.total_menit_lembur
+            logbook_entry.jam_selesai = completed_local.time().replace(microsecond=0)
+            logbook_entry.save()
         
-        return Response(TaskSerializer(task).data)
+        resp_data = TaskSerializer(task).data
+        resp_data['logbook_id'] = logbook_entry.id
+        return Response(resp_data)
 
     @action(detail=False, methods=['get'])
     def active(self, request):
-        """Mendapatkan daftar task yang sedang berjalan (untuk timer global)"""
-        qs = self.get_queryset().filter(status__in=['on_progress', 'on_hold'])
+        """Mendapatkan daftar task yang aktif atau siap mulai"""
+        qs = self.get_queryset().filter(status__in=['pending', 'on_progress', 'on_hold'])
         return Response(TaskSerializer(qs, many=True).data)

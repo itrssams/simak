@@ -289,8 +289,8 @@ export default function LogbookAktivitas() {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        
+        if (e && e.preventDefault) e.preventDefault();
+
         if (!formData.tanggal) {
             toast.error('Tanggal aktivitas wajib dipilih');
             return;
@@ -303,7 +303,8 @@ export default function LogbookAktivitas() {
 
         const payload = {
             ...formData,
-            uraian_tugas_id: formData.uraian_tugas_id === 'lainnya' || !formData.uraian_tugas_id ? null : parseInt(formData.uraian_tugas_id)
+            uraian_tugas_id: formData.uraian_tugas_id === 'lainnya' || !formData.uraian_tugas_id ? null : parseInt(formData.uraian_tugas_id),
+            metode_input: 'manual'
         };
 
         setSubmitting(true);
@@ -404,9 +405,11 @@ export default function LogbookAktivitas() {
                 <div className="logbook-card-head">
                     <div className="logbook-card-title">
                         <h2>Riwayat Aktivitas Logbook</h2>
-                        <p>{loading ? 'Memuat data aktivitas...' : `Total ${aktivitas.length} catatan aktivitas ditemukan`}</p>
+                        <p>Daftar lengkap aktivitas kerja yang telah Anda catat atau perlu diverifikasi.</p>
                     </div>
                 </div>
+
+
 
                 {/* Filter Bar with SIMAK Standards */}
                 <div className="logbook-filter-bar">
@@ -615,8 +618,20 @@ export default function LogbookAktivitas() {
                                                     <Clock size={13} style={{ color: '#0284c7' }} />
                                                     <span>{formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}</span>
                                                 </div>
-                                                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
-                                                    Durasi: <strong>{item.durasi_format}</strong>
+                                                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                    <span>Durasi: <strong>{item.durasi_format}</strong></span>
+                                                    {item.durasi_lembur > 0 && (
+                                                        <span className="logbook-ot-pill" title={`Kerja Reguler: ${item.durasi_kerja_format || '0m'}, Lembur: ${item.durasi_lembur_format || '0m'}`}>
+                                                            +{item.durasi_lembur_format} OT
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div style={{ marginTop: '4px' }}>
+                                                    {item.metode_input === 'live_track' ? (
+                                                        <span className="logbook-badge-method live">⏱️ Live Track</span>
+                                                    ) : (
+                                                        <span className="logbook-badge-method manual">📝 Manual</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td>
@@ -766,7 +781,7 @@ export default function LogbookAktivitas() {
                 <div className="logbook-modal-overlay" onClick={closeModal}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
-                            <h3>{editingItem ? 'Edit Aktivitas' : 'Tambah Aktivitas'}</h3>
+                            <h3>{editingItem ? 'Edit Aktivitas' : (inputMode === 'live_track' ? 'Live Track Stopwatch' : 'Tambah Aktivitas')}</h3>
                             <button className="logbook-modal-close-btn" onClick={closeModal}>
                                 <X size={18} />
                             </button>
@@ -914,7 +929,7 @@ export default function LogbookAktivitas() {
                                     Batal
                                 </button>
                                 <button type="submit" className="logbook-btn-primary" disabled={submitting}>
-                                    {submitting ? 'Menyimpan...' : 'Simpan'}
+                                    {submitting ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Simpan ke Logbook')}
                                 </button>
                             </div>
                         </form>
@@ -962,8 +977,17 @@ export default function LogbookAktivitas() {
                                         <span>&bull;</span>
                                         <span>{formatTime(detailItem.jam_mulai)} - {formatTime(detailItem.jam_selesai)}</span>
                                         <span className="logbook-duration-badge" style={{ marginTop: 0, padding: '2px 8px', fontSize: '11.5px' }}>
-                                            {detailItem.durasi_format}
+                                            Total: {detailItem.durasi_format}
                                         </span>
+                                    </div>
+                                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', flexWrap: 'wrap' }}>
+                                        <span style={{ color: '#475569' }}>Jam Reguler: <strong>{detailItem.durasi_kerja_format || '0m'}</strong></span>
+                                        <span>&bull;</span>
+                                        <span style={{ color: detailItem.durasi_lembur > 0 ? '#b45309' : '#64748b', fontWeight: detailItem.durasi_lembur > 0 ? 700 : 400 }}>
+                                            Lembur (Overtime): <strong>{detailItem.durasi_lembur_format || '0m'}</strong>
+                                        </span>
+                                        <span>&bull;</span>
+                                        <span>Metode: <strong>{detailItem.metode_input === 'live_track' ? '⏱️ Live Track' : '📝 Catat Manual'}</strong></span>
                                     </div>
                                 </div>
 

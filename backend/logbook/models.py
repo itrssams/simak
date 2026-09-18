@@ -54,6 +54,23 @@ class Logbook(models.Model):
     satuan_output = models.CharField(max_length=100, blank=True, verbose_name='Satuan Output')
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='perlu_verifikasi')
+    durasi_kerja = models.IntegerField(default=0, verbose_name='Durasi Jam Kerja (menit)')
+    durasi_lembur = models.IntegerField(default=0, verbose_name='Durasi Lembur (menit)')
+    metode_input = models.CharField(
+        max_length=20,
+        choices=[('manual', 'Manual'), ('live_track', 'Live Track')],
+        default='manual',
+        verbose_name='Metode Pencatatan'
+    )
+    task = models.ForeignKey(
+        'Task',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logbook_entries',
+        verbose_name='Referensi Task Live Track'
+    )
+
     verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -82,6 +99,9 @@ class Logbook(models.Model):
 
     @property
     def durasi_menit(self):
+        # Jika sudah ada kalkulasi durasi_kerja + durasi_lembur, utamakan totalnya
+        if self.durasi_kerja or self.durasi_lembur:
+            return self.durasi_kerja + self.durasi_lembur
         if not self.jam_mulai or not self.jam_selesai:
             return 0
         dummy_date = date(2000, 1, 1)
@@ -107,9 +127,38 @@ class Logbook(models.Model):
         else:
             return f"{sisa_menit} mnt"
 
+    @property
+    def durasi_kerja_format(self):
+        menit = self.durasi_kerja
+        if menit <= 0:
+            return '0 mnt'
+        jam = menit // 60
+        sisa_menit = menit % 60
+        if jam > 0 and sisa_menit > 0:
+            return f"{jam} jam {sisa_menit} mnt"
+        elif jam > 0:
+            return f"{jam} jam"
+        else:
+            return f"{sisa_menit} mnt"
+
+    @property
+    def durasi_lembur_format(self):
+        menit = self.durasi_lembur
+        if menit <= 0:
+            return '0 mnt'
+        jam = menit // 60
+        sisa_menit = menit % 60
+        if jam > 0 and sisa_menit > 0:
+            return f"{jam} jam {sisa_menit} mnt"
+        elif jam > 0:
+            return f"{jam} jam"
+        else:
+            return f"{sisa_menit} mnt"
+
 
 class Task(models.Model):
     STATUS_CHOICES = [
+        ('pending',     'Siap Mulai'),
         ('on_progress', 'On Progress'),
         ('on_hold',     'On Hold'),
         ('done',        'Done'),
@@ -117,10 +166,20 @@ class Task(models.Model):
     
     no_task      = models.CharField(max_length=25, unique=True, editable=False)
     user         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tasks')
+    uraian_tugas = models.ForeignKey(
+        UraianTugas,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tasks',
+        verbose_name='Uraian Tugas'
+    )
     judul        = models.CharField(max_length=200)
     deskripsi    = models.TextField(blank=True)
-    status       = models.CharField(max_length=15, choices=STATUS_CHOICES, default='on_progress')
-    started_at   = models.DateTimeField()
+    nilai_output = models.IntegerField(default=0, verbose_name='Nilai Output')
+    satuan_output = models.CharField(max_length=100, blank=True, verbose_name='Satuan Output')
+    status       = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
+    started_at   = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     total_menit_kerja  = models.IntegerField(default=0)
     total_menit_lembur = models.IntegerField(default=0)

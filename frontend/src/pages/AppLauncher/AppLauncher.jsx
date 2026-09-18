@@ -14,6 +14,7 @@ import {
     Megaphone,
     ShieldCheck,
     Users,
+    UserCheck,
     Server,
     BarChart3,
     ClipboardList,
@@ -22,6 +23,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
+
+const resolveMediaUrl = (url) => {
+    if (!url) return null;
+    if (typeof url === 'string' && url.includes('backend:8000')) {
+        return url.replace(/^https?:\/\/backend:8000/, '');
+    }
+    return url;
+};
 
 export default function AppLauncher() {
     const { user, logout } = useAuth();
@@ -189,8 +198,25 @@ export default function AppLauncher() {
             path: '/logbook',
             allowed: true,
             submenus: [
-                { label: 'Logbook Saya', path: '/logbook' },
-                ...(isDirekturUp ? [{ label: 'Monitoring Karyawan', path: '/logbook?tab=monitoring' }] : []),
+                { label: 'Beranda', path: '/logbook' },
+                { label: 'Aktivitas', path: '/logbook/aktivitas' },
+                { label: 'Live Track', path: '/logbook/live-track' },
+                { label: 'Laporan', path: '/logbook/laporan' },
+            ],
+        },
+        {
+            id: 'sdm',
+            name: 'SDM (Kepegawaian)',
+            subtitle: 'Izin Meninggalkan Tempat Kerja',
+            icon: UserCheck,
+            color: '#6366f1',
+            glowColor: 'rgba(99, 102, 241, 0.45)',
+            glassGlow: 'rgba(99, 102, 241, 0.22)',
+            glassGlowLight: 'rgba(99, 102, 241, 0.15)',
+            path: '/sdm/izin-kerja',
+            allowed: true,
+            submenus: [
+                { label: 'Izin Meninggalkan Kerja', path: '/sdm/izin-kerja' },
             ],
         },
         {
@@ -395,9 +421,19 @@ export default function AppLauncher() {
                         {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
                     </button>
 
-                    <div className="odoo-user-profile">
+                    <div
+                        className="odoo-user-profile clickable"
+                        onClick={() => navigate('/profile')}
+                        title="Buka Profil Saya"
+                        role="button"
+                        tabIndex={0}
+                    >
                         <div className="odoo-avatar">
-                            {user?.first_name ? user.first_name[0].toUpperCase() : user?.username?.[0]?.toUpperCase() || 'U'}
+                            {user?.foto ? (
+                                <img src={resolveMediaUrl(user.foto)} alt={user?.username} className="odoo-avatar-img" />
+                            ) : (
+                                user?.first_name ? user.first_name[0].toUpperCase() : user?.username?.[0]?.toUpperCase() || 'U'
+                            )}
                             <span className="odoo-online-dot"></span>
                         </div>
                         <div className="odoo-user-details">

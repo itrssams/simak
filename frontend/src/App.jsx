@@ -43,6 +43,8 @@ import ITCenter from './pages/IT/ITCenter';
 import ITDashboard from './pages/IT/ITDashboard';
 import TransactionCorrection from './pages/IT/TransactionCorrection';
 import LaporanIT from './pages/Laporan/LaporanIT';
+import Profile from './pages/Profile/Profile';
+import IzinMeninggalkanKerja from './pages/SDM/IzinMeninggalkanKerja';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -150,6 +152,10 @@ const AppRoutes = () => {
             <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
 
+            {/* SDM (Kepegawaian) */}
+            <Route path="/sdm" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm/izin-kerja" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />
             <Route path="/pelanggan/faktur" element={<ProtectedRoute allow={canAkuntansi}><FakturPelanggan /></ProtectedRoute>} />
@@ -188,6 +194,7 @@ const AppRoutes = () => {
             <Route path="/laporan/petty-cash" element={<ProtectedRoute allow={canLaporanPettyCash}><LaporanPettyCash /></ProtectedRoute>} />
             <Route path="/laporan/it" element={FEATURE_IT_ENABLED ? <ProtectedRoute allow={isIT}><LaporanIT /></ProtectedRoute> : <Navigate to="/petty-cash" />} />
             <Route path="/driver" element={<ProtectedRoute allow={isDriverAccess}><Driver /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" />} />
