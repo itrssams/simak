@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
+import DateRangePicker from '../../components/DateRangePicker';
+import DateField from '../../components/DateField';
 import {
   LogOut,
   Clock,
@@ -811,22 +813,12 @@ export default function IzinMeninggalkanKerja() {
                   <option value="dibatalkan">Dibatalkan</option>
                 </select>
 
-                {/* Start Date */}
-                <input
-                  type="date"
-                  className="sdm-input"
-                  title="Dari Tanggal"
-                  value={filters.start_date}
-                  onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-                />
-
-                {/* End Date */}
-                <input
-                  type="date"
-                  className="sdm-input"
-                  title="Sampai Tanggal"
-                  value={filters.end_date}
-                  onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+                {/* Date Range Picker */}
+                <DateRangePicker
+                  dari={filters.start_date}
+                  sampai={filters.end_date}
+                  onChange={({ dari, sampai }) => setFilters({ ...filters, start_date: dari, end_date: sampai })}
+                  placeholder="Pilih Rentang Tanggal"
                 />
 
                 {/* Checkbox penyesuaian */}
@@ -1034,12 +1026,10 @@ export default function IzinMeninggalkanKerja() {
               <div className="sdm-modal-body">
                 <div className="sdm-form-group">
                   <label className="sdm-label">Tanggal Izin</label>
-                  <input
-                    type="date"
-                    className="sdm-input"
+                  <DateField
                     value={createForm.tanggal}
-                    onChange={(e) => setCreateForm({ ...createForm, tanggal: e.target.value })}
-                    required
+                    onChange={(val) => setCreateForm({ ...createForm, tanggal: val })}
+                    placeholder="Pilih Tanggal Izin"
                   />
                 </div>
 
