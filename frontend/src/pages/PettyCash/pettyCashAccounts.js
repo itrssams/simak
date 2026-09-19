@@ -33,6 +33,7 @@ export const AKUN_BIAYA_PETTY_CASH = [
             { kode: '532114', nama: 'Biaya Rapat & Pertemuan' },
             { kode: '532115', nama: 'Biaya Operasional R.S' },
             { kode: '532116', nama: 'Biaya Pemakaian Air' },
+            { kode: '532117', nama: 'Biaya Bahan Bakar Genset' },            
         ]
     },
     {
