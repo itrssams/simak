@@ -469,23 +469,409 @@
     font-weight: 800;
 }
 
-/* ── CHART CARD ─────────────────────────────────────────────────────── */
-.lpc-chart-card {
+/* ── MACARON PIE / DONUT CHART CARD ─────────────────────────────────── */
+.lpc-macaron-card {
     background: var(--bg-card, #ffffff);
     border: 1px solid var(--border-color, #e2e8f0);
-    border-radius: 14px;
-    padding: 18px 20px;
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+    border-radius: 20px;
+    padding: 22px 24px;
+    box-shadow: 0 4px 20px -4px rgba(99, 102, 241, 0.08);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 20px;
+    transition: box-shadow 0.2s ease;
 }
 
-.lpc-chart-title {
+.lpc-macaron-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #FF8FAB, #70D6FF, #FFD166, #06D6A0, #B392F0, #FF9770, #FF70A6);
+}
+
+.lpc-macaron-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.lpc-macaron-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.lpc-macaron-icon-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #FFF0F5 0%, #FAF5FF 50%, #F0F9FF 100%);
+    border: 1px solid #FFC2D1;
+    color: #D81B60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px -2px rgba(255, 143, 171, 0.35);
+}
+
+.lpc-macaron-title-text h3 {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13.5px;
+    flex-wrap: wrap;
+}
+
+.lpc-macaron-badge-cute {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 750;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #FFF0F5;
+    color: #D81B60;
+    border: 1px solid #FFC2D1;
+}
+
+.lpc-macaron-title-text p {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: var(--text-secondary, #64748b);
+}
+
+.lpc-macaron-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-secondary, #f8fafc);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.lpc-macaron-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+
+.lpc-macaron-tab-btn:hover {
+    color: var(--text-primary, #0f172a);
+}
+
+.lpc-macaron-tab-btn.active {
+    background: #ffffff;
+    color: #6366f1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* ── GRID LAYOUT ─────────────────────────────────────────────────────── */
+.lpc-macaron-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 28px;
+    align-items: center;
+}
+
+@media (max-width: 1024px) {
+    .lpc-macaron-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── PIE CHART & DONUT CENTER ────────────────────────────────────────── */
+.lpc-pie-col {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.lpc-pie-chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 290px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lpc-donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: var(--bg-card, #ffffff);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
+    text-align: center;
+    padding: 8px;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lpc-donut-center-emoji {
+    font-size: 26px;
+    line-height: 1;
+    margin-bottom: 2px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+    animation: lpcBounce 0.3s ease;
+}
+
+@keyframes lpcBounce {
+    0% { transform: scale(0.85); }
+    50% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+}
+
+.lpc-donut-center-sub {
+    font-size: 9.5px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary, #64748b);
+}
+
+.lpc-donut-center-title {
+    font-size: 11px;
+    font-weight: 750;
+    color: var(--text-primary, #0f172a);
+    max-width: 115px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 2px 0;
+}
+
+.lpc-donut-center-pct {
+    font-size: 17px;
+    font-weight: 850;
+    line-height: 1.1;
+}
+
+.lpc-donut-center-total {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+}
+
+.lpc-donut-center-count {
+    font-size: 10px;
+    color: var(--text-secondary, #94a3b8);
+    margin-top: 1px;
+}
+
+/* ── LEGEND LIST (CARDS) ─────────────────────────────────────────────── */
+.lpc-macaron-legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    max-height: 310px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.lpc-macaron-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 12px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    user-select: none;
+}
+
+.lpc-macaron-legend-item:hover,
+.lpc-macaron-legend-item.active {
+    transform: translateY(-2px);
+    border-color: #6366f1;
+    background: var(--bg-hover, #f8fafc);
+}
+
+.lpc-macaron-legend-icon-wrap {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    font-size: 18px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.lpc-macaron-legend-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lpc-macaron-legend-name {
+    font-size: 12.5px;
+    font-weight: 750;
+    color: var(--text-primary, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lpc-macaron-legend-sub {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    color: var(--text-secondary, #64748b);
+    margin-top: 2px;
+}
+
+.lpc-macaron-badge-code {
+    font-family: monospace;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+.lpc-macaron-legend-val-col {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.lpc-macaron-pct-pill {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    display: inline-block;
+}
+
+.lpc-macaron-legend-val {
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-secondary, #475569);
-    margin-bottom: 16px;
+}
+
+/* ── TOOLTIP ─────────────────────────────────────────────────────────── */
+.lpc-macaron-tooltip {
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+    color: #ffffff;
+    font-size: 12px;
+    min-width: 210px;
+}
+
+.lpc-macaron-tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 8px;
+}
+
+.lpc-macaron-tooltip-emoji {
+    font-size: 22px;
+}
+
+.lpc-macaron-tooltip-title {
+    font-weight: 800;
+    font-size: 13px;
+    color: #f8fafc;
+}
+
+.lpc-macaron-tooltip-code {
+    font-size: 10.5px;
+    color: #94a3b8;
+}
+
+.lpc-macaron-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.lpc-macaron-tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11.5px;
+}
+
+.lpc-macaron-tooltip-row span {
+    color: #cbd5e1;
+}
+
+.lpc-macaron-tooltip-row strong {
+    font-weight: 800;
+}
+
+.lpc-macaron-tooltip-pct {
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+/* ── TABLE CELL CUTE BADGE ───────────────────────────────────────────── */
+.lpc-cute-table-cell {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.lpc-cute-table-badge {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14.5px;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* ── TABLE CARD & DATA TABLES ───────────────────────────────────────── */
@@ -1129,6 +1515,63 @@
     background: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.3);
     color: #34d399;
+}
+
+[data-theme="dark"] .lpc-macaron-card {
+    background: #172033;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .lpc-macaron-header {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .lpc-macaron-icon-badge {
+    background: rgba(255, 143, 171, 0.15);
+    border-color: rgba(255, 143, 171, 0.35);
+    color: #FF8FAB;
+}
+
+[data-theme="dark"] .lpc-macaron-badge-cute {
+    background: rgba(255, 143, 171, 0.15);
+    color: #FF8FAB;
+    border-color: rgba(255, 143, 171, 0.35);
+}
+
+[data-theme="dark"] .lpc-macaron-controls {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .lpc-macaron-tab-btn.active {
+    background: #232d42;
+    color: #818cf8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .lpc-donut-center {
+    background: #172033;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .lpc-macaron-legend-item {
+    background: rgba(21, 28, 44, 0.85);
+    border-color: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] .lpc-macaron-legend-item:hover,
+[data-theme="dark"] .lpc-macaron-legend-item.active {
+    background: rgba(30, 41, 65, 0.95);
+}
+
+[data-theme="dark"] .lpc-macaron-badge-code {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .lpc-macaron-legend-val {
+    color: #94a3b8;
 }
 
 [data-theme="dark"] .lpc-chart-card,
