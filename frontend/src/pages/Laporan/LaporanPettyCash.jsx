@@ -514,7 +514,7 @@ export default function LaporanPettyCash() {
                                                                     className="lpc-cute-table-badge"
                                                                     style={{ background: pal.bg, color: pal.text, borderColor: pal.border }}
                                                                 >
-                                                                    {meta.emoji}
+                                                                    <meta.icon size={15} strokeWidth={2.2} />
                                                                 </span>
                                                                 <span>{ak.nama_akun}</span>
                                                             </div>

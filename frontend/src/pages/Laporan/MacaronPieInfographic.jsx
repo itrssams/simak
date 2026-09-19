@@ -1,5 +1,39 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, PieChart, Layers, SlidersHorizontal, Info } from 'lucide-react';
+import {
+    Sparkles,
+    PieChart,
+    SlidersHorizontal,
+    Info,
+    Wallet,
+    Pencil,
+    Laptop,
+    Printer,
+    Package,
+    Phone,
+    Paperclip,
+    Copy,
+    ScrollText,
+    Plane,
+    GraduationCap,
+    SearchCheck,
+    Building2,
+    Car,
+    Stethoscope,
+    Utensils,
+    Wifi,
+    Shirt,
+    Zap,
+    Fuel,
+    Users,
+    Hospital,
+    Droplets,
+    BatteryCharging,
+    Hammer,
+    Wrench,
+    Leaf,
+    Receipt,
+    Tag,
+} from 'lucide-react';
 import './MacaronPieInfographic.css';
 
 // 🧁 Palet Warna Macaron Prancis (Vibrant Pastel Candy)
@@ -114,106 +148,113 @@ export const MACARON_PALETTE = [
     },
 ];
 
-// 🎀 Mapping Icon Unyu Tematik untuk Setiap Akun Biaya Petty Cash
+// 🎀 Mapping Vector Icon Representatif untuk Setiap Akun Biaya Petty Cash (Seragam di semua OS)
 export const getAccountCuteMeta = (kode, nama = '') => {
     const k = String(kode || '').replace(/\D/g, '');
     const n = (nama || '').toLowerCase();
 
+    const makeMeta = (IconComp, label, badge) => ({
+        icon: IconComp,
+        Icon: IconComp,
+        label,
+        badge,
+    });
+
     if (k === '531201' || n.includes('alat tulis') || n.includes('atk')) {
-        return { emoji: '✏️', label: 'Alat Tulis', badge: 'ATK' };
+        return makeMeta(Pencil, 'Alat Tulis', 'ATK');
     }
     if (k === '531202' || n.includes('komputer') || n.includes('supplies')) {
-        return { emoji: '💻', label: 'IT & Komputer', badge: 'IT' };
+        return makeMeta(Laptop, 'IT & Komputer', 'IT');
     }
     if (k === '531203' || n.includes('cetakan') || n.includes('cetak')) {
-        return { emoji: '🖨️', label: 'Cetakan Form', badge: 'Cetak' };
+        return makeMeta(Printer, 'Cetakan Form', 'Cetak');
     }
     if (k === '531204' || n.includes('pos') || n.includes('paket') || n.includes('ekspedisi')) {
-        return { emoji: '📦', label: 'Pos & Ekspedisi', badge: 'Kirim' };
+        return makeMeta(Package, 'Pos & Ekspedisi', 'Kirim');
     }
     if (k === '531205' || n.includes('telepon') || n.includes('pulsa')) {
-        return { emoji: '📞', label: 'Telepon / Pulsa', badge: 'Telko' };
+        return makeMeta(Phone, 'Telepon / Pulsa', 'Telko');
     }
     if (k === '531206' || n.includes('peralatan kantor')) {
-        return { emoji: '📎', label: 'Peralatan Kantor', badge: 'Office' };
+        return makeMeta(Paperclip, 'Peralatan Kantor', 'Office');
     }
     if (k === '531207' || n.includes('photo copy') || n.includes('fotokopi') || n.includes('fotocopy')) {
-        return { emoji: '📑', label: 'Fotokopi / Jilid', badge: 'Copy' };
+        return makeMeta(Copy, 'Fotokopi / Jilid', 'Copy');
     }
     if (k === '531208' || n.includes('pengurusan ijin') || n.includes('izin') || n.includes('legalitas')) {
-        return { emoji: '📜', label: 'Pengurusan Izin', badge: 'Legal' };
+        return makeMeta(ScrollText, 'Pengurusan Izin', 'Legal');
     }
     if (k === '531209' || n.includes('perjalanan dinas') || n.includes('sppd') || n.includes('dinas luar')) {
-        return { emoji: '✈️', label: 'Perjalanan Dinas', badge: 'Dinas' };
+        return makeMeta(Plane, 'Perjalanan Dinas', 'Dinas');
     }
     if (k === '531210' || n.includes('training') || n.includes('pelatihan') || n.includes('seminar')) {
-        return { emoji: '🎓', label: 'Pelatihan / Diklat', badge: 'SDM' };
+        return makeMeta(GraduationCap, 'Pelatihan / Diklat', 'SDM');
     }
     if (k === '531211' || n.includes('audit')) {
-        return { emoji: '🔍', label: 'Biaya Audit', badge: 'Audit' };
+        return makeMeta(SearchCheck, 'Biaya Audit', 'Audit');
     }
     if (k === '532101' || n.includes('sewa kantor') || n.includes('sewa gedung')) {
-        return { emoji: '🏢', label: 'Sewa Kantor', badge: 'Sewa' };
+        return makeMeta(Building2, 'Sewa Kantor', 'Sewa');
     }
     if (k === '532102' || n.includes('sewa kendaraan') || n.includes('rental')) {
-        return { emoji: '🚐', label: 'Sewa Kendaraan', badge: 'Mobil' };
+        return makeMeta(Car, 'Sewa Kendaraan', 'Mobil');
     }
     if (k === '532103' || n.includes('sewa alat kesehatan') || n.includes('sewa alkes')) {
-        return { emoji: '🩺', label: 'Sewa Alkes', badge: 'Alkes' };
+        return makeMeta(Stethoscope, 'Sewa Alkes', 'Alkes');
     }
     if (k === '532105' || n.includes('catering') || n.includes('konsumsi') || n.includes('snack') || n.includes('makan')) {
-        return { emoji: '🍱', label: 'Catering & Konsumsi', badge: 'Makan' };
+        return makeMeta(Utensils, 'Catering & Konsumsi', 'Makan');
     }
     if (k === '532106' || n.includes('internet') || n.includes('wifi') || n.includes('indihome') || n.includes('provider')) {
-        return { emoji: '🌐', label: 'Internet / WiFi', badge: 'WiFi' };
+        return makeMeta(Wifi, 'Internet / WiFi', 'WiFi');
     }
     if (k === '532107' || n.includes('loundry') || n.includes('laundry') || n.includes('linen')) {
-        return { emoji: '🧺', label: 'Laundry & Linen', badge: 'Cuci' };
+        return makeMeta(Shirt, 'Laundry & Linen', 'Cuci');
     }
     if (k === '532108' || n.includes('listrik') || n.includes('pln')) {
-        return { emoji: '⚡', label: 'Biaya Listrik (PLN)', badge: 'PLN' };
+        return makeMeta(Zap, 'Biaya Listrik (PLN)', 'PLN');
     }
     if (k === '532109' || n.includes('keperluan rt') || n.includes('kebersihan') || n.includes('rumah tangga')) {
-        return { emoji: '🧹', label: 'Keperluan RT / Sanitasi', badge: 'Umum' };
+        return makeMeta(Sparkles, 'Keperluan RT / Sanitasi', 'Umum');
     }
     if (k === '532110' || (n.includes('bahan bakar') && !n.includes('genset')) || n.includes('bbm') || n.includes('bensin') || n.includes('pertalite') || n.includes('pertamax')) {
-        return { emoji: '⛽', label: 'Bahan Bakar (BBM)', badge: 'BBM' };
+        return makeMeta(Fuel, 'Bahan Bakar (BBM)', 'BBM');
     }
     if (k === '532114' || n.includes('rapat') || n.includes('pertemuan') || n.includes('meeting')) {
-        return { emoji: '👥', label: 'Rapat & Pertemuan', badge: 'Rapat' };
+        return makeMeta(Users, 'Rapat & Pertemuan', 'Rapat');
     }
     if (k === '532115' || n.includes('operasional r.s') || n.includes('operasional rs')) {
-        return { emoji: '🏥', label: 'Operasional RS', badge: 'RS' };
+        return makeMeta(Hospital, 'Operasional RS', 'RS');
     }
     if (k === '532116' || n.includes('air') || n.includes('pdam')) {
-        return { emoji: '💧', label: 'Pemakaian Air (PDAM)', badge: 'Air' };
+        return makeMeta(Droplets, 'Pemakaian Air (PDAM)', 'Air');
     }
     if (k === '532117' || n.includes('genset') || n.includes('solar genset')) {
-        return { emoji: '🔋', label: 'Bahan Bakar Genset', badge: 'Genset' };
+        return makeMeta(BatteryCharging, 'Bahan Bakar Genset', 'Genset');
     }
     if (k === '532201' || n.includes('pemel. alat kesehatan') || n.includes('servis alkes')) {
-        return { emoji: '🩺', label: 'Pemel. Alkes', badge: 'Servis' };
+        return makeMeta(Wrench, 'Pemel. Alkes', 'Servis');
     }
     if (k === '532202' || n.includes('pemel. kantor') || n.includes('perbaikan kantor')) {
-        return { emoji: '🔨', label: 'Pemel. Kantor', badge: 'Gedung' };
+        return makeMeta(Hammer, 'Pemel. Kantor', 'Gedung');
     }
     if (k === '532203' || n.includes('pemel. kendaraan') || n.includes('servis mobil') || n.includes('bengkel')) {
-        return { emoji: '🚗', label: 'Pemel. Kendaraan', badge: 'Mobil' };
+        return makeMeta(Car, 'Pemel. Kendaraan', 'Mobil');
     }
     if (k === '532204' || n.includes('pemel. lingkungan') || n.includes('taman') || n.includes('kebun')) {
-        return { emoji: '🌿', label: 'Pemel. Lingkungan', badge: 'Taman' };
+        return makeMeta(Leaf, 'Pemel. Lingkungan', 'Taman');
     }
     if (k === '532205' || n.includes('pemel. bangunan rs')) {
-        return { emoji: '🏛️', label: 'Pemel. Bangunan RS', badge: 'RS' };
+        return makeMeta(Hospital, 'Pemel. Bangunan RS', 'RS');
     }
     if (k === '532206' || n.includes('pemel. alat kantor')) {
-        return { emoji: '🔧', label: 'Pemel. Alat Kantor', badge: 'Alat' };
+        return makeMeta(Wrench, 'Pemel. Alat Kantor', 'Alat');
     }
     if (k === '532207' || n.includes('pemel. komputer') || n.includes('servis pc')) {
-        return { emoji: '🖥️', label: 'Pemel. Komputer', badge: 'PC' };
+        return makeMeta(Laptop, 'Pemel. Komputer', 'PC');
     }
 
-    return { emoji: '🏷️', label: nama || 'Akun Biaya', badge: 'Biaya' };
+    return makeMeta(Receipt, nama || 'Akun Biaya', 'Biaya');
 };
 
 // Math helpers for SVG annular sectors
@@ -226,7 +267,6 @@ const polarToCartesian = (cx, cy, r, angleInDegrees) => {
 };
 
 const createDonutSlicePath = (cx, cy, rInner, rOuter, startAngle, endAngle) => {
-    // Clamp arc to prevent 360 degree overlap glitch
     const diff = Math.min(endAngle - startAngle, 359.99);
     const actualEnd = startAngle + diff;
 
@@ -287,13 +327,11 @@ export default function MacaronPieInfographic({
             }
         }
 
-        // Calculate sum of total for angle distribution
         const totalSum = items.reduce((acc, it) => acc + Number(it.total || 0), 0) || 1;
         const maxPct = Math.max(...items.map((it) => Number(it.persentase || 0)), 1);
 
-        // Precompute geometry for each slice
         let currentAngle = 0;
-        const gap = items.length > 1 ? 2.8 : 0; // Angular gap between slices
+        const gap = items.length > 1 ? 2.8 : 0;
 
         return items.map((item, idx) => {
             const pct = Number(item.persentase || ((item.total / totalSum) * 100).toFixed(1));
@@ -360,7 +398,7 @@ export default function MacaronPieInfographic({
                                 Macaron Pie Infographic
                             </span>
                         </div>
-                        <p>Visualisasi proporsi beban kas kecil per pos akun dengan icon tematik & warna macaron</p>
+                        <p>Visualisasi proporsi beban kas kecil per pos akun dengan icon vektor tematik & warna macaron</p>
                     </div>
                 </div>
 
@@ -454,6 +492,9 @@ export default function MacaronPieInfographic({
                                     d.endAngle
                                 );
 
+                                const SliceIcon = d.meta.icon;
+                                const iconSize = d.sliceAngle >= 26 ? 16 : 13;
+
                                 return (
                                     <g
                                         key={`slice-${idx}`}
@@ -472,28 +513,34 @@ export default function MacaronPieInfographic({
                                             className="mpi-slice-path"
                                         />
 
-                                        {/* In-Slice Label & Cute Emoji */}
+                                        {/* In-Slice Label & Vector Icon */}
                                         {d.sliceAngle >= 14 && (
                                             <g
                                                 transform={`translate(${d.contentPos.x}, ${d.contentPos.y})`}
                                                 className="mpi-slice-content"
                                                 pointerEvents="none"
                                             >
-                                                {/* Cute Icon Bubble */}
+                                                {/* White Icon Bubble Disc */}
                                                 <circle
                                                     r={d.sliceAngle >= 26 ? 16 : 13}
                                                     cy={d.sliceAngle >= 26 ? -16 : -8}
-                                                    fill="rgba(255, 255, 255, 0.88)"
-                                                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.18))"
+                                                    fill="#ffffff"
+                                                    filter="drop-shadow(0 2px 5px rgba(0,0,0,0.22))"
                                                 />
-                                                <text
-                                                    textAnchor="middle"
-                                                    dominantBaseline="central"
-                                                    y={d.sliceAngle >= 26 ? -15 : -7}
-                                                    fontSize={d.sliceAngle >= 26 ? 16 : 13}
+                                                {/* Vector Icon in Center of Disc */}
+                                                <g
+                                                    transform={
+                                                        d.sliceAngle >= 26
+                                                            ? `translate(${-iconSize / 2}, ${-16 - iconSize / 2})`
+                                                            : `translate(${-iconSize / 2}, ${-8 - iconSize / 2})`
+                                                    }
                                                 >
-                                                    {d.meta.emoji}
-                                                </text>
+                                                    <SliceIcon
+                                                        size={iconSize}
+                                                        color={d.pal.text}
+                                                        strokeWidth={2.4}
+                                                    />
+                                                </g>
 
                                                 {/* Percentage Bold Number */}
                                                 <text
@@ -503,7 +550,7 @@ export default function MacaronPieInfographic({
                                                     fontSize={d.sliceAngle >= 32 ? 16 : 13}
                                                     fontWeight="900"
                                                     fill="#ffffff"
-                                                    filter="drop-shadow(0 1.5px 3px rgba(0,0,0,0.45))"
+                                                    filter="drop-shadow(0 1.5px 3px rgba(0,0,0,0.55))"
                                                 >
                                                     {d.pct}%
                                                 </text>
@@ -517,7 +564,7 @@ export default function MacaronPieInfographic({
                                                         fontSize="10"
                                                         fontWeight="750"
                                                         fill="#ffffff"
-                                                        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.5))"
+                                                        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))"
                                                     >
                                                         {d.nama_akun.length > 14
                                                             ? d.nama_akun.slice(0, 12) + '…'
@@ -553,15 +600,13 @@ export default function MacaronPieInfographic({
                             {activeItem ? (
                                 /* Active Hover State */
                                 <g className="mpi-center-active-text">
-                                    <text
-                                        x="280"
-                                        y="242"
-                                        textAnchor="middle"
-                                        fontSize="24"
-                                        className="mpi-center-emoji"
-                                    >
-                                        {activeItem.meta.emoji}
-                                    </text>
+                                    <g transform="translate(267, 222)" className="mpi-center-icon-wrap">
+                                        <activeItem.meta.icon
+                                            size={26}
+                                            color={activeItem.pal.color}
+                                            strokeWidth={2.4}
+                                        />
+                                    </g>
                                     <text
                                         x="280"
                                         y="266"
@@ -593,15 +638,13 @@ export default function MacaronPieInfographic({
                             ) : (
                                 /* Default State */
                                 <g className="mpi-center-default-text">
-                                    <text
-                                        x="280"
-                                        y="244"
-                                        textAnchor="middle"
-                                        fontSize="26"
-                                        className="mpi-center-emoji"
-                                    >
-                                        🧁
-                                    </text>
+                                    <g transform="translate(267, 223)" className="mpi-center-icon-wrap">
+                                        <Wallet
+                                            size={26}
+                                            color="#4F46E5"
+                                            strokeWidth={2.3}
+                                        />
+                                    </g>
                                     <text
                                         x="280"
                                         y="266"
@@ -632,7 +675,7 @@ export default function MacaronPieInfographic({
                     </svg>
                 </div>
 
-                {/* ── Right Column: Interactive Cute Legend Cards ── */}
+                {/* ── Right Column: Interactive Legend Cards ── */}
                 <div className="mpi-legend-column">
                     <div className="mpi-legend-head">
                         <span className="mpi-legend-head-title">Rincian Slice Infografis:</span>
@@ -644,6 +687,7 @@ export default function MacaronPieInfographic({
                     <div className="mpi-legend-list">
                         {chartData.map((d, idx) => {
                             const isHovered = activeIdx === idx;
+                            const CardIcon = d.meta.icon;
 
                             return (
                                 <div
@@ -667,7 +711,7 @@ export default function MacaronPieInfographic({
                                             color: d.pal.text,
                                         }}
                                     >
-                                        <span className="mpi-legend-emoji">{d.meta.emoji}</span>
+                                        <CardIcon size={19} strokeWidth={2.2} />
                                     </div>
 
                                     {/* Account Info */}
