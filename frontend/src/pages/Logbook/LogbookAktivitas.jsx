@@ -781,7 +781,7 @@ export default function LogbookAktivitas() {
                 <div className="logbook-modal-overlay" onClick={closeModal}>
                     <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
                         <div className="logbook-modal-header">
-                            <h3>{editingItem ? 'Edit Aktivitas' : (inputMode === 'live_track' ? 'Live Track Stopwatch' : 'Tambah Aktivitas')}</h3>
+                            <h3>{editingItem ? 'Edit Aktivitas' : 'Tambah Aktivitas'}</h3>
                             <button className="logbook-modal-close-btn" onClick={closeModal}>
                                 <X size={18} />
                             </button>
