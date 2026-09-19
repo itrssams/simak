@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
@@ -1013,7 +1014,7 @@ export default function IzinMeninggalkanKerja() {
       )}
 
       {/* ── MODAL 1: FORM AJUKAN IZIN KELUAR ── */}
-      {showCreateModal && (
+      {showCreateModal && createPortal(
         <div className="sdm-modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="sdm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sdm-modal-head">
@@ -1102,11 +1103,12 @@ export default function IzinMeninggalkanKerja() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── MODAL 2: SESUAIKAN JAM (MITIGATION OF TIME ADJUSTMENT) ── */}
-      {adjustModalItem && (
+      {adjustModalItem && createPortal(
         <div className="sdm-modal-overlay" onClick={() => setAdjustModalItem(null)}>
           <div className="sdm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sdm-modal-head">
@@ -1182,11 +1184,12 @@ export default function IzinMeninggalkanKerja() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── MODAL 3: KONFIRMASI SUDAH KEMBALI ── */}
-      {returnModalItem && (
+      {returnModalItem && createPortal(
         <div className="sdm-modal-overlay" onClick={() => setReturnModalItem(null)}>
           <div className="sdm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sdm-modal-head">
@@ -1260,11 +1263,12 @@ export default function IzinMeninggalkanKerja() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── MODAL 4: AUDIT TRAIL / RIWAYAT PERUBAHAN JAM ── */}
-      {logsModalItem && (
+      {logsModalItem && createPortal(
         <div className="sdm-modal-overlay" onClick={() => setLogsModalItem(null)}>
           <div className="sdm-modal" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
             <div className="sdm-modal-head">
@@ -1338,7 +1342,8 @@ export default function IzinMeninggalkanKerja() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
