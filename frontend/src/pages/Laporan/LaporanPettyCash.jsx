@@ -23,17 +23,8 @@ import {
     PieChart as LucidePieChart,
     Sparkles,
 } from 'lucide-react';
-import {
-    PieChart as RechartsPieChart,
-    Pie,
-    Cell,
-    Tooltip,
-    ResponsiveContainer,
-} from 'recharts';
-import * as XLSX from 'xlsx';
-import api from '../../api/axiosConfig';
-import { useToastState } from '../../context/ToastContext';
 import DateRangePicker from '../../components/DateRangePicker';
+import MacaronPieInfographic, { MACARON_PALETTE, getAccountCuteMeta } from './MacaronPieInfographic';
 import './LaporanPettyCash.css';
 
 const ORG = {
@@ -53,162 +44,6 @@ const STATUS_META = {
     menunggu_pengembalian: { label: 'Menunggu Kembali', color: '#a16207', bg: '#fefce8', dot: '#eab308' },
     selesai: { label: 'Selesai', color: '#166534', bg: '#f0fdf4', dot: '#22c55e' },
     dibatalkan: { label: 'Dibatalkan', color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
-};
-
-// 🧁 Palet Warna Macaron Cantik & Unyu
-export const MACARON_PALETTE = [
-    { color: '#FF8FAB', bg: '#FFF0F5', text: '#D81B60', border: '#FFC2D1', name: 'Strawberry Macaron' },
-    { color: '#70D6FF', bg: '#F0F9FF', text: '#0284C7', border: '#BAE6FD', name: 'Sky Blue Macaron' },
-    { color: '#FFD166', bg: '#FEFCE8', text: '#B45309', border: '#FDE68A', name: 'Lemon Custard' },
-    { color: '#06D6A0', bg: '#ECFDF5', text: '#047857', border: '#A7F3D0', name: 'Pistachio Mint' },
-    { color: '#B392F0', bg: '#FAF5FF', text: '#7E22CE', border: '#E9D5FF', name: 'Taro Lavender' },
-    { color: '#FF9770', bg: '#FFF7ED', text: '#C2410C', border: '#FED7AA', name: 'Peach Apricot' },
-    { color: '#80B918', bg: '#F7FEE7', text: '#4D7C0F', border: '#D9F99D', name: 'Matcha Cream' },
-    { color: '#FF70A6', bg: '#FDF2F8', text: '#BE185D', border: '#FBCFE8', name: 'Raspberry Rose' },
-    { color: '#4CC9F0', bg: '#F0FDFA', text: '#0F766E', border: '#99F6E4', name: 'Tiffany Blue' },
-    { color: '#F72585', bg: '#FFF1F2', text: '#E11D48', border: '#FECDD3', name: 'Dragonfruit Pink' },
-    { color: '#7209B7', bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE', name: 'Blueberry Jam' },
-    { color: '#FFAA00', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A', name: 'Vanilla Caramel' },
-];
-
-export const CHART_COLORS = MACARON_PALETTE.map(p => p.color);
-
-// 🎀 Mapping Icon Unyu untuk Setiap Akun Biaya Petty Cash
-export const getAccountCuteMeta = (kode, nama = '') => {
-    const k = String(kode || '').replace(/\D/g, '');
-    const n = (nama || '').toLowerCase();
-
-    if (k === '531201' || n.includes('alat tulis') || n.includes('atk')) {
-        return { emoji: '✏️', label: 'Alat Tulis', badge: 'ATK' };
-    }
-    if (k === '531202' || n.includes('komputer') || n.includes('supplies')) {
-        return { emoji: '💻', label: 'IT & Komputer', badge: 'IT' };
-    }
-    if (k === '531203' || n.includes('cetakan') || n.includes('cetak')) {
-        return { emoji: '🖨️', label: 'Cetakan Form', badge: 'Cetak' };
-    }
-    if (k === '531204' || n.includes('pos') || n.includes('paket') || n.includes('ekspedisi')) {
-        return { emoji: '📦', label: 'Pos & Ekspedisi', badge: 'Kirim' };
-    }
-    if (k === '531205' || n.includes('telepon') || n.includes('pulsa')) {
-        return { emoji: '📞', label: 'Telepon / Pulsa', badge: 'Telko' };
-    }
-    if (k === '531206' || n.includes('peralatan kantor')) {
-        return { emoji: '📎', label: 'Peralatan Kantor', badge: 'Office' };
-    }
-    if (k === '531207' || n.includes('photo copy') || n.includes('fotokopi') || n.includes('fotocopy')) {
-        return { emoji: '📑', label: 'Fotokopi / Jilid', badge: 'Copy' };
-    }
-    if (k === '531208' || n.includes('pengurusan ijin') || n.includes('izin') || n.includes('legalitas')) {
-        return { emoji: '📜', label: 'Pengurusan Izin', badge: 'Legal' };
-    }
-    if (k === '531209' || n.includes('perjalanan dinas') || n.includes('sppd') || n.includes('dinas luar')) {
-        return { emoji: '✈️', label: 'Perjalanan Dinas', badge: 'Dinas' };
-    }
-    if (k === '531210' || n.includes('training') || n.includes('pelatihan') || n.includes('seminar')) {
-        return { emoji: '🎓', label: 'Pelatihan / Diklat', badge: 'SDM' };
-    }
-    if (k === '531211' || n.includes('audit')) {
-        return { emoji: '🔍', label: 'Biaya Audit', badge: 'Audit' };
-    }
-    if (k === '532101' || n.includes('sewa kantor') || n.includes('sewa gedung')) {
-        return { emoji: '🏢', label: 'Sewa Kantor', badge: 'Sewa' };
-    }
-    if (k === '532102' || n.includes('sewa kendaraan') || n.includes('rental')) {
-        return { emoji: '🚐', label: 'Sewa Kendaraan', badge: 'Mobil' };
-    }
-    if (k === '532103' || n.includes('sewa alat kesehatan') || n.includes('sewa alkes')) {
-        return { emoji: '🩺', label: 'Sewa Alkes', badge: 'Alkes' };
-    }
-    if (k === '532105' || n.includes('catering') || n.includes('konsumsi') || n.includes('snack') || n.includes('makan')) {
-        return { emoji: '🍱', label: 'Catering & Konsumsi', badge: 'Makan' };
-    }
-    if (k === '532106' || n.includes('internet') || n.includes('wifi') || n.includes('indihome') || n.includes('provider')) {
-        return { emoji: '🌐', label: 'Internet / WiFi', badge: 'WiFi' };
-    }
-    if (k === '532107' || n.includes('loundry') || n.includes('laundry') || n.includes('linen')) {
-        return { emoji: '🧺', label: 'Laundry & Linen', badge: 'Cuci' };
-    }
-    if (k === '532108' || n.includes('listrik') || n.includes('pln')) {
-        return { emoji: '⚡', label: 'Biaya Listrik (PLN)', badge: 'PLN' };
-    }
-    if (k === '532109' || n.includes('keperluan rt') || n.includes('kebersihan') || n.includes('rumah tangga')) {
-        return { emoji: '🧹', label: 'Keperluan RT / Sanitasi', badge: 'Umum' };
-    }
-    if (k === '532110' || (n.includes('bahan bakar') && !n.includes('genset')) || n.includes('bbm') || n.includes('bensin') || n.includes('pertalite') || n.includes('pertamax')) {
-        return { emoji: '⛽', label: 'Bahan Bakar (BBM)', badge: 'BBM' };
-    }
-    if (k === '532114' || n.includes('rapat') || n.includes('pertemuan') || n.includes('meeting')) {
-        return { emoji: '👥', label: 'Rapat & Pertemuan', badge: 'Rapat' };
-    }
-    if (k === '532115' || n.includes('operasional r.s') || n.includes('operasional rs')) {
-        return { emoji: '🏥', label: 'Operasional RS', badge: 'RS' };
-    }
-    if (k === '532116' || n.includes('air') || n.includes('pdam')) {
-        return { emoji: '💧', label: 'Pemakaian Air (PDAM)', badge: 'Air' };
-    }
-    if (k === '532117' || n.includes('genset') || n.includes('solar genset')) {
-        return { emoji: '🔋', label: 'Bahan Bakar Genset', badge: 'Genset' };
-    }
-    if (k === '532201' || n.includes('pemel. alat kesehatan') || n.includes('servis alkes')) {
-        return { emoji: '🩺', label: 'Pemel. Alkes', badge: 'Servis' };
-    }
-    if (k === '532202' || n.includes('pemel. kantor') || n.includes('perbaikan kantor')) {
-        return { emoji: '🔨', label: 'Pemel. Kantor', badge: 'Gedung' };
-    }
-    if (k === '532203' || n.includes('pemel. kendaraan') || n.includes('servis mobil') || n.includes('bengkel')) {
-        return { emoji: '🚗', label: 'Pemel. Kendaraan', badge: 'Mobil' };
-    }
-    if (k === '532204' || n.includes('pemel. lingkungan') || n.includes('taman') || n.includes('kebun')) {
-        return { emoji: '🌿', label: 'Pemel. Lingkungan', badge: 'Taman' };
-    }
-    if (k === '532205' || n.includes('pemel. bangunan rs')) {
-        return { emoji: '🏛️', label: 'Pemel. Bangunan RS', badge: 'RS' };
-    }
-    if (k === '532206' || n.includes('pemel. alat kantor')) {
-        return { emoji: '🔧', label: 'Pemel. Alat Kantor', badge: 'Alat' };
-    }
-    if (k === '532207' || n.includes('pemel. komputer') || n.includes('servis pc')) {
-        return { emoji: '🖥️', label: 'Pemel. Komputer', badge: 'PC' };
-    }
-
-    return { emoji: '🏷️', label: nama || 'Akun Biaya', badge: 'Biaya' };
-};
-
-// 🧁 Custom Tooltip Donut Macaron
-const CustomMacaronTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
-    const item = payload[0].payload;
-    const meta = getAccountCuteMeta(item.kode_akun, item.nama_akun);
-    const color = payload[0].color || payload[0].fill || '#FF8FAB';
-
-    return (
-        <div className="lpc-macaron-tooltip">
-            <div className="lpc-macaron-tooltip-header">
-                <span className="lpc-macaron-tooltip-emoji">{meta.emoji}</span>
-                <div>
-                    <div className="lpc-macaron-tooltip-title">{item.nama_akun}</div>
-                    <div className="lpc-macaron-tooltip-code">{item.kode_akun} &bull; {item.pos_biaya}</div>
-                </div>
-            </div>
-            <div className="lpc-macaron-tooltip-body">
-                <div className="lpc-macaron-tooltip-row">
-                    <span>Total Beban:</span>
-                    <strong style={{ color }}>{fmt(item.total)}</strong>
-                </div>
-                <div className="lpc-macaron-tooltip-row">
-                    <span>Porsi Kontribusi:</span>
-                    <span className="lpc-macaron-tooltip-pct" style={{ background: color + '22', color, borderColor: color }}>
-                        {item.persentase}%
-                    </span>
-                </div>
-                <div className="lpc-macaron-tooltip-row">
-                    <span>Frekuensi:</span>
-                    <span>{item.jumlah_transaksi}x Transaksi</span>
-                </div>
-            </div>
-        </div>
-    );
 };
 
 const fmt = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
@@ -244,10 +79,6 @@ export default function LaporanPettyCash() {
 
     // Tab state: 'akun' | 'unit' | 'buku_kas' | 'transaksi'
     const [activeTab, setActiveTab] = useState('akun');
-
-    // Macaron Pie Chart state
-    const [chartLimit, setChartLimit] = useState(6);
-    const [activePieIndex, setActivePieIndex] = useState(null);
 
     // Filter transaksi tab
     const [searchQuery, setSearchQuery] = useState('');
@@ -447,33 +278,6 @@ export default function LaporanPettyCash() {
     };
 
     const rekapAkun = data?.rekap_akun || [];
-    const chartAkunList = useMemo(() => {
-        if (!rekapAkun.length) return [];
-        if (chartLimit === 'all' || chartLimit >= rekapAkun.length) {
-            return rekapAkun;
-        }
-        const topSlice = rekapAkun.slice(0, chartLimit);
-        const others = rekapAkun.slice(chartLimit);
-        if (others.length > 0) {
-            const othersTotal = others.reduce((sum, item) => sum + Number(item.total || 0), 0);
-            const totalBelanja = Number(data?.total_belanja_riil || 1);
-            const othersPct = Number(((othersTotal / (totalBelanja || 1)) * 100).toFixed(1));
-            return [
-                ...topSlice,
-                {
-                    kode_akun: 'LAINNYA',
-                    nama_akun: `Lainnya (${others.length} Akun)`,
-                    pos_biaya: 'Akun Biaya Lainnya',
-                    total: othersTotal,
-                    persentase: othersPct,
-                    jumlah_transaksi: others.reduce((sum, item) => sum + (item.jumlah_transaksi || 0), 0),
-                    isOthers: true,
-                }
-            ];
-        }
-        return topSlice;
-    }, [rekapAkun, chartLimit, data?.total_belanja_riil]);
-
     const rekapUnit = data?.per_unit || [];
     const rekapMutasi = data?.rekap_mutasi || [];
     const pejabat = data?.pejabat || {
@@ -664,181 +468,12 @@ export default function LaporanPettyCash() {
                                 </div>
                             </div>
 
-                            {/* 🧁 MACARON DONUT PIE CHART 🧁 */}
+                            {/* 🧁 MACARON PIE INFOGRAPHIC (Stepped Coxcomb & Cute Icons) 🧁 */}
                             {rekapAkun.length > 0 && (
-                                <div className="lpc-macaron-card">
-                                    <div className="lpc-macaron-header">
-                                        <div className="lpc-macaron-title-wrap">
-                                            <div className="lpc-macaron-icon-badge">
-                                                <LucidePieChart size={20} />
-                                            </div>
-                                            <div className="lpc-macaron-title-text">
-                                                <h3>
-                                                    <span>Distribusi Pengeluaran Akun Biaya</span>
-                                                    <span className="lpc-macaron-badge-cute">
-                                                        <Sparkles size={11} />
-                                                        Macaron Palette
-                                                    </span>
-                                                </h3>
-                                                <p>Proporsi belanja kas kecil berdasarkan pos akun biaya riil pada periode terpilih</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="lpc-macaron-controls">
-                                            <button
-                                                type="button"
-                                                className={`lpc-macaron-tab-btn ${chartLimit === 6 ? 'active' : ''}`}
-                                                onClick={() => setChartLimit(6)}
-                                            >
-                                                Top 6
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`lpc-macaron-tab-btn ${chartLimit === 10 ? 'active' : ''}`}
-                                                onClick={() => setChartLimit(10)}
-                                            >
-                                                Top 10
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`lpc-macaron-tab-btn ${chartLimit === 'all' ? 'active' : ''}`}
-                                                onClick={() => setChartLimit('all')}
-                                            >
-                                                Semua ({rekapAkun.length})
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="lpc-macaron-grid">
-                                        {/* ── Donut Pie Column ── */}
-                                        <div className="lpc-pie-col">
-                                            <div className="lpc-pie-chart-wrapper">
-                                                <ResponsiveContainer width="100%" height={290}>
-                                                    <RechartsPieChart>
-                                                        <Tooltip content={<CustomMacaronTooltip />} />
-                                                        <Pie
-                                                            data={chartAkunList}
-                                                            dataKey="total"
-                                                            nameKey="nama_akun"
-                                                            cx="50%"
-                                                            cy="50%"
-                                                            innerRadius={72}
-                                                            outerRadius={112}
-                                                            paddingAngle={3.5}
-                                                            cornerRadius={7}
-                                                            onMouseEnter={(_, index) => setActivePieIndex(index)}
-                                                            onMouseLeave={() => setActivePieIndex(null)}
-                                                            animationDuration={600}
-                                                        >
-                                                            {chartAkunList.map((item, index) => {
-                                                                const pal = MACARON_PALETTE[index % MACARON_PALETTE.length];
-                                                                const isHovered = activePieIndex === index;
-                                                                const isAnyHovered = activePieIndex !== null;
-                                                                return (
-                                                                    <Cell
-                                                                        key={`cell-${index}`}
-                                                                        fill={pal.color}
-                                                                        opacity={!isAnyHovered || isHovered ? 1 : 0.4}
-                                                                        stroke={isHovered ? '#ffffff' : 'rgba(255,255,255,0.45)'}
-                                                                        strokeWidth={isHovered ? 3 : 1}
-                                                                        style={{
-                                                                            outline: 'none',
-                                                                            cursor: 'pointer',
-                                                                            transition: 'opacity 0.2s ease',
-                                                                            filter: isHovered ? `drop-shadow(0 4px 10px ${pal.color}80)` : 'none',
-                                                                        }}
-                                                                    />
-                                                                );
-                                                            })}
-                                                        </Pie>
-                                                    </RechartsPieChart>
-                                                </ResponsiveContainer>
-
-                                                {/* Donut Center Display */}
-                                                <div className="lpc-donut-center">
-                                                    {activePieIndex !== null && chartAkunList[activePieIndex] ? (
-                                                        <>
-                                                            <span className="lpc-donut-center-emoji">
-                                                                {getAccountCuteMeta(chartAkunList[activePieIndex].kode_akun, chartAkunList[activePieIndex].nama_akun).emoji}
-                                                            </span>
-                                                            <span className="lpc-donut-center-title" title={chartAkunList[activePieIndex].nama_akun}>
-                                                                {chartAkunList[activePieIndex].nama_akun}
-                                                            </span>
-                                                            <span
-                                                                className="lpc-donut-center-pct"
-                                                                style={{ color: MACARON_PALETTE[activePieIndex % MACARON_PALETTE.length].color }}
-                                                            >
-                                                                {chartAkunList[activePieIndex].persentase}%
-                                                            </span>
-                                                            <span className="lpc-donut-center-total" style={{ fontSize: '11px', marginTop: 1 }}>
-                                                                {fmt(chartAkunList[activePieIndex].total)}
-                                                            </span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <span className="lpc-donut-center-emoji">🧁</span>
-                                                            <span className="lpc-donut-center-sub">Total Beban</span>
-                                                            <span className="lpc-donut-center-total">
-                                                                {fmt(data?.total_belanja_riil || 0)}
-                                                            </span>
-                                                            <span className="lpc-donut-center-count">
-                                                                {rekapAkun.length} Akun Biaya
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* ── Interactive Cute Legend Grid Column ── */}
-                                        <div className="lpc-macaron-legend-grid">
-                                            {chartAkunList.map((item, idx) => {
-                                                const meta = getAccountCuteMeta(item.kode_akun, item.nama_akun);
-                                                const pal = MACARON_PALETTE[idx % MACARON_PALETTE.length];
-                                                const isActive = activePieIndex === idx;
-
-                                                return (
-                                                    <div
-                                                        key={idx}
-                                                        className={`lpc-macaron-legend-item ${isActive ? 'active' : ''}`}
-                                                        onMouseEnter={() => setActivePieIndex(idx)}
-                                                        onMouseLeave={() => setActivePieIndex(null)}
-                                                        style={{
-                                                            borderColor: isActive ? pal.color : undefined,
-                                                            boxShadow: isActive ? `0 8px 20px -4px ${pal.color}45` : undefined,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="lpc-macaron-legend-icon-wrap"
-                                                            style={{ background: pal.bg, color: pal.text, borderColor: pal.border }}
-                                                        >
-                                                            <span className="lpc-macaron-legend-emoji">{meta.emoji}</span>
-                                                        </div>
-                                                        <div className="lpc-macaron-legend-info">
-                                                            <div className="lpc-macaron-legend-name" title={item.nama_akun}>
-                                                                {item.nama_akun}
-                                                            </div>
-                                                            <div className="lpc-macaron-legend-sub">
-                                                                <span className="lpc-macaron-badge-code">{item.kode_akun}</span>
-                                                                <span>&bull;</span>
-                                                                <span>{item.jumlah_transaksi}x transaksi</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="lpc-macaron-legend-val-col">
-                                                            <span
-                                                                className="lpc-macaron-pct-pill"
-                                                                style={{ background: pal.bg, color: pal.text, borderColor: pal.border }}
-                                                            >
-                                                                {item.persentase}%
-                                                            </span>
-                                                            <span className="lpc-macaron-legend-val">{fmt(item.total)}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
+                                <MacaronPieInfographic
+                                    rekapAkun={rekapAkun}
+                                    totalBelanja={data.total_belanja_riil}
+                                />
                             )}
 
                             {/* Table */}
