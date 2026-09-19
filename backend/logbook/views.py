@@ -7,7 +7,7 @@ from django.db.models import Q, Count, Sum, Value
 from django.db.models.functions import Concat
 from django.utils import timezone
 from django.http import HttpResponse
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -139,6 +139,8 @@ class LogbookViewSet(viewsets.ModelViewSet):
         if tanggal and jam_mulai and jam_selesai:
             dt_mulai = datetime.combine(tanggal, jam_mulai)
             dt_selesai = datetime.combine(tanggal, jam_selesai)
+            if jam_selesai < jam_mulai:
+                dt_selesai += timedelta(days=1)
             durasi_kerja, durasi_lembur = hitung_durasi_sesi(dt_mulai, dt_selesai)
 
         serializer.save(
@@ -174,6 +176,8 @@ class LogbookViewSet(viewsets.ModelViewSet):
         if tanggal and jam_mulai and jam_selesai:
             dt_mulai = datetime.combine(tanggal, jam_mulai)
             dt_selesai = datetime.combine(tanggal, jam_selesai)
+            if jam_selesai < jam_mulai:
+                dt_selesai += timedelta(days=1)
             durasi_kerja, durasi_lembur = hitung_durasi_sesi(dt_mulai, dt_selesai)
 
         serializer.save(durasi_kerja=durasi_kerja, durasi_lembur=durasi_lembur)

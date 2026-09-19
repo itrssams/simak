@@ -1,4 +1,5 @@
 from datetime import datetime, date, time, timedelta
+from django.utils import timezone
 
 # Jadwal Jam Kerja RS Siaga Al Munawwarah
 # weekday(): 0=Senin, 1=Selasa, ..., 5=Sabtu, 6=Minggu
@@ -16,7 +17,7 @@ def hitung_durasi_sesi(dt_mulai, dt_selesai):
     """
     Menghitung durasi jam kerja dan durasi lembur (dalam menit)
     berdasarkan JADWAL_KERJA antara dt_mulai dan dt_selesai.
-    Kedua parameter harus berupa datetime timezone-aware (local time).
+    Jika parameter berupa datetime timezone-aware, dikonversi ke local timezone terlebih dahulu.
     """
     total_kerja = 0
     total_lembur = 0
@@ -24,10 +25,16 @@ def hitung_durasi_sesi(dt_mulai, dt_selesai):
     if not dt_mulai or not dt_selesai or dt_selesai <= dt_mulai:
         return 0, 0
 
+    # Pastikan jika timezone-aware (misalnya dari UTC DB/timezone.now()), konversi ke local time
+    if timezone.is_aware(dt_mulai):
+        dt_mulai = timezone.localtime(dt_mulai)
+    if timezone.is_aware(dt_selesai):
+        dt_selesai = timezone.localtime(dt_selesai)
+
     current_date = dt_mulai.date()
     end_date = dt_selesai.date()
 
-    # Hapus tzinfo sementara untuk mempermudah math
+    # Hapus tzinfo setelah konversi ke waktu lokal agar kompatibel dengan perbandingan datetime naive
     dt_mulai = dt_mulai.replace(tzinfo=None)
     dt_selesai = dt_selesai.replace(tzinfo=None)
 
