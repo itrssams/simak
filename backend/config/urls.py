@@ -12,7 +12,14 @@ from rest_framework_simplejwt.views import (
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from system.audit import write_audit_log
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    """Batasi percobaan login: 5x per menit per IP."""
+    scope = 'login'
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -23,6 +30,8 @@ def me_view(request):
 
 
 class AuditedTokenObtainPairView(TokenObtainPairView):
+    throttle_classes = [LoginRateThrottle]
+
     def post(self, request, *args, **kwargs):
         username = request.data.get('username', '')
         user = get_user_model().objects.filter(username=username).first()

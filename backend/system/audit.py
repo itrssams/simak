@@ -21,6 +21,10 @@ def can_view_audit(user):
 
 
 def get_client_ip(request):
+    # Cloudflare Tunnel / Proxy menyertakan IP asli pengunjung di header ini
+    cf_ip = request.META.get('HTTP_CF_CONNECTING_IP')
+    if cf_ip:
+        return cf_ip.strip()
     forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if forwarded:
         return forwarded.split(',')[0].strip()
