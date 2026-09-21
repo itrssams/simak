@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     Users, 
     ClipboardList, 
@@ -19,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
+import DateRangePicker from '../../components/DateRangePicker';
 import './MyLogbook.css';
 
 const getTodayString = () => {
@@ -77,6 +79,7 @@ export default function LogbookLaporan() {
     // Filters
     const [monStartDate, setMonStartDate] = useState(getTodayString());
     const [monEndDate, setMonEndDate] = useState(getTodayString());
+    const [activePreset, setActivePreset] = useState('today');
     const [monUnitId, setMonUnitId] = useState('');
     const [monUserId, setMonUserId] = useState('');
     const [monStatus, setMonStatus] = useState('all');
@@ -85,6 +88,68 @@ export default function LogbookLaporan() {
 
     const [unitList, setUnitList] = useState([]);
     const [selectedUserDetail, setSelectedUserDetail] = useState(null);
+
+    // Lock scroll background saat modal detail terbuka
+    useEffect(() => {
+        if (!selectedUserDetail) return;
+
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        const originalPaddingRight = document.body.style.paddingRight;
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) {
+            document.body.style.paddingRight = `${scrollbarWidth}px`;
+        }
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            document.body.style.paddingRight = originalPaddingRight;
+        };
+    }, [selectedUserDetail]);
+
+    const handlePresetChange = (preset) => {
+        setActivePreset(preset);
+        const now = new Date();
+        if (preset === 'today') {
+            const todayStr = getTodayString();
+            setMonStartDate(todayStr);
+            setMonEndDate(todayStr);
+        } else if (preset === 'this_month') {
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+            setMonStartDate(`${y}-${m}-01`);
+            setMonEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
+        } else if (preset === 'all') {
+            setMonStartDate('');
+            setMonEndDate('');
+        }
+    };
+
+    const handleDateRangeChange = ({ dari, sampai }) => {
+        setMonStartDate(dari || '');
+        setMonEndDate(sampai || '');
+        if (!dari && !sampai) {
+            setActivePreset('all');
+        } else {
+            setActivePreset('custom');
+        }
+    };
+
+    const handleResetFilter = () => {
+        const todayStr = getTodayString();
+        setMonStartDate(todayStr);
+        setMonEndDate(todayStr);
+        setActivePreset('today');
+        setMonUnitId('');
+        setMonUserId('');
+        setMonStatus('all');
+        setMonSearch('');
+    };
 
     // Determine monitoring level
     useEffect(() => {
@@ -142,14 +207,6 @@ export default function LogbookLaporan() {
         }
     }, [monitoringLevel, fetchMonitoringSummary, fetchMonitoringData]);
 
-    const handleResetFilter = () => {
-        setMonStartDate(getTodayString());
-        setMonEndDate(getTodayString());
-        setMonUnitId('');
-        setMonUserId('');
-        setMonStatus('all');
-        setMonSearch('');
-    };
 
     const groupedUsers = useMemo(() => {
         const map = new Map();
@@ -283,21 +340,39 @@ export default function LogbookLaporan() {
                 {/* Filter Bar with SIMAK Standards */}
                 <div className="logbook-filter-bar">
                     <div className="logbook-filter-item">
-                        <label>Mulai Tanggal</label>
-                        <input
-                            type="date"
-                            value={monStartDate}
-                            onChange={(e) => setMonStartDate(e.target.value)}
-                            className="logbook-filter-date"
-                        />
+                        <label>Preset Periode</label>
+                        <div className="logbook-preset-pills">
+                            <button
+                                type="button"
+                                className={`logbook-preset-pill-btn ${activePreset === 'all' ? 'active' : ''}`}
+                                onClick={() => handlePresetChange('all')}
+                            >
+                                Semua
+                            </button>
+                            <button
+                                type="button"
+                                className={`logbook-preset-pill-btn ${activePreset === 'this_month' ? 'active' : ''}`}
+                                onClick={() => handlePresetChange('this_month')}
+                            >
+                                Bulan Ini
+                            </button>
+                            <button
+                                type="button"
+                                className={`logbook-preset-pill-btn ${activePreset === 'today' ? 'active' : ''}`}
+                                onClick={() => handlePresetChange('today')}
+                            >
+                                Hari Ini
+                            </button>
+                        </div>
                     </div>
+
                     <div className="logbook-filter-item">
-                        <label>Sampai Tanggal</label>
-                        <input
-                            type="date"
-                            value={monEndDate}
-                            onChange={(e) => setMonEndDate(e.target.value)}
-                            className="logbook-filter-date"
+                        <label>Rentang Tanggal</label>
+                        <DateRangePicker
+                            dari={monStartDate}
+                            sampai={monEndDate}
+                            onChange={handleDateRangeChange}
+                            placeholder="Pilih Rentang Tanggal"
                         />
                     </div>
 
@@ -449,9 +524,9 @@ export default function LogbookLaporan() {
             </div>
 
             {/* Detail Modal */}
-            {selectedUserDetail && (
-                <div className="logbook-modal-overlay" onClick={() => setSelectedUserDetail(null)}>
-                    <div className="logbook-modal-card lg" onClick={(e) => e.stopPropagation()}>
+            {selectedUserDetail && createPortal(
+                <div className="logbook-modal-overlay">
+                    <div className="logbook-modal-card lg">
                         <div className="logbook-modal-header">
                             <div className="logbook-modal-title-wrap">
                                 <div className="logbook-emp-avatar lg">
@@ -517,7 +592,8 @@ export default function LogbookLaporan() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
