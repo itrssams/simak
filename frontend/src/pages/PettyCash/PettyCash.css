@@ -227,6 +227,24 @@
 .pc-saldo-badge.pending{background:#fff7ed;color:#c2410c}
 .pc-saldo-badge.disetujui{background:#dcfce7;color:#166534}
 .pc-saldo-badge.ditolak{background:#fee2e2;color:#991b1b}
+.pc-saldo-kpi.kpi-pending .pc-saldo-kpi-value{color:#d97706}
+.pc-saldo-kpi.kpi-masuk .pc-saldo-kpi-value{color:#059669}
+.pc-saldo-kpi.kpi-keluar .pc-saldo-kpi-value{color:#dc2626}
+.pc-saldo-td-no{font-family:monospace;font-weight:800;color:#1a4731}
+.pc-saldo-td-date{color:#64748b;white-space:nowrap;font-size:11.5px}
+.pc-saldo-td-nominal{font-weight:800;color:#1a4731;white-space:nowrap}
+.pc-saldo-link-berkas{color:#0284c7;display:inline-flex;align-items:center;margin-left:6px}
+.pc-btn-rekap-table{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;font-size:11.5px;font-weight:650;background:#f8fafc;border:1px solid #cbd5e1;color:#0f172a;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .15s ease}
+.pc-btn-rekap-table:hover{background:#f1f5f9;border-color:#94a3b8}
+.pc-apv-box-nominal{margin-top:8px;padding:9px 13px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0}
+.pc-apv-box-nominal span{color:#166534}
+.pc-apv-box-nominal p{color:#166534}
+.pc-apv-box-keterangan{margin-top:8px;padding:9px 13px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+.pc-apv-box-keterangan span{color:#64748b}
+.pc-apv-box-keterangan p{color:#1e293b}
+.pc-apv-box-berkas{margin-top:8px;padding:9px 13px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe}
+.pc-apv-box-berkas span{color:#1e40af}
+.pc-apv-box-berkas a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#2563eb;text-decoration:none}
 .pc-saldo-empty{padding:34px 20px;text-align:center;color:#8aa097;font-size:13px;background:#fff}
 .pc-saldo-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 26px 22px;background:#fff;border-top:1px solid #e1ece6}
 .pc-saldo-footer .pc-btn-ghost{min-height:40px}
@@ -2112,15 +2130,7 @@
 
 [data-theme="dark"] .pc-saldo-modal,
 [data-theme="dark"] .pc-approval-saldo {
-  background: #151c2c !important;
-}
-
-[data-theme="dark"] .pc-saldo-kpi,
-[data-theme="dark"] .pc-saldo-section,
-[data-theme="dark"] .pc-saldo-table td {
-  background: #1e293b !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  color: #f8fafc !important;
+  background: #0f172a !important;
 }
 
 [data-theme="dark"] .pc-saldo-title h2,
@@ -2128,21 +2138,183 @@
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .pc-saldo-table th,
+[data-theme="dark"] .pc-saldo-title p,
+[data-theme="dark"] .pc-approval-title p {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi-value {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi.kpi-pending .pc-saldo-kpi-value {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi.kpi-masuk .pc-saldo-kpi-value {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi.kpi-keluar .pc-saldo-kpi-value {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .pc-saldo-kpi small {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-badge.pending {
+  background: rgba(249, 115, 22, 0.2) !important;
+  color: #fb923c !important;
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-saldo-badge.disetujui {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-saldo-badge.ditolak {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-saldo-section {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
 [data-theme="dark"] .pc-saldo-section-head {
   background: #0f172a !important;
-  color: #cbd5e1 !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-theme="dark"] .pc-saldo-section-title {
   color: #f8fafc !important;
 }
 
+[data-theme="dark"] .pc-saldo-section-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-table th {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  border-right-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .pc-saldo-table td {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  border-right-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] .pc-saldo-table tr:hover td {
+  background: #253349 !important;
+}
+
+[data-theme="dark"] .pc-saldo-actor strong {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .pc-saldo-actor span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-empty {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-td-no {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-td-date {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-saldo-td-nominal {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .pc-saldo-link-berkas {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .pc-btn-rekap-table {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .pc-btn-rekap-table:hover {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .pc-btn-rekap-table svg {
+  color: #38bdf8 !important;
+}
+
 [data-theme="dark"] .pc-saldo-footer,
 [data-theme="dark"] .pc-approval-footer {
-  background: #151c2c !important;
-  border-top-color: rgba(255, 255, 255, 0.12) !important;
+  background: #0f172a !important;
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .pc-apv-box-nominal {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-apv-box-nominal span {
+  color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] .pc-apv-box-nominal p {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .pc-apv-box-keterangan {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .pc-apv-box-keterangan span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-apv-box-keterangan p {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .pc-apv-box-berkas {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+[data-theme="dark"] .pc-apv-box-berkas span {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .pc-apv-box-berkas a {
+  color: #60a5fa !important;
 }
 
 [data-theme="dark"] .pc-masuk-amt {

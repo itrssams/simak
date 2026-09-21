@@ -3091,17 +3091,17 @@ export default function PettyCash() {
                                         {saldoKritis ? 'Saldo sudah di bawah batas aman.' : 'Saldo masih dalam kondisi aman.'}
                                     </p>
                                 </div>
-                                <div className="pc-saldo-kpi">
+                                <div className="pc-saldo-kpi kpi-pending">
                                     <p className="pc-saldo-kpi-label">Menunggu</p>
                                     <p className="pc-saldo-kpi-value">{saldoStats.pending}</p>
                                     <small>Pengajuan perlu diproses</small>
                                 </div>
-                                <div className="pc-saldo-kpi">
+                                <div className="pc-saldo-kpi kpi-masuk">
                                     <p className="pc-saldo-kpi-label">Masuk</p>
                                     <p className="pc-saldo-kpi-value">{fmt(saldoTotalMasuk)}</p>
                                     <small>Total mutasi penambahan</small>
                                 </div>
-                                <div className="pc-saldo-kpi">
+                                <div className="pc-saldo-kpi kpi-keluar">
                                     <p className="pc-saldo-kpi-label">Keluar</p>
                                     <p className="pc-saldo-kpi-value">{fmt(saldoTotalKeluar)}</p>
                                     <small>Total mutasi pengeluaran</small>
@@ -3139,15 +3139,15 @@ export default function PettyCash() {
                                             <tbody>
                                                 {listPenambahan.map(item => (
                                                     <tr key={item.id}>
-                                                        <td style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1a4731' }}>
+                                                        <td className="pc-saldo-td-no">
                                                             {item.no_pengajuan}
                                                             {item.berkas && (
-                                                                <a href={item.berkas} target="_blank" rel="noreferrer" title="Lihat Lampiran Rekap" style={{ color: '#0284c7', display: 'inline-flex', alignItems: 'center', marginLeft: 6 }}>
+                                                                <a href={item.berkas} target="_blank" rel="noreferrer" title="Lihat Lampiran Rekap" className="pc-saldo-link-berkas">
                                                                     <Paperclip size={13} />
                                                                 </a>
                                                             )}
                                                         </td>
-                                                        <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
+                                                        <td><span className="pc-saldo-td-date">{fmtTgl(item.tanggal)}</span></td>
                                                         <td>
                                                             <div className="pc-saldo-actor">
                                                                 <strong>{item.created_by_name || 'Tidak diketahui'}</strong>
@@ -3155,7 +3155,7 @@ export default function PettyCash() {
                                                             </div>
                                                         </td>
                                                         <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.alasan}>{item.alasan || '-'}</td>
-                                                        <td style={{ fontWeight: 800, color: '#1a4731', whiteSpace: 'nowrap' }}>{item.nominal_diajukan ? fmt(item.nominal_diajukan) : '-'}</td>
+                                                        <td className="pc-saldo-td-nominal">{item.nominal_diajukan ? fmt(item.nominal_diajukan) : '-'}</td>
                                                         <td>
                                                             <span className={`pc-saldo-badge ${item.status || 'pending'}`}>
                                                                 {penambahanStatusLabel(item.status)}
@@ -3165,22 +3165,8 @@ export default function PettyCash() {
                                                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                                                                 <button
                                                                     type="button"
-                                                                    className="pc-btn-sm"
+                                                                    className="pc-btn-rekap-table"
                                                                     onClick={() => handleLihatRekapPengajuan(item)}
-                                                                    style={{
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        gap: 5,
-                                                                        padding: '4px 10px',
-                                                                        fontSize: 11.5,
-                                                                        fontWeight: 650,
-                                                                        background: '#f8fafc',
-                                                                        border: '1px solid #cbd5e1',
-                                                                        color: '#0f172a',
-                                                                        borderRadius: 6,
-                                                                        cursor: 'pointer',
-                                                                        whiteSpace: 'nowrap'
-                                                                    }}
                                                                     title={`Lihat rekap rincian pengeluaran untuk pengajuan ${item.no_pengajuan}`}
                                                                 >
                                                                     <FileText size={12.5} style={{ color: '#0284c7' }} />
@@ -3360,24 +3346,24 @@ export default function PettyCash() {
                                                 </div>
                                             </div>
                                             {modalApprovalSaldo.nominal_diajukan && (
-                                                <div style={{ marginTop: 8, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                                                    <span style={{ fontSize: 11, color: '#166534', fontWeight: 600 }}>Nominal Diajukan:</span>
-                                                    <p style={{ fontSize: 18, fontWeight: 800, color: '#166534', margin: '2px 0 0' }}>{fmt(modalApprovalSaldo.nominal_diajukan)}</p>
+                                                <div className="pc-apv-box-nominal">
+                                                    <span style={{ fontSize: 11, fontWeight: 600 }}>Nominal Diajukan:</span>
+                                                    <p style={{ fontSize: 18, fontWeight: 800, margin: '2px 0 0' }}>{fmt(modalApprovalSaldo.nominal_diajukan)}</p>
                                                 </div>
                                             )}
-                                            <div style={{ marginTop: 8, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                                                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Keterangan:</span>
-                                                <p style={{ fontSize: 13, color: '#1e293b', margin: '3px 0 0', lineHeight: 1.5 }}>{modalApprovalSaldo.alasan || '-'}</p>
+                                            <div className="pc-apv-box-keterangan">
+                                                <span style={{ fontSize: 11, fontWeight: 600 }}>Keterangan:</span>
+                                                <p style={{ fontSize: 13, margin: '3px 0 0', lineHeight: 1.5 }}>{modalApprovalSaldo.alasan || '-'}</p>
                                             </div>
                                             {modalApprovalSaldo.berkas && (
-                                                <div style={{ marginTop: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
-                                                    <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 600 }}>Lampiran Rekap / Bukti:</span>
+                                                <div className="pc-apv-box-berkas">
+                                                    <span style={{ fontSize: 11, fontWeight: 600 }}>Lampiran Rekap / Bukti:</span>
                                                     <div style={{ marginTop: 4 }}>
                                                         <a
                                                             href={modalApprovalSaldo.berkas}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
+                                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}
                                                         >
                                                             <Paperclip size={14} /> Lihat Berkas Lampiran
                                                         </a>
