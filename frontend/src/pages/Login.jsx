@@ -3,6 +3,7 @@ import { useToastState } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, User, LockKeyhole, Sun, Moon } from 'lucide-react';
+import loginIsometric from '../assets/login-isometric.png';
 import './Login.css';
 
 export default function Login() {
@@ -188,9 +189,14 @@ export default function Login() {
                 <div className="login-art-side">
                     <div className="login-art-inner">
                         <img
-                            src="/login-isometric.png"
+                            src={loginIsometric}
                             alt="SIMAK Smart Hospital & Finance 3D Isometric"
                             className="login-art-image"
+                            onError={(e) => {
+                                if (e.currentTarget.src !== '/login-isometric.png') {
+                                    e.currentTarget.src = '/login-isometric.png';
+                                }
+                            }}
                         />
                     </div>
                     {/* Carousel Dots Indicator */}

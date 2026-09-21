@@ -87,8 +87,10 @@ urlpatterns = [
     
     # Serve React assets explicitly
     re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>vite.svg)$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>logo.png)$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^(?P<path>vite\.svg)$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^(?P<path>logo\.png)$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^(?P<path>login-isometric\.(?:png|jpg))$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^(?P<path>[^/]+\.(?:png|jpg|jpeg|webp|svg|ico|json|webmanifest|js|txt))$', serve, {'document_root': settings.STATIC_ROOT}),
 ]
 
 # Serve static & uploaded media files.
