@@ -38,7 +38,7 @@ import LogbookBeranda from './pages/Logbook/LogbookBeranda';
 import LogbookAktivitas from './pages/Logbook/LogbookAktivitas';
 import LogbookVerifikasi from './pages/Logbook/LogbookVerifikasi';
 import LogbookLaporan from './pages/Logbook/LogbookLaporan';
-import TaskLogbook from './pages/Logbook/TaskLogbook';
+// import TaskLogbook from './pages/Logbook/TaskLogbook';
 import ITCenter from './pages/IT/ITCenter';
 import ITDashboard from './pages/IT/ITDashboard';
 import TransactionCorrection from './pages/IT/TransactionCorrection';
@@ -148,7 +148,7 @@ const AppRoutes = () => {
             <Route path="/reimbursement" element={<ProtectedRoute allow={canReimbursement}><Reimbursement /></ProtectedRoute>} />
             <Route path="/logbook" element={<ProtectedRoute><LogbookBeranda /></ProtectedRoute>} />
             <Route path="/logbook/aktivitas" element={<ProtectedRoute><LogbookAktivitas /></ProtectedRoute>} />
-            <Route path="/logbook/live-track" element={<ProtectedRoute><TaskLogbook /></ProtectedRoute>} />
+            <Route path="/logbook/live-track" element={<Navigate to="/logbook/aktivitas" replace />} />
             <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
 

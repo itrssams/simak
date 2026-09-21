@@ -200,7 +200,6 @@ export default function AppLauncher() {
             submenus: [
                 { label: 'Beranda', path: '/logbook' },
                 { label: 'Aktivitas', path: '/logbook/aktivitas' },
-                { label: 'Live Track', path: '/logbook/live-track' },
                 { label: 'Laporan', path: '/logbook/laporan' },
             ],
         },

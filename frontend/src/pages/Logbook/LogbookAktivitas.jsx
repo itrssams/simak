@@ -649,13 +649,6 @@ export default function LogbookAktivitas() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div style={{ marginTop: '4px' }}>
-                                                    {item.metode_input === 'live_track' ? (
-                                                        <span className="logbook-badge-method live">Live Track</span>
-                                                    ) : (
-                                                        <span className="logbook-badge-method manual">Manual</span>
-                                                    )}
-                                                </div>
                                             </td>
                                             <td>
                                                 {item.nilai_output > 0 ? (
@@ -1009,8 +1002,6 @@ export default function LogbookAktivitas() {
                                         <span style={{ color: detailItem.durasi_lembur > 0 ? '#b45309' : '#64748b', fontWeight: detailItem.durasi_lembur > 0 ? 700 : 400 }}>
                                             Lembur (Overtime): <strong>{detailItem.durasi_lembur_format || '0m'}</strong>
                                         </span>
-                                        <span>&bull;</span>
-                                        <span>Metode: <strong>{detailItem.metode_input === 'live_track' ? 'Live Track' : 'Catat Manual'}</strong></span>
                                     </div>
                                 </div>
 

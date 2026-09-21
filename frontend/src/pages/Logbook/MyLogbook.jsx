@@ -29,7 +29,7 @@ import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
 import DateField from '../../components/DateField';
 import DateRangePicker from '../../components/DateRangePicker';
-import TaskLogbook from './TaskLogbook';
+// import TaskLogbook from './TaskLogbook';
 import './MyLogbook.css';
 
 const getTodayString = () => {
@@ -93,8 +93,8 @@ export default function MyLogbook() {
     // Global SIMAK Toast
     const toast = useToast();
 
-    // View Mode (Live Track vs Quick Log)
-    const [activeTab, setActiveTab] = useState('live');
+    // View Mode (Quick Log manual)
+    const [activeTab, setActiveTab] = useState('quick');
 
     // ══════════════════════════════════════════════════════════════════
     // VIEW 1: LOGBOOK SAYA (STAFF VIEW)
@@ -446,27 +446,8 @@ export default function MyLogbook() {
                             </div>
                         </div>
                     </div>
-
-                    <div className="logbook-tabs">
-                        <button 
-                            className={`logbook-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('live')}
-                        >
-                            <Play size={16} /> Live Track (Realtime)
-                        </button>
-                        <button 
-                            className={`logbook-tab-btn ${activeTab === 'quick' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('quick')}
-                        >
-                            <ClipboardList size={16} /> Quick Log (Manual)
-                        </button>
-                    </div>
-
-                    {activeTab === 'live' ? (
-                        <TaskLogbook />
-                    ) : (
-                        /* Main Card */
-                        <div className="logbook-card">
+                    {/* Main Card */}
+                    <div className="logbook-card">
                         <div className="logbook-card-head">
                             <div className="logbook-card-title">
                                 <h2>{formatTanggalIndo(myFilterDate || getTodayString())}</h2>

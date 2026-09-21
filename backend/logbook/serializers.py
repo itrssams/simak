@@ -213,6 +213,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    judul = serializers.CharField(required=False, allow_blank=True)
     auto_start = serializers.BooleanField(default=True, required=False, write_only=True)
 
     class Meta:
@@ -220,10 +221,27 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         fields = ['id', 'no_task', 'status', 'judul', 'deskripsi', 'uraian_tugas_id', 'nilai_output', 'satuan_output', 'auto_start']
         read_only_fields = ['id', 'no_task', 'status']
 
-    def validate_judul(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError('Judul task wajib diisi.')
-        return value.strip()
+    def to_internal_value(self, data):
+        if 'uraian_tugas_id' in data:
+            val = data.get('uraian_tugas_id')
+            if val == 'lainnya' or val == '' or val is False:
+                mutable_data = data.copy() if hasattr(data, 'copy') else dict(data)
+                mutable_data['uraian_tugas_id'] = None
+                data = mutable_data
+        return super().to_internal_value(data)
+
+    def validate(self, data):
+        judul = (data.get('judul') or '').strip()
+        uraian_tugas = data.get('uraian_tugas')
+
+        if not judul:
+            if uraian_tugas:
+                judul = uraian_tugas.deskripsi[:200]
+            else:
+                raise serializers.ValidationError({'judul': 'Judul task wajib diisi jika memilih uraian tugas lainnya.'})
+
+        data['judul'] = judul
+        return data
 
     def create(self, validated_data):
         validated_data.pop('auto_start', None)

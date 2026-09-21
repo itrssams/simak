@@ -18,11 +18,13 @@ import {
     AlertCircle,
     Trash2,
     Layers,
-    History
+    History,
+    FileText
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
+import './MyLogbook.css';
 import './TaskLogbook.css';
 
 const formatMenit = (menit) => {
@@ -80,20 +82,48 @@ export default function TaskLogbook() {
     const debouncedSearch = useDebounce(search, 400);
     const [filterStatus, setFilterStatus] = useState('pending,on_progress,on_hold');
     
+    // Uraian Tugas (Jobdesc) Options
+    const [uraianTugasOpts, setUraianTugasOpts] = useState([]);
+
+    const fetchUraianTugasOpts = useCallback(async () => {
+        try {
+            const res = await api.get('/logbook/uraian-tugas/');
+            const data = Array.isArray(res.data) ? res.data : (res.data?.results || []);
+            setUraianTugasOpts(data.filter(item => item.is_active));
+        } catch (err) {
+            console.error('Error fetching uraian tugas:', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUraianTugasOpts();
+    }, [fetchUraianTugasOpts]);
+
     // Modal Create
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [formData, setFormData] = useState({ judul: '', deskripsi: '' });
+    const [formData, setFormData] = useState({ uraian_tugas_id: '', judul: '', deskripsi: '' });
     const [formLoading, setFormLoading] = useState(false);
+
+    const selectedUraianTugas = useMemo(() => {
+        if (!formData.uraian_tugas_id || formData.uraian_tugas_id === 'lainnya') return null;
+        return uraianTugasOpts.find(opt => String(opt.id) === String(formData.uraian_tugas_id));
+    }, [formData.uraian_tugas_id, uraianTugasOpts]);
 
     // Modal Finish Task
     const [taskToFinish, setTaskToFinish] = useState(null);
     const [finishForm, setFinishForm] = useState({
+        uraian_tugas_id: '',
         judul: '',
         deskripsi: '',
         nilai_output: 0,
         satuan_output: ''
     });
     const [finishingTask, setFinishingTask] = useState(false);
+
+    const selectedFinishUraianTugas = useMemo(() => {
+        if (!finishForm.uraian_tugas_id || finishForm.uraian_tugas_id === 'lainnya') return null;
+        return uraianTugasOpts.find(opt => String(opt.id) === String(finishForm.uraian_tugas_id));
+    }, [finishForm.uraian_tugas_id, uraianTugasOpts]);
 
     const fetchTasks = useCallback(async () => {
         setLoading(true);
@@ -175,20 +205,42 @@ export default function TaskLogbook() {
 
     const handleCreateTask = async (e, autoStart = true) => {
         if (e && e.preventDefault) e.preventDefault();
-        if (!formData.judul.trim()) return;
+
+        if (!formData.uraian_tugas_id) {
+            toast.error('Uraian tugas wajib dipilih');
+            return;
+        }
+
+        if (formData.uraian_tugas_id === 'lainnya' && !formData.judul.trim()) {
+            toast.error('Nama aktivitas / judul task wajib diisi jika memilih "Lainnya"');
+            return;
+        }
+
+        const finalJudul = formData.judul.trim() || (selectedUraianTugas ? selectedUraianTugas.deskripsi.slice(0, 200) : '');
+        if (!finalJudul) {
+            toast.error('Judul task wajib diisi');
+            return;
+        }
+
         setFormLoading(true);
         try {
-            await api.post('/logbook/tasks/', { ...formData, auto_start: autoStart });
+            const payload = {
+                uraian_tugas_id: formData.uraian_tugas_id === 'lainnya' || !formData.uraian_tugas_id ? null : parseInt(formData.uraian_tugas_id),
+                judul: finalJudul,
+                deskripsi: formData.deskripsi.trim(),
+                auto_start: autoStart
+            };
+            await api.post('/logbook/tasks/', payload);
             if (autoStart) {
                 toast.success('Task berhasil dibuat dan dimulai!');
             } else {
                 toast.success('Rencana task disimpan (Siap Mulai).');
             }
             setIsModalOpen(false);
-            setFormData({ judul: '', deskripsi: '' });
+            setFormData({ uraian_tugas_id: '', judul: '', deskripsi: '' });
             fetchTasks();
         } catch (err) {
-            const msg = err.response?.data?.judul?.[0] || 'Gagal membuat task.';
+            const msg = err.response?.data?.judul?.[0] || err.response?.data?.uraian_tugas_id?.[0] || 'Gagal membuat task.';
             toast.error(msg);
         } finally {
             setFormLoading(false);
@@ -227,6 +279,7 @@ export default function TaskLogbook() {
     const handleOpenFinishModal = (task) => {
         setTaskToFinish(task);
         setFinishForm({
+            uraian_tugas_id: task.uraian_tugas_id ? String(task.uraian_tugas_id) : (task.uraian_tugas_text ? '' : 'lainnya'),
             judul: task.judul || '',
             deskripsi: task.deskripsi || '',
             nilai_output: task.nilai_output || 0,
@@ -237,10 +290,17 @@ export default function TaskLogbook() {
     const handleCompleteTask = async (e) => {
         e.preventDefault();
         if (!taskToFinish) return;
+
+        if (finishForm.uraian_tugas_id === 'lainnya' && !finishForm.judul.trim()) {
+            toast.error('Judul aktivitas wajib diisi jika memilih "Lainnya"');
+            return;
+        }
+
         setFinishingTask(true);
         try {
             const payload = {
-                judul: finishForm.judul.trim(),
+                uraian_tugas_id: finishForm.uraian_tugas_id === 'lainnya' || !finishForm.uraian_tugas_id ? null : parseInt(finishForm.uraian_tugas_id),
+                judul: finishForm.judul.trim() || (selectedFinishUraianTugas ? selectedFinishUraianTugas.deskripsi.slice(0, 200) : taskToFinish.judul),
                 deskripsi: finishForm.deskripsi.trim(),
                 nilai_output: parseInt(finishForm.nilai_output) || 0,
                 satuan_output: finishForm.satuan_output.trim()
@@ -405,6 +465,17 @@ export default function TaskLogbook() {
                                                     )}
                                                 </div>
                                                 <h3 className="task-item-title">{task.judul}</h3>
+                                                {task.uraian_tugas_text ? (
+                                                    <div className="task-item-jobdesc-preview" title={`Uraian Tugas: ${task.uraian_tugas_text}`}>
+                                                        <FileText size={12} className="task-jobdesc-icon" />
+                                                        <span>{task.uraian_tugas_text}</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="task-item-jobdesc-preview other" title="Di luar uraian tugas">
+                                                        <FileText size={12} className="task-jobdesc-icon" />
+                                                        <span>Lainnya (Di luar uraian tugas)</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             {isOwner && (
                                                 <button 
@@ -590,15 +661,47 @@ export default function TaskLogbook() {
                         <form onSubmit={handleCreateTask}>
                             <div className="logbook-modal-body">
                                 <div className="logbook-field-group">
-                                    <label>Judul Pekerjaan / Task <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <label>Uraian Tugas <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <select
+                                        name="uraian_tugas_id"
+                                        value={formData.uraian_tugas_id}
+                                        onChange={e => setFormData({ ...formData, uraian_tugas_id: e.target.value })}
+                                        className="logbook-select"
+                                        required
+                                    >
+                                        <option value="">Pilih Uraian Tugas...</option>
+                                        {uraianTugasOpts.map(opt => (
+                                            <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
+                                        ))}
+                                        <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
+                                    </select>
+                                    {selectedUraianTugas && (
+                                        <div className="logbook-jobdesc-preview">
+                                            <FileText size={15} className="logbook-jobdesc-preview-icon" />
+                                            <div className="logbook-jobdesc-preview-body">
+                                                <span className="logbook-jobdesc-preview-label">Deskripsi Lengkap Uraian Tugas:</span>
+                                                <p className="logbook-jobdesc-preview-text">{selectedUraianTugas.deskripsi}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {uraianTugasOpts.length === 0 && (
+                                        <small style={{ color: '#f59e0b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                            *Belum ada uraian tugas terdaftar. Anda dapat memilih "Lainnya" atau menambahkannya di tab Beranda.
+                                        </small>
+                                    )}
+                                </div>
+
+                                <div className="logbook-field-group">
+                                    <label>
+                                        Nama Aktivitas / Judul Task {formData.uraian_tugas_id === 'lainnya' ? <span style={{ color: '#ef4444' }}>*</span> : <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 400 }}>(Opsional jika uraian tugas dipilih)</span>}
+                                    </label>
                                     <input 
                                         type="text" 
                                         className="logbook-input" 
-                                        placeholder="Misal: Perbaikan jaringan server SIMRS"
+                                        placeholder={formData.uraian_tugas_id === 'lainnya' ? "Contoh: Rapat koordinasi lintas divisi" : "Contoh: Perbaikan jaringan server SIMRS (opsional)"}
                                         value={formData.judul}
                                         onChange={e => setFormData({...formData, judul: e.target.value})}
-                                        required
-                                        autoFocus
+                                        required={formData.uraian_tugas_id === 'lainnya'}
                                     />
                                 </div>
 
@@ -675,13 +778,42 @@ export default function TaskLogbook() {
                                 </div>
 
                                 <div className="logbook-field-group">
-                                    <label>Judul Aktivitas <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <label>Uraian Tugas <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <select
+                                        name="uraian_tugas_id"
+                                        value={finishForm.uraian_tugas_id}
+                                        onChange={e => setFinishForm({ ...finishForm, uraian_tugas_id: e.target.value })}
+                                        className="logbook-select"
+                                        required
+                                    >
+                                        <option value="">Pilih Uraian Tugas...</option>
+                                        {uraianTugasOpts.map(opt => (
+                                            <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
+                                        ))}
+                                        <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
+                                    </select>
+                                    {selectedFinishUraianTugas && (
+                                        <div className="logbook-jobdesc-preview">
+                                            <FileText size={15} className="logbook-jobdesc-preview-icon" />
+                                            <div className="logbook-jobdesc-preview-body">
+                                                <span className="logbook-jobdesc-preview-label">Deskripsi Lengkap Uraian Tugas:</span>
+                                                <p className="logbook-jobdesc-preview-text">{selectedFinishUraianTugas.deskripsi}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="logbook-field-group">
+                                    <label>
+                                        Judul Aktivitas {finishForm.uraian_tugas_id === 'lainnya' ? <span style={{ color: '#ef4444' }}>*</span> : <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 400 }}>(Opsional jika uraian tugas dipilih)</span>}
+                                    </label>
                                     <input 
                                         type="text" 
                                         className="logbook-input" 
                                         value={finishForm.judul}
                                         onChange={e => setFinishForm({ ...finishForm, judul: e.target.value })}
-                                        required
+                                        placeholder={finishForm.uraian_tugas_id === 'lainnya' ? "Contoh: Rapat koordinasi lintas divisi" : "Contoh: Perbaikan server SIMRS (opsional)"}
+                                        required={finishForm.uraian_tugas_id === 'lainnya'}
                                     />
                                 </div>
 
