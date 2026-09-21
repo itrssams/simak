@@ -565,3 +565,101 @@ html, body, #root {
     font-size: 13.5px;
   }
 }
+
+/* ── IMMUNITY AGAINST GLOBAL DARK MODE OVERRIDES ── */
+[data-theme="dark"] .login-card-container,
+.login-card-container {
+  color-scheme: light !important;
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .login-form-side,
+.login-form-side {
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .login-art-side,
+.login-art-side {
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .login-main-title,
+[data-theme="dark"] :where(.login-main-title) {
+  color: #1e1b4b !important;
+}
+
+[data-theme="dark"] .login-main-sub,
+[data-theme="dark"] :where(.login-main-sub) {
+  color: #475569 !important;
+}
+
+[data-theme="dark"] .login-input-label,
+[data-theme="dark"] :where(.login-input-label) {
+  color: #334155 !important;
+}
+
+[data-theme="dark"] .login-input-wrapper,
+.login-input-wrapper {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .login-input-wrapper:hover {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+}
+
+[data-theme="dark"] .login-input-wrapper:focus-within {
+  border-color: #6366f1 !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.18) !important;
+}
+
+[data-theme="dark"] .login-native-input,
+[data-theme="dark"] input.login-native-input,
+[data-theme="dark"] :where(input.login-native-input) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+[data-theme="dark"] .login-native-input::placeholder,
+[data-theme="dark"] input.login-native-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .input-ico {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .login-input-wrapper:focus-within .input-ico {
+  color: #4f46e5 !important;
+}
+
+[data-theme="dark"] .toggle-pwd-btn {
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .toggle-pwd-btn:hover {
+  color: #4f46e5 !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+}
+
+[data-theme="dark"] .login-help {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .login-help-link {
+  color: #4f46e5 !important;
+}
+
+[data-theme="dark"] .login-copyright {
+  color: #94a3b8 !important;
+}
+

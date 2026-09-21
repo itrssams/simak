@@ -80,14 +80,14 @@ export default function Login() {
                                 <User size={24} className="login-avatar-icon" />
                             </div>
                         </div>
-                        <h1 className="login-main-title">PORTAL MASUK SISTEM</h1>
-                        <p className="login-main-sub">Sistem Informasi Manajemen Aset & Keuangan (SIMAK)</p>
+                        <h1 className="login-main-title" style={{ color: '#1e1b4b' }}>PORTAL MASUK SISTEM</h1>
+                        <p className="login-main-sub" style={{ color: '#475569' }}>Sistem Informasi Manajemen Aset & Keuangan (SIMAK)</p>
                     </div>
 
                     {/* Form Input */}
                     <form onSubmit={handleSubmit} className="login-form-body">
                         <div className="login-input-group">
-                            <label className="login-input-label">Username / Akun</label>
+                            <label className="login-input-label" style={{ color: '#334155' }}>Username / Akun</label>
                             <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
                                 <User className="input-ico" size={17} />
                                 <input
@@ -99,12 +99,13 @@ export default function Login() {
                                     autoFocus
                                     disabled={loading}
                                     className="login-native-input"
+                                    style={{ background: 'transparent', color: '#0f172a', border: 'none', boxShadow: 'none' }}
                                 />
                             </div>
                         </div>
 
                         <div className="login-input-group">
-                            <label className="login-input-label">Kata Sandi</label>
+                            <label className="login-input-label" style={{ color: '#334155' }}>Kata Sandi</label>
                             <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
                                 <LockKeyhole className="input-ico" size={17} />
                                 <input
@@ -115,6 +116,7 @@ export default function Login() {
                                     onChange={handleChange}
                                     disabled={loading}
                                     className="login-native-input"
+                                    style={{ background: 'transparent', color: '#0f172a', border: 'none', boxShadow: 'none' }}
                                 />
                                 <button
                                     type="button"
