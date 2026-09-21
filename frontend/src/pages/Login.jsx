@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useToastState } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, User, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, User, LockKeyhole, Sparkles, Building2 } from 'lucide-react';
 import './Login.css';
 
 export default function Login() {
@@ -25,7 +25,7 @@ export default function Login() {
         e.preventDefault();
 
         if (!form.username || !form.password) {
-            setError('Username dan password harus diisi');
+            setError('Username dan kata sandi harus diisi');
             setShake(true);
             setTimeout(() => setShake(false), 450);
             return;
@@ -38,7 +38,7 @@ export default function Login() {
             await login(form.username, form.password);
             navigate('/');
         } catch {
-            setError('Username atau password salah');
+            setError('Username atau kata sandi tidak sesuai');
             setShake(true);
             setTimeout(() => setShake(false), 450);
         } finally {
@@ -47,59 +47,50 @@ export default function Login() {
     };
 
     return (
-        <main className="login-root">
-            <section className="login-left">
-                <div className="login-photo-layer" />
-                <div className="login-left-overlay" />
+        <main className="login-canvas">
+            {/* Ambient Floating Decorative Shapes */}
+            <div className="login-bg-shape shape-1" />
+            <div className="login-bg-shape shape-2" />
+            <div className="login-bg-shape shape-3" />
+            <div className="login-bg-polygon poly-1" />
+            <div className="login-bg-polygon poly-2" />
 
-                <div className="login-left-content">
-                    <div>
-                        <div className="login-badge">
-                            <ShieldCheck size={16} />
-                            Sistem Internal Rumah Sakit
+            {/* Central Floating Card */}
+            <div className={`login-card-container ${shake ? 'shake' : ''}`}>
+                {/* Sisi Kiri: Form Login */}
+                <div className="login-form-side">
+                    {/* Header Institusi */}
+                    <div className="login-inst-header">
+                        <img
+                            src="/logo.png"
+                            alt="Logo RS Siaga"
+                            className="login-inst-logo"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                        <div className="login-inst-meta">
+                            <span className="login-inst-name">RS SIAGA AL MUNAWWARAH</span>
+                            <span className="login-inst-sub">SAMARINDA</span>
                         </div>
-
-                        <p className="login-kicker">Selamat datang di</p>
-                        <h1 className="login-brand">SIMAK</h1>
-                        <p className="login-description">
-                            Sistem Informasi Manajemen Aset dan Keuangan Terintegrasi
-                        </p>
                     </div>
 
-                    <div className="login-left-footer">
-                        <div className="login-tags">
-                            {['Keuangan', 'Petty Cash', 'Driver', 'Laporan'].map((item) => (
-                                <span key={item} className="login-tag">{item}</span>
-                            ))}
+                    {/* Avatar Badge & Judul Layanan */}
+                    <div className="login-hero-block">
+                        <div className="login-avatar-ring">
+                            <div className="login-avatar-core">
+                                <User size={24} className="login-avatar-icon" />
+                            </div>
                         </div>
-                        <p className="login-hospital">RS Siaga Al Munawwarah Samarinda</p>
-                    </div>
-                </div>
-            </section>
-
-            <section className="login-right">
-                <div className={`login-card ${shake ? 'shake' : ''}`}>
-                    <div className="login-header">
-                        <div className="login-logo-wrap">
-                            <img
-                                src="/logo.png"
-                                alt="RS Siaga"
-                                className="login-logo"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                        </div>
-
-                        <h2 className="login-title">Masuk ke Sistem</h2>
-                        <p className="login-subtitle">Gunakan akun yang sudah terdaftar untuk melanjutkan.</p>
+                        <h1 className="login-main-title">PORTAL MASUK SISTEM</h1>
+                        <p className="login-main-sub">Sistem Informasi Manajemen Aset & Keuangan (SIMAK)</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="login-form">
-                        <label className="login-field">
-                            <span className="login-label">Username</span>
-                            <span className="login-input-wrap">
-                                <User className="icon-left" size={18} />
+                    {/* Form Input */}
+                    <form onSubmit={handleSubmit} className="login-form-body">
+                        <div className="login-input-group">
+                            <label className="login-input-label">Username / Akun</label>
+                            <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
+                                <User className="input-ico" size={17} />
                                 <input
-                                    className={`login-input ${error ? 'error' : ''}`}
                                     type="text"
                                     name="username"
                                     placeholder="Masukkan username"
@@ -107,65 +98,94 @@ export default function Login() {
                                     onChange={handleChange}
                                     autoFocus
                                     disabled={loading}
+                                    className="login-native-input"
                                 />
-                            </span>
-                        </label>
+                            </div>
+                        </div>
 
-                        <label className="login-field">
-                            <span className="login-label">Password</span>
-                            <span className="login-input-wrap">
-                                <LockKeyhole className="icon-left" size={18} />
+                        <div className="login-input-group">
+                            <label className="login-input-label">Kata Sandi</label>
+                            <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
+                                <LockKeyhole className="input-ico" size={17} />
                                 <input
-                                    className={`login-input ${error ? 'error' : ''}`}
                                     type={showPassword ? 'text' : 'password'}
                                     name="password"
-                                    placeholder="Masukkan password"
+                                    placeholder="Masukkan kata sandi"
                                     value={form.password}
                                     onChange={handleChange}
                                     disabled={loading}
+                                    className="login-native-input"
                                 />
                                 <button
                                     type="button"
-                                    className="password-btn"
-                                    onClick={() => setShowPassword((value) => !value)}
+                                    className="toggle-pwd-btn"
+                                    onClick={() => setShowPassword((v) => !v)}
                                     disabled={loading}
+                                    tabIndex={-1}
                                     aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                                 >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
-                            </span>
-                        </label>
+                            </div>
+                        </div>
 
                         {error && (
-                            <div className="login-error-box">
-                                <AlertCircle size={17} />
+                            <div className="login-error-alert">
+                                <AlertCircle size={15} className="error-ico" />
                                 <span>{error}</span>
                             </div>
                         )}
 
-                        <button type="submit" className="submit-btn" disabled={loading}>
-                            {loading ? (
-                                <span className="login-loading-text">
-                                    <span className="spinner" />
-                                    Memproses...
-                                </span>
-                            ) : (
-                                'Masuk'
-                            )}
-                        </button>
+                        <div className="login-action-row">
+                            <button type="submit" className="login-cta-btn" disabled={loading}>
+                                {loading ? (
+                                    <span className="cta-loading">
+                                        <span className="cta-spinner" />
+                                        <span>Memproses...</span>
+                                    </span>
+                                ) : (
+                                    <span>Masuk</span>
+                                )}
+                            </button>
+                        </div>
                     </form>
 
-                    <p className="login-help-text">
-                        Butuh bantuan? <span className="login-help-strong">Hubungi IT Support</span>
-                    </p>
-
-                    <div className="login-divider" />
-
-                    <p className="login-copy">
-                        © {new Date().getFullYear()} RS Siaga Al Munawwarah
-                    </p>
+                    {/* Footer Info */}
+                    <div className="login-bottom-info">
+                        <p className="login-help">
+                            Kendala akses sistem? <span className="login-help-link">Hubungi IT Support</span>
+                        </p>
+                        <p className="login-copyright">
+                            © {new Date().getFullYear()} RS Siaga Al Munawwarah Samarinda
+                        </p>
+                    </div>
                 </div>
-            </section>
+
+                {/* Sisi Kanan: Ilustrasi 3D Isometrik Ungu SIMAK */}
+                <div className="login-art-side">
+                    <div className="login-art-inner">
+                        <img
+                            src="/login-isometric.jpg"
+                            alt="SIMAK Smart Hospital & Finance 3D Isometric"
+                            className="login-art-image"
+                        />
+                    </div>
+                    {/* Carousel Dots Indicator */}
+                    <div className="login-art-dots" aria-hidden="true">
+                        <span className="art-dot active" />
+                        <span className="art-dot" />
+                        <span className="art-dot" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Aksesori Pojok Bawah */}
+            <div className="login-floor-accent">
+                <span className="floor-badge">
+                    <Sparkles size={13} />
+                    SIMAK Integrated Hospital ERP
+                </span>
+            </div>
         </main>
     );
 }
