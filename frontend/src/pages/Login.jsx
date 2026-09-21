@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useToastState } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, User, LockKeyhole, Sparkles, Building2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, User, LockKeyhole } from 'lucide-react';
 import './Login.css';
 
 export default function Login() {
@@ -157,9 +157,6 @@ export default function Login() {
                         <p className="login-help">
                             Kendala akses sistem? <span className="login-help-link">Hubungi IT Support</span>
                         </p>
-                        <p className="login-copyright">
-                            © {new Date().getFullYear()} RS Siaga Al Munawwarah Samarinda
-                        </p>
                     </div>
                 </div>
 
@@ -181,13 +178,12 @@ export default function Login() {
                 </div>
             </div>
 
-            {/* Aksesori Pojok Bawah */}
-            <div className="login-floor-accent">
-                <span className="floor-badge">
-                    <Sparkles size={13} />
-                    SIMAK Integrated Hospital ERP
-                </span>
-            </div>
+            {/* Footer Halaman: Copyright & Versi (Center Aligned, Tanpa Pill & Tanpa Sparkle) */}
+            <footer className="login-page-footer">
+                <span>&copy; {new Date().getFullYear()} RS Siaga Al Munawwarah Samarinda</span>
+                <span className="login-footer-sep">•</span>
+                <span>SIMAK v2.0</span>
+            </footer>
         </main>
     );
 }

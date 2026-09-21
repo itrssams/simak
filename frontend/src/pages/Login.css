@@ -504,27 +504,30 @@ html, body, #root {
   background: #6366f1;
 }
 
-/* ── AKSESORI POJOK BAWAH (FLOOR BADGE) ── */
-.login-floor-accent {
+/* ── FOOTER COPYRIGHT & VERSI (CENTER ALIGNED, NO PILL) ── */
+.login-page-footer {
   position: absolute;
   bottom: 18px;
-  left: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
-.floor-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 11px;
-  font-weight: 700;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+.login-footer-sep {
+  opacity: 0.55;
+  font-size: 10px;
 }
 
 /* ── RESPONSIVE DESIGN ── */
@@ -542,9 +545,15 @@ html, body, #root {
   .login-art-side {
     display: none;
   }
+}
 
-  .login-floor-accent {
-    display: none;
+@media (max-width: 600px) {
+  .login-page-footer {
+    bottom: 10px;
+    font-size: 10px;
+    gap: 6px;
+    white-space: normal;
+    padding: 0 16px;
   }
 }
 
