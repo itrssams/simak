@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-    Sparkles,
+import {    
     PieChart,
     SlidersHorizontal,
     Info,
@@ -215,7 +214,7 @@ export const getAccountCuteMeta = (kode, nama = '') => {
         return makeMeta(Zap, 'Biaya Listrik (PLN)', 'PLN');
     }
     if (k === '532109' || n.includes('keperluan rt') || n.includes('kebersihan') || n.includes('rumah tangga')) {
-        return makeMeta(Sparkles, 'Keperluan RT / Sanitasi', 'Umum');
+        return makeMeta(Users, 'Keperluan RT / Sanitasi', 'Umum');
     }
     if (k === '532110' || (n.includes('bahan bakar') && !n.includes('genset')) || n.includes('bbm') || n.includes('bensin') || n.includes('pertalite') || n.includes('pertamax')) {
         return makeMeta(Fuel, 'Bahan Bakar (BBM)', 'BBM');
@@ -392,11 +391,7 @@ export default function MacaronPieInfographic({
                     </div>
                     <div>
                         <div className="mpi-title-row">
-                            <h3>Infografis Pengeluaran Akun Biaya</h3>
-                            <span className="mpi-cute-pill">
-                                <Sparkles size={12} />
-                                Macaron Pie Infographic
-                            </span>
+                            <h3>Infografis Pengeluaran Akun Biaya</h3>                            
                         </div>
                         <p>Visualisasi proporsi beban kas kecil per pos akun dengan icon vektor tematik & warna macaron</p>
                     </div>

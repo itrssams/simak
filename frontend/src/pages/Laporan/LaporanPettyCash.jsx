@@ -30,6 +30,8 @@ import DateRangePicker from '../../components/DateRangePicker';
 import MacaronPieInfographic, { MACARON_PALETTE, getAccountCuteMeta } from './MacaronPieInfographic';
 import './LaporanPettyCash.css';
 
+const CHART_COLORS = MACARON_PALETTE.map((p) => p.color);
+
 const ORG = {
     name: 'RUMAH SAKIT SIAGA AL MUNAWWARAH',
     subtitle: 'Laporan Rekonsiliasi & Akuntansi Kas Kecil (Petty Cash)',
