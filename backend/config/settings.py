@@ -45,7 +45,7 @@ def env_list(name, default=''):
     return [item.strip() for item in raw.split(',') if item.strip()]
 
 
-DEBUG = env_bool('DEBUG', True)
+DEBUG = env_bool('DEBUG', False)
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
@@ -62,8 +62,8 @@ ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
     f'localhost,127.0.0.1,192.168.44.15,192.168.44.116,backend,simak-backend,{PUBLIC_DOMAIN}',
 )
-if DEBUG and '*' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('*')
+# Wildcard '*' dihapus untuk keamanan - hanya host yang terdaftar yang diizinkan
+# Jika perlu menambah host untuk development, tambahkan di .env ALLOWED_HOSTS
 
 
 # ==============================================================================
@@ -99,7 +99,10 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 # ==============================================================================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',        # Harus paling atas
+    'system.middleware.BlockExploitScannersMiddleware',  # Blokir bot scanner
+    'system.middleware.RequestLoggerMiddleware',         # Log request ke terminal
+    'system.middleware.AdminIPRestrictionMiddleware',    # Batasi /admin/ dari IP lokal
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -207,6 +210,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/min',
+        'user': '300/min',
+        'login': '5/min',
+    },
 }
 
 
@@ -275,3 +287,51 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0' if DEBUG else '31536000'))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
 SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', True)
+
+# Security headers tambahan
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+
+# ==============================================================================
+# LOGGING
+# ==============================================================================
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'security': {
+            'format': '[{asctime}] {levelname} {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'security_file': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': LOGS_DIR / 'security.log',
+            'formatter': 'security',
+            'encoding': 'utf-8',
+        },
+        'console': {
+            'level': 'WARNING',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'security.scanner': {
+            'handlers': ['security_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Hanya tampilkan error 500, sisanya ditangani RequestLoggerMiddleware
+            'propagate': False,
+        },
+    },
+}

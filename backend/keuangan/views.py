@@ -1876,8 +1876,6 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
     pdf = InvoicePDF()
     pdf.alias_nb_pages()
     pdf.add_page()
-    print("WIDTH =", pdf.w)
-    print("HEIGHT =", pdf.h)
     
     pembiayaan_detail = get_pembiayaan_detail(faktur.id_pembiayaan)
     nama_pbiaya = pembiayaan_detail.get('pembiayaan') or _invoice_pembiayaan_name(faktur) or 'PEMBIAYAAN'

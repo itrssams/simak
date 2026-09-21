@@ -76,6 +76,12 @@ desktop.ini
 *.user
 
 # ==========================
+# Logs
+# ==========================
+backend/logs/
+*.log
+
+# ==========================
 # Project Lain (bukan bagian simak)
 # ==========================
 app_siaga/
