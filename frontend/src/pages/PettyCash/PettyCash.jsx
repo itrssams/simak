@@ -3230,15 +3230,7 @@ export default function PettyCash() {
                             <div className="pc-modal-head-copy">
                                 <h2 className="pc-modal-head-title" style={{ fontSize: 18 }}>Pengisian Kembali Saldo Petty Cash</h2>
                                 <p className="pc-modal-head-subtitle">Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
-                            </div>
-                            <button
-                                type="button"
-                                className="pc-btn-ghost"
-                                style={{ padding: '6px 12px', fontSize: 12.5, borderRadius: 8, marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                                onClick={() => { setModalAjukanSaldo(false); resetError(); }}
-                            >
-                                <X size={15} /> Tutup
-                            </button>
+                            </div>                            
                         </div>
 
                         {/* Saldo Status Card */}
@@ -3524,31 +3516,127 @@ export default function PettyCash() {
             {/* Modal Preview & Cetak Rekap Pengeluaran PC Sejak Top-Up Terakhir / Sesuai Periode */}
             {modalPrintRekap && createPortal(
                 <div className="pc-overlay" onClick={() => setModalPrintRekap(false)}>
-                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 1000 }} onClick={(e) => e.stopPropagation()}>
-                        <div className="pc-modal-head" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 14, alignItems: 'center' }}>
+                    <div className="pc-modal xl pc-modal-native-scroll" style={{ maxWidth: 1040 }} onClick={(e) => e.stopPropagation()}>
+                        <div className="pc-modal-head" style={{ borderBottom: '1px solid var(--border-color, #e2e8f0)', paddingBottom: 14, alignItems: 'center' }}>
                             <span className="pc-modal-title-icon"><Printer size={18} /></span>
                             <div className="pc-modal-head-copy">
                                 <h2 className="pc-modal-head-title">Cetak Rekap Pengeluaran Kas Kecil</h2>
                                 <p className="pc-modal-head-subtitle">Dokumen dasar lampiran & pelaporan pengeluaran petty cash per periode atau siklus</p>
-                            </div>                            
+                            </div>
+                            <button
+                                type="button"
+                                className="pc-rekap-btn-close"
+                                style={{ marginLeft: 'auto', flexShrink: 0 }}
+                                onClick={() => setModalPrintRekap(false)}
+                            >
+                                <X size={15} />
+                                <span>Tutup</span>
+                            </button>
+                        </div>
+
+                        {/* Rekap Filter Toolbar */}
+                        <div className="pc-rekap-filter-card">
+                            <div className="pc-rekap-filter-top">
+                                <div className="pc-rekap-modes">
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase', letterSpacing: '.05em', marginRight: 4 }}>
+                                        Filter Periode:
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className={`pc-rekap-mode-btn ${rekapFilterMode === 'berjalan' ? 'active' : ''}`}
+                                        onClick={() => setRekapFilterMode('berjalan')}
+                                    >
+                                        ⚡ Siklus Berjalan
+                                    </button>
+                                    {topUpCycles.filter(c => !c.isCurrent).length > 0 && (
+                                        <button
+                                            type="button"
+                                            className={`pc-rekap-mode-btn ${rekapFilterMode === 'siklus' ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setRekapFilterMode('siklus');
+                                                if (!rekapSiklusKey) {
+                                                    const first = topUpCycles.find(c => !c.isCurrent);
+                                                    if (first) setRekapSiklusKey(first.key);
+                                                }
+                                            }}
+                                        >
+                                            🔄 Per Siklus Top-Up
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className={`pc-rekap-mode-btn ${rekapFilterMode === 'bulan' ? 'active' : ''}`}
+                                        onClick={() => setRekapFilterMode('bulan')}
+                                    >
+                                        📅 Per Bulan
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`pc-rekap-mode-btn ${rekapFilterMode === 'semua' ? 'active' : ''}`}
+                                        onClick={() => setRekapFilterMode('semua')}
+                                    >
+                                        📋 Semua Catatan
+                                    </button>
+                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary, #0f172a)' }}>
+                                    Total: <span style={{ color: '#dc2626' }}>{fmt(totalRekapNominal)}</span> ({rekapDataWithDetails.length} item)
+                                </div>
+                            </div>
+
+                            {rekapFilterMode === 'siklus' && (
+                                <div className="pc-rekap-subfilters">
+                                    <span style={{ fontSize: 11.5, color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>Pilih Siklus Top-Up:</span>
+                                    <select
+                                        className="pc-rekap-select"
+                                        value={rekapSiklusKey}
+                                        onChange={e => setRekapSiklusKey(e.target.value)}
+                                    >
+                                        {topUpCycles.filter(c => !c.isCurrent).map(c => (
+                                            <option key={c.key} value={c.key}>{c.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {rekapFilterMode === 'bulan' && (
+                                <div className="pc-rekap-subfilters">
+                                    <span style={{ fontSize: 11.5, color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>Pilih Bulan & Tahun:</span>
+                                    <select
+                                        className="pc-rekap-select"
+                                        value={rekapBulan}
+                                        onChange={e => setRekapBulan(Number(e.target.value))}
+                                    >
+                                        {NAMA_BULAN.map((nama, idx) => (
+                                            <option key={idx + 1} value={idx + 1}>{nama}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        className="pc-rekap-select"
+                                        value={rekapTahun}
+                                        onChange={e => setRekapTahun(Number(e.target.value))}
+                                    >
+                                        {[2024, 2025, 2026, 2027].map(yr => (
+                                            <option key={yr} value={yr}>{yr}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         {/* Document Preview Box (Simulates Printed Paper) */}
-                        <div style={{ background: '#f8fafc', padding: '20px', borderRadius: 8, marginTop: 14 }}>
-                            <div style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '24px 30px', borderRadius: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div className="pc-rekap-paper-canvas">
+                            <div className="pc-rekap-paper-sheet">
                                 {/* Kop */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
+                                <div className="pc-rekap-paper-kop">
                                     <img
                                         src="/logo.png"
                                         alt="Logo RS"
-                                        style={{ width: 68, height: 68, objectFit: 'contain', flexShrink: 0 }}
+                                        className="pc-rekap-paper-logo"
                                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                     />
-                                    <div style={{ flex: 1, textAlign: 'center', padding: '0 16px' }}>
-                                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#064e3b', letterSpacing: '0.04em' }}>
-                                            RS SIAGA AL MUNAWWARAH SAMARINDA
-                                        </h2>
-                                        <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#334155' }}>
+                                    <div className="pc-rekap-paper-kop-text">
+                                        <h2>RS SIAGA AL MUNAWWARAH SAMARINDA</h2>
+                                        <p>
                                             Jl. Ramania No. 3 Samarinda, Kalimantan Timur • Telp: (0541) 743606 • Email: humas.rssams@gmail.com
                                         </p>
                                     </div>
@@ -3556,17 +3644,13 @@ export default function PettyCash() {
                                 </div>
 
                                 {/* Title */}
-                                <div style={{ textAlign: 'center', marginBottom: 18 }}>
-                                    <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0f172a' }}>
-                                        REKAPITULASI PENGELUARAN BELANJA PETTY CASH
-                                    </h3>
-                                    <p style={{ margin: '3px 0 0', fontSize: 11, color: '#64748b' }}>
-                                        {rekapPeriodeLabel}
-                                    </p>
+                                <div className="pc-rekap-paper-title">
+                                    <h3>REKAPITULASI PENGELUARAN BELANJA PETTY CASH</h3>
+                                    <p>{rekapPeriodeLabel}</p>
                                 </div>
 
                                 {/* Info Meta */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11.5, marginBottom: 16, background: '#f8fafc', padding: '10px 14px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                                <div className="pc-rekap-paper-meta">
                                     <div>
                                         <div>Tanggal Cetak: <strong>{fmtTgl(todayStr())}</strong></div>
                                         <div>Plafon Saldo Tetap: <strong>Rp 5.000.000</strong></div>
@@ -3578,38 +3662,38 @@ export default function PettyCash() {
                                 </div>
 
                                 {/* Table */}
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, marginBottom: 18 }}>
+                                <table className="pc-rekap-paper-table">
                                     <thead>
-                                        <tr style={{ background: '#f1f5f9', borderTop: '1px solid #0f172a', borderBottom: '1px solid #0f172a' }}>
-                                            <th style={{ padding: '6px 8px', width: 28, textAlign: 'center' }}>No</th>
-                                            <th style={{ padding: '6px 8px', width: 95 }}>No. Ref</th>
-                                            <th style={{ padding: '6px 8px', width: 85 }}>Tgl Nota</th>
-                                            <th style={{ padding: '6px 8px', width: 140 }}>Pemohon / Unit</th>
-                                            <th style={{ padding: '6px 8px', width: 160 }}>Akun Biaya</th>
-                                            <th style={{ padding: '6px 8px' }}>Deskripsi Kebutuhan</th>
-                                            <th style={{ padding: '6px 8px', width: 105, textAlign: 'right' }}>Nominal (Rp)</th>
+                                        <tr>
+                                            <th style={{ width: 28, textAlign: 'center' }}>No</th>
+                                            <th style={{ width: 95 }}>No. Ref</th>
+                                            <th style={{ width: 85 }}>Tgl Nota</th>
+                                            <th style={{ width: 140 }}>Pemohon / Unit</th>
+                                            <th style={{ width: 160 }}>Akun Biaya</th>
+                                            <th>Deskripsi Kebutuhan</th>
+                                            <th style={{ width: 105, textAlign: 'right' }}>Nominal (Rp)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {rekapDataWithDetails.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>
+                                                <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#64748b' }}>
                                                     Tidak ada catatan pengeluaran belanja pada periode ini.
                                                 </td>
                                             </tr>
                                         ) : (
                                             rekapDataWithDetails.map((item, idx) => (
-                                                <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                    <td style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b' }}>{item.no}</td>
-                                                    <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
-                                                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
-                                                    <td style={{ padding: '6px 8px' }}>
+                                                <tr key={idx}>
+                                                    <td style={{ textAlign: 'center', color: '#64748b' }}>{item.no}</td>
+                                                    <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{item.noReferensi}</td>
+                                                    <td style={{ whiteSpace: 'nowrap' }}>{fmtTgl(item.tanggal)}</td>
+                                                    <td>
                                                         <strong>{item.pemohon}</strong>
                                                         {item.unit && <div style={{ fontSize: 10, color: '#64748b' }}>{item.unit}</div>}
                                                     </td>
-                                                    <td style={{ padding: '6px 8px', color: '#334155' }}>{item.akunBiaya}</td>
-                                                    <td style={{ padding: '6px 8px' }}>{item.keterangan}</td>
-                                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                    <td style={{ color: '#334155' }}>{item.akunBiaya}</td>
+                                                    <td>{item.keterangan}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                                         {fmt(item.nominal)}
                                                     </td>
                                                 </tr>
@@ -3617,11 +3701,11 @@ export default function PettyCash() {
                                         )}
                                     </tbody>
                                     <tfoot>
-                                        <tr style={{ background: '#f8fafc', borderTop: '2px solid #0f172a', borderBottom: '2px solid #0f172a', fontWeight: 800 }}>
-                                            <td colSpan={6} style={{ padding: '8px', textAlign: 'right', textTransform: 'uppercase' }}>
+                                        <tr>
+                                            <td colSpan={6} style={{ textAlign: 'right', textTransform: 'uppercase' }}>
                                                 Total Pengeluaran Belanja Kas Kecil:
                                             </td>
-                                            <td style={{ padding: '8px', textAlign: 'right', color: '#064e3b', fontSize: 12 }}>
+                                            <td style={{ textAlign: 'right', color: '#064e3b', fontSize: 12, fontWeight: 800 }}>
                                                 {fmt(totalRekapNominal)}
                                             </td>
                                         </tr>
@@ -3629,25 +3713,25 @@ export default function PettyCash() {
                                 </table>
 
                                 {/* Signatures */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, textAlign: 'center', marginTop: 32, fontSize: 11 }}>
+                                <div className="pc-rekap-paper-signs">
                                     <div>
-                                        <p style={{ margin: '0 0 50px' }}>Diajukan Oleh,<br /><strong>Petugas Petty Cash</strong></p>
-                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Ulfa Santika</p>
+                                        <p>Diajukan Oleh,<br /><strong>Petugas Petty Cash</strong></p>
+                                        <span className="pc-rekap-sign-name">Ulfa Santika</span>
                                     </div>
                                     <div>
-                                        <p style={{ margin: '0 0 50px' }}>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
-                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Evi Setyaningrum, S.Ak</p>                                        
+                                        <p>Diperiksa Oleh,<br /><strong>Verifikator Keuangan</strong></p>
+                                        <span className="pc-rekap-sign-name">Evi Setyaningrum, S.Ak</span>
                                     </div>
                                     <div>
-                                        <p style={{ margin: '0 0 50px' }}>Menyetujui,<br /><strong>Wakil Direktur Umum & Keuangan</strong></p>
-                                        <p style={{ margin: 0, fontWeight: 700, textDecoration: 'underline' }}>Nevi Nevada</p>                                        
+                                        <p>Menyetujui,<br /><strong>Wakil Direktur Umum & Keuangan</strong></p>
+                                        <span className="pc-rekap-sign-name">Nevi Nevada</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Modal Footer Actions */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 18, paddingTop: 14, borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border-color, #e2e8f0)' }}>
                             <button
                                 type="button"
                                 className="pc-rekap-btn-close"
@@ -3658,8 +3742,8 @@ export default function PettyCash() {
                             </button>
                             <button
                                 type="button"
+                                className="pc-rekap-btn-excel"
                                 onClick={handleExportExcelRekap}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
                             >
                                 <Download size={15} />
                                 <span>Ekspor Excel</span>
