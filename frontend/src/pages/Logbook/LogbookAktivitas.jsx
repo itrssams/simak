@@ -162,6 +162,29 @@ export default function LogbookAktivitas() {
     const [deleteItem, setDeleteItem] = useState(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Lock scroll background saat ada modal yang terbuka
+    useEffect(() => {
+        const isAnyModalOpen = Boolean(isModalOpen || detailItem || deleteItem || verifikasiItem);
+        if (!isAnyModalOpen) return;
+
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        const originalPaddingRight = document.body.style.paddingRight;
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) {
+            document.body.style.paddingRight = `${scrollbarWidth}px`;
+        }
+
+        return () => {
+            document.body.style.overflow = originalBodyOverflow;
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            document.body.style.paddingRight = originalPaddingRight;
+        };
+    }, [isModalOpen, detailItem, deleteItem, verifikasiItem]);
+
     const isFilterActive = useMemo(() => {
         return Boolean(search.trim() || startDate || endDate || statusFilter !== defaultStatus || activePreset !== 'all' || (isAtasan && scopeFilter !== 'all'));
     }, [search, startDate, endDate, statusFilter, defaultStatus, activePreset, isAtasan, scopeFilter]);
@@ -778,8 +801,8 @@ export default function LogbookAktivitas() {
 
             {/* Modal Form Tambah / Edit */}
             {isModalOpen && createPortal(
-                <div className="logbook-modal-overlay" onClick={closeModal}>
-                    <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="logbook-modal-overlay">
+                    <div className="logbook-modal-card">
                         <div className="logbook-modal-header">
                             <h3>{editingItem ? 'Edit Aktivitas' : 'Tambah Aktivitas'}</h3>
                             <button className="logbook-modal-close-btn" onClick={closeModal}>
@@ -940,8 +963,8 @@ export default function LogbookAktivitas() {
 
             {/* Detail Modal */}
             {detailItem && createPortal(
-                <div className="logbook-modal-overlay" onClick={() => setDetailItem(null)}>
-                    <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="logbook-modal-overlay">
+                    <div className="logbook-modal-card">
                         <div className="logbook-modal-header">
                             <h3>Detail Aktivitas</h3>
                             <button className="logbook-modal-close-btn" onClick={() => setDetailItem(null)}>
@@ -1093,8 +1116,8 @@ export default function LogbookAktivitas() {
 
             {/* Delete Confirmation */}
             {deleteItem && createPortal(
-                <div className="logbook-modal-overlay" onClick={closeDeleteConfirm}>
-                    <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
+                <div className="logbook-modal-overlay">
+                    <div className="logbook-modal-card sm">
                         <div className="logbook-modal-header">
                             <h3>Hapus Aktivitas</h3>
                             <button className="logbook-modal-close-btn" onClick={closeDeleteConfirm}>
@@ -1123,8 +1146,8 @@ export default function LogbookAktivitas() {
 
             {/* Modal Konfirmasi Verifikasi (Setuju / Tolak) */}
             {verifikasiItem && createPortal(
-                <div className="logbook-modal-overlay" onClick={closeVerifikasiModal}>
-                    <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
+                <div className="logbook-modal-overlay">
+                    <div className="logbook-modal-card sm">
                         <div className="logbook-modal-header">
                             <h3>{verifikasiAksi === 'setuju' ? 'Setujui Aktivitas' : 'Tolak Aktivitas'}</h3>
                             <button className="logbook-modal-close-btn" onClick={closeVerifikasiModal}>
