@@ -172,7 +172,7 @@ function Start-Production {
     Write-Host ""
 
     & $python -m waitress `
-        --listen=127.0.0.1:8900 `
+        --listen=0.0.0.0:8900 `
         --threads=8 `
         --connection-limit=500 `
         --channel-timeout=30 `
