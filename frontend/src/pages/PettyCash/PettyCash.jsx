@@ -3085,9 +3085,9 @@ export default function PettyCash() {
 
                             <div className="pc-saldo-dashboard">
                                 <div className="pc-saldo-balance">
-                                    <p className="pc-saldo-balance-label">Saldo Saat Ini</p>
-                                    <p className="pc-saldo-balance-value">{fmt(saldoNominal)}</p>
-                                    <p className="pc-saldo-balance-note">
+                                    <p className="pc-saldo-balance-label" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>Saldo Saat Ini</p>
+                                    <p className="pc-saldo-balance-value" style={{ color: '#ffffff', textShadow: '0 2px 14px rgba(0, 0, 0, 0.45)' }}>{fmt(saldoNominal)}</p>
+                                    <p className="pc-saldo-balance-note" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
                                         {saldoKritis ? 'Saldo sudah di bawah batas aman.' : 'Saldo masih dalam kondisi aman.'}
                                     </p>
                                 </div>

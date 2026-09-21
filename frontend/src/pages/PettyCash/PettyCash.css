@@ -204,7 +204,7 @@
 .pc-saldo-balance{position:relative;overflow:hidden;border-radius:16px;background:linear-gradient(135deg,#0d281b,#1a4731 58%,#2d6a4f);padding:20px;color:#fff;min-height:128px;box-shadow:0 14px 30px rgba(26,71,49,.23)}
 .pc-saldo-balance::after{content:'';position:absolute;right:-45px;top:-60px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.1)}
 .pc-saldo-balance-label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.62);margin:0 0 10px}
-.pc-saldo-balance-value{font-size:31px;font-weight:800;margin:0;line-height:1}
+.pc-saldo-balance-value{font-size:31px;font-weight:800;margin:0;line-height:1;color:#fff}
 .pc-saldo-balance-note{font-size:12px;color:rgba(255,255,255,.68);margin:12px 0 0}
 .pc-saldo-kpi{background:#fff;border:1px solid #e1ece6;border-radius:14px;padding:15px;box-shadow:0 8px 22px rgba(15,23,42,.05)}
 .pc-saldo-kpi-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7b8d85;margin:0 0 9px}
@@ -2143,6 +2143,29 @@
   color: #94a3b8 !important;
 }
 
+[data-theme="dark"] .pc-saldo-balance {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 48%, #ea580c 100%) !important;
+  box-shadow: 0 16px 36px rgba(29, 78, 216, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-label {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-value {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-note {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
 [data-theme="dark"] .pc-saldo-kpi {
   background: #1e293b !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
@@ -2240,15 +2263,18 @@
   color: #94a3b8 !important;
 }
 
-[data-theme="dark"] .pc-saldo-td-no {
+[data-theme="dark"] .pc-saldo-td-no,
+[data-theme="dark"] .pc-saldo-table td.pc-saldo-td-no {
   color: #38bdf8 !important;
 }
 
-[data-theme="dark"] .pc-saldo-td-date {
+[data-theme="dark"] .pc-saldo-td-date,
+[data-theme="dark"] .pc-saldo-table td .pc-saldo-td-date {
   color: #94a3b8 !important;
 }
 
-[data-theme="dark"] .pc-saldo-td-nominal {
+[data-theme="dark"] .pc-saldo-td-nominal,
+[data-theme="dark"] .pc-saldo-table td.pc-saldo-td-nominal {
   color: #34d399 !important;
 }
 

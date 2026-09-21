@@ -1496,6 +1496,23 @@ textarea {
   color: #f8fafc !important;
 }
 
+[data-theme="dark"] .pc-saldo-balance {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-value {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-label {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="dark"] .pc-saldo-balance-note {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
 [data-theme="dark"] .pc-saldo-title h2,
 [data-theme="dark"] .pc-approval-title h2 {
   color: #f8fafc !important;
