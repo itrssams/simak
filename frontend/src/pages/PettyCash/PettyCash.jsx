@@ -3218,251 +3218,113 @@ export default function PettyCash() {
                 </div>, document.body
             )}
 
-            {/* Modal Ajukan Pengisian Kembali Saldo (Split Layout & Paperless) */}
+            {/* Modal Ajukan Pengisian Kembali Saldo */}
             {modalAjukanSaldo && createPortal(
                 <div className="pc-overlay">
-                    <div className="pc-modal pc-split-modal">
+                    <div className="pc-modal pc-modal-ajukan-saldo">
                         {/* Header */}
-                        <div className="pc-split-head">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                                    <Plus size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="pc-split-title">Pengisian Kembali Saldo Petty Cash</h2>
-                                    <p className="pc-split-subtitle">Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
-                                </div>
+                        <div className="pc-modal-head" style={{ marginBottom: 18, alignItems: 'center' }}>
+                            <div className="pc-modal-title-icon" style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                                <Plus size={20} />
+                            </div>
+                            <div className="pc-modal-head-copy">
+                                <h2 className="pc-modal-head-title" style={{ fontSize: 18 }}>Pengisian Kembali Saldo Petty Cash</h2>
+                                <p className="pc-modal-head-subtitle">Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
                             </div>
                             <button
                                 type="button"
                                 className="pc-btn-ghost"
-                                style={{ padding: '6px 14px', fontSize: 13 }}
+                                style={{ padding: '6px 12px', fontSize: 12.5, borderRadius: 8, marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                                 onClick={() => { setModalAjukanSaldo(false); resetError(); }}
                             >
-                                <X size={16} /> Tutup
+                                <X size={15} /> Tutup
                             </button>
                         </div>
 
-                        {/* Split Body */}
-                        <div className="pc-split-body">
-                            {/* LEFT SIDE: FORM PENGAJUAN */}
-                            <div className="pc-split-left">
-                                {/* Saldo Status Card */}
-                                <div className="pc-split-stat-grid">
-                                    <div className="pc-split-stat-box saldo">
-                                        <span className="pc-split-stat-label">Saldo Saat Ini</span>
-                                        <p className={`pc-split-stat-val ${saldoKritis ? 'danger' : 'safe'}`}>{fmt(saldoNominal)}</p>
-                                        <span className="pc-split-stat-note">Plafon Rp 5.000.000</span>
-                                    </div>
-                                    <div className="pc-split-stat-box terpakai">
-                                        <span className="pc-split-stat-label">Total Terpakai</span>
-                                        <p className="pc-split-stat-val danger">{fmt(totalPemakaianSejakTopUp)}</p>
-                                        <span className="pc-split-stat-note">{pemakaianSejakTopUp.length} transaksi pemakaian</span>
-                                    </div>
-                                </div>
+                        {/* Saldo Status Card */}
+                        <div className="pc-split-stat-grid" style={{ marginBottom: 16 }}>
+                            <div className="pc-split-stat-box saldo">
+                                <span className="pc-split-stat-label">Saldo Saat Ini</span>
+                                <p className={`pc-split-stat-val ${saldoKritis ? 'danger' : 'safe'}`}>{fmt(saldoNominal)}</p>
+                                <span className="pc-split-stat-note">Plafon Rp 5.000.000</span>
+                            </div>
+                            <div className="pc-split-stat-box terpakai">
+                                <span className="pc-split-stat-label">Total Terpakai</span>
+                                <p className="pc-split-stat-val danger">{fmt(totalPemakaianSejakTopUp)}</p>
+                                <span className="pc-split-stat-note">{pemakaianSejakTopUp.length} transaksi pemakaian</span>
+                            </div>
+                        </div>
 
-                                {error && <div className="pc-alert-err" style={{ marginBottom: 14 }}>{error}</div>}
+                        {error && <div className="pc-alert-err" style={{ marginBottom: 14 }}>{error}</div>}
 
-                                {/* Nama Pengaju & Tanggal Pengajuan (Compact 2-col) */}
-                                <div className="pc-split-meta-row">
-                                    <div className="pc-field" style={{ margin: 0 }}>
-                                        <label className="pc-label">Nama Pengaju</label>
-                                        <div className="pc-input-readonly" style={{ padding: '8px 10px' }}>
-                                            <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.full_name || user?.nama || user?.username || '-'}>
-                                                {user?.full_name || user?.nama || user?.username || '-'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="pc-field" style={{ margin: 0 }}>
-                                        <label className="pc-label">Tanggal Pengajuan</label>
-                                        <div className="pc-input-readonly" style={{ padding: '8px 10px' }}>
-                                            <CalendarDays size={14} style={{ color: '#059669', flexShrink: 0 }} />
-                                            <span style={{ fontWeight: 600 }}>{fmtTgl(todayStr())}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Nominal Pengisian (Otomatis Mengisi Terpakai) */}
-                                <div className="pc-field" style={{ marginBottom: 12 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <label className="pc-label" style={{ margin: 0 }}>Nominal Pengisian *</label>
-                                        {totalPemakaianSejakTopUp > 0 && Number(formSaldo.nominal_diajukan) !== totalPemakaianSejakTopUp && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormSaldo(prev => ({ ...prev, nominal_diajukan: String(totalPemakaianSejakTopUp) }))}
-                                                style={{ background: 'none', border: 'none', color: '#059669', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}
-                                            >
-                                                ↺ Reset ke {fmt(totalPemakaianSejakTopUp)}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="pc-currency-input-wrap">
-                                        <span className="pc-currency-addon">Rp</span>
-                                        <input
-                                            className="pc-currency-input"
-                                            type="number"
-                                            placeholder="0"
-                                            value={formSaldo.nominal_diajukan}
-                                            onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
-                                        />
-                                    </div>
-                                    <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>
-                                        Otomatis terisi sesuai nominal terpakai ({fmt(totalPemakaianSejakTopUp)}).
-                                    </p>
-                                </div>
-
-                                {/* Keterangan */}
-                                <div className="pc-field" style={{ marginBottom: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                    <label className="pc-label">Keterangan *</label>
-                                    <textarea
-                                        className="pc-textarea"
-                                        style={{ minHeight: 80, flex: 1, resize: 'vertical' }}
-                                        placeholder="Tuliskan keterangan pengisian kembali kas kecil..."
-                                        value={formSaldo.alasan}
-                                        onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
-                                    />
-                                </div>
-
-                                {/* Actions */}
-                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid var(--border-color, #edf3ef)', marginTop: 'auto' }}>
-                                    <button type="button" className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
-                                    <button type="button" className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>
-                                        {saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}
-                                    </button>
+                        {/* Nama Pengaju & Tanggal Pengajuan (Compact 2-col) */}
+                        <div className="pc-split-meta-row" style={{ marginBottom: 14 }}>
+                            <div className="pc-field" style={{ margin: 0 }}>
+                                <label className="pc-label">Nama Pengaju</label>
+                                <div className="pc-input-readonly" style={{ padding: '9px 12px' }}>
+                                    <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.full_name || user?.nama || user?.username || '-'}>
+                                        {user?.full_name || user?.nama || user?.username || '-'}
+                                    </span>
                                 </div>
                             </div>
 
-                            {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR / PER SIKLUS */}
-                            <div className="pc-split-right">
-                                <div className="pc-split-right-head">
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{ fontSize: 13.5, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary, #0f172a)' }}>
-                                            <History size={16} style={{ color: '#059669', flexShrink: 0 }} />
-                                            Rincian Pengeluaran Kas Kecil
-                                        </p>
-                                        <div style={{ marginTop: 5 }}>
-                                            <select
-                                                className="pc-split-cycle-select"
-                                                value={rekapFilterMode === 'siklus' ? rekapSiklusKey : (rekapFilterMode === 'bulan' ? `m-${rekapTahun}-${rekapBulan}` : rekapFilterMode)}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    if (val === 'berjalan') {
-                                                        setRekapFilterMode('berjalan');
-                                                    } else if (val === 'semua') {
-                                                        setRekapFilterMode('semua');
-                                                    } else if (val.startsWith('topup-')) {
-                                                        setRekapFilterMode('siklus');
-                                                        setRekapSiklusKey(val);
-                                                    } else if (val.startsWith('m-')) {
-                                                        const parts = val.split('-');
-                                                        setRekapFilterMode('bulan');
-                                                        setRekapTahun(Number(parts[1]));
-                                                        setRekapBulan(Number(parts[2]));
-                                                    }
-                                                }}
-                                            >
-                                                <option value="berjalan">⚡ Siklus Berjalan (Sejak Top-Up Terakhir)</option>
-                                                {topUpCycles.filter(c => !c.isCurrent).map(c => (
-                                                    <option key={c.key} value={c.key}>🔄 {c.label}</option>
-                                                ))}
-                                                {availableMonthsInHistory.map(ym => {
-                                                    const [y, m] = ym.split('-');
-                                                    const bName = NAMA_BULAN[Number(m) - 1];
-                                                    return (
-                                                        <option key={ym} value={`m-${y}-${Number(m)}`}>📅 Bulan {bName} {y}</option>
-                                                    );
-                                                })}
-                                                <option value="semua">📋 Semua Catatan Riwayat</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                                        <button
-                                            type="button"
-                                            className="pc-split-btn-rekap"
-                                            onClick={() => setModalPrintRekap(true)}
-                                            title="Buka Pratinjau Lengkap, Filter Periode, & Cetak Rekapitulasi"
-                                        >
-                                            <Printer size={13} /> Cetak Lampiran Rekap
-                                        </button>
-                                        <div className="pc-split-total-badge">
-                                            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total:</span>
-                                            <strong style={{ fontSize: 13, color: '#dc2626', fontWeight: 800 }}>{fmt(totalRekapNominal)}</strong>
-                                        </div>
-                                    </div>
+                            <div className="pc-field" style={{ margin: 0 }}>
+                                <label className="pc-label">Tanggal Pengajuan</label>
+                                <div className="pc-input-readonly" style={{ padding: '9px 12px' }}>
+                                    <CalendarDays size={14} style={{ color: '#059669', flexShrink: 0 }} />
+                                    <span style={{ fontWeight: 600 }}>{fmtTgl(todayStr())}</span>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div className="pc-split-right-content">
-                                    {activeRekapItems.length === 0 ? (
-                                        <div style={{ padding: '50px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                                            <p style={{ margin: 0, fontWeight: 500 }}>Belum ada transaksi pemakaian pada periode ini.</p>
-                                            {rekapFilterMode === 'berjalan' && topUpCycles.some(c => !c.isCurrent) && (
-                                                <div style={{ marginTop: 12 }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const prevCycle = topUpCycles.find(c => !c.isCurrent);
-                                                            if (prevCycle) {
-                                                                setRekapFilterMode('siklus');
-                                                                setRekapSiklusKey(prevCycle.key);
-                                                            }
-                                                        }}
-                                                        style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
-                                                    >
-                                                        Lihat riwayat belanja pada top up sebelumnya →
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <table className="pc-saldo-table" style={{ width: '100%', minWidth: 'unset', fontSize: 12 }}>
-                                            <thead>
-                                                <tr>
-                                                    <th style={{ width: 36, textAlign: 'center' }}>No</th>
-                                                    <th style={{ width: 95 }}>Tanggal</th>
-                                                    <th style={{ width: 140 }}>Pemohon / Unit</th>
-                                                    <th>Keterangan</th>
-                                                    <th style={{ width: 115, textAlign: 'right' }}>Nominal</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {activeRekapItems.map((r, idx) => {
-                                                    const actor = saldoActor(r);
-                                                    return (
-                                                        <tr key={r.id || idx}>
-                                                            <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                                                            <td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{fmtTgl(r.created_at)}</td>
-                                                            <td>
-                                                                <div className="pc-saldo-actor">
-                                                                    <strong>{actor.nama}</strong>
-                                                                    <span>{actor.unit || '-'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ color: 'var(--text-primary, #334155)', wordBreak: 'break-word', lineHeight: 1.4 }} title={r.keterangan || ''}>
-                                                                {r.keterangan || '-'}
-                                                            </td>
-                                                            <td style={{ fontWeight: 800, color: '#dc2626', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                                                -{fmt(r.jumlah)}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-
-                                {activeRekapItems.length > 0 && (
-                                    <div className="pc-split-right-foot">
-                                        <span style={{ color: '#64748b', fontWeight: 600 }}>{activeRekapItems.length} transaksi pemakaian</span>
-                                        <span style={{ fontWeight: 700, color: 'var(--text-primary, #1e293b)' }}>
-                                            Total Pemakaian: <strong style={{ color: '#dc2626', fontWeight: 800, marginLeft: 4 }}>{fmt(totalRekapNominal)}</strong>
-                                        </span>
-                                    </div>
+                        {/* Nominal Pengisian (Otomatis Mengisi Terpakai) */}
+                        <div className="pc-field" style={{ marginBottom: 14 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                                <label className="pc-label" style={{ margin: 0 }}>Nominal Pengisian *</label>
+                                {totalPemakaianSejakTopUp > 0 && Number(formSaldo.nominal_diajukan) !== totalPemakaianSejakTopUp && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormSaldo(prev => ({ ...prev, nominal_diajukan: String(totalPemakaianSejakTopUp) }))}
+                                        style={{ background: 'none', border: 'none', color: '#059669', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                                    >
+                                        ↺ Reset ke {fmt(totalPemakaianSejakTopUp)}
+                                    </button>
                                 )}
                             </div>
+                            <div className="pc-currency-input-wrap">
+                                <span className="pc-currency-addon">Rp</span>
+                                <input
+                                    className="pc-currency-input"
+                                    type="number"
+                                    placeholder="0"
+                                    value={formSaldo.nominal_diajukan}
+                                    onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
+                                />
+                            </div>
+                            <p style={{ fontSize: 11, color: '#64748b', margin: '5px 0 0' }}>
+                                Otomatis terisi sesuai nominal terpakai ({fmt(totalPemakaianSejakTopUp)}).
+                            </p>
+                        </div>
+
+                        {/* Keterangan */}
+                        <div className="pc-field" style={{ marginBottom: 20 }}>
+                            <label className="pc-label">Keterangan *</label>
+                            <textarea
+                                className="pc-textarea"
+                                style={{ minHeight: 88, resize: 'vertical' }}
+                                placeholder="Tuliskan keterangan pengisian kembali kas kecil..."
+                                value={formSaldo.alasan}
+                                onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="pc-modal-footer" style={{ marginTop: 0, paddingTop: 16 }}>
+                            <button type="button" className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
+                            <button type="button" className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>
+                                {saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}
+                            </button>
                         </div>
                     </div>
                 </div>, document.body
