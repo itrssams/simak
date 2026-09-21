@@ -393,7 +393,7 @@ export default function MacaronPieInfographic({
                         <div className="mpi-title-row">
                             <h3>Infografis Pengeluaran Akun Biaya</h3>                            
                         </div>
-                        <p>Visualisasi proporsi beban kas kecil per pos akun dengan icon vektor tematik & warna macaron</p>
+                        <p>Visualisasi proporsi beban kas kecil per pos akun</p>
                     </div>
                 </div>
 

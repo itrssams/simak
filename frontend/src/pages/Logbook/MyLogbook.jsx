@@ -442,7 +442,7 @@ export default function MyLogbook() {
                             <span><ClipboardList size={22} /></span>
                             <div>
                                 <h1>Logbook Saya</h1>
-                                <p>Pencatatan aktivitas pekerjaan &amp; akumulasi jam kerja harian Anda.</p>
+                                <p>Pencatatan aktivitas pekerjan &amp; akumulasi jam kerja harian Anda.</p>
                             </div>
                         </div>
                     </div>
