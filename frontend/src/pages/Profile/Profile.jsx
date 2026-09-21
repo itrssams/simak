@@ -628,8 +628,7 @@ export default function Profile() {
                                             <span>Memperbarui Password...</span>
                                         </>
                                     ) : (
-                                        <>
-                                            <Sparkles size={16} />
+                                        <>                                            
                                             <span>Perbarui Password</span>
                                         </>
                                     )}
