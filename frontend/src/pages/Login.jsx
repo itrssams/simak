@@ -164,7 +164,7 @@ export default function Login() {
                 <div className="login-art-side">
                     <div className="login-art-inner">
                         <img
-                            src="/login-isometric.jpg"
+                            src="/login-isometric.png"
                             alt="SIMAK Smart Hospital & Finance 3D Isometric"
                             className="login-art-image"
                         />
