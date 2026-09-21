@@ -3061,71 +3061,254 @@
 }
 
 /* Split Modal Pengisian Saldo */
+/* Split Modal Pengisian Saldo */
 .pc-split-modal {
-  max-width: min(1080px, 96vw) !important;
+  max-width: min(1120px, 96vw) !important;
   width: 100% !important;
   padding: 0 !important;
   overflow: hidden !important;
   border-radius: 20px !important;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.45) !important;
 }
 
 .pc-split-head {
-  padding: 18px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid #edf3ef;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #fff, #f8fbf9);
+  background: linear-gradient(135deg, #ffffff, #f8fbf9);
+}
+
+.pc-split-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.pc-split-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0 0;
 }
 
 .pc-split-body {
   display: grid;
-  grid-template-columns: minmax(340px, 440px) minmax(380px, 1fr);
-  max-height: calc(88vh - 76px);
+  grid-template-columns: minmax(360px, 430px) minmax(420px, 1fr);
+  height: min(640px, calc(88vh - 76px));
+  min-height: 520px;
 }
 
 .pc-split-left {
-  padding: 22px 24px;
+  padding: 20px 24px;
   overflow-y: auto;
   border-right: 1px solid #edf3ef;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
 }
 
+/* Stat Cards in Left Column */
+.pc-split-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pc-split-stat-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.15s ease;
+}
+
+.pc-split-stat-box.saldo {
+  border-left: 3.5px solid #10b981;
+}
+
+.pc-split-stat-box.terpakai {
+  border-left: 3.5px solid #ef4444;
+}
+
+.pc-split-stat-label {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.pc-split-stat-val {
+  font-size: 18px;
+  font-weight: 850;
+  margin: 3px 0 2px;
+  letter-spacing: -0.02em;
+}
+
+.pc-split-stat-val.safe {
+  color: #059669;
+}
+
+.pc-split-stat-val.danger {
+  color: #dc2626;
+}
+
+.pc-split-stat-note {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Compact 2-column user & date row */
+.pc-split-meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Currency input addon */
+.pc-currency-input-wrap {
+  display: flex;
+  align-items: stretch;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  transition: all 0.15s ease;
+}
+
+.pc-currency-input-wrap:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.pc-currency-addon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 800;
+  font-size: 14px;
+  border-right: 1.5px solid #cbd5e1;
+  user-select: none;
+}
+
+.pc-currency-input {
+  flex: 1;
+  border: none !important;
+  outline: none !important;
+  padding: 10px 14px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  background: transparent;
+  width: 100%;
+}
+
+.pc-currency-input::-webkit-outer-spin-button,
+.pc-currency-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.pc-currency-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Split Right Side */
 .pc-split-right {
   display: flex;
   flex-direction: column;
   background: #fbfdfc;
   overflow: hidden;
+  min-height: 0;
+  height: 100%;
 }
 
 .pc-split-right-head {
-  padding: 14px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid #edf3ef;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  gap: 12px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.pc-split-cycle-select {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.pc-split-btn-rekap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 750;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pc-split-btn-rekap:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.pc-split-total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
 }
 
 .pc-split-right-content {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
 }
 
 .pc-split-right-foot {
-  padding: 10px 18px;
+  flex-shrink: 0;
+  padding: 12px 20px;
   border-top: 1px solid #edf3ef;
-  background: #fff;
+  background: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 @media (max-width: 860px) {
   .pc-split-body {
     grid-template-columns: 1fr;
+    height: auto;
     max-height: 85vh;
     overflow-y: auto;
   }
@@ -3141,20 +3324,98 @@
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-[data-theme="dark"] .pc-split-head,
-[data-theme="dark"] .pc-split-right-head,
-[data-theme="dark"] .pc-split-right-foot {
+[data-theme="dark"] .pc-split-head {
   background: #0f172a !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pc-split-title {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .pc-split-subtitle {
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .pc-split-left {
-  border-color: rgba(255, 255, 255, 0.12) !important;
   background: #151c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pc-split-stat-box {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pc-split-stat-label {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .pc-split-stat-val.safe {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .pc-split-stat-val.danger {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .pc-split-stat-note {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] .pc-currency-input-wrap {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .pc-currency-addon {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .pc-currency-input {
+  color: #34d399 !important;
 }
 
 [data-theme="dark"] .pc-split-right {
   background: #0b1120 !important;
+}
+
+[data-theme="dark"] .pc-split-right-head {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pc-split-cycle-select {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .pc-split-btn-rekap {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .pc-split-btn-rekap:hover {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .pc-split-total-badge {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .pc-split-right-foot {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .pc-saldo-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /* ══ PRINT STYLES FOR REKAP PENGELUARAN PETTY CASH ══ */

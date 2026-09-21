@@ -3225,18 +3225,18 @@ export default function PettyCash() {
                         {/* Header */}
                         <div className="pc-split-head">
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #a7f3d0' }}>
+                                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
                                     <Plus size={20} />
                                 </div>
                                 <div>
-                                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Pengisian Kembali Saldo Petty Cash</h2>
-                                    <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
+                                    <h2 className="pc-split-title">Pengisian Kembali Saldo Petty Cash</h2>
+                                    <p className="pc-split-subtitle">Pengajuan penambahan saldo operasional kas kecil ke pimpinan</p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 className="pc-btn-ghost"
-                                style={{ padding: '6px 12px', fontSize: 13 }}
+                                style={{ padding: '6px 14px', fontSize: 13 }}
                                 onClick={() => { setModalAjukanSaldo(false); resetError(); }}
                             >
                                 <X size={16} /> Tutup
@@ -3248,80 +3248,77 @@ export default function PettyCash() {
                             {/* LEFT SIDE: FORM PENGAJUAN */}
                             <div className="pc-split-left">
                                 {/* Saldo Status Card */}
-                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                        <div>
-                                            <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Saldo Saat Ini</span>
-                                            <p style={{ fontSize: 19, fontWeight: 800, color: saldoKritis ? '#dc2626' : '#1a4731', margin: '3px 0 0' }}>{fmt(saldoNominal)}</p>
-                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>Plafon Rp 5.000.000</span>
-                                        </div>
-                                        <div>
-                                            <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Total Terpakai</span>
-                                            <p style={{ fontSize: 19, fontWeight: 800, color: '#dc2626', margin: '3px 0 0' }}>{fmt(totalPemakaianSejakTopUp)}</p>
-                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{pemakaianSejakTopUp.length} transaksi pemakaian</span>
-                                        </div>
+                                <div className="pc-split-stat-grid">
+                                    <div className="pc-split-stat-box saldo">
+                                        <span className="pc-split-stat-label">Saldo Saat Ini</span>
+                                        <p className={`pc-split-stat-val ${saldoKritis ? 'danger' : 'safe'}`}>{fmt(saldoNominal)}</p>
+                                        <span className="pc-split-stat-note">Plafon Rp 5.000.000</span>
+                                    </div>
+                                    <div className="pc-split-stat-box terpakai">
+                                        <span className="pc-split-stat-label">Total Terpakai</span>
+                                        <p className="pc-split-stat-val danger">{fmt(totalPemakaianSejakTopUp)}</p>
+                                        <span className="pc-split-stat-note">{pemakaianSejakTopUp.length} transaksi pemakaian</span>
                                     </div>
                                 </div>
 
                                 {error && <div className="pc-alert-err" style={{ marginBottom: 14 }}>{error}</div>}
 
-                                {/* Nama Pengaju */}
-                                <div className="pc-field" style={{ marginBottom: 12 }}>
-                                    <label className="pc-label">Nama Pengaju</label>
-                                    <div className="pc-input-readonly" style={{ padding: '9px 12px' }}>
-                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                        <span style={{ fontWeight: 600 }}>{user?.full_name || user?.nama || user?.username || '-'}</span>
-                                        {(user?.unit_nama || user?.unit?.nama) && (
-                                            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: 999, marginLeft: 'auto' }}>
-                                                {user?.unit_nama || user?.unit?.nama}
+                                {/* Nama Pengaju & Tanggal Pengajuan (Compact 2-col) */}
+                                <div className="pc-split-meta-row">
+                                    <div className="pc-field" style={{ margin: 0 }}>
+                                        <label className="pc-label">Nama Pengaju</label>
+                                        <div className="pc-input-readonly" style={{ padding: '8px 10px' }}>
+                                            <User size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.full_name || user?.nama || user?.username || '-'}>
+                                                {user?.full_name || user?.nama || user?.username || '-'}
                                             </span>
-                                        )}
+                                        </div>
                                     </div>
-                                </div>
 
-                                {/* Tanggal Terkunci Today */}
-                                <div className="pc-field" style={{ marginBottom: 12 }}>
-                                    <label className="pc-label">Tanggal Pengajuan</label>
-                                    <div className="pc-input-readonly" style={{ padding: '9px 12px', background: '#f1f5f9', color: '#334155' }}>
-                                        <CalendarDays size={14} style={{ color: '#059669', flexShrink: 0 }} />
-                                        <span style={{ fontWeight: 600 }}>{fmtTgl(todayStr())}</span>
-                                        <span style={{ fontSize: 10.5, color: '#64748b', marginLeft: 'auto', fontWeight: 600 }}>Hari Ini (Terkunci)</span>
+                                    <div className="pc-field" style={{ margin: 0 }}>
+                                        <label className="pc-label">Tanggal Pengajuan</label>
+                                        <div className="pc-input-readonly" style={{ padding: '8px 10px' }}>
+                                            <CalendarDays size={14} style={{ color: '#059669', flexShrink: 0 }} />
+                                            <span style={{ fontWeight: 600 }}>{fmtTgl(todayStr())}</span>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Nominal Pengisian (Otomatis Mengisi Terpakai) */}
                                 <div className="pc-field" style={{ marginBottom: 12 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <label className="pc-label">Nominal Pengisian (Rp) *</label>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <label className="pc-label" style={{ margin: 0 }}>Nominal Pengisian *</label>
                                         {totalPemakaianSejakTopUp > 0 && Number(formSaldo.nominal_diajukan) !== totalPemakaianSejakTopUp && (
                                             <button
                                                 type="button"
                                                 onClick={() => setFormSaldo(prev => ({ ...prev, nominal_diajukan: String(totalPemakaianSejakTopUp) }))}
-                                                style={{ background: 'none', border: 'none', color: '#059669', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                                                style={{ background: 'none', border: 'none', color: '#059669', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', padding: 0 }}
                                             >
-                                                Reset ke {fmt(totalPemakaianSejakTopUp)}
+                                                ↺ Reset ke {fmt(totalPemakaianSejakTopUp)}
                                             </button>
                                         )}
                                     </div>
-                                    <input
-                                        className="pc-input"
-                                        type="number"
-                                        placeholder="0"
-                                        value={formSaldo.nominal_diajukan}
-                                        onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
-                                        style={{ fontWeight: 800, fontSize: 16, color: '#1a4731' }}
-                                    />
+                                    <div className="pc-currency-input-wrap">
+                                        <span className="pc-currency-addon">Rp</span>
+                                        <input
+                                            className="pc-currency-input"
+                                            type="number"
+                                            placeholder="0"
+                                            value={formSaldo.nominal_diajukan}
+                                            onChange={e => setFormSaldo({ ...formSaldo, nominal_diajukan: e.target.value })}
+                                        />
+                                    </div>
                                     <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>
                                         Otomatis terisi sesuai nominal terpakai ({fmt(totalPemakaianSejakTopUp)}).
                                     </p>
                                 </div>
 
-                                {/* Keterangan (Cukup 'Keterangan *') */}
-                                <div className="pc-field" style={{ marginBottom: 18, flex: 1 }}>
+                                {/* Keterangan */}
+                                <div className="pc-field" style={{ marginBottom: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <label className="pc-label">Keterangan *</label>
                                     <textarea
                                         className="pc-textarea"
-                                        style={{ minHeight: 90 }}
+                                        style={{ minHeight: 80, flex: 1, resize: 'vertical' }}
                                         placeholder="Tuliskan keterangan pengisian kembali kas kecil..."
                                         value={formSaldo.alasan}
                                         onChange={e => setFormSaldo({ ...formSaldo, alasan: e.target.value })}
@@ -3329,25 +3326,25 @@ export default function PettyCash() {
                                 </div>
 
                                 {/* Actions */}
-                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid #edf3ef', marginTop: 'auto' }}>
-                                    <button className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
-                                    <button className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 14, borderTop: '1px solid var(--border-color, #edf3ef)', marginTop: 'auto' }}>
+                                    <button type="button" className="pc-btn-ghost" onClick={() => { setModalAjukanSaldo(false); resetError(); }}>Batal</button>
+                                    <button type="button" className="pc-btn-primary" onClick={handleAjukanSaldo} disabled={saving}>
                                         {saving ? 'Menyimpan...' : 'Submit Pengisian Kembali'}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR */}
                             {/* RIGHT SIDE: DAFTAR PENGGUNAAN PC SEJAK TOP UP TERAKHIR / PER SIKLUS */}
                             <div className="pc-split-right">
                                 <div className="pc-split-right-head">
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <p style={{ fontSize: 13.5, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <History size={16} style={{ color: '#059669' }} />
+                                        <p style={{ fontSize: 13.5, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary, #0f172a)' }}>
+                                            <History size={16} style={{ color: '#059669', flexShrink: 0 }} />
                                             Rincian Pengeluaran Kas Kecil
                                         </p>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                        <div style={{ marginTop: 5 }}>
                                             <select
+                                                className="pc-split-cycle-select"
                                                 value={rekapFilterMode === 'siklus' ? rekapSiklusKey : (rekapFilterMode === 'bulan' ? `m-${rekapTahun}-${rekapBulan}` : rekapFilterMode)}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
@@ -3365,7 +3362,6 @@ export default function PettyCash() {
                                                         setRekapBulan(Number(parts[2]));
                                                     }
                                                 }}
-                                                style={{ fontSize: 11.5, padding: '3px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontWeight: 600, color: '#1e293b', background: '#fff', maxWidth: '100%' }}
                                             >
                                                 <option value="berjalan">⚡ Siklus Berjalan (Sejak Top-Up Terakhir)</option>
                                                 {topUpCycles.filter(c => !c.isCurrent).map(c => (
@@ -3382,29 +3378,28 @@ export default function PettyCash() {
                                             </select>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                                         <button
                                             type="button"
-                                            className="pc-btn-sm n"
+                                            className="pc-split-btn-rekap"
                                             onClick={() => setModalPrintRekap(true)}
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 12, fontWeight: 700, background: '#fff', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: 6 }}
                                             title="Buka Pratinjau Lengkap, Filter Periode, & Cetak Rekapitulasi"
                                         >
                                             <Printer size={13} /> Cetak Lampiran Rekap
                                         </button>
-                                        <div>
-                                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total:</span>
-                                            <p style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', margin: 0 }}>{fmt(totalRekapNominal)}</p>
+                                        <div className="pc-split-total-badge">
+                                            <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total:</span>
+                                            <strong style={{ fontSize: 13, color: '#dc2626', fontWeight: 800 }}>{fmt(totalRekapNominal)}</strong>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="pc-split-right-content">
                                     {activeRekapItems.length === 0 ? (
-                                        <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                                            Belum ada transaksi pemakaian pada periode ini.
+                                        <div style={{ padding: '50px 20px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+                                            <p style={{ margin: 0, fontWeight: 500 }}>Belum ada transaksi pemakaian pada periode ini.</p>
                                             {rekapFilterMode === 'berjalan' && topUpCycles.some(c => !c.isCurrent) && (
-                                                <div style={{ marginTop: 10 }}>
+                                                <div style={{ marginTop: 12 }}>
                                                     <button
                                                         type="button"
                                                         onClick={() => {
@@ -3414,7 +3409,7 @@ export default function PettyCash() {
                                                                 setRekapSiklusKey(prevCycle.key);
                                                             }
                                                         }}
-                                                        style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}
+                                                        style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}
                                                     >
                                                         Lihat riwayat belanja pada top up sebelumnya →
                                                     </button>
@@ -3427,7 +3422,7 @@ export default function PettyCash() {
                                                 <tr>
                                                     <th style={{ width: 36, textAlign: 'center' }}>No</th>
                                                     <th style={{ width: 95 }}>Tanggal</th>
-                                                    <th>Pemohon / Unit</th>
+                                                    <th style={{ width: 140 }}>Pemohon / Unit</th>
                                                     <th>Keterangan</th>
                                                     <th style={{ width: 115, textAlign: 'right' }}>Nominal</th>
                                                 </tr>
@@ -3445,7 +3440,7 @@ export default function PettyCash() {
                                                                     <span>{actor.unit || '-'}</span>
                                                                 </div>
                                                             </td>
-                                                            <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#334155' }} title={r.keterangan || ''}>
+                                                            <td style={{ color: 'var(--text-primary, #334155)', wordBreak: 'break-word', lineHeight: 1.4 }} title={r.keterangan || ''}>
                                                                 {r.keterangan || '-'}
                                                             </td>
                                                             <td style={{ fontWeight: 800, color: '#dc2626', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -3462,7 +3457,7 @@ export default function PettyCash() {
                                 {activeRekapItems.length > 0 && (
                                     <div className="pc-split-right-foot">
                                         <span style={{ color: '#64748b', fontWeight: 600 }}>{activeRekapItems.length} transaksi pemakaian</span>
-                                        <span style={{ fontWeight: 700, color: '#1e293b' }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--text-primary, #1e293b)' }}>
                                             Total Pemakaian: <strong style={{ color: '#dc2626', fontWeight: 800, marginLeft: 4 }}>{fmt(totalRekapNominal)}</strong>
                                         </span>
                                     </div>
