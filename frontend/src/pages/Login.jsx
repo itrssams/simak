@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToastState } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, User, LockKeyhole } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, User, LockKeyhole, Sun, Moon } from 'lucide-react';
 import './Login.css';
 
 export default function Login() {
@@ -14,6 +14,20 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [shake, setShake] = useState(false);
+
+    // Theme state (sinkron dengan simak_theme di seluruh SIMAK)
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('simak_theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -55,6 +69,18 @@ export default function Login() {
             <div className="login-bg-polygon poly-1" />
             <div className="login-bg-polygon poly-2" />
 
+            {/* Floating Theme Switcher Button */}
+            <button
+                type="button"
+                className="login-theme-toggle-btn"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Ganti ke Mode Terang (Light)' : 'Ganti ke Mode Gelap (Dark)'}
+                aria-label="Ganti Tema"
+            >
+                {theme === 'dark' ? <Sun size={17} strokeWidth={2.4} /> : <Moon size={17} strokeWidth={2.4} />}
+                <span className="login-theme-toggle-text">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+
             {/* Central Floating Card */}
             <div className={`login-card-container ${shake ? 'shake' : ''}`}>
                 {/* Sisi Kiri: Form Login */}
@@ -80,14 +106,14 @@ export default function Login() {
                                 <User size={24} className="login-avatar-icon" />
                             </div>
                         </div>
-                        <h1 className="login-main-title" style={{ color: '#1e1b4b' }}>PORTAL MASUK SISTEM</h1>
-                        <p className="login-main-sub" style={{ color: '#475569' }}>Sistem Informasi Manajemen Aset & Keuangan (SIMAK)</p>
+                        <h1 className="login-main-title">PORTAL MASUK SISTEM</h1>
+                        <p className="login-main-sub">Sistem Informasi Manajemen Aset & Keuangan (SIMAK)</p>
                     </div>
 
                     {/* Form Input */}
                     <form onSubmit={handleSubmit} className="login-form-body">
                         <div className="login-input-group">
-                            <label className="login-input-label" style={{ color: '#334155' }}>Username / Akun</label>
+                            <label className="login-input-label">Username / Akun</label>
                             <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
                                 <User className="input-ico" size={17} />
                                 <input
@@ -99,13 +125,12 @@ export default function Login() {
                                     autoFocus
                                     disabled={loading}
                                     className="login-native-input"
-                                    style={{ background: 'transparent', color: '#0f172a', border: 'none', boxShadow: 'none' }}
                                 />
                             </div>
                         </div>
 
                         <div className="login-input-group">
-                            <label className="login-input-label" style={{ color: '#334155' }}>Kata Sandi</label>
+                            <label className="login-input-label">Kata Sandi</label>
                             <div className={`login-input-wrapper ${error ? 'is-error' : ''}`}>
                                 <LockKeyhole className="input-ico" size={17} />
                                 <input
@@ -116,7 +141,6 @@ export default function Login() {
                                     onChange={handleChange}
                                     disabled={loading}
                                     className="login-native-input"
-                                    style={{ background: 'transparent', color: '#0f172a', border: 'none', boxShadow: 'none' }}
                                 />
                                 <button
                                     type="button"

@@ -325,6 +325,7 @@ html, body, #root {
   font-size: 13px;
   font-weight: 550;
   color: #0f172a;
+  box-shadow: none;
 }
 
 .login-native-input::placeholder {
@@ -575,79 +576,176 @@ html, body, #root {
   }
 }
 
-/* ── IMMUNITY AGAINST GLOBAL DARK MODE OVERRIDES ── */
-[data-theme="dark"] .login-card-container,
-.login-card-container {
-  color-scheme: light !important;
-  background: #ffffff !important;
+/* ── TOMBOL PENGALIH TEMA MENGAMBANG (THEME TOGGLE) ── */
+.login-theme-toggle-btn {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="dark"] .login-form-side,
-.login-form-side {
-  background: #ffffff !important;
+.login-theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-1.5px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-[data-theme="dark"] .login-art-side,
-.login-art-side {
-  background: #ffffff !important;
+.login-theme-toggle-btn:active {
+  transform: translateY(0);
 }
 
-[data-theme="dark"] .login-main-title,
-[data-theme="dark"] :where(.login-main-title) {
-  color: #1e1b4b !important;
+.login-theme-toggle-text {
+  letter-spacing: 0.02em;
 }
 
-[data-theme="dark"] .login-main-sub,
-[data-theme="dark"] :where(.login-main-sub) {
-  color: #475569 !important;
+@media (max-width: 600px) {
+  .login-theme-toggle-btn {
+    top: 14px;
+    right: 14px;
+    padding: 6px 12px;
+    font-size: 11px;
+    gap: 6px;
+  }
 }
 
-[data-theme="dark"] .login-input-label,
-[data-theme="dark"] :where(.login-input-label) {
-  color: #334155 !important;
+/* ── IMPLEMENTASI DEDIKASI MODE GELAP (DARK MODE) ── */
+[data-theme="dark"] .login-canvas {
+  background:
+    radial-gradient(circle at 18% 15%, rgba(147, 51, 234, 0.22), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(79, 70, 229, 0.25), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15), transparent 55%),
+    linear-gradient(135deg, #070913 0%, #0d1226 35%, #111836 70%, #0b0f24 100%);
 }
 
-[data-theme="dark"] .login-input-wrapper,
-.login-input-wrapper {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+[data-theme="dark"] .login-bg-shape.shape-1 {
+  background: rgba(147, 51, 234, 0.18);
+}
+
+[data-theme="dark"] .login-bg-shape.shape-2 {
+  background: rgba(79, 70, 229, 0.22);
+}
+
+[data-theme="dark"] .login-bg-polygon.poly-1 {
+  opacity: 0.12;
+}
+
+[data-theme="dark"] .login-bg-polygon.poly-2 {
+  opacity: 0.12;
+}
+
+/* Tombol Pengalih Tema di Mode Gelap */
+[data-theme="dark"] .login-theme-toggle-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #f1f5f9;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .login-theme-toggle-btn:hover {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(129, 140, 248, 0.6);
+  color: #ffffff;
+}
+
+/* Wadah Kartu Melayang di Mode Gelap */
+[data-theme="dark"] .login-card-container {
+  color-scheme: dark;
+  background: #0f172a !important;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow:
+    0 30px 80px -15px rgba(0, 0, 0, 0.88),
+    0 15px 35px -5px rgba(15, 23, 42, 0.75),
+    0 0 50px rgba(99, 102, 241, 0.14);
+}
+
+/* Sisi Kiri (Form) di Mode Gelap */
+[data-theme="dark"] .login-form-side {
+  background: #0f172a !important;
+}
+
+[data-theme="dark"] .login-inst-name {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .login-inst-sub {
+  color: #818cf8 !important;
+}
+
+[data-theme="dark"] .login-avatar-ring {
+  background: linear-gradient(135deg, #6366f1, #4f46e5 50%, #312e81);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+}
+
+[data-theme="dark"] .login-avatar-core {
+  background: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
+}
+
+[data-theme="dark"] .login-main-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .login-main-sub {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .login-input-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .login-input-wrapper {
+  background: #1e293b !important;
+  border-color: #334155 !important;
 }
 
 [data-theme="dark"] .login-input-wrapper:hover {
-  border-color: #cbd5e1 !important;
-  background: #ffffff !important;
+  border-color: #475569 !important;
+  background: #243048 !important;
 }
 
 [data-theme="dark"] .login-input-wrapper:focus-within {
-  border-color: #6366f1 !important;
-  background: #ffffff !important;
-  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.18) !important;
+  border-color: #818cf8 !important;
+  background: #1e293b !important;
+  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.28) !important;
 }
 
 [data-theme="dark"] .login-native-input,
-[data-theme="dark"] input.login-native-input,
-[data-theme="dark"] :where(input.login-native-input) {
+[data-theme="dark"] input.login-native-input {
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
   border-color: transparent !important;
-  color: #0f172a !important;
   box-shadow: none !important;
-  height: auto !important;
-  min-height: 0 !important;
+  color: #f8fafc !important;
 }
 
 [data-theme="dark"] .login-native-input::placeholder,
 [data-theme="dark"] input.login-native-input::placeholder {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 [data-theme="dark"] .input-ico {
-  color: #94a3b8 !important;
+  color: #818cf8 !important;
 }
 
 [data-theme="dark"] .login-input-wrapper:focus-within .input-ico {
-  color: #4f46e5 !important;
+  color: #a5b4fc !important;
 }
 
 [data-theme="dark"] .toggle-pwd-btn {
@@ -656,19 +754,49 @@ html, body, #root {
 }
 
 [data-theme="dark"] .toggle-pwd-btn:hover {
-  color: #4f46e5 !important;
-  background: rgba(99, 102, 241, 0.08) !important;
+  color: #c7d2fe !important;
+  background: rgba(99, 102, 241, 0.16) !important;
+}
+
+[data-theme="dark"] .login-error-alert {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
 }
 
 [data-theme="dark"] .login-help {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .login-help-link {
-  color: #4f46e5 !important;
+  color: #818cf8 !important;
 }
 
-[data-theme="dark"] .login-copyright {
-  color: #94a3b8 !important;
+/* Sisi Kanan (Ilustrasi Isometrik) di Mode Gelap */
+[data-theme="dark"] .login-art-side {
+  background:
+    radial-gradient(circle at center, rgba(79, 70, 229, 0.18) 0%, rgba(13, 19, 34, 0.96) 75%),
+    #0d1322 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .login-art-image {
+  filter:
+    drop-shadow(0 20px 35px rgba(0, 0, 0, 0.8))
+    drop-shadow(0 0 30px rgba(99, 102, 241, 0.24));
+}
+
+[data-theme="dark"] .art-dot {
+  background: #334155;
+}
+
+[data-theme="dark"] .art-dot.active {
+  background: #818cf8;
+  box-shadow: 0 0 12px rgba(129, 140, 248, 0.65);
+}
+
+/* Footer di Mode Gelap */
+[data-theme="dark"] .login-page-footer {
+  color: rgba(255, 255, 255, 0.68);
 }
 
