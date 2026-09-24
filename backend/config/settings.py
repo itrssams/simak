@@ -28,7 +28,12 @@ def resolve_env_path(value):
 DJANGO_ENV = os.getenv('DJANGO_ENV', 'development').strip().lower()
 ENV_FILE = os.getenv('ENV_FILE')
 if ENV_FILE:
-    load_dotenv(resolve_env_path(ENV_FILE), override=False)
+    env_file_path = resolve_env_path(ENV_FILE)
+    if env_file_path.exists():
+        load_dotenv(env_file_path, override=False)
+    else:
+        load_dotenv(BASE_DIR / f'.env.{DJANGO_ENV}', override=False)
+        load_dotenv(BASE_DIR / '.env', override=False)
 else:
     load_dotenv(BASE_DIR / f'.env.{DJANGO_ENV}', override=False)
     load_dotenv(BASE_DIR / '.env', override=False)
@@ -49,7 +54,7 @@ DEBUG = env_bool('DEBUG', False)
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
-    if DEBUG:
+    if DEBUG or DJANGO_ENV != 'production':
         SECRET_KEY = 'dev-only-change-me-simak-local-secret-key-2026'
     else:
         raise ImproperlyConfigured('SECRET_KEY wajib diset untuk production.')

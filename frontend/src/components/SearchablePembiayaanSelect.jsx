@@ -158,7 +158,7 @@ export default function SearchablePembiayaanSelect({
                     <button
                         key={`${option.value}-${option.label}`}
                         type="button"
-                        className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}`}
+                        className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}${option.isPool ? ' is-pool-option' : ''}`}
                         onMouseEnter={() => setActiveIndex(index)}
                         onMouseDown={(event) => {
                             event.preventDefault();

@@ -159,38 +159,41 @@ class RequestLoggerMiddleware:
         else:
             username = 'anon'
 
-        # Tentukan ikon status
+        # Tentukan tag status (ASCII-safe agar tidak error di terminal Windows cp1252)
         if status_code < 300:
-            icon = '\U0001f7e2'       # 🟢
+            tag = '[OK]'
             status_label = str(status_code)
         elif status_code < 400:
-            icon = '\U0001f535'       # 🔵
+            tag = '[REDIR]'
             status_label = str(status_code)
         elif status_code == 401:
-            icon = '\U0001f7e1'       # 🟡
+            tag = '[UNAUTH]'
             status_label = '401'
         elif status_code == 403:
-            icon = '\U0001f7e0'       # 🟠
+            tag = '[FORBID]'
             status_label = '403'
         elif status_code == 404:
-            icon = '\u26aa'          # ⚪
+            tag = '[NOTFND]'
             status_label = '404'
         elif status_code == 429:
-            icon = '\U0001f6d1'       # 🛑
+            tag = '[THROTL]'
             status_label = '429 RATE LIMITED'
         elif status_code < 500:
-            icon = '\u26a0\ufe0f'     # ⚠️
+            tag = '[WARN]'
             status_label = str(status_code)
         else:
-            icon = '\U0001f534'       # 🔴
+            tag = '[ERROR]'
             status_label = f'{status_code} ERROR'
 
         now = datetime.now().strftime('%H:%M:%S')
 
-        print(
-            f"[{now}] {icon} {status_label:<4} {method:<5} {path} "
-            f"({username}) {duration_ms:.0f}ms [IP: {client_ip}]"
-        )
+        try:
+            print(
+                f"[{now}] {tag} {status_label:<4} {method:<5} {path} "
+                f"({username}) {duration_ms:.0f}ms [IP: {client_ip}]"
+            )
+        except Exception:
+            pass
 
         return response
 

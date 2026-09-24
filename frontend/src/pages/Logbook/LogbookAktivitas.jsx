@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Edit2, Trash2, X, FileText, Search, Clock, AlertCircle, CheckCircle2, XCircle, RotateCcw, Check, Users, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, FileText, Search, Clock, AlertCircle, CheckCircle2, XCircle, RotateCcw, Check, Users, Eye, ChevronLeft, ChevronRight, MessageSquareText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
@@ -635,6 +635,19 @@ export default function LogbookAktivitas() {
                                                         {item.deskripsi ? item.deskripsi.substring(0, 70) + (item.deskripsi.length > 70 ? '...' : '') : ''}
                                                     </div>
                                                 )}
+                                                {item.catatan_verifikasi && (item.status === 'disetujui' || item.status === 'ditolak') && (
+                                                    <div 
+                                                        className={`logbook-table-note-snippet ${item.status === 'ditolak' ? 'danger' : 'success'}`}
+                                                        title="Klik untuk melihat catatan lengkap"
+                                                        onClick={(e) => { e.stopPropagation(); setDetailItem(item); }}
+                                                    >
+                                                        <MessageSquareText size={12} className="logbook-table-note-icon" />
+                                                        <span className="logbook-table-note-text">
+                                                            <strong>{item.status === 'ditolak' ? 'Catatan Tolak: ' : 'Catatan Atasan: '}</strong>
+                                                            {item.catatan_verifikasi.length > 75 ? `${item.catatan_verifikasi.substring(0, 75)}...` : item.catatan_verifikasi}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.88rem' }}>
@@ -658,7 +671,20 @@ export default function LogbookAktivitas() {
                                                 )}
                                             </td>
                                             <td style={{ textAlign: 'center' }}>
-                                                <StatusBadge status={item.status} statusLabel={item.status_label} />
+                                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                    <StatusBadge status={item.status} statusLabel={item.status_label} />
+                                                    {item.catatan_verifikasi && (item.status === 'disetujui' || item.status === 'ditolak') && (
+                                                        <button
+                                                            type="button"
+                                                            className={`logbook-note-pill ${item.status === 'ditolak' ? 'danger' : 'success'}`}
+                                                            title={item.status === 'ditolak' ? `Catatan Penolakan: ${item.catatan_verifikasi}` : `Catatan Persetujuan: ${item.catatan_verifikasi}`}
+                                                            onClick={(e) => { e.stopPropagation(); setDetailItem(item); }}
+                                                        >
+                                                            <MessageSquareText size={11} />
+                                                            <span>Ada Catatan</span>
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td>
                                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>

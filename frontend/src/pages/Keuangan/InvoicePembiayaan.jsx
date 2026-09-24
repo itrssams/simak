@@ -220,6 +220,7 @@ export default function InvoicePembiayaan() {
     const [searchParams] = useSearchParams();
     const [items, setItems] = useState([]);
     const [pembiayaan, setPembiayaan] = useState([]);
+    const [indukList, setIndukList] = useState([]);
     const [alokasi, setAlokasi] = useState([]);
     const [selected, setSelected] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -272,6 +273,9 @@ export default function InvoicePembiayaan() {
                 api.get('/keuangan/alokasi-dana/'),
             ]);
             setPembiayaan(getResults(pbiayaRes.data));
+            if (pbiayaRes.data?.induk_list) {
+                setIndukList(pbiayaRes.data.induk_list);
+            }
             setAlokasi(getResults(alokasiRes.data));
         } catch (err) {
             toast.error(errorMessage(err, 'Gagal memuat data pembiayaan.'));
@@ -988,12 +992,17 @@ export default function InvoicePembiayaan() {
     const pembiayaanOptions = useMemo(
         () => [
             { value: '', label: 'Semua Pembiayaan' },
+            ...indukList.map((induk) => ({
+                value: `pool_${induk.id}`,
+                label: `🏢 [POOL] ${induk.nama}`,
+                isPool: true,
+            })),
             ...pembiayaan.map((item) => ({
                 value: String(item.id_pembiayaan),
                 label: `${item.nama} - ID ${item.id_pembiayaan}`,
             })),
         ],
-        [pembiayaan],
+        [indukList, pembiayaan],
     );
 
     return (

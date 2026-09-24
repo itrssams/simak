@@ -71,6 +71,7 @@ export default function DaftarKunjunganInvoice() {
     const toast = useToast();
     const [rows, setRows] = useState([]);
     const [pembiayaan, setPembiayaan] = useState([]);
+    const [indukList, setIndukList] = useState([]);
     const [selectedNos, setSelectedNos] = useState([]);
     const [detail, setDetail] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -136,12 +137,17 @@ export default function DaftarKunjunganInvoice() {
         () => [
             { value: '', label: 'Semua Pembiayaan' },
             { value: 'non_bpjs', label: 'Non BPJS' },
+            ...indukList.map((induk) => ({
+                value: `pool_${induk.id}`,
+                label: `🏢 [POOL] ${induk.nama}`,
+                isPool: true,
+            })),
             ...pembiayaan.map((item) => ({
                 value: String(item.id_pembiayaan),
                 label: `${item.nama} - ID ${item.id_pembiayaan}`,
             })),
         ],
-        [pembiayaan],
+        [indukList, pembiayaan],
     );
 
     const invoicePembiayaanOptions = useMemo(
@@ -159,6 +165,9 @@ export default function DaftarKunjunganInvoice() {
         try {
             const res = await api.get('/keuangan/pembiayaan-options/');
             setPembiayaan(getResults(res.data));
+            if (res.data?.induk_list) {
+                setIndukList(res.data.induk_list);
+            }
         } catch (err) {
             toast.error(getError(err, 'Gagal memuat opsi pembiayaan.'));
         }

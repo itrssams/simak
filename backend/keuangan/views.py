@@ -334,9 +334,19 @@ class PembiayaanListView(APIView):
                     continue
                 results.append(item)
 
+            induk_list = [
+                {
+                    'id': ind.id,
+                    'nama': ind.nama,
+                    'kode': ind.kode or '',
+                    'anggota_count': ind.anggota_count,
+                }
+                for ind in IndukPembiayaan.objects.annotate(anggota_count=Count('anggota')).order_by('nama')
+            ]
             return Response({
                 'count': len(results),
-                'results': results
+                'results': results,
+                'induk_list': induk_list,
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -505,6 +515,40 @@ def _get_pembiayaan_name(id_pembiayaan):
         row = cursor.fetchone()
     return row[0] if row else ''
 
+def resolve_pembiayaan_filter(id_pembiayaan_param):
+    """
+    Mengevaluasi parameter id_pembiayaan.
+    Jika bernilai pool (diawali 'pool_' atau 'pool:' atau 'induk_' atau 'induk:'),
+    maka akan mengambil semua id_pembiayaan anggota dari IndukPembiayaan tersebut.
+    Returns: (is_pool: bool, child_ids: list[str], induk_obj: IndukPembiayaan | None)
+    """
+    if not id_pembiayaan_param:
+        return False, [], None
+    
+    val = str(id_pembiayaan_param).strip()
+    prefixes = ('pool_', 'pool:', 'induk_', 'induk:')
+    if val.startswith(prefixes):
+        induk_id_str = ''
+        for p in prefixes:
+            if val.startswith(p):
+                induk_id_str = val[len(p):]
+                break
+        try:
+            induk_id = int(induk_id_str)
+            induk = IndukPembiayaan.objects.filter(id=induk_id).first()
+            if induk:
+                child_ids = list(
+                    PembiayaanIndukMapping.objects
+                    .filter(induk=induk)
+                    .values_list('id_pembiayaan', flat=True)
+                )
+                return True, [str(cid) for cid in child_ids], induk
+        except (ValueError, TypeError):
+            pass
+        return True, [], None
+
+    return False, [val], None
+
 def _legacy_kunjungan_where(params):
     kunjungan_type = params.get('jenis') or 'semua'
     where = []
@@ -523,8 +567,17 @@ def _legacy_kunjungan_where(params):
         where.append("(c.pembiayaan IS NULL OR c.pembiayaan NOT LIKE %s)")
         values.append('%BPJS%')
     elif id_pembiayaan:
-        where.append("a.id_pembiayaan = %s")
-        values.append(id_pembiayaan)
+        is_pool, child_ids, _ = resolve_pembiayaan_filter(id_pembiayaan)
+        if is_pool:
+            if child_ids:
+                placeholders = ','.join(['%s'] * len(child_ids))
+                where.append(f"a.id_pembiayaan IN ({placeholders})")
+                values.extend(child_ids)
+            else:
+                where.append("1=0")
+        else:
+            where.append("a.id_pembiayaan = %s")
+            values.append(id_pembiayaan)
     elif not search:
         # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS) bila tidak sedang mencari
         where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s AND LOWER(c.pembiayaan) NOT LIKE %s)))")
@@ -1393,7 +1446,12 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 Q(pelanggan__nama__icontains=search)
             )
         if pelanggan: qs = qs.filter(pelanggan_id=pelanggan)
-        if id_pbiaya: qs = qs.filter(id_pembiayaan=id_pbiaya)
+        if id_pbiaya:
+            is_pool, child_ids, _ = resolve_pembiayaan_filter(id_pbiaya)
+            if is_pool:
+                qs = qs.filter(id_pembiayaan__in=child_ids)
+            else:
+                qs = qs.filter(id_pembiayaan=id_pbiaya)
         if st:        qs = qs.filter(status=st)
         if dari:      qs = qs.filter(tanggal__gte=dari)
         if sampai:    qs = qs.filter(tanggal__lte=sampai)
@@ -3493,7 +3551,10 @@ def faktur_rekap_print_view(request):
         tanggal__lte=sampai
     ).exclude(status='batal')
 
-    if id_pembiayaan:
+    is_pool, child_ids, induk_obj = resolve_pembiayaan_filter(id_pembiayaan)
+    if is_pool:
+        fakturs_qs = fakturs_qs.filter(id_pembiayaan__in=child_ids)
+    elif id_pembiayaan:
         fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
 
     fakturs = fakturs_qs.select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
@@ -3503,7 +3564,9 @@ def faktur_rekap_print_view(request):
     )
 
     header_title = 'REKAPITULASI INVOICE'
-    if id_pembiayaan:
+    if is_pool and induk_obj:
+        header_title = f'REKAPITULASI INVOICE - POOL: {escape(induk_obj.nama.upper())}'
+    elif id_pembiayaan:
         p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
         p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
         if p_name:
@@ -3708,7 +3771,10 @@ def faktur_rekap_excel_view(request):
         .exclude(status='batal')
     )
 
-    if id_pembiayaan:
+    is_pool, child_ids, induk_obj = resolve_pembiayaan_filter(id_pembiayaan)
+    if is_pool:
+        fakturs_qs = fakturs_qs.filter(id_pembiayaan__in=child_ids)
+    elif id_pembiayaan:
         fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
 
     fakturs = (
@@ -3767,7 +3833,7 @@ def faktur_rekap_excel_view(request):
 
     end_col_letter = get_column_letter(len(headers))
     ws.merge_cells(f'A1:{end_col_letter}1')
-    ws['A1'] = 'REKAP INVOICE'
+    ws['A1'] = f'REKAP INVOICE - POOL: {induk_obj.nama.upper()}' if is_pool and induk_obj else 'REKAP INVOICE'
     ws['A1'].font = Font(name='Calibri', size=16, bold=True, color='1E293B')
     
     ws['A2'] = f'Tanggal : {dari} s/d {sampai}'

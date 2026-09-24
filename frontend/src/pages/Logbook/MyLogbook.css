@@ -1588,6 +1588,138 @@
   border: 1px solid #fecaca;
 }
 
+/* ── Note Indicator Badge / Pill in Status Column ── */
+.logbook-note-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 650;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  background: transparent;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.logbook-note-pill.success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.logbook-note-pill.success:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.15);
+}
+
+.logbook-note-pill.danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.logbook-note-pill.danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(220, 38, 38, 0.15);
+}
+
+/* ── Note Snippet Banner in Table Activity Column ── */
+.logbook-table-note-snippet {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  max-width: 100%;
+}
+
+.logbook-table-note-snippet.danger {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+}
+
+.logbook-table-note-snippet.danger:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+}
+
+.logbook-table-note-snippet.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.logbook-table-note-snippet.success:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.logbook-table-note-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.logbook-table-note-text {
+  word-break: break-word;
+}
+
+[data-theme="dark"] .logbook-note-pill.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .logbook-note-pill.success:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(52, 211, 153, 0.5);
+}
+
+[data-theme="dark"] .logbook-note-pill.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+[data-theme="dark"] .logbook-note-pill.danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+[data-theme="dark"] .logbook-table-note-snippet.danger {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(251, 113, 133, 0.25);
+  color: #fb7185;
+}
+
+[data-theme="dark"] .logbook-table-note-snippet.danger:hover {
+  background: rgba(244, 63, 94, 0.2);
+}
+
+[data-theme="dark"] .logbook-table-note-snippet.success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(74, 222, 128, 0.25);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .logbook-table-note-snippet.success:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
 /* ── Form Utils ── */
 .logbook-form-grid {
   display: grid;
