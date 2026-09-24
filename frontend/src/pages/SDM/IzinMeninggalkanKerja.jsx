@@ -482,7 +482,7 @@ export default function IzinMeninggalkanKerja() {
                       <div className="sdm-timeline-details">
                         <span className="sdm-timeline-lbl">Jam Keluar</span>
                         <strong className="sdm-timeline-val">
-                          {activeMine.jam_keluar?.slice(0, 5)} <small>WIB</small>
+                          {activeMine.jam_keluar?.slice(0, 5)} <small></small>
                         </strong>
                       </div>
                     </div>
@@ -505,7 +505,7 @@ export default function IzinMeninggalkanKerja() {
                       <div className="sdm-timeline-details">
                         <span className="sdm-timeline-lbl">Rencana Kembali</span>
                         <strong className="sdm-timeline-val">
-                          {activeMine.jam_kembali?.slice(0, 5)} <small>WIB</small>
+                          {activeMine.jam_kembali?.slice(0, 5)} <small></small>
                         </strong>
                       </div>
                     </div>
@@ -516,7 +516,7 @@ export default function IzinMeninggalkanKerja() {
                       <div className="sdm-adjusted-banner-left">
                         <span className="sdm-adjusted-tag">JADWAL DISESUAIKAN</span>
                         <span>
-                          Rencana awal: <strong>{activeMine.jam_keluar_awal?.slice(0, 5)} – {activeMine.jam_kembali_awal?.slice(0, 5)} WIB</strong>
+                          Rencana awal: <strong>{activeMine.jam_keluar_awal?.slice(0, 5)} – {activeMine.jam_kembali_awal?.slice(0, 5)} </strong>
                         </span>
                       </div>
                       <button
@@ -642,7 +642,7 @@ export default function IzinMeninggalkanKerja() {
                         <td>
                           {item.jam_kembali_aktual ? (
                             <span style={{ color: '#059669', fontWeight: 700 }}>
-                              {item.jam_kembali_aktual.slice(0, 5)} WIB
+                              {item.jam_kembali_aktual.slice(0, 5)} 
                             </span>
                           ) : (
                             <span style={{ color: '#94a3b8' }}>-</span>
@@ -968,7 +968,7 @@ export default function IzinMeninggalkanKerja() {
                         <td>
                           {item.jam_kembali_aktual ? (
                             <span style={{ color: '#059669', fontWeight: 700 }}>
-                              {item.jam_kembali_aktual.slice(0, 5)} WIB
+                              {item.jam_kembali_aktual.slice(0, 5)} 
                             </span>
                           ) : (
                             <span style={{ color: '#94a3b8' }}>-</span>
@@ -1287,7 +1287,7 @@ export default function IzinMeninggalkanKerja() {
                 <div style={{ fontSize: '0.85rem', marginTop: 6 }}>
                   Rencana Awal:{' '}
                   <span style={{ fontWeight: 800, color: '#1e40af' }}>
-                    {logsModalItem.jam_keluar_awal?.slice(0, 5)} - {logsModalItem.jam_kembali_awal?.slice(0, 5)} WIB
+                    {logsModalItem.jam_keluar_awal?.slice(0, 5)} - {logsModalItem.jam_kembali_awal?.slice(0, 5)} 
                   </span>
                 </div>
               </div>
@@ -1306,7 +1306,7 @@ export default function IzinMeninggalkanKerja() {
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
-                        })} WIB • Oleh: {lg.created_by_name}
+                        })}  • Oleh: {lg.created_by_name}
                       </div>
                       <div className="sdm-timeline-card">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 750 }}>
@@ -1315,7 +1315,7 @@ export default function IzinMeninggalkanKerja() {
                           </span>
                           <ArrowRight size={14} color="#64748b" />
                           <span style={{ color: '#2563eb' }}>
-                            {lg.jam_keluar_sesudah?.slice(0, 5)} - {lg.jam_kembali_sesudah?.slice(0, 5)} WIB
+                            {lg.jam_keluar_sesudah?.slice(0, 5)} - {lg.jam_kembali_sesudah?.slice(0, 5)} 
                           </span>
                         </div>
                         <div style={{ marginTop: 6, fontSize: '0.82rem', color: '#334155' }}>
