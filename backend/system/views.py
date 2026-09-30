@@ -333,7 +333,7 @@ class SystemMaintenanceViewSet(viewsets.ViewSet):
         if not filepath.exists() or not filepath.is_file():
             raise Http404("File backup tidak ditemukan.")
 
-        response = FileResponse(open(filepath, 'rb'), content_type='application/gzip')
+        response = HttpResponse(open(filepath, 'rb'), content_type='application/gzip')
         response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
         return response
 

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
     Search, User, Activity, Clock, ShieldCheck, Stethoscope, 
     Pill, Syringe, FileText, Bed, TestTube, Microscope, Wrench, 
-    MoreHorizontal, Edit, ArrowRightLeft, Lock, Unlock, Zap, Trash, Hash
+    MoreHorizontal, Edit, ArrowRightLeft, Lock, Unlock, Zap, Trash, Hash,
+    Calendar
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
