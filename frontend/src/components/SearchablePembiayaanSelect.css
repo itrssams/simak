@@ -193,3 +193,36 @@
   color: #c7d2fe !important;
 }
 
+/* Group Option Styling */
+.pbiaya-options button.is-group-option {
+  color: #0369a1;
+  background: rgba(14, 165, 233, 0.06);
+  border-left: 3px solid #0284c7;
+  font-weight: 750;
+  margin-bottom: 2px;
+}
+
+.pbiaya-options button.is-group-option:hover,
+.pbiaya-options button.is-group-option.active {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0c4a6e;
+}
+
+.pbiaya-options button.is-group-option.selected {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(6, 182, 212, 0.18));
+  color: #075985;
+}
+
+[data-theme="dark"] .pbiaya-options button.is-group-option {
+  color: #7dd3fc !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border-left: 3px solid #38bdf8 !important;
+}
+
+[data-theme="dark"] .pbiaya-options button.is-group-option:hover,
+[data-theme="dark"] .pbiaya-options button.is-group-option.active {
+  background: rgba(14, 165, 233, 0.24) !important;
+  color: #e0f2fe !important;
+}
+
+

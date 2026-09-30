@@ -992,6 +992,11 @@ export default function InvoicePembiayaan() {
     const pembiayaanOptions = useMemo(
         () => [
             { value: '', label: 'Semua Pembiayaan' },
+            { value: 'group_perusahaan', label: '🏢 Khusus Perusahaan / Asuransi', isGroup: true },
+            { value: 'group_bpjs', label: '🟢 Khusus BPJS', isGroup: true },
+            { value: 'group_swadana', label: '👤 Khusus Swadana / Umum', isGroup: true },
+            { value: 'group_karyawan', label: '🏥 Khusus Karyawan RS Siaga', isGroup: true },
+            { value: 'non_bpjs', label: '🛡️ Non BPJS (Semua selain BPJS)', isGroup: true },
             ...indukList.map((induk) => ({
                 value: `pool_${induk.id}`,
                 label: `🏢 [POOL] ${induk.nama}`,

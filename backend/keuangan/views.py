@@ -549,6 +549,41 @@ def resolve_pembiayaan_filter(id_pembiayaan_param):
 
     return False, [val], None
 
+def apply_faktur_pembiayaan_filter(qs, id_pbiaya):
+    """
+    Menyaring QuerySet Faktur berdasarkan filter pembiayaan:
+    - Khusus BPJS ('group_bpjs', 'bpjs')
+    - Khusus Perusahaan / Asuransi ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi')
+    - Khusus Swadana ('group_swadana', 'swadana')
+    - Khusus Karyawan ('group_karyawan', 'karyawan')
+    - Non BPJS ('non_bpjs')
+    - Pool Induk ('pool_X', 'pool:X', 'induk_X')
+    - Single ID ('219')
+    """
+    if not id_pbiaya:
+        return qs
+    val = str(id_pbiaya).strip()
+    if val in ('group_bpjs', 'bpjs'):
+        return qs.filter(
+            Q(nama_pembiayaan__icontains='BPJS') |
+            Q(id_pembiayaan__in=['71', '72', '73', '74', '877', '880'])
+        ).exclude(id_pembiayaan='44')
+    if val in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
+        return qs.exclude(id_pembiayaan__in=['1', '94']).exclude(
+            Q(nama_pembiayaan__icontains='BPJS') & ~Q(id_pembiayaan='44')
+        )
+    if val in ('group_swadana', 'swadana'):
+        return qs.filter(Q(id_pembiayaan='1') | Q(nama_pembiayaan__icontains='swadana'))
+    if val in ('group_karyawan', 'karyawan'):
+        return qs.filter(Q(id_pembiayaan='94') | Q(nama_pembiayaan__icontains='karyawan rs'))
+    if val == 'non_bpjs':
+        return qs.exclude(Q(nama_pembiayaan__icontains='BPJS') & ~Q(id_pembiayaan='44'))
+
+    is_pool, child_ids, _ = resolve_pembiayaan_filter(val)
+    if is_pool:
+        return qs.filter(id_pembiayaan__in=child_ids)
+    return qs.filter(Q(id_pembiayaan=val) | Q(id_pembiayaan=int(val)) if val.isdigit() else Q(id_pembiayaan=val))
+
 def _legacy_kunjungan_where(params):
     kunjungan_type = params.get('jenis') or 'semua'
     where = []
@@ -563,8 +598,20 @@ def _legacy_kunjungan_where(params):
         values.extend([needle, needle, needle, needle])
 
     id_pembiayaan = (params.get('id_pembiayaan') or '').strip()
-    if id_pembiayaan == 'non_bpjs':
-        where.append("(c.pembiayaan IS NULL OR c.pembiayaan NOT LIKE %s)")
+    if id_pembiayaan in ('group_bpjs', 'bpjs'):
+        where.append("(c.pembiayaan LIKE %s AND a.id_pembiayaan != 44)")
+        values.append('%BPJS%')
+    elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
+        where.append("(a.id_pembiayaan NOT IN (1, 94) AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan = 44)))")
+        values.append('%BPJS%')
+    elif id_pembiayaan in ('group_swadana', 'swadana'):
+        where.append("(a.id_pembiayaan = 1 OR LOWER(c.pembiayaan) LIKE %s)")
+        values.append('%swadana%')
+    elif id_pembiayaan in ('group_karyawan', 'karyawan'):
+        where.append("(a.id_pembiayaan = 94 OR LOWER(c.pembiayaan) LIKE %s)")
+        values.append('%karyawan rs%')
+    elif id_pembiayaan == 'non_bpjs':
+        where.append("(c.pembiayaan IS NULL OR c.pembiayaan NOT LIKE %s OR a.id_pembiayaan = 44)")
         values.append('%BPJS%')
     elif id_pembiayaan:
         is_pool, child_ids, _ = resolve_pembiayaan_filter(id_pembiayaan)
@@ -579,6 +626,7 @@ def _legacy_kunjungan_where(params):
             where.append("a.id_pembiayaan = %s")
             values.append(id_pembiayaan)
     elif not search:
+        # Default saat id_pembiayaan kosong dan tidak sedang mencari:
         # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS) bila tidak sedang mencari
         where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s AND LOWER(c.pembiayaan) NOT LIKE %s)))")
         values.extend(['%BPJS%', '%swadana%'])
@@ -1447,11 +1495,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             )
         if pelanggan: qs = qs.filter(pelanggan_id=pelanggan)
         if id_pbiaya:
-            is_pool, child_ids, _ = resolve_pembiayaan_filter(id_pbiaya)
-            if is_pool:
-                qs = qs.filter(id_pembiayaan__in=child_ids)
-            else:
-                qs = qs.filter(id_pembiayaan=id_pbiaya)
+            qs = apply_faktur_pembiayaan_filter(qs, id_pbiaya)
         if st:        qs = qs.filter(status=st)
         if dari:      qs = qs.filter(tanggal__gte=dari)
         if sampai:    qs = qs.filter(tanggal__lte=sampai)
@@ -3552,10 +3596,8 @@ def faktur_rekap_print_view(request):
     ).exclude(status='batal')
 
     is_pool, child_ids, induk_obj = resolve_pembiayaan_filter(id_pembiayaan)
-    if is_pool:
-        fakturs_qs = fakturs_qs.filter(id_pembiayaan__in=child_ids)
-    elif id_pembiayaan:
-        fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
+    if id_pembiayaan:
+        fakturs_qs = apply_faktur_pembiayaan_filter(fakturs_qs, id_pembiayaan)
 
     fakturs = fakturs_qs.select_related('pelanggan').order_by('id_pembiayaan', 'tanggal')
     
@@ -3566,6 +3608,16 @@ def faktur_rekap_print_view(request):
     header_title = 'REKAPITULASI INVOICE'
     if is_pool and induk_obj:
         header_title = f'REKAPITULASI INVOICE - POOL: {escape(induk_obj.nama.upper())}'
+    elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
+        header_title = 'REKAPITULASI INVOICE - PERUSAHAAN / ASURANSI'
+    elif id_pembiayaan in ('group_bpjs', 'bpjs'):
+        header_title = 'REKAPITULASI INVOICE - BPJS'
+    elif id_pembiayaan in ('group_swadana', 'swadana'):
+        header_title = 'REKAPITULASI INVOICE - SWADANA / UMUM'
+    elif id_pembiayaan in ('group_karyawan', 'karyawan'):
+        header_title = 'REKAPITULASI INVOICE - KARYAWAN RS SIAGA'
+    elif id_pembiayaan == 'non_bpjs':
+        header_title = 'REKAPITULASI INVOICE - NON BPJS'
     elif id_pembiayaan:
         p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
         p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
@@ -3772,10 +3824,8 @@ def faktur_rekap_excel_view(request):
     )
 
     is_pool, child_ids, induk_obj = resolve_pembiayaan_filter(id_pembiayaan)
-    if is_pool:
-        fakturs_qs = fakturs_qs.filter(id_pembiayaan__in=child_ids)
-    elif id_pembiayaan:
-        fakturs_qs = fakturs_qs.filter(Q(id_pembiayaan=str(id_pembiayaan)) | Q(id_pembiayaan=id_pembiayaan))
+    if id_pembiayaan:
+        fakturs_qs = apply_faktur_pembiayaan_filter(fakturs_qs, id_pembiayaan)
 
     fakturs = (
         fakturs_qs
@@ -3833,7 +3883,27 @@ def faktur_rekap_excel_view(request):
 
     end_col_letter = get_column_letter(len(headers))
     ws.merge_cells(f'A1:{end_col_letter}1')
-    ws['A1'] = f'REKAP INVOICE - POOL: {induk_obj.nama.upper()}' if is_pool and induk_obj else 'REKAP INVOICE'
+    if is_pool and induk_obj:
+        ws['A1'] = f'REKAP INVOICE - POOL: {induk_obj.nama.upper()}'
+    elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
+        ws['A1'] = 'REKAP INVOICE - PERUSAHAAN / ASURANSI'
+    elif id_pembiayaan in ('group_bpjs', 'bpjs'):
+        ws['A1'] = 'REKAP INVOICE - BPJS'
+    elif id_pembiayaan in ('group_swadana', 'swadana'):
+        ws['A1'] = 'REKAP INVOICE - SWADANA / UMUM'
+    elif id_pembiayaan in ('group_karyawan', 'karyawan'):
+        ws['A1'] = 'REKAP INVOICE - KARYAWAN RS SIAGA'
+    elif id_pembiayaan == 'non_bpjs':
+        ws['A1'] = 'REKAP INVOICE - NON BPJS'
+    elif id_pembiayaan:
+        p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
+        p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
+        if p_name:
+            ws['A1'] = f'REKAP INVOICE - {p_name.upper()}'
+        else:
+            ws['A1'] = 'REKAP INVOICE'
+    else:
+        ws['A1'] = 'REKAP INVOICE'
     ws['A1'].font = Font(name='Calibri', size=16, bold=True, color='1E293B')
     
     ws['A2'] = f'Tanggal : {dari} s/d {sampai}'
