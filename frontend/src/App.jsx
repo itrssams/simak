@@ -179,7 +179,8 @@ const AppRoutes = () => {
             <Route path="/keuangan/catatan-utang/obat-bhp" element={<ProtectedRoute allow={canCatatanUtang}><CatatanUtangObatBhp /></ProtectedRoute>} />
             <Route path="/keuangan/catatan-utang/import-ots" element={<ProtectedRoute allow={canCatatanUtang}><ImportUtangOts /></ProtectedRoute>} />
             <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
-            <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u)}><Logistik /></ProtectedRoute>} />
+            <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><Logistik /></ProtectedRoute>} />
+            <Route path="/laporan/logistik" element={<Navigate to="/logistik/laporan" replace />} />
 
             {/* Lainnya */}
             <Route path="/audit-log" element={<ProtectedRoute allow={isSuperuserOnly}><AuditLog /></ProtectedRoute>} />

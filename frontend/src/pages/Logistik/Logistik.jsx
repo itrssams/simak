@@ -13,6 +13,7 @@ import '../Keuangan/InvoicePembiayaan.css';
 import './Logistik.css';
 import { generateSpbPdf } from '../../utils/printSpbPdf';
 import { useAuth } from '../../context/AuthContext';
+import LogistikLaporan from './LogistikLaporan';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (value) => Number(value || 0).toLocaleString('id-ID');
@@ -118,6 +119,7 @@ const TITLES = {
     'stok-minimum': ['Stok Minimum', 'Barang yang stoknya berada di bawah batas minimum.'],
     'kartu-stok': ['Kartu Stok', 'Riwayat masuk dan keluar per barang.'],
     opname: ['Opname', 'Catatan stock opname gudang logistik.'],
+    laporan: ['Laporan Logistik', 'Analisis dan infografis distribusi barang keluar serta permintaan unit.'],
 };
 
 const emptyBarang = { kode_material: '', nama_barang: '', kemasan: '', satuan: 'PCS', isi: 1, merk: '', golongan: '', stok_minimum: 0 };
@@ -787,6 +789,10 @@ export default function Logistik() {
             return true;
         });
     }, [rows, search, section, penerimaanFilter]);
+
+    if (section === 'laporan') {
+        return <LogistikLaporan />;
+    }
 
     return (
         <div className="inv-page log-page">

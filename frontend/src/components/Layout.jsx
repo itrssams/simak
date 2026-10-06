@@ -90,6 +90,7 @@ const MENU_MANAJER_DIREKTUR = [
     {
         label: 'Laporan', icon: 'laporan', children: [
             { label: 'Laporan Petty Cash', path: '/laporan/petty-cash' },
+            { label: 'Laporan Logistik', path: '/logistik/laporan' },
         ],
     },
 ];
@@ -152,6 +153,7 @@ const MENU_LOGISTIK = [
             { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
             { label: 'Kartu Stok', path: '/logistik/kartu-stok' },
             { label: 'Opname', path: '/logistik/opname' },
+            { label: 'Laporan', path: '/logistik/laporan' },
         ],
     },
 ];
@@ -422,7 +424,7 @@ const getActiveModuleConfig = (pathname, user) => {
     }
 
     // 4. Gudang Logistik (sama persis dengan sidebar sebelumnya)
-    if (pathname.startsWith('/logistik')) {
+    if (pathname.startsWith('/logistik') || pathname.startsWith('/laporan/logistik')) {
         return {
             id: 'gudang-logistik',
             title: 'Gudang Logistik',
@@ -437,6 +439,7 @@ const getActiveModuleConfig = (pathname, user) => {
                 { label: 'Stok Minimum', path: '/logistik/stok-minimum' },
                 { label: 'Kartu Stok', path: '/logistik/kartu-stok' },
                 { label: 'Opname', path: '/logistik/opname' },
+                { label: 'Laporan', path: '/logistik/laporan' },
             ],
         };
     }

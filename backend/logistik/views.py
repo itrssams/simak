@@ -1,5 +1,6 @@
 
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -1290,3 +1291,262 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
         if row:
             _refresh_spb_total(row[0])
         return Response(status=204)
+
+
+class LogistikLaporanView(APIView):
+    """
+    Laporan Rekapitulasi & Analisis Distribusi Logistik.
+    Menyajikan:
+    1. KPI Summary (Total Barang Keluar, Total Nilai, Permintaan, Tingkat Pemenuhan)
+    2. Top Barang Paling Banyak Keluar beserta breakdown persentase unit penerimanya.
+    3. Distribusi Permintaan per Unit beserta breakdown persentase barang yang dimintanya.
+    4. Rincian transaksi kronologis untuk data table & export Excel.
+    """
+    permission_classes = [IsAuthenticated, IsLogistikOrCatatanUtangPermission]
+
+    def get(self, request):
+        dari = (request.query_params.get('dari') or '').strip()
+        sampai = (request.query_params.get('sampai') or '').strip()
+
+        where_parts = []
+        params = []
+        if dari:
+            where_parts.append("DATE(o.tgl) >= %s")
+            params.append(dari)
+        if sampai:
+            where_parts.append("DATE(o.tgl) <= %s")
+            params.append(sampai)
+
+        date_clause = (" AND " + " AND ".join(where_parts)) if where_parts else ""
+
+        with connection.cursor() as cursor:
+            # 1. KPI Summary
+            sql_summary = f"""
+                SELECT
+                    COALESCE(SUM(CASE WHEN o.qty > 0 AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima')) THEN o.qty ELSE 0 END), 0) AS total_barang_keluar_qty,
+                    COALESCE(SUM(CASE WHEN o.qty > 0 AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima')) THEN (o.qty * o.harga) ELSE 0 END), 0) AS total_barang_keluar_nilai,
+                    COALESCE(SUM(CASE WHEN o.qty > 0 AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima')) THEN 1 ELSE 0 END), 0) AS total_transaksi_keluar,
+                    COALESCE(SUM(o.qty_minta), 0) AS total_permintaan_minta,
+                    COALESCE(SUM(CASE WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima') THEN o.qty ELSE 0 END), 0) AS total_permintaan_setuju,
+                    COUNT(*) AS total_transaksi_permintaan,
+                    COUNT(DISTINCT o.id_ruang) AS total_unit_aktif
+                FROM rssams.item_out_log o
+                WHERE (o.qty_minta > 0 OR o.qty > 0)
+                {date_clause}
+            """
+            cursor.execute(sql_summary, params)
+            s_row = cursor.fetchone()
+            total_keluar_qty = float(s_row[0] or 0)
+            total_keluar_nilai = float(s_row[1] or 0)
+            total_transaksi_keluar = int(s_row[2] or 0)
+            total_minta = float(s_row[3] or 0)
+            total_setuju = float(s_row[4] or 0)
+            total_transaksi_permintaan = int(s_row[5] or 0)
+            total_unit_aktif = int(s_row[6] or 0)
+            fulfillment_rate = round((total_setuju / total_minta * 100), 1) if total_minta > 0 else 100.0
+
+            # 2. Top Barang Keluar
+            sql_top_barang = f"""
+                SELECT 
+                    o.id_brg,
+                    b.nama_barang,
+                    COALESCE(NULLIF(b.satuan, ''), 'PCS') AS satuan,
+                    COALESCE(NULLIF(b.gol_baru, ''), '-') AS golongan,
+                    SUM(o.qty) AS total_qty,
+                    SUM(o.qty * o.harga) AS total_nilai,
+                    COUNT(DISTINCT o.id_ruang) AS total_unit,
+                    COUNT(*) AS frekuensi
+                FROM rssams.item_out_log o
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+                WHERE o.qty > 0 
+                  AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima'))
+                  {date_clause}
+                GROUP BY o.id_brg, b.nama_barang, b.satuan, b.gol_baru
+                ORDER BY total_qty DESC
+                LIMIT 50
+            """
+            cursor.execute(sql_top_barang, params)
+            top_barang_rows = cursor.fetchall()
+
+            # 2b. Unit breakdown for items
+            sql_unit_for_barang = f"""
+                SELECT 
+                    o.id_brg,
+                    COALESCE(NULLIF(r.ruangan, ''), 'Tanpa Ruangan') AS unit_nama,
+                    SUM(o.qty) AS qty_unit,
+                    SUM(o.qty * o.harga) AS nilai_unit,
+                    COUNT(*) AS frekuensi_unit
+                FROM rssams.item_out_log o
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+                LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+                WHERE o.qty > 0 
+                  AND (o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima'))
+                  {date_clause}
+                GROUP BY o.id_brg, unit_nama
+                ORDER BY o.id_brg, qty_unit DESC
+            """
+            cursor.execute(sql_unit_for_barang, params)
+            unit_dist_map = {}
+            for r in cursor.fetchall():
+                b_id, u_nama, q_unit, n_unit, f_unit = r
+                if b_id not in unit_dist_map:
+                    unit_dist_map[b_id] = []
+                unit_dist_map[b_id].append({
+                    'unit_nama': u_nama,
+                    'qty': float(q_unit or 0),
+                    'nilai': float(n_unit or 0),
+                    'frekuensi': int(f_unit or 0)
+                })
+
+            top_barang_keluar = []
+            for r in top_barang_rows:
+                b_id, b_nama, b_satuan, b_gol, b_qty, b_nilai, b_unit_count, b_freq = r
+                b_qty = float(b_qty or 0)
+                b_nilai = float(b_nilai or 0)
+                pct_of_total = round((b_qty / total_keluar_qty * 100), 2) if total_keluar_qty > 0 else 0.0
+
+                distribusi = unit_dist_map.get(b_id, [])
+                for d in distribusi:
+                    d['persentase'] = round((d['qty'] / b_qty * 100), 1) if b_qty > 0 else 0.0
+
+                top_barang_keluar.append({
+                    'id_brg': b_id,
+                    'nama_barang': b_nama,
+                    'satuan': b_satuan,
+                    'golongan': b_gol,
+                    'total_qty': b_qty,
+                    'total_nilai': b_nilai,
+                    'total_unit': int(b_unit_count or 0),
+                    'frekuensi': int(b_freq or 0),
+                    'persentase': pct_of_total,
+                    'distribusi_unit': distribusi
+                })
+
+            # 3. Permintaan Tiap Unit General
+            sql_unit = f"""
+                SELECT 
+                    COALESCE(NULLIF(r.ruangan, ''), 'Tanpa Ruangan') AS unit_nama,
+                    SUM(o.qty_minta) AS total_minta,
+                    SUM(CASE WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima') THEN o.qty ELSE 0 END) AS total_setuju,
+                    COUNT(*) AS total_transaksi,
+                    COUNT(DISTINCT o.id_brg) AS total_jenis_barang
+                FROM rssams.item_out_log o
+                LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+                WHERE o.qty_minta > 0
+                {date_clause}
+                GROUP BY unit_nama
+                ORDER BY total_minta DESC
+            """
+            cursor.execute(sql_unit, params)
+            unit_rows = cursor.fetchall()
+
+            # 3b. Barang breakdown for each unit
+            sql_barang_for_unit = f"""
+                SELECT 
+                    COALESCE(NULLIF(r.ruangan, ''), 'Tanpa Ruangan') AS unit_nama,
+                    o.id_brg,
+                    b.nama_barang,
+                    COALESCE(NULLIF(b.satuan, ''), 'PCS') AS satuan,
+                    SUM(o.qty_minta) AS qty_minta,
+                    SUM(CASE WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan', 'Sudah Diterima') THEN o.qty ELSE 0 END) AS qty_setuju,
+                    COUNT(*) AS frekuensi
+                FROM rssams.item_out_log o
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+                LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+                WHERE o.qty_minta > 0
+                {date_clause}
+                GROUP BY unit_nama, o.id_brg, b.nama_barang, b.satuan
+                ORDER BY unit_nama, qty_minta DESC
+            """
+            cursor.execute(sql_barang_for_unit, params)
+            barang_by_unit_map = {}
+            for r in cursor.fetchall():
+                u_nama, b_id, b_nama, b_satuan, q_minta, q_setuju, freq = r
+                if u_nama not in barang_by_unit_map:
+                    barang_by_unit_map[u_nama] = []
+                barang_by_unit_map[u_nama].append({
+                    'id_brg': b_id,
+                    'nama_barang': b_nama,
+                    'satuan': b_satuan,
+                    'qty_minta': float(q_minta or 0),
+                    'qty_setuju': float(q_setuju or 0),
+                    'frekuensi': int(freq or 0),
+                })
+
+            permintaan_per_unit = []
+            for r in unit_rows:
+                u_nama, u_minta, u_setuju, u_trans, u_jenis = r
+                u_minta = float(u_minta or 0)
+                u_setuju = float(u_setuju or 0)
+                pct_unit = round((u_minta / total_minta * 100), 2) if total_minta > 0 else 0.0
+                rate_unit = round((u_setuju / u_minta * 100), 1) if u_minta > 0 else 100.0
+
+                daftar_brg = barang_by_unit_map.get(u_nama, [])
+                for db in daftar_brg:
+                    db['persentase'] = round((db['qty_minta'] / u_minta * 100), 1) if u_minta > 0 else 0.0
+
+                permintaan_per_unit.append({
+                    'unit_nama': u_nama,
+                    'total_minta': u_minta,
+                    'total_setuju': u_setuju,
+                    'total_transaksi': int(u_trans or 0),
+                    'total_jenis_barang': int(u_jenis or 0),
+                    'persentase': pct_unit,
+                    'fulfillment_rate': rate_unit,
+                    'daftar_barang': daftar_brg
+                })
+
+            # 4. Recent / detailed transactions (Limit 500)
+            sql_transaksi = f"""
+                SELECT 
+                    o.id,
+                    DATE(o.tgl) AS tanggal,
+                    b.nama_barang,
+                    COALESCE(NULLIF(b.satuan, ''), 'PCS') AS satuan,
+                    COALESCE(NULLIF(r.ruangan, ''), 'Tanpa Ruangan') AS unit_nama,
+                    o.qty_minta,
+                    o.qty AS qty_setuju,
+                    o.harga,
+                    (o.qty * o.harga) AS subtotal,
+                    CASE WHEN o.status = 'Belum Ditanggapi' THEN 'menunggu'
+                         WHEN o.status LIKE 'Disetujui%%' OR o.status IN ('Sudah Diberikan','Sudah Diterima') THEN 'disetujui'
+                         ELSE 'ditolak' END AS status,
+                    o.status AS status_label
+                FROM rssams.item_out_log o
+                INNER JOIN rssams.dafbrg_log b ON b.id_brg = o.id_brg
+                LEFT JOIN rssams.kode_ruang r ON r.id_ruang = o.id_ruang
+                WHERE (o.qty_minta > 0 OR o.qty > 0)
+                {date_clause}
+                ORDER BY o.tgl DESC, o.id DESC
+                LIMIT 500
+            """
+            cursor.execute(sql_transaksi, params)
+            columns = [col[0] for col in cursor.description]
+            transaksi_rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            for tr in transaksi_rows:
+                tr['qty_minta'] = float(tr['qty_minta'] or 0)
+                tr['qty_setuju'] = float(tr['qty_setuju'] or 0)
+                tr['harga'] = float(tr['harga'] or 0)
+                tr['subtotal'] = float(tr['subtotal'] or 0)
+                if tr['tanggal']:
+                    tr['tanggal'] = str(tr['tanggal'])
+
+        return Response({
+            'periode': {'dari': dari, 'sampai': sampai},
+            'summary': {
+                'total_barang_keluar_qty': total_keluar_qty,
+                'total_barang_keluar_nilai': total_keluar_nilai,
+                'total_transaksi_keluar': total_transaksi_keluar,
+                'total_permintaan_minta': total_minta,
+                'total_permintaan_setuju': total_setuju,
+                'total_transaksi_permintaan': total_transaksi_permintaan,
+                'total_unit_aktif': total_unit_aktif,
+                'fulfillment_rate': fulfillment_rate,
+                'top_barang_nama': top_barang_keluar[0]['nama_barang'] if top_barang_keluar else '-',
+                'top_unit_nama': permintaan_per_unit[0]['unit_nama'] if permintaan_per_unit else '-',
+            },
+            'top_barang_keluar': top_barang_keluar,
+            'permintaan_per_unit': permintaan_per_unit,
+            'daftar_transaksi': transaksi_rows,
+        })
+

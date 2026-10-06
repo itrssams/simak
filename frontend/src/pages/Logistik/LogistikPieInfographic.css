@@ -1,0 +1,313 @@
+/* ==========================================================================
+   LOGISTIK PIE INFOGRAPHIC - STYLESHEET
+   Candy Pastel Stepped Donut Infographic for Logistics Distribution
+   ========================================================================== */
+
+.lpi-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 20px;
+    padding: 22px 26px;
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.07), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 24px;
+    box-sizing: border-box;
+}
+
+.lpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(
+        90deg,
+        #FF6B8B 0%,
+        #00C2FF 18%,
+        #FFB703 36%,
+        #06D6A0 54%,
+        #A259FF 72%,
+        #FF7A59 88%,
+        #F43F5E 100%
+    );
+}
+
+.lpi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.lpi-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.lpi-icon-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #EFF6FF 0%, #FAF5FF 50%, #FFF0F5 100%);
+    border: 1.5px solid #BFDBFE;
+    color: #2563EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px -3px rgba(37, 99, 235, 0.2);
+    flex-shrink: 0;
+}
+
+.lpi-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.lpi-title-row h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary, #0f172a);
+    letter-spacing: -0.01em;
+}
+
+.lpi-cute-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 750;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+    color: #166534;
+    border: 1px solid #BBF7D0;
+    box-shadow: 0 2px 6px rgba(22, 101, 52, 0.1);
+}
+
+.lpi-title-wrap p {
+    margin: 3px 0 0 0;
+    font-size: 12.5px;
+    color: var(--text-secondary, #64748b);
+}
+
+.lpi-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.lpi-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    background: var(--bg-secondary, #f8fafc);
+    color: var(--text-secondary, #475569);
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+}
+
+.lpi-toggle-btn:hover {
+    border-color: #A259FF;
+    color: #7E22CE;
+    background: #FAF5FF;
+}
+
+.lpi-toggle-btn.active {
+    background: linear-gradient(135deg, #7E22CE 0%, #A259FF 100%);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(162, 89, 255, 0.3);
+}
+
+.lpi-limit-pills {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--bg-secondary, #f1f5f9);
+    padding: 3px;
+    border-radius: 11px;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.lpi-limit-pill {
+    padding: 4px 9px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    font-family: inherit;
+}
+
+.lpi-limit-pill:hover {
+    color: var(--text-primary, #0f172a);
+}
+
+.lpi-limit-pill.active {
+    background: #ffffff;
+    color: var(--text-primary, #0f172a);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* ── BODY: SVG + LEGEND ─────────────────────────────────────────────── */
+.lpi-body {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 30px;
+    align-items: center;
+}
+
+@media (max-width: 900px) {
+    .lpi-body {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+.lpi-svg-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+}
+
+.lpi-svg {
+    width: 100%;
+    height: auto;
+    max-width: 320px;
+    overflow: visible;
+}
+
+.lpi-center-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    fill: #64748b;
+}
+
+.lpi-center-val {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.lpi-center-sub {
+    font-size: 10px;
+    font-weight: 700;
+    fill: #94a3b8;
+}
+
+/* ── LEGEND LIST ────────────────────────────────────────────────────── */
+.lpi-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+
+.lpi-legend-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--bg-secondary, #f8fafc);
+    border: 1.5px solid var(--border-color, #e2e8f0);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lpi-legend-card:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.08);
+}
+
+.lpi-legend-card.selected {
+    background: #ffffff;
+    border-width: 2px;
+    box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.2);
+}
+
+.lpi-legend-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.lpi-legend-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lpi-legend-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.lpi-legend-name {
+    font-size: 13px;
+    font-weight: 750;
+    color: var(--text-primary, #0f172a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lpi-pct-badge {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid;
+    flex-shrink: 0;
+}
+
+.lpi-legend-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 11.5px;
+    color: var(--text-secondary, #64748b);
+}
+
+.lpi-val-text strong {
+    color: var(--text-primary, #0f172a);
+}
+
+.lpi-subtext {
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

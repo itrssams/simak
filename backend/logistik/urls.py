@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     LogistikBarangViewSet, LogistikVendorViewSet, LogistikSpbViewSet,
     LogistikSpbItemViewSet, LogistikPembelianViewSet, LogistikBatchViewSet,
-    LogistikMutasiViewSet, LogistikPermintaanViewSet, LogistikOpnameViewSet
+    LogistikMutasiViewSet, LogistikPermintaanViewSet, LogistikOpnameViewSet,
+    LogistikLaporanView
 )
 
 router = DefaultRouter()
@@ -18,5 +19,6 @@ router.register(r'permintaan', LogistikPermintaanViewSet, basename='logistik-per
 router.register(r'opname', LogistikOpnameViewSet, basename='logistik-opname')
 
 urlpatterns = [
+    path('laporan/', LogistikLaporanView.as_view(), name='logistik-laporan'),
     path('', include(router.urls)),
 ]
