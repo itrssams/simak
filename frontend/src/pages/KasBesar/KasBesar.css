@@ -3623,6 +3623,99 @@
 [data-theme="dark"] .pc-review-shortage-box .shortage-note {
   color: #bfdbfe !important;
 }
+[data-theme="dark"] .pc-review-shortage-box .shortage-note strong {
+  color: #ffffff !important;
+}
+
+.pc-report-calc-row strong.text-shortage {
+  color: #ea580c !important;
+  font-size: 16px;
+}
+.pc-report-calc-row strong.text-surplus {
+  color: #16a34a !important;
+  font-size: 16px;
+}
+[data-theme="dark"] .pc-report-calc-row strong.text-shortage {
+  color: #fb923c !important;
+}
+[data-theme="dark"] .pc-report-calc-row strong.text-surplus {
+  color: #4ade80 !important;
+}
+
+/* ── Over-Budget Shortage Alert in Report Modal ── */
+.pc-report-shortage-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 11px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.pc-report-shortage-main {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.pc-report-shortage-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #2563eb;
+}
+
+.pc-report-shortage-body {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pc-report-shortage-title {
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.pc-report-shortage-desc {
+  margin: 3px 0 0;
+  color: #2563eb;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pc-report-shortage-desc strong {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+/* Dark mode for shortage alert */
+[data-theme="dark"] .pc-report-shortage-alert {
+  background: rgba(30, 58, 138, 0.25) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .pc-report-shortage-icon {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .pc-report-shortage-title {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .pc-report-shortage-desc {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .pc-report-shortage-desc strong {
+  color: #ffffff !important;
+}
+
 
 
 

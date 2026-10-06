@@ -1509,10 +1509,7 @@ export default function KasBesar() {
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
                                         <span>{totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'Kekurangan Dana (Over-Budget):' : 'Sisa Kembalian ke Kasir:'}</span>
-                                        <strong style={{
-                                            color: totalPengeluaranRiil > Number(modalLaporan.nominal) ? '#ea580c' : '#16a34a',
-                                            fontSize: '16px'
-                                        }}>
+                                        <strong className={totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'text-shortage' : 'text-surplus'}>
                                             {totalPengeluaranRiil > Number(modalLaporan.nominal)
                                                 ? fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))
                                                 : fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)
@@ -1520,12 +1517,16 @@ export default function KasBesar() {
                                         </strong>
                                     </div>
                                     {totalPengeluaranRiil > Number(modalLaporan.nominal) && (
-                                        <div className="pc-report-warn" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 8, marginTop: 8 }}>
-                                            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#2563eb' }} />
-                                            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                                                <strong>Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.</strong>
-                                                <div style={{ color: '#3b82f6', marginTop: 2 }}>
-                                                    Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
+                                        <div className="pc-report-shortage-alert">
+                                            <div className="pc-report-shortage-main">
+                                                <AlertCircle size={16} className="pc-report-shortage-icon" />
+                                                <div className="pc-report-shortage-body">
+                                                    <p className="pc-report-shortage-title">
+                                                        Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.
+                                                    </p>
+                                                    <p className="pc-report-shortage-desc">
+                                                        Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

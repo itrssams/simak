@@ -2329,10 +2329,7 @@ export default function PettyCash() {
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
                                         <span>{totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'Kekurangan Dana (Over-Budget):' : 'Sisa Kembalian ke Kasir:'}</span>
-                                        <strong style={{
-                                            color: totalPengeluaranRiil > Number(modalLaporan.nominal) ? '#ea580c' : '#16a34a',
-                                            fontSize: '16px'
-                                        }}>
+                                        <strong className={totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'text-shortage' : 'text-surplus'}>
                                             {totalPengeluaranRiil > Number(modalLaporan.nominal)
                                                 ? fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))
                                                 : fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)
@@ -2340,25 +2337,26 @@ export default function PettyCash() {
                                         </strong>
                                     </div>
                                     {totalPengeluaranRiil > Number(modalLaporan.nominal) && (
-                                        <div className="pc-report-warn" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 8, marginTop: 8 }}>
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                                                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#2563eb' }} />
-                                                <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                                                    <strong>Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.</strong>
-                                                    <div style={{ color: '#3b82f6', marginTop: 2 }}>
+                                        <div className="pc-report-shortage-alert">
+                                            <div className="pc-report-shortage-main">
+                                                <AlertCircle size={16} className="pc-report-shortage-icon" />
+                                                <div className="pc-report-shortage-body">
+                                                    <p className="pc-report-shortage-title">
+                                                        Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.
+                                                    </p>
+                                                    <p className="pc-report-shortage-desc">
                                                         Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
-                                                    </div>
+                                                    </p>
                                                 </div>
                                             </div>
                                             {totalLaporanItems >= 1000000 && (
-                                                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #fde68a', gap: 10 }}>
-                                                    <span style={{ fontSize: 12, color: '#92400e', fontWeight: 500 }}>
+                                                <div className="pc-report-shortage-switch">
+                                                    <span className="pc-report-shortage-switch-text">
                                                         Kebutuhan belanja membengkak &ge; Rp 1.000.000? Anda dapat mengalihkan pengajuan ini ke Kas Besar.
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        className="pc-btn-sm y"
-                                                        style={{ background: '#d97706', color: '#fff', border: 'none', padding: '5px 12px', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                                                        className="pc-btn-sm y pc-report-shortage-switch-btn"
                                                         onClick={() => {
                                                             if (!user?.is_superuser && !user?.akses_kas_besar) {
                                                                 setModalNotifyIT(true);
@@ -2371,7 +2369,7 @@ export default function PettyCash() {
                                                             setFormAlihkanKB({
                                                                 nominal_kas_besar: String(totalLaporanItems),
                                                                 keterangan: `Realisasi belanja membengkak menjadi ${fmt(totalLaporanItems)}`
-                                                             });
+                                                            });
                                                             setModalAlihkanKB(target);
                                                         }}
                                                     >
@@ -2478,10 +2476,10 @@ export default function PettyCash() {
                                     </div>
                                 )}
                                 {(Number(modalApprovalLaporan.nominal) - Number(modalApprovalLaporan.laporan.nominal_digunakan)) < 0 ? (
-                                    <div className="pc-review-shortage-box" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
-                                        <p className="shortage-label" style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', margin: 0, textTransform: 'uppercase' }}>Kekurangan Dana (Over-Budget)</p>
-                                        <p className="shortage-val" style={{ fontSize: 18, fontWeight: 800, color: '#2563eb', margin: '4px 0' }}>{fmt(Math.abs(Number(modalApprovalLaporan.nominal) - Number(modalApprovalLaporan.laporan.nominal_digunakan)))}</p>
-                                        <p className="shortage-note" style={{ fontSize: 12, color: '#3b82f6', margin: 0 }}>
+                                    <div className="pc-review-shortage-box">
+                                        <p className="shortage-label">Kekurangan Dana (Over-Budget)</p>
+                                        <p className="shortage-val">{fmt(Math.abs(Number(modalApprovalLaporan.nominal) - Number(modalApprovalLaporan.laporan.nominal_digunakan)))}</p>
+                                        <p className="shortage-note">
                                             ℹ️ Menyetujui laporan ini akan <strong>otomatis menerbitkan Reimbursement</strong> senilai kekurangan dana dan dicatatkan di Catatan Utang ("Menunggu Verifikasi").
                                         </p>
                                     </div>
@@ -2894,11 +2892,11 @@ export default function PettyCash() {
                             <InfoBlock label="Keperluan" value={modalDetailRB.keperluan} />
                             {modalDetailRB.keterangan && <InfoBlock label="Keterangan" value={modalDetailRB.keterangan} />}
                             {modalDetailRB.petty_cash_info && (
-                                <div style={{ marginTop: 10, marginBottom: 10, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', margin: 0 }}>
+                                <div className="pc-rb-source-badge-box green">
+                                    <p className="pc-rb-source-badge-label">
                                         Dihasilkan dari Petty Cash Over-Budget:
                                     </p>
-                                    <p style={{ fontSize: 13, color: '#166534', margin: '3px 0 0', fontWeight: 600 }}>
+                                    <p className="pc-rb-source-badge-value">
                                         {modalDetailRB.petty_cash_info.no_pengajuan} - {modalDetailRB.petty_cash_info.keperluan}
                                     </p>
                                 </div>

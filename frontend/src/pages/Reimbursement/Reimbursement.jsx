@@ -1297,22 +1297,22 @@ export default function Reimbursement({ isEmbedded = false }) {
                             )}
 
                             {modalDetail.kas_besar_info && (
-                                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', margin: 0 }}>
+                                <div className="pc-rb-source-badge-box">
+                                    <p className="pc-rb-source-badge-label">
                                         Dihasilkan dari Kas Besar Over-Budget:
                                     </p>
-                                    <p style={{ fontSize: 13, color: '#1e40af', margin: '3px 0 0', fontWeight: 600 }}>
+                                    <p className="pc-rb-source-badge-value">
                                         {modalDetail.kas_besar_info.no_pengajuan} - {modalDetail.kas_besar_info.keperluan}
                                     </p>
                                 </div>
                             )}
 
                             {modalDetail.petty_cash_info && (
-                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', margin: 0 }}>
+                                <div className="pc-rb-source-badge-box green">
+                                    <p className="pc-rb-source-badge-label">
                                         Dihasilkan dari Petty Cash Over-Budget:
                                     </p>
-                                    <p style={{ fontSize: 13, color: '#166534', margin: '3px 0 0', fontWeight: 600 }}>
+                                    <p className="pc-rb-source-badge-value">
                                         {modalDetail.petty_cash_info.no_pengajuan} - {modalDetail.petty_cash_info.keperluan}
                                     </p>
                                 </div>
