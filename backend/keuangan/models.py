@@ -887,6 +887,7 @@ class PettyCash(models.Model):
         ('menunggu_approval_laporan', 'Menunggu Approval Laporan'),
         ('dilaporkan',            'Dilaporkan'),
         ('menunggu_pengembalian', 'Menunggu Pengembalian'),
+        ('menunggu_reimburse',    'Menunggu Reimbursement'),
         ('selesai',               'Selesai'),
         ('dibatalkan',            'Dibatalkan'),
     ]
@@ -991,6 +992,7 @@ class Reimbursement(models.Model):
     disetujui_oleh   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursement_disetujui')
     dicairkan_oleh   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursement_dicairkan')
     kas_besar        = models.ForeignKey('KasBesar', on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursements', help_text="Referensi Kas Besar jika reimbursement berasal dari kekurangan belanja")
+    petty_cash       = models.ForeignKey('PettyCash', on_delete=models.SET_NULL, null=True, blank=True, related_name='reimbursements', help_text="Referensi Petty Cash jika reimbursement berasal dari kekurangan belanja")
     created_at       = models.DateTimeField(auto_now_add=True)
     updated_at       = models.DateTimeField(auto_now=True)
 

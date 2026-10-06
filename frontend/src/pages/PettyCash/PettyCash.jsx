@@ -60,6 +60,7 @@ const PC_STATUS = {
     menunggu_approval_laporan: { label: 'Menunggu Approval Laporan', bg: '#eef2ff', color: '#4338ca', dot: '#6366f1' },
     dilaporkan: { label: 'Dilaporkan', bg: '#f5f3ff', color: '#6d28d9', dot: '#8b5cf6' },
     menunggu_pengembalian: { label: 'Menunggu Kembali', bg: '#fefce8', color: '#a16207', dot: '#eab308' },
+    menunggu_reimburse: { label: 'Menunggu Reimbursement', bg: '#fef3c7', color: '#b45309', dot: '#f59e0b' },
     selesai: { label: 'Selesai', bg: '#f0fdf4', color: '#166534', dot: '#22c55e' },
     dibatalkan: { label: 'Dibatalkan', bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
 };
@@ -75,10 +76,10 @@ const PC_STEPS = [
     { key: 'disetujui', label: 'Disetujui' },
     { key: 'dicairkan', label: 'Dicairkan' },
     { key: 'menunggu_approval_laporan', label: 'Approval Laporan' },
-    { key: 'menunggu_pengembalian', label: 'Kembalian' },
+    { key: 'menunggu_pengembalian', label: 'Kembalian / Reimburse' },
     { key: 'selesai', label: 'Selesai' },
 ];
-const ORDER = ['pending', 'disetujui', 'dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'selesai'];
+const ORDER = ['pending', 'disetujui', 'dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'menunggu_reimburse', 'selesai'];
 
 function StatusMultiSelect({ value = [], onChange, statusCfg = {} }) {
     const [open, setOpen] = useState(false);
@@ -541,11 +542,11 @@ export default function PettyCash() {
     const pcSourceForStats = allPC.length > 0 ? allPC : listPC;
     const pendingPC = pcSourceForStats.filter(i => ['pending', 'menunggu_approval_laporan'].includes(i.status)).length;
     const pendingRB = listRB.filter(i => i.status === 'pending').length;
-    const berjalanPC = pcSourceForStats.filter(i => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(i.status)).length;
+    const berjalanPC = pcSourceForStats.filter(i => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'menunggu_reimburse'].includes(i.status)).length;
     const selesaiPC = pcSourceForStats.filter(i => i.status === 'selesai').length;
 
     const itemsBeredar = useMemo(() => {
-        return pcSourceForStats.filter(p => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian'].includes(p.status));
+        return pcSourceForStats.filter(p => ['dicairkan', 'menunggu_approval_laporan', 'dilaporkan', 'menunggu_pengembalian', 'menunggu_reimburse'].includes(p.status));
     }, [pcSourceForStats]);
 
     const totalDanaBeredar = useMemo(() => {
@@ -627,9 +628,6 @@ export default function PettyCash() {
 
         if (nominalDigunakan <= 0 && subtotal <= 0) {
             return setError('Total nominal belanja yang digunakan harus lebih dari Rp 0.');
-        }
-        if (nominalDigunakan > Number(modalLaporan.nominal)) {
-            return setError(`Total nominal digunakan (${fmt(nominalDigunakan)}) melebihi dana dicairkan (${fmt(modalLaporan.nominal)}).`);
         }
 
         const hasExistingFiles = modalLaporan.laporan && (modalLaporan.laporan.berkas_nota_list?.length > 0 || modalLaporan.laporan.nota_url);
@@ -1384,7 +1382,7 @@ export default function PettyCash() {
                 {PC_STEPS.map((s, i) => {
                     const idx = ORDER.indexOf(s.key);
                     const done = curIdx >= idx;
-                    const active = curIdx === idx;
+                    const active = (s.key === 'menunggu_pengembalian' && ['menunggu_pengembalian', 'menunggu_reimburse', 'dilaporkan'].includes(status)) || curIdx === idx;
                     return (
                         <div key={s.key} className="pc-step">
                             {i < PC_STEPS.length - 1 && <div className="pc-step-line" style={{ background: done ? '#1a4731' : '#e2e8f0' }} />}
@@ -1836,11 +1834,38 @@ export default function PettyCash() {
                                         ['Potongan Diskon', `- ${fmt(modalDetail.laporan.diskon)}`],
                                     ] : []),
                                     ['Nominal Digunakan (Riil)', fmt(modalDetail.laporan.nominal_digunakan)],
-                                    ['Selisih / Kembalian', fmt(modalDetail.laporan.selisih)],
+                                    [Number(modalDetail.laporan.selisih) < 0 ? 'Kekurangan Belanja' : 'Selisih / Kembalian', Number(modalDetail.laporan.selisih) < 0 ? fmt(Math.abs(modalDetail.laporan.selisih)) : fmt(modalDetail.laporan.selisih)],
                                     ['Approval Laporan', modalDetail.laporan_disetujui_oleh_name || '-'],
                                     ['Tgl Approval', fmtDT(modalDetail.laporan_disetujui_at)],
                                     ['Dikonfirmasi', modalDetail.laporan.dikonfirmasi_oleh_name || 'Belum'],
                                 ]} />
+                                {modalDetail.reimbursement_info && (
+                                    <div style={{ marginTop: 12, marginBottom: 12, padding: '12px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                            <div>
+                                                <p style={{ fontSize: 12, fontWeight: 700, color: '#b45309', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <AlertCircle size={15} /> Kekurangan Belanja Dialihkan ke Reimbursement
+                                                </p>
+                                                <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginTop: 4, marginBottom: 2 }}>
+                                                    {modalDetail.reimbursement_info.no_reimbursement}
+                                                </p>
+                                                <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>
+                                                    Nominal: <strong style={{ color: '#b45309' }}>{fmt(modalDetail.reimbursement_info.nominal)}</strong> • Tanggal: {fmtTgl(modalDetail.reimbursement_info.tanggal)}
+                                                </p>
+                                            </div>
+                                            <span style={{
+                                                fontSize: 11.5,
+                                                fontWeight: 600,
+                                                padding: '3px 10px',
+                                                borderRadius: 99,
+                                                background: ['dicairkan', 'lunas'].includes(modalDetail.reimbursement_info.status) ? '#dcfce7' : '#fef3c7',
+                                                color: ['dicairkan', 'lunas'].includes(modalDetail.reimbursement_info.status) ? '#166534' : '#92400e',
+                                            }}>
+                                                {modalDetail.reimbursement_info.status_label || modalDetail.reimbursement_info.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                                 {modalDetail.laporan.items && modalDetail.laporan.items.length > 0 ? (
                                     <div style={{ marginTop: 12 }}>
                                         <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
@@ -2303,18 +2328,27 @@ export default function PettyCash() {
                                     </div>
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
-                                        <span>Sisa Kembalian ke Kasir:</span>
+                                        <span>{totalPengeluaranRiil > Number(modalLaporan.nominal) ? 'Kekurangan Dana (Over-Budget):' : 'Sisa Kembalian ke Kasir:'}</span>
                                         <strong style={{
-                                            color: (Number(modalLaporan.nominal) - totalPengeluaranRiil) >= 0 ? '#16a34a' : '#dc2626',
+                                            color: totalPengeluaranRiil > Number(modalLaporan.nominal) ? '#ea580c' : '#16a34a',
                                             fontSize: '16px'
                                         }}>
-                                            {fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)}
+                                            {totalPengeluaranRiil > Number(modalLaporan.nominal)
+                                                ? fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))
+                                                : fmt(Number(modalLaporan.nominal) - totalPengeluaranRiil)
+                                            }
                                         </strong>
                                     </div>
                                     {totalPengeluaranRiil > Number(modalLaporan.nominal) && (
-                                        <div className="pc-report-warn" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <AlertTriangle size={14} /> Total pengeluaran riil ({fmt(totalPengeluaranRiil)}) melebihi dana dicairkan. Maksimal {fmt(modalLaporan.nominal)}.
+                                        <div className="pc-report-warn" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 8, marginTop: 8 }}>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2, color: '#2563eb' }} />
+                                                <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+                                                    <strong>Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.</strong>
+                                                    <div style={{ color: '#3b82f6', marginTop: 2 }}>
+                                                        Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
+                                                    </div>
+                                                </div>
                                             </div>
                                             {totalLaporanItems >= 1000000 && (
                                                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #fde68a', gap: 10 }}>
@@ -2337,7 +2371,7 @@ export default function PettyCash() {
                                                             setFormAlihkanKB({
                                                                 nominal_kas_besar: String(totalLaporanItems),
                                                                 keterangan: `Realisasi belanja membengkak menjadi ${fmt(totalLaporanItems)}`
-                                                            });
+                                                             });
                                                             setModalAlihkanKB(target);
                                                         }}
                                                     >
@@ -2391,7 +2425,7 @@ export default function PettyCash() {
                             <button
                                 className="pc-btn-primary"
                                 onClick={handleLaporanPC}
-                                disabled={saving || (!notaList.length && !modalLaporan.laporan?.berkas_nota_list?.length && !modalLaporan.laporan?.nota_url) || totalLaporanItems <= 0 || totalLaporanItems > Number(modalLaporan.nominal)}
+                                disabled={saving || (!notaList.length && !modalLaporan.laporan?.berkas_nota_list?.length && !modalLaporan.laporan?.nota_url) || totalLaporanItems <= 0}
                             >
                                 {saving ? 'Menyimpan...' : (modalLaporan.laporan ? 'Submit Ulang Laporan' : 'Submit Laporan')}
                             </button>
@@ -2443,10 +2477,20 @@ export default function PettyCash() {
                                         <div><p className="diskon-label">Potongan Diskon</p><p className="diskon-val">- {fmt(modalApprovalLaporan.laporan.diskon)}</p></div>
                                     </div>
                                 )}
-                                <div className={`pc-review-selisih-box${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>
-                                    <p className="pc-review-selisih-label">Selisih / Kembalian</p>
-                                    <p className={`pc-review-selisih-val${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
-                                </div>
+                                {(Number(modalApprovalLaporan.nominal) - Number(modalApprovalLaporan.laporan.nominal_digunakan)) < 0 ? (
+                                    <div className="pc-review-shortage-box" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
+                                        <p className="shortage-label" style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', margin: 0, textTransform: 'uppercase' }}>Kekurangan Dana (Over-Budget)</p>
+                                        <p className="shortage-val" style={{ fontSize: 18, fontWeight: 800, color: '#2563eb', margin: '4px 0' }}>{fmt(Math.abs(Number(modalApprovalLaporan.nominal) - Number(modalApprovalLaporan.laporan.nominal_digunakan)))}</p>
+                                        <p className="shortage-note" style={{ fontSize: 12, color: '#3b82f6', margin: 0 }}>
+                                            ℹ️ Menyetujui laporan ini akan <strong>otomatis menerbitkan Reimbursement</strong> senilai kekurangan dana dan dicatatkan di Catatan Utang ("Menunggu Verifikasi").
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className={`pc-review-selisih-box${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>
+                                        <p className="pc-review-selisih-label">Selisih / Kembalian ke Kasir</p>
+                                        <p className={`pc-review-selisih-val${Number(modalApprovalLaporan.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalApprovalLaporan.laporan.selisih)}</p>
+                                    </div>
+                                )}
                                 {modalApprovalLaporan.laporan.items && modalApprovalLaporan.laporan.items.length > 0 ? (
                                     <div style={{ marginBottom: 14 }}>
                                         <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
@@ -2849,6 +2893,16 @@ export default function PettyCash() {
                             ]} />
                             <InfoBlock label="Keperluan" value={modalDetailRB.keperluan} />
                             {modalDetailRB.keterangan && <InfoBlock label="Keterangan" value={modalDetailRB.keterangan} />}
+                            {modalDetailRB.petty_cash_info && (
+                                <div style={{ marginTop: 10, marginBottom: 10, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', margin: 0 }}>
+                                        Dihasilkan dari Petty Cash Over-Budget:
+                                    </p>
+                                    <p style={{ fontSize: 13, color: '#166534', margin: '3px 0 0', fontWeight: 600 }}>
+                                        {modalDetailRB.petty_cash_info.no_pengajuan} - {modalDetailRB.petty_cash_info.keperluan}
+                                    </p>
+                                </div>
+                            )}
                             {modalDetailRB.catatan_tolak && (
                                 <div className="pc-rejection">
                                     <strong>{modalDetailRB.status === 'dibatalkan' ? 'Alasan Pembatalan:' : 'Catatan Tolak:'}</strong> {modalDetailRB.catatan_tolak.replace(/^Dibatalkan:\s*/, '')}

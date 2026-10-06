@@ -1307,6 +1307,17 @@ export default function Reimbursement({ isEmbedded = false }) {
                                 </div>
                             )}
 
+                            {modalDetail.petty_cash_info && (
+                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', margin: 0 }}>
+                                        Dihasilkan dari Petty Cash Over-Budget:
+                                    </p>
+                                    <p style={{ fontSize: 13, color: '#166534', margin: '3px 0 0', fontWeight: 600 }}>
+                                        {modalDetail.petty_cash_info.no_pengajuan} - {modalDetail.petty_cash_info.keperluan}
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Bukti Nota & Foto */}
                             <ExistingAttachmentsList
                                 list={modalDetail.foto_list}

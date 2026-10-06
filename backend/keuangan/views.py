@@ -552,11 +552,12 @@ def resolve_pembiayaan_filter(id_pembiayaan_param):
 def apply_faktur_pembiayaan_filter(qs, id_pbiaya):
     """
     Menyaring QuerySet Faktur berdasarkan filter pembiayaan:
-    - Khusus BPJS ('group_bpjs', 'bpjs')
+    - Khusus BPJS Kesehatan ('group_bpjs', 'bpjs')
     - Khusus Perusahaan / Asuransi ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi')
+      (termasuk BPJS Ketenagakerjaan / BPJS Naker ID 73 & 44)
     - Khusus Swadana ('group_swadana', 'swadana')
     - Khusus Karyawan ('group_karyawan', 'karyawan')
-    - Non BPJS ('non_bpjs')
+    - Non BPJS Kesehatan ('non_bpjs')
     - Pool Induk ('pool_X', 'pool:X', 'induk_X')
     - Single ID ('219')
     """
@@ -566,27 +567,81 @@ def apply_faktur_pembiayaan_filter(qs, id_pbiaya):
     if val in ('group_bpjs', 'bpjs'):
         return qs.filter(
             Q(nama_pembiayaan__icontains='BPJS') |
-            Q(id_pembiayaan__in=['71', '72', '73', '74', '877', '880'])
-        ).exclude(id_pembiayaan='44')
+            Q(id_pembiayaan__in=['71', '72', '74', '877', '880'])
+        ).exclude(
+            Q(id_pembiayaan__in=['44', '73']) |
+            Q(nama_pembiayaan__icontains='Ketenagakerjaan') |
+            Q(nama_pembiayaan__icontains='Naker')
+        )
     if val in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
         return qs.exclude(id_pembiayaan__in=['1', '94']).exclude(
-            Q(nama_pembiayaan__icontains='BPJS') & ~Q(id_pembiayaan='44')
+            Q(nama_pembiayaan__icontains='BPJS') &
+            ~Q(id_pembiayaan__in=['44', '73']) &
+            ~Q(nama_pembiayaan__icontains='Ketenagakerjaan') &
+            ~Q(nama_pembiayaan__icontains='Naker')
         )
     if val in ('group_swadana', 'swadana'):
         return qs.filter(Q(id_pembiayaan='1') | Q(nama_pembiayaan__icontains='swadana'))
     if val in ('group_karyawan', 'karyawan'):
         return qs.filter(Q(id_pembiayaan='94') | Q(nama_pembiayaan__icontains='karyawan rs'))
     if val == 'non_bpjs':
-        return qs.exclude(Q(nama_pembiayaan__icontains='BPJS') & ~Q(id_pembiayaan='44'))
+        return qs.exclude(
+            Q(nama_pembiayaan__icontains='BPJS') &
+            ~Q(id_pembiayaan__in=['44', '73']) &
+            ~Q(nama_pembiayaan__icontains='Ketenagakerjaan') &
+            ~Q(nama_pembiayaan__icontains='Naker')
+        )
 
     is_pool, child_ids, _ = resolve_pembiayaan_filter(val)
     if is_pool:
         return qs.filter(id_pembiayaan__in=child_ids)
     return qs.filter(Q(id_pembiayaan=val) | Q(id_pembiayaan=int(val)) if val.isdigit() else Q(id_pembiayaan=val))
 
+def _evaluate_kunjungan_status(row):
+    """
+    Evaluasi status kunjungan untuk invoice:
+    - sudah: sudah memiliki nomor invoice
+    - diluar_tanggungan: > 25rb, asuransi/perusahaan, tahun < 2026, belum invoice, ada payment app_siaga
+    - tidak_hadir: <= 25rb, belum invoice, tidak ada payment app_siaga
+    - belum: belum invoice (siap ditagihkan)
+    """
+    no_invoice = str(row.get('no_invoice') or '').strip()
+    if no_invoice:
+        return 'sudah', no_invoice
+
+    total_biaya = Decimal(str(row.get('total_biaya') or 0))
+    jmlbyr = Decimal(str(row.get('jmlbyr') or 0))
+    tgl_masuk = row.get('tgl_masuk')
+    year = tgl_masuk.year if hasattr(tgl_masuk, 'year') else None
+    if not year and tgl_masuk:
+        try:
+            year = int(str(tgl_masuk)[:4])
+        except (ValueError, TypeError):
+            year = None
+
+    id_pembiayaan = str(row.get('id_pembiayaan') or '').strip()
+    nama_pembiayaan = str(row.get('nama_pembiayaan') or '').upper()
+
+    is_swadana = (id_pembiayaan == '1' or 'SWADANA' in nama_pembiayaan)
+    is_bpjs_kesehatan = (
+        ('BPJS' in nama_pembiayaan and id_pembiayaan not in ('44', '73') and 'KETENAGAKERJAAN' not in nama_pembiayaan and 'NAKER' not in nama_pembiayaan)
+        or id_pembiayaan in ('71', '72', '74', '877', '880')
+    )
+    is_asuransi = not is_swadana and not is_bpjs_kesehatan
+
+    # Kriteria 1: > 25rb asuransi tahun lama & belum invoice tapi ada payment dari app_siaga
+    if total_biaya > 25000 and is_asuransi and year and year < 2026 and jmlbyr > 0:
+        return 'diluar_tanggungan', 'Diluar Tanggungan Asuransi'
+
+    # Kriteria 2: < 25rb belum invoice tidak ada payment dari app_siaga
+    if total_biaya <= 25000 and jmlbyr <= 0:
+        return 'tidak_hadir', 'Tidak Hadir'
+
+    return 'belum', 'Belum Invoice'
+
 def _legacy_kunjungan_where(params):
     kunjungan_type = params.get('jenis') or 'semua'
-    where = []
+    where = ['a.cek = 1']
     values = []
     if kunjungan_type != 'semua':
         where.append(KUNJUNGAN_TYPE_FILTERS.get(kunjungan_type, KUNJUNGAN_TYPE_FILTERS['rawat_jalan']))
@@ -599,11 +654,11 @@ def _legacy_kunjungan_where(params):
 
     id_pembiayaan = (params.get('id_pembiayaan') or '').strip()
     if id_pembiayaan in ('group_bpjs', 'bpjs'):
-        where.append("(c.pembiayaan LIKE %s AND a.id_pembiayaan != 44)")
-        values.append('%BPJS%')
+        where.append("(c.pembiayaan LIKE %s AND a.id_pembiayaan NOT IN (44, 73) AND c.pembiayaan NOT LIKE %s AND c.pembiayaan NOT LIKE %s)")
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%'])
     elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
-        where.append("(a.id_pembiayaan NOT IN (1, 94) AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan = 44)))")
-        values.append('%BPJS%')
+        where.append("(a.id_pembiayaan NOT IN (1, 94) AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan IN (44, 73) OR c.pembiayaan LIKE %s OR c.pembiayaan LIKE %s)))")
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%'])
     elif id_pembiayaan in ('group_swadana', 'swadana'):
         where.append("(a.id_pembiayaan = 1 OR LOWER(c.pembiayaan) LIKE %s)")
         values.append('%swadana%')
@@ -611,8 +666,8 @@ def _legacy_kunjungan_where(params):
         where.append("(a.id_pembiayaan = 94 OR LOWER(c.pembiayaan) LIKE %s)")
         values.append('%karyawan rs%')
     elif id_pembiayaan == 'non_bpjs':
-        where.append("(c.pembiayaan IS NULL OR c.pembiayaan NOT LIKE %s OR a.id_pembiayaan = 44)")
-        values.append('%BPJS%')
+        where.append("(c.pembiayaan IS NULL OR c.pembiayaan NOT LIKE %s OR a.id_pembiayaan IN (44, 73) OR c.pembiayaan LIKE %s OR c.pembiayaan LIKE %s)")
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%'])
     elif id_pembiayaan:
         is_pool, child_ids, _ = resolve_pembiayaan_filter(id_pembiayaan)
         if is_pool:
@@ -627,9 +682,9 @@ def _legacy_kunjungan_where(params):
             values.append(id_pembiayaan)
     elif not search:
         # Default saat id_pembiayaan kosong dan tidak sedang mencari:
-        # Hanya tampilkan kunjungan dari Asuransi (exclude Swadana & BPJS) bila tidak sedang mencari
-        where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s AND LOWER(c.pembiayaan) NOT LIKE %s)))")
-        values.extend(['%BPJS%', '%swadana%'])
+        # Hanya tampilkan kunjungan dari Asuransi / Perusahaan (termasuk BPJS Naker, exclude Swadana & BPJS Kesehatan) bila tidak sedang mencari
+        where.append("(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan IN (44, 73) OR c.pembiayaan LIKE %s OR c.pembiayaan LIKE %s)) AND LOWER(c.pembiayaan) NOT LIKE %s)")
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%', '%swadana%'])
 
     dari = (params.get('dari') or '').strip()
     if dari:
@@ -641,17 +696,37 @@ def _legacy_kunjungan_where(params):
         where.append("a.tgl_masuk <= %s")
         values.append(f"{sampai} 23:59:59" if len(sampai) == 10 else sampai)
 
-    done = (params.get('done') or '').strip()
-    if done == '1':
-        where.append("a.cek = 1")
-    elif done == '0':
-        where.append("a.cek = 0")
+    # Filter status invoice kunjungan
+    is_asuransi_sql = "(a.id_pembiayaan != 1 AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan IN (44, 73) OR c.pembiayaan LIKE %s OR c.pembiayaan LIKE %s)) AND LOWER(c.pembiayaan) NOT LIKE %s)"
+    cond_diluar_tanggungan = f"(({KUNJUNGAN_TOTAL_SQL}) > 25000 AND YEAR(a.tgl_masuk) < 2026 AND a.jmlbyr > 0 AND {is_asuransi_sql})"
+    cond_tidak_hadir = f"(({KUNJUNGAN_TOTAL_SQL}) <= 25000 AND (a.jmlbyr IS NULL OR a.jmlbyr = 0))"
 
     invoice_status = (params.get('invoice_status') or '').strip()
-    if invoice_status == 'belum':
-        where.append("(e.no_invoice IS NULL OR e.no_invoice = '')")
-    elif invoice_status == 'sudah':
+    if invoice_status == 'sudah':
         where.append("(e.no_invoice IS NOT NULL AND e.no_invoice <> '')")
+    elif invoice_status in ('belum', 'siap_invoice'):
+        # Belum invoice yang siap ditagihkan: bukan diluar tanggungan dan bukan tidak hadir
+        where.append("(e.no_invoice IS NULL OR e.no_invoice = '')")
+        where.append(f"NOT {cond_diluar_tanggungan}")
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%', '%swadana%'])
+        where.append(f"NOT {cond_tidak_hadir}")
+    elif invoice_status == 'diluar_tanggungan':
+        where.append("(e.no_invoice IS NULL OR e.no_invoice = '')")
+        where.append(cond_diluar_tanggungan)
+        values.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%', '%swadana%'])
+    elif invoice_status == 'tidak_hadir':
+        where.append("(e.no_invoice IS NULL OR e.no_invoice = '')")
+        where.append(cond_tidak_hadir)
+    elif invoice_status == 'semua_belum':
+        where.append("(e.no_invoice IS NULL OR e.no_invoice = '')")
+
+    nilai = (params.get('nilai') or '').strip()
+    if nilai == 'maks_25000':
+        where.append(f"({KUNJUNGAN_TOTAL_SQL}) <= %s")
+        values.append(25000)
+    elif nilai == 'min_25001':
+        where.append(f"({KUNJUNGAN_TOTAL_SQL}) >= %s")
+        values.append(25001)
 
     return " AND ".join(where) if where else "1=1", values, kunjungan_type
 
@@ -680,7 +755,8 @@ class KunjunganInvoiceView(APIView):
                 a.cek, IFNULL(e.no_invoice, '') AS no_invoice,
                 a.adm, a.jasa, a.farmasi, a.tindakan, a.fisio, a.lab,
                 a.lab_pa, a.rad, a.kamar, a.bhp, a.lainnya, a.ambulan, a.alat,
-                ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya
+                ({KUNJUNGAN_TOTAL_SQL}) AS total_biaya,
+                a.jmlbyr, a.tgl_masuk
             FROM rssams.kunjung a
             LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
             INNER JOIN rssams.verif_kunjung e ON a.no = e.no
@@ -762,8 +838,10 @@ class KunjunganInvoiceView(APIView):
                     if not rows:
                         return Response({'error': 'Kunjungan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
                     row = rows[0]
+                    st, lbl = _evaluate_kunjungan_status(row)
                     row['status_done'] = bool(row.get('cek'))
-                    row['status_invoice'] = 'sudah' if row.get('no_invoice') else 'belum'
+                    row['status_invoice'] = st
+                    row['status_invoice_label'] = lbl
                     row['jenis_label'] = self._detect_type(row.get('no'))
                     return Response(row, status=status.HTTP_200_OK)
 
@@ -810,8 +888,10 @@ class KunjunganInvoiceView(APIView):
                     if kunjungan_type == 'semua'
                     else KUNJUNGAN_TYPE_LABELS.get(kunjungan_type, 'Rawat Jalan')
                 )
+                st, lbl = _evaluate_kunjungan_status(row)
                 row['status_done'] = bool(row.get('cek'))
-                row['status_invoice'] = 'sudah' if row.get('no_invoice') else 'belum'
+                row['status_invoice'] = st
+                row['status_invoice_label'] = lbl
             return Response({'count': total, 'results': rows}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -853,6 +933,13 @@ class KunjunganInvoiceView(APIView):
                         invoiced = [str(row['no']) for row in rows if row.get('no_invoice')]
                         if invoiced:
                             return Response({'error': f"Kunjungan sudah masuk invoice: {', '.join(invoiced)}"}, status=status.HTTP_400_BAD_REQUEST)
+                        not_billable = []
+                        for r in rows:
+                            st, lbl = _evaluate_kunjungan_status(r)
+                            if st in ('diluar_tanggungan', 'tidak_hadir'):
+                                not_billable.append(f"{r['no']} ({lbl})")
+                        if not_billable:
+                            return Response({'error': f"Kunjungan tidak dapat ditambahkan ke invoice: {', '.join(not_billable)}"}, status=status.HTTP_400_BAD_REQUEST)
                         no_charge = [str(row['no']) for row in rows if _decimal_from_row(row, 'total_biaya') <= 0]
                         if no_charge:
                             return Response({'error': f"Kunjungan belum memiliki biaya: {', '.join(no_charge)}"}, status=status.HTTP_400_BAD_REQUEST)
@@ -886,6 +973,13 @@ class KunjunganInvoiceView(APIView):
             invoiced = [str(row['no']) for row in rows if row.get('no_invoice')]
             if invoiced:
                 return Response({'error': f"Kunjungan sudah masuk invoice: {', '.join(invoiced)}"}, status=status.HTTP_400_BAD_REQUEST)
+            not_billable = []
+            for r in rows:
+                st, lbl = _evaluate_kunjungan_status(r)
+                if st in ('diluar_tanggungan', 'tidak_hadir'):
+                    not_billable.append(f"{r['no']} ({lbl})")
+            if not_billable:
+                return Response({'error': f"Kunjungan tidak dapat dibuatkan invoice: {', '.join(not_billable)}"}, status=status.HTTP_400_BAD_REQUEST)
 
             totals = self._sum_kunjungan_totals(rows)
 
@@ -1486,6 +1580,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         dari      = self.request.query_params.get('dari')
         sampai    = self.request.query_params.get('sampai')
         aging     = self.request.query_params.get('aging')
+        nilai     = self.request.query_params.get('nilai')
         if search:
             qs = qs.filter(
                 Q(nomor_faktur__icontains=search) |
@@ -1499,6 +1594,10 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if st:        qs = qs.filter(status=st)
         if dari:      qs = qs.filter(tanggal__gte=dari)
         if sampai:    qs = qs.filter(tanggal__lte=sampai)
+        if nilai == 'maks_25000':
+            qs = qs.filter(total_tagihan__lte=25000)
+        elif nilai == 'min_25001':
+            qs = qs.filter(total_tagihan__gte=25001)
         if aging:
             today = timezone.localdate()
             qs = qs.exclude(status='batal').filter(total_tagihan__gt=F('total_dibayar'))
@@ -3611,13 +3710,13 @@ def faktur_rekap_print_view(request):
     elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
         header_title = 'REKAPITULASI INVOICE - PERUSAHAAN / ASURANSI'
     elif id_pembiayaan in ('group_bpjs', 'bpjs'):
-        header_title = 'REKAPITULASI INVOICE - BPJS'
+        header_title = 'REKAPITULASI INVOICE - BPJS KESEHATAN'
     elif id_pembiayaan in ('group_swadana', 'swadana'):
         header_title = 'REKAPITULASI INVOICE - SWADANA / UMUM'
     elif id_pembiayaan in ('group_karyawan', 'karyawan'):
         header_title = 'REKAPITULASI INVOICE - KARYAWAN RS SIAGA'
     elif id_pembiayaan == 'non_bpjs':
-        header_title = 'REKAPITULASI INVOICE - NON BPJS'
+        header_title = 'REKAPITULASI INVOICE - NON BPJS KESEHATAN'
     elif id_pembiayaan:
         p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
         p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
@@ -3888,13 +3987,13 @@ def faktur_rekap_excel_view(request):
     elif id_pembiayaan in ('group_perusahaan', 'group_asuransi', 'perusahaan', 'asuransi'):
         ws['A1'] = 'REKAP INVOICE - PERUSAHAAN / ASURANSI'
     elif id_pembiayaan in ('group_bpjs', 'bpjs'):
-        ws['A1'] = 'REKAP INVOICE - BPJS'
+        ws['A1'] = 'REKAP INVOICE - BPJS KESEHATAN'
     elif id_pembiayaan in ('group_swadana', 'swadana'):
         ws['A1'] = 'REKAP INVOICE - SWADANA / UMUM'
     elif id_pembiayaan in ('group_karyawan', 'karyawan'):
         ws['A1'] = 'REKAP INVOICE - KARYAWAN RS SIAGA'
     elif id_pembiayaan == 'non_bpjs':
-        ws['A1'] = 'REKAP INVOICE - NON BPJS'
+        ws['A1'] = 'REKAP INVOICE - NON BPJS KESEHATAN'
     elif id_pembiayaan:
         p_key = int(id_pembiayaan) if id_pembiayaan.isdigit() else id_pembiayaan
         p_name = pembiayaan_map.get(p_key) or pembiayaan_map.get(str(p_key))
@@ -4296,9 +4395,9 @@ def _build_pending_where_reimbursement(params):
     sampai = (params.get('sampai') or '').strip()
 
     if search:
-        where.append('(t.no_reimbursement LIKE %s OR t.keperluan LIKE %s OR usr.first_name LIKE %s OR usr.username LIKE %s OR kb.no_pengajuan LIKE %s)')
+        where.append('(t.no_reimbursement LIKE %s OR t.keperluan LIKE %s OR usr.first_name LIKE %s OR usr.username LIKE %s OR kb.no_pengajuan LIKE %s OR pc.no_pengajuan LIKE %s)')
         needle = f'%{search}%'
-        values.extend([needle, needle, needle, needle, needle])
+        values.extend([needle, needle, needle, needle, needle, needle])
     if dari:
         where.append('t.tanggal >= %s')
         values.append(dari)
@@ -4341,11 +4440,12 @@ def _pending_base_sql_kas_besar():
     """
 
 def _pending_base_sql_reimbursement():
-    """FROM clause untuk Reimbursement — JOIN ke utang_supplier dan kas_besar."""
+    """FROM clause untuk Reimbursement — JOIN ke utang_supplier, kas_besar, dan petty_cash."""
     return """
         FROM petty_cash_reimbursement t
         LEFT JOIN users_user usr ON usr.id = t.created_by_id
         LEFT JOIN keuangan_kas_besar kb ON kb.id = t.kas_besar_id
+        LEFT JOIN petty_cash pc ON pc.id = t.petty_cash_id
         LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('RMB-', t.id) COLLATE utf8mb4_general_ci
     """
 
@@ -6097,6 +6197,16 @@ def _handle_petty_cash_payment_realisasi(pembayaran, user):
                             kb.laporan.pengembalian_selesai = True
                             kb.laporan.dikonfirmasi_oleh = user
                             kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+
+                if rb.petty_cash:
+                    pc = rb.petty_cash
+                    if not pc.reimbursements.exclude(status__in=['lunas', 'dicairkan']).exists():
+                        pc.status = 'selesai'
+                        pc.save(update_fields=['status', 'updated_at'])
+                        if hasattr(pc, 'laporan'):
+                            pc.laporan.pengembalian_selesai = True
+                            pc.laporan.dikonfirmasi_oleh = user
+                            pc.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
         except Exception:
             pass
         return
@@ -6147,6 +6257,14 @@ def _handle_petty_cash_payment_batal_realisasi(pembayaran, user):
                     if hasattr(kb, 'laporan'):
                         kb.laporan.pengembalian_selesai = False
                         kb.laporan.save(update_fields=['pengembalian_selesai', 'updated_at'])
+
+                if rb.petty_cash:
+                    pc = rb.petty_cash
+                    pc.status = 'menunggu_reimburse'
+                    pc.save(update_fields=['status', 'updated_at'])
+                    if hasattr(pc, 'laporan'):
+                        pc.laporan.pengembalian_selesai = False
+                        pc.laporan.save(update_fields=['pengembalian_selesai', 'updated_at'])
         except Exception:
             pass
         return
@@ -7148,7 +7266,7 @@ class UtangMenungguVerifikasiView(APIView):
                 0.00                                                                   AS ppn,
                 0.00                                                                   AS materai,
                 t.nominal                                                              AS nominal,
-                CONVERT(CONCAT(t.keperluan, IF(kb.no_pengajuan IS NOT NULL, CONCAT(' [Kas Besar: ', kb.no_pengajuan, ']'), '')) USING utf8mb4) COLLATE utf8mb4_general_ci AS keterangan,
+                CONVERT(CONCAT(t.keperluan, IF(kb.no_pengajuan IS NOT NULL, CONCAT(' [Kas Besar: ', kb.no_pengajuan, ']'), IF(pc.no_pengajuan IS NOT NULL, CONCAT(' [Petty Cash: ', pc.no_pengajuan, ']'), ''))) USING utf8mb4) COLLATE utf8mb4_general_ci AS keterangan,
                 'keuangan'                                                             AS sumber
         """
 
@@ -8229,10 +8347,6 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         nominal_dicairkan = instance.nominal
         nominal_digunakan = serializer.validated_data['nominal_digunakan']
-        if nominal_digunakan > nominal_dicairkan:
-            return Response({
-                'error': f'Nominal digunakan tidak boleh melebihi dana yang dicairkan. Maksimal Rp {nominal_dicairkan:,.0f}.'
-            }, status=400)
         selisih = nominal_dicairkan - nominal_digunakan
 
         with transaction.atomic():
@@ -8345,14 +8459,81 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
 
         with transaction.atomic():
-            instance.status = 'menunggu_pengembalian' if laporan.selisih > 0 else 'dilaporkan'
+            reimburse_info = None
+            if laporan.selisih > 0:
+                instance.status = 'menunggu_pengembalian'
+                laporan.pengembalian_selesai = False
+            elif laporan.selisih < 0:
+                instance.status = 'menunggu_reimburse'
+                laporan.pengembalian_selesai = False
+
+                # Potong saldo kas kecil untuk bagian nominal yang sudah dicairkan (advance)
+                saldo = get_or_create_saldo()
+                saldo_sebelum = saldo.saldo
+                saldo.saldo -= instance.nominal
+                saldo.updated_by = request.user
+                saldo.save()
+
+                RiwayatSaldoPettyCash.objects.create(
+                    jenis='pengurangan',
+                    jumlah=instance.nominal,
+                    saldo_sebelum=saldo_sebelum,
+                    saldo_sesudah=saldo.saldo,
+                    keterangan=f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]} (Kekurangan belanja dialihkan ke Reimbursement)',
+                    created_by=request.user,
+                    nama_pengaju=user_display_name(instance.created_by),
+                    unit_pengaju=laporan_unit_label(instance.created_by),
+                )
+            else:
+                instance.status = 'dilaporkan'
+
             instance.catatan_tolak = ''
             instance.laporan_disetujui_oleh = request.user
             instance.laporan_disetujui_at = timezone.now()
             instance.save()
 
+            if laporan.selisih < 0:
+                kekurangan = abs(laporan.selisih)
+                # Auto-create pengajuan Reimbursement untuk menutupi kekurangan dana belanja Petty Cash
+                rb_auto = Reimbursement.objects.create(
+                    petty_cash=instance,
+                    tanggal=timezone.localdate(),
+                    tanggal_nota=laporan.tanggal_nota or timezone.localdate(),
+                    keperluan=f"[Kekurangan Petty Cash {instance.no_pengajuan}] {instance.keperluan[:150]}",
+                    nominal=kekurangan,
+                    keterangan=f"Auto-create dari kekurangan belanja Petty Cash {instance.no_pengajuan}. Total belanja: Rp {laporan.nominal_digunakan:,.0f}, dana dicairkan: Rp {instance.nominal:,.0f}.",
+                    status='disetujui',
+                    disetujui_oleh=request.user,
+                    created_by=instance.created_by,
+                )
+                if laporan.nota:
+                    try:
+                        from django.core.files.base import ContentFile
+                        rb_auto.berkas.save(os.path.basename(laporan.nota.name), ContentFile(laporan.nota.read()), save=True)
+                    except Exception as e:
+                        logger.warning(f"Gagal menyalin nota laporan PC ke berkas Reimbursement: {e}")
+
+                reimburse_info = f"Pengajuan Reimbursement {rb_auto.no_reimbursement} senilai Rp {kekurangan:,.0f} otomatis diterbitkan & disetujui, dan tercatat di Catatan Utang. Status Petty Cash menjadi 'Menunggu Reimbursement' hingga reimbursement dicairkan."
+                if hasattr(laporan, 'foto_list'):
+                    from django.core.files.base import ContentFile
+                    for f in laporan.foto_list.all():
+                        try:
+                            f_name = os.path.basename(f.foto.name)
+                            FotoReimbursement.objects.create(
+                                reimbursement=rb_auto,
+                                foto=ContentFile(f.foto.read(), name=f_name),
+                                urutan=f.urutan,
+                                keterangan=f.keterangan or ''
+                            )
+                        except Exception as e:
+                            logger.warning(f"Gagal menyalin foto laporan PC ke FotoReimbursement: {e}")
+
+        msg = 'Laporan penggunaan berhasil disetujui.'
+        if reimburse_info:
+            msg += f' {reimburse_info}'
+
         return Response({
-            'message': 'Laporan penggunaan berhasil disetujui.',
+            'message': msg,
             'status': instance.status,
         }, status=status.HTTP_200_OK)
 
@@ -8425,19 +8606,19 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
             
         with transaction.atomic():
-            # Jika pengajuan dibatalkan setelah status 'selesai' (di mana saldo sudah dipotong saat konfirmasi), kembalikan saldo ke kas
-            if instance.status == 'selesai' and hasattr(instance, 'laporan'):
-                nominal_pakai = instance.laporan.nominal_digunakan
-                if nominal_pakai > 0:
+            # Jika pengajuan dibatalkan setelah status 'selesai' atau 'menunggu_reimburse' (di mana saldo sudah dipotong saat konfirmasi/approval), kembalikan saldo ke kas
+            if instance.status in ('selesai', 'menunggu_reimburse') and hasattr(instance, 'laporan'):
+                nominal_kembali = instance.nominal if instance.laporan.selisih < 0 else instance.laporan.nominal_digunakan
+                if nominal_kembali > 0:
                     saldo = get_or_create_saldo()
                     saldo_sebelum = saldo.saldo
-                    saldo.saldo += nominal_pakai
+                    saldo.saldo += nominal_kembali
                     saldo.updated_by = request.user
                     saldo.save()
                     
                     RiwayatSaldoPettyCash.objects.create(
                         jenis='penambahan',
-                        jumlah=nominal_pakai,
+                        jumlah=nominal_kembali,
                         saldo_sebelum=saldo_sebelum,
                         saldo_sesudah=saldo.saldo,
                         keterangan=f'Koreksi pembatalan petty cash {instance.no_pengajuan} - {str(alasan).strip()[:50]}',
@@ -8445,6 +8626,13 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         nama_pengaju=user_display_name(instance.created_by),
                         unit_pengaju=laporan_unit_label(instance.created_by),
                     )
+
+            # Batalkan reimbursement turunan yang belum cair
+            if hasattr(instance, 'reimbursements'):
+                for rb in instance.reimbursements.filter(status__in=['pending', 'disetujui']):
+                    rb.status = 'dibatalkan'
+                    rb.catatan_tolak = f"Dibatalkan karena Petty Cash {instance.no_pengajuan} dibatalkan"
+                    rb.save()
 
             instance.status = 'dibatalkan'
             instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
@@ -9077,6 +9265,16 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         kb.laporan.pengembalian_selesai = True
                         kb.laporan.dikonfirmasi_oleh = request.user
                         kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+
+            if instance.petty_cash:
+                pc = instance.petty_cash
+                if not pc.reimbursements.exclude(status='dicairkan').exists():
+                    pc.status = 'selesai'
+                    pc.save(update_fields=['status', 'updated_at'])
+                    if hasattr(pc, 'laporan'):
+                        pc.laporan.pengembalian_selesai = True
+                        pc.laporan.dikonfirmasi_oleh = request.user
+                        pc.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
 
         return Response({'message': 'Reimbursement berhasil dicairkan.', 'status': instance.status})
 

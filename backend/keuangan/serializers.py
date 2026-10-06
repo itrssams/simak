@@ -1013,6 +1013,7 @@ class PettyCashSerializer(serializers.ModelSerializer):
     laporan_disetujui_oleh_name = serializers.SerializerMethodField()
     status_label        = serializers.CharField(source='get_status_display', read_only=True)
     berkas_url          = serializers.SerializerMethodField()
+    reimbursement_info  = serializers.SerializerMethodField()
     laporan             = LaporanPenggunaanSerializer(read_only=True)
 
     class Meta:
@@ -1042,6 +1043,19 @@ class PettyCashSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_reimbursement_info(self, obj):
+        rb = obj.reimbursements.first()
+        if not rb:
+            return None
+        return {
+            'id': rb.id,
+            'no_reimbursement': rb.no_reimbursement,
+            'nominal': float(rb.nominal),
+            'status': rb.status,
+            'status_label': rb.get_status_display(),
+            'tanggal': str(rb.tanggal),
+        }
+
 class PettyCashInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = PettyCash
@@ -1064,6 +1078,7 @@ class ReimbursementSerializer(serializers.ModelSerializer):
     status_label        = serializers.CharField(source='get_status_display', read_only=True)
     berkas_url          = serializers.SerializerMethodField()
     kas_besar_info      = serializers.SerializerMethodField()
+    petty_cash_info     = serializers.SerializerMethodField()
     foto_list           = FotoReimbursementSerializer(many=True, read_only=True)
 
     class Meta:
@@ -1094,8 +1109,20 @@ class ReimbursementSerializer(serializers.ModelSerializer):
         return {
             'id': obj.kas_besar.id,
             'no_pengajuan': obj.kas_besar.no_pengajuan,
+            'keperluan': obj.kas_besar.keperluan,
             'status': obj.kas_besar.status,
             'status_label': obj.kas_besar.get_status_display(),
+        }
+
+    def get_petty_cash_info(self, obj):
+        if not obj.petty_cash:
+            return None
+        return {
+            'id': obj.petty_cash.id,
+            'no_pengajuan': obj.petty_cash.no_pengajuan,
+            'keperluan': obj.petty_cash.keperluan,
+            'status': obj.petty_cash.status,
+            'status_label': obj.petty_cash.get_status_display(),
         }
 
 class ReimbursementInputSerializer(serializers.ModelSerializer):
