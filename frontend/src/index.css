@@ -67,6 +67,19 @@ textarea {
   font: inherit;
 }
 
+/* Hilangkan tombol spinner/stepper arrow di semua input number & hindari salah scroll */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+
 @media (max-width: 1400px) {
   :root {
     font-size: 13px;

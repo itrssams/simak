@@ -2186,6 +2186,7 @@ export default function PettyCash() {
                                                             placeholder="1"
                                                             value={item.qty ?? 1}
                                                             onChange={(e) => updateLaporanItem(idx, 'qty', e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                             required
                                                         />
                                                     </td>
@@ -2197,6 +2198,7 @@ export default function PettyCash() {
                                                             placeholder="0"
                                                             value={item.harga_satuan ?? ''}
                                                             onChange={(e) => updateLaporanItem(idx, 'harga_satuan', e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                             required
                                                         />
                                                     </td>
@@ -2208,6 +2210,7 @@ export default function PettyCash() {
                                                             placeholder="0"
                                                             value={item.nilai}
                                                             onChange={(e) => updateLaporanItem(idx, 'nilai', e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                             required
                                                         />
                                                     </td>
@@ -2277,6 +2280,7 @@ export default function PettyCash() {
                                                                     placeholder="0"
                                                                     value={dItem.nilai}
                                                                     onChange={(e) => updateDiskonItem(dIdx, 'nilai', e.target.value)}
+                                                                    onWheel={(e) => e.target.blur()}
                                                                     required
                                                                 />
                                                             </td>
