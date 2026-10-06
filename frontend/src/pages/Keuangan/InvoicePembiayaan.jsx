@@ -57,6 +57,12 @@ const STATUS_OPTIONS = [
     { value: 'batal', label: 'Batal' },
 ];
 
+const NILAI_OPTIONS = [
+    { value: '', label: 'Semua Nilai' },
+    { value: 'maks_25000', label: 'Sampai Rp25.000' },
+    { value: 'min_25001', label: 'Mulai Rp25.001' },
+];
+
 const COST_FIELDS = [
     ['adm', 'Administrasi'],
     ['jasa', 'Jasa'],
@@ -261,6 +267,7 @@ export default function InvoicePembiayaan() {
         dari: searchParams.get('dari') || '',
         sampai: searchParams.get('sampai') || '',
         aging: searchParams.get('aging') || '',
+        nilai: searchParams.get('nilai') || '',
     });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -356,8 +363,9 @@ export default function InvoicePembiayaan() {
         const dari = searchParams.get('dari');
         const sampai = searchParams.get('sampai');
         const aging = searchParams.get('aging');
+        const nilai = searchParams.get('nilai');
 
-        const hasAnyParam = [search, status, id_pembiayaan, dari, sampai, aging].some((v) => v !== null);
+        const hasAnyParam = [search, status, id_pembiayaan, dari, sampai, aging, nilai].some((v) => v !== null);
         if (hasAnyParam) {
             setFilters((prev) => ({
                 ...prev,
@@ -367,6 +375,7 @@ export default function InvoicePembiayaan() {
                 dari: dari !== null ? dari : prev.dari,
                 sampai: sampai !== null ? sampai : prev.sampai,
                 aging: aging !== null ? aging : prev.aging,
+                nilai: nilai !== null ? nilai : prev.nilai,
             }));
         }
     }, [searchParams]);
@@ -992,15 +1001,14 @@ export default function InvoicePembiayaan() {
     const pembiayaanOptions = useMemo(
         () => [
             { value: '', label: 'Semua Pembiayaan' },
-            { value: 'group_perusahaan', label: '🏢 Khusus Perusahaan / Asuransi', isGroup: true },
-            { value: 'group_bpjs', label: '🟢 Khusus BPJS', isGroup: true },
-            { value: 'group_swadana', label: '👤 Khusus Swadana / Umum', isGroup: true },
-            { value: 'group_karyawan', label: '🏥 Khusus Karyawan RS Siaga', isGroup: true },
-            { value: 'non_bpjs', label: '🛡️ Non BPJS (Semua selain BPJS)', isGroup: true },
+            { value: 'group_perusahaan', label: 'Khusus Perusahaan / Asuransi' },
+            { value: 'group_bpjs', label: 'Khusus BPJS Kesehatan' },
+            { value: 'group_swadana', label: 'Khusus Swadana / Umum' },
+            { value: 'group_karyawan', label: 'Khusus Karyawan RS Siaga' },
+            { value: 'non_bpjs', label: 'Non BPJS Kesehatan (Semua selain BPJS Kesehatan)' },
             ...indukList.map((induk) => ({
                 value: `pool_${induk.id}`,
-                label: `🏢 [POOL] ${induk.nama}`,
-                isPool: true,
+                label: `Pool - ${induk.nama}`,
             })),
             ...pembiayaan.map((item) => ({
                 value: String(item.id_pembiayaan),
@@ -1072,6 +1080,16 @@ export default function InvoicePembiayaan() {
                             ))}
                         </select>
 
+                        <select
+                            className="dki-select dki-filter-amount"
+                            value={filters.nilai}
+                            onChange={(e) => setFilter('nilai', e.target.value)}
+                        >
+                            {NILAI_OPTIONS.map((item) => (
+                                <option key={item.value} value={item.value}>{item.label}</option>
+                            ))}
+                        </select>
+
                         <DateRangePicker
                             dari={filters.dari}
                             sampai={filters.sampai}
@@ -1091,6 +1109,7 @@ export default function InvoicePembiayaan() {
                                 dari: '',
                                 sampai: '',
                                 aging: '',
+                                nilai: '',
                             })}
                             title="Reset filter"
                         >

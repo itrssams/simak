@@ -193,6 +193,11 @@
   min-width: 120px;
 }
 
+.inv-filter-row .dki-filter-amount {
+  flex: 1 1 150px;
+  min-width: 140px;
+}
+
 .inv-filter-row .dki-filter-reset {
   height: 42px;
   flex: 0 0 auto;

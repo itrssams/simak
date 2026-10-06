@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import './SearchablePembiayaanSelect.css';
 
 const normalize = (value) => String(value || '').toLowerCase().trim();
@@ -158,7 +158,7 @@ export default function SearchablePembiayaanSelect({
                     <button
                         key={`${option.value}-${option.label}`}
                         type="button"
-                        className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}${option.isPool ? ' is-pool-option' : ''}${option.isGroup ? ' is-group-option' : ''}`}
+                        className={`${index === activeIndex ? 'active' : ''}${selected ? ' selected' : ''}`}
                         onMouseEnter={() => setActiveIndex(index)}
                         onMouseDown={(event) => {
                             event.preventDefault();
@@ -168,7 +168,6 @@ export default function SearchablePembiayaanSelect({
                         aria-selected={selected}
                     >
                         <span>{option.label}</span>
-                        {selected && <Check size={15} />}
                     </button>
                 );
             })}

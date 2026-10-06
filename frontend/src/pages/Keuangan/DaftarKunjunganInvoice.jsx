@@ -32,16 +32,19 @@ const JENIS_OPTIONS = [
     { value: 'ok', label: 'OK' },
 ];
 
-const DONE_OPTIONS = [
-    { value: '', label: 'Semua Status' },
-    { value: '1', label: 'Sudah Done' },
-    { value: '0', label: 'Belum Done' },
+const INVOICE_OPTIONS = [
+    { value: 'belum', label: 'Belum Invoice (Siap Invoice)' },
+    { value: '', label: 'Semua Status Kunjungan' },
+    { value: 'sudah', label: 'Sudah Invoice' },
+    { value: 'diluar_tanggungan', label: 'Diluar Tanggungan Asuransi' },
+    { value: 'tidak_hadir', label: 'Tidak Hadir' },
+    { value: 'semua_belum', label: 'Semua Belum Invoice' },
 ];
 
-const INVOICE_OPTIONS = [
-    { value: 'belum', label: 'Belum Invoice' },
-    { value: '', label: 'Semua Invoice' },
-    { value: 'sudah', label: 'Sudah Invoice' },
+const NILAI_OPTIONS = [
+    { value: '', label: 'Semua Nilai' },
+    { value: 'maks_25000', label: 'Sampai Rp25.000' },
+    { value: 'min_25001', label: 'Mulai Rp25.001' },
 ];
 
 const COST_FIELDS = [
@@ -94,8 +97,8 @@ export default function DaftarKunjunganInvoice() {
         jenis: 'semua',
         search: '',
         id_pembiayaan: '',
-        done: '',
         invoice_status: 'belum',
+        nilai: '',
         dari: '',
         sampai: '',
     });
@@ -105,7 +108,7 @@ export default function DaftarKunjunganInvoice() {
         [rows, selectedNos],
     );
     const selectableRows = useMemo(
-        () => rows.filter((row) => row.status_done && row.status_invoice !== 'sudah' && Number(row.total_biaya || 0) > 0),
+        () => rows.filter((row) => row.status_done && row.status_invoice === 'belum' && Number(row.total_biaya || 0) > 0),
         [rows],
     );
     const selectableNos = useMemo(
@@ -136,15 +139,14 @@ export default function DaftarKunjunganInvoice() {
     const pembiayaanOptions = useMemo(
         () => [
             { value: '', label: 'Semua Pembiayaan' },
-            { value: 'group_perusahaan', label: '🏢 Khusus Perusahaan / Asuransi', isGroup: true },
-            { value: 'group_bpjs', label: '🟢 Khusus BPJS', isGroup: true },
-            { value: 'group_swadana', label: '👤 Khusus Swadana / Umum', isGroup: true },
-            { value: 'group_karyawan', label: '🏥 Khusus Karyawan RS Siaga', isGroup: true },
-            { value: 'non_bpjs', label: '🛡️ Non BPJS (Semua selain BPJS)', isGroup: true },
+            { value: 'group_perusahaan', label: 'Khusus Perusahaan / Asuransi' },
+            { value: 'group_bpjs', label: 'Khusus BPJS Kesehatan' },
+            { value: 'group_swadana', label: 'Khusus Swadana / Umum' },
+            { value: 'group_karyawan', label: 'Khusus Karyawan RS Siaga' },
+            { value: 'non_bpjs', label: 'Non BPJS Kesehatan (Semua selain BPJS Kesehatan)' },
             ...indukList.map((induk) => ({
                 value: `pool_${induk.id}`,
-                label: `🏢 [POOL] ${induk.nama}`,
-                isPool: true,
+                label: `Pool - ${induk.nama}`,
             })),
             ...pembiayaan.map((item) => ({
                 value: String(item.id_pembiayaan),
@@ -456,7 +458,14 @@ export default function DaftarKunjunganInvoice() {
                     </div>
                     <div className="dki-card-actions">
                         <div className="dki-chip">
-                            <Filter size={14} /> {filters.invoice_status === 'belum' ? 'Belum Invoice' : filters.invoice_status === 'sudah' ? 'Sudah Invoice' : 'Semua Invoice'}
+                            <Filter size={14} /> {
+                                filters.invoice_status === 'belum' ? 'Belum Invoice (Siap Invoice)' :
+                                filters.invoice_status === 'sudah' ? 'Sudah Invoice' :
+                                filters.invoice_status === 'diluar_tanggungan' ? 'Diluar Tanggungan Asuransi' :
+                                filters.invoice_status === 'tidak_hadir' ? 'Tidak Hadir' :
+                                filters.invoice_status === 'semua_belum' ? 'Semua Belum Invoice' :
+                                'Semua Status'
+                            }
                         </div>
                         <button
                             className="dki-primary dki-create-btn"
@@ -516,21 +525,21 @@ export default function DaftarKunjunganInvoice() {
                         </select>
 
                         <select
-                            className="dki-select dki-filter-status"
-                            value={filters.done}
-                            onChange={(e) => setFilter('done', e.target.value)}
-                        >
-                            {DONE_OPTIONS.map((item) => (
-                                <option key={item.value} value={item.value}>{item.label}</option>
-                            ))}
-                        </select>
-
-                        <select
                             className="dki-select dki-filter-invoice"
                             value={filters.invoice_status}
                             onChange={(e) => setFilter('invoice_status', e.target.value)}
                         >
                             {INVOICE_OPTIONS.map((item) => (
+                                <option key={item.value} value={item.value}>{item.label}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            className="dki-select dki-filter-nilai"
+                            value={filters.nilai}
+                            onChange={(e) => setFilter('nilai', e.target.value)}
+                        >
+                            {NILAI_OPTIONS.map((item) => (
                                 <option key={item.value} value={item.value}>{item.label}</option>
                             ))}
                         </select>
@@ -544,8 +553,8 @@ export default function DaftarKunjunganInvoice() {
                                     jenis: 'semua',
                                     search: '',
                                     id_pembiayaan: '',
-                                    done: '',
                                     invoice_status: 'belum',
+                                    nilai: '',
                                     dari: '',
                                     sampai: '',
                                 });
@@ -583,19 +592,19 @@ export default function DaftarKunjunganInvoice() {
                                     <th>Pasien</th>
                                     <th>Pembiayaan</th>
                                     <th className="right">Total Biaya</th>
-                                    <th>Status</th>
                                     <th>Invoice</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {rows.length === 0 ? (
-                                    <tr><td colSpan="9" className="center dki-state-cell">Belum ada kunjungan sesuai filter.</td></tr>
+                                    <tr><td colSpan="8" className="center dki-state-cell">Belum ada kunjungan sesuai filter.</td></tr>
                                 ) : rows.map((row) => {
                                 const noCharge = Number(row.total_biaya || 0) <= 0;
-                                const disabled = !row.status_done || row.status_invoice === 'sudah' || noCharge;
+                                const isNotBillable = row.status_invoice === 'diluar_tanggungan' || row.status_invoice === 'tidak_hadir';
+                                const disabled = !row.status_done || row.status_invoice !== 'belum' || noCharge;
                                 return (
-                                    <tr key={row.no} className={`${selectedNos.includes(String(row.no)) ? 'selected' : ''}${noCharge ? ' no-charge' : ''}`}>
+                                    <tr key={row.no} className={`${selectedNos.includes(String(row.no)) ? 'selected' : ''}${noCharge ? ' no-charge' : ''}${isNotBillable ? ' not-billable' : ''}`}>
                                         <td className="check">
                                             <label className="dki-check">
                                                 <input
@@ -622,7 +631,6 @@ export default function DaftarKunjunganInvoice() {
                                             {money(row.total_biaya)}
                                             {noCharge && <small className="dki-warning-text">Belum ada biaya</small>}
                                         </td>
-                                        <td><StatusBadge done={row.status_done} /></td>
                                         <td><InvoiceBadge row={row} /></td>
                                         <td>
                                             <button className="dki-icon-btn" type="button" onClick={() => openDetail(row)} title="Lihat detail">
@@ -904,7 +912,7 @@ export default function DaftarKunjunganInvoice() {
                                     <Info label="Tanggal Masuk" value={dateLabel(detail.tgl_masuk)} icon={CalendarDays} />
                                     <Info label="Pembiayaan" value={`${detail.nama_pembiayaan || '-'} (${detail.id_pembiayaan || '-'})`} icon={Filter} />
                                     <Info label="Total Biaya" value={money(detail.total_biaya)} icon={ReceiptText} strong />
-                                    <Info label="Status" value={detail.status_done ? 'Sudah Done' : 'Belum Done'} icon={CheckCircle2} />
+                                    <Info label="Status Kunjungan" value={detail.status_invoice_label || (detail.status_done ? 'Sudah Done' : 'Belum Done')} icon={CheckCircle2} />
                                 </div>
                                 <div className="dki-section-title">
                                     <h3>Rincian Biaya</h3>
@@ -940,13 +948,15 @@ function SummaryCard({ icon, label, value, accent }) {
     );
 }
 
-function StatusBadge({ done }) {
-    return <span className={`dki-badge ${done ? 'done' : 'pending'}`}>{done ? 'Done' : 'Belum Done'}</span>;
-}
-
 function InvoiceBadge({ row }) {
     if (row.status_invoice === 'sudah') {
         return <span className="dki-badge invoiced">{row.no_invoice || 'Sudah Invoice'}</span>;
+    }
+    if (row.status_invoice === 'diluar_tanggungan') {
+        return <span className="dki-badge diluar-tanggungan" title="Total > 25rb, Asuransi tahun lama, ada pembayaran di app_siaga">Diluar Tanggungan Asuransi</span>;
+    }
+    if (row.status_invoice === 'tidak_hadir') {
+        return <span className="dki-badge tidak-hadir" title="Biaya <= 25rb, tidak ada pembayaran di app_siaga">Tidak Hadir</span>;
     }
     return <span className="dki-badge open">Belum Invoice</span>;
 }
