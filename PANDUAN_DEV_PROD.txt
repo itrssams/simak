@@ -194,6 +194,10 @@ Reverse proxy wajib mengirim header:
 
 X-Forwarded-Proto: https
 
+Set TRUSTED_PROXY_IPS di backend/.env.production ke IP reverse proxy yang
+langsung terhubung ke backend, misalnya 192.168.44.10. Header IP forwarding
+hanya dipercaya dari alamat tersebut.
+
 Ini penting supaya Django tahu request user sebenarnya lewat HTTPS.
 
 Kalau memakai Nginx Proxy Manager dan muncul error:

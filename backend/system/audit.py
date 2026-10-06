@@ -1,5 +1,7 @@
 import json
+import ipaddress
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -21,14 +23,28 @@ def can_view_audit(user):
 
 
 def get_client_ip(request):
-    # Cloudflare Tunnel / Proxy menyertakan IP asli pengunjung di header ini
+    remote_addr = (request.META.get('REMOTE_ADDR') or '').strip()
+    trusted_proxies = getattr(settings, 'TRUSTED_PROXY_IPS', [])
+
+    try:
+        remote_ip = ipaddress.ip_address(remote_addr)
+        is_trusted_proxy = any(
+            remote_ip in ipaddress.ip_network(proxy, strict=False)
+            for proxy in trusted_proxies
+        )
+    except ValueError:
+        is_trusted_proxy = remote_addr in trusted_proxies
+
+    if not is_trusted_proxy:
+        return remote_addr
+
     cf_ip = request.META.get('HTTP_CF_CONNECTING_IP')
     if cf_ip:
         return cf_ip.strip()
     forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if forwarded:
         return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    return remote_addr
 
 
 def sanitize_payload(value):

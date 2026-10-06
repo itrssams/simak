@@ -67,6 +67,10 @@ ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
     f'localhost,127.0.0.1,192.168.44.15,192.168.44.116,backend,simak-backend,{PUBLIC_DOMAIN}',
 )
+TRUSTED_PROXY_IPS = env_list(
+    'TRUSTED_PROXY_IPS',
+    '127.0.0.1,::1,192.168.44.10',
+)
 # Wildcard '*' dihapus untuk keamanan - hanya host yang terdaftar yang diizinkan
 # Jika perlu menambah host untuk development, tambahkan di .env ALLOWED_HOSTS
 
