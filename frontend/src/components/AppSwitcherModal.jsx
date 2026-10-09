@@ -49,6 +49,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
     const canReimbursement = Boolean(user?.is_superuser || user?.akses_reimbursement || isKeuangan || isDirekturUp);
     const canPettyCash = Boolean(user?.is_superuser || isManajerUp || isKeuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
     const isDriverAccess = user?.is_driver || isDirekturUp;
+    const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || isDirekturUp);
 
     const allApps = useMemo(() => [
         {
@@ -103,7 +104,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
         },
         {
             id: 'sdm',
-            name: 'SDM',
+            name: hasSdmAccess ? 'SDM' : 'Izin Meninggalkan Tempat Kerja',
             icon: UserCheck,
             color: '#6366f1',
             glowColor: 'rgba(99, 102, 241, 0.45)',

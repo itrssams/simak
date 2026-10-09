@@ -31,6 +31,7 @@ import {
     ClipboardList,
     Download,
     Pill,
+    UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -68,6 +69,7 @@ const IconConfig = {
     debt: { icon: FileClock, size: 18 },
     kasbesar: { icon: WalletCards, size: 18 },
     apotik: { icon: Pill, size: 18 },
+    izin: { icon: UserCheck, size: 18 },
 };
 
 const renderIcon = (iconKey, overrideSize) => {
@@ -160,7 +162,11 @@ const MENU_LOGISTIK = [
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = true;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'SDM', 'Izin Meninggalkan Tempat Kerja', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
+
+const MENU_SDM = [
+    { label: 'SDM', path: '/sdm/izin-kerja', icon: 'pelanggan' },
+];
 
 function uniqueMenus(items) {
     const result = [];
@@ -207,7 +213,12 @@ function getMenuItems(user) {
     const role = user?.role;
     const base = [];
     const canPC = Boolean(user?.is_superuser || isManajerUp(user) || user?.is_keuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
-    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK])));
+    const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || ['direktur', 'wakil_direktur'].includes(user?.role));
+    const sdmMenuItem = hasSdmAccess
+        ? { label: 'SDM', path: '/sdm/izin-kerja', icon: 'pelanggan' }
+        : { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja', icon: 'izin' };
+
+    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK, sdmMenuItem])));
     if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
     else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
     else if (role === 'kepala_seksi') base.push(...MENU_KEPALA_SEKSI);
@@ -220,6 +231,7 @@ function getMenuItems(user) {
     if (canPC && !['manajer', 'wakil_direktur', 'direktur'].includes(role) && !user?.is_superuser) {
         base.push({ label: 'Petty Cash', path: '/petty-cash', icon: 'pettycash' });
     }
+    base.push(sdmMenuItem);
     return orderMenus(filterDisabledMenus(uniqueMenus(base)));
 }
 
@@ -584,16 +596,38 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 13. SDM
+    // 13. SDM / Izin Meninggalkan Tempat Kerja
     if (pathname.startsWith('/sdm')) {
+        const hasSdmAccess = Boolean(
+            user?.is_superuser ||
+            user?.is_sdm ||
+            ['direktur', 'wakil_direktur'].includes(user?.role)
+        );
+
+        if (!hasSdmAccess) {
+            return {
+                id: 'sdm',
+                title: 'Izin Meninggalkan Tempat Kerja',
+                icon: UserCheck,
+                iconColor: '#6366f1',
+                menus: [
+                    { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja' },
+                ],
+            };
+        }
+
+        const menus = [
+            { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },
+            { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
+            { label: 'Struktur Organisasi', path: '/sdm/struktur' },
+        ];
+
         return {
             id: 'sdm',
             title: 'SDM',
             icon: Users,
             iconColor: '#6366f1',
-            menus: [
-                { label: 'Izin Meninggalkan Kerja', path: '/sdm/izin-kerja' },
-            ],
+            menus,
         };
     }
 
@@ -606,7 +640,7 @@ function TopNavSubmenuItem({ item, location, navigate }) {
     if (item.path.includes('?')) {
         isCurrentActive = (location.pathname + location.search) === item.path;
     } else {
-        isCurrentActive = location.pathname === item.path;
+        isCurrentActive = location.pathname === item.path || (item.path === '/sdm/izin-kerja' && location.pathname === '/sdm/approval');
     }
 
     return (

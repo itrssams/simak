@@ -5837,7 +5837,40 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws = wb.active
         ws.title = "Daftar Utang Supplier"
 
-        ws.merge_cells('A1:O1')
+        utang_list = list(qs)
+        utang_ids = [u.id for u in utang_list]
+
+        pay_details_map = defaultdict(list)
+        pay_map = defaultdict(float)
+        if utang_ids:
+            pays = (
+                PembayaranUtang.objects
+                .filter(utang_id__in=utang_ids, status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur'])
+                .order_by('tanggal_proses', 'id')
+            )
+            for p in pays:
+                raw_amt = float(p.jumlah_bayar or Decimal('0'))
+                pay_details_map[p.utang_id].append({
+                    'tanggal': p.tanggal_proses,
+                    'nominal': raw_amt,
+                })
+                pay_map[p.utang_id] += raw_amt
+
+        max_actual = max((len(v) for v in pay_details_map.values()), default=0)
+        max_pay = max(4, max_actual)
+
+        headers = [
+            'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. SPB', 'No. Faktur',
+            'Tgl SPB', 'Tgl Faktur', 'Tgl Titip', 'Jatuh Tempo', 'Umur Utang',
+            'Nominal Faktur (Rp)', 'Sudah Dibayar (Rp)', 'Sisa Utang (Rp)', 'Status'
+        ]
+        for i in range(1, max_pay + 1):
+            headers.append(f'TGL BAYAR {i}')
+            headers.append(f'JML BAYAR {i}')
+
+        end_col_letter = get_column_letter(len(headers))
+        ws.merge_cells(f'A1:{end_col_letter}1')
+
         st_param = request.query_params.get('status')
         if st_param == 'aktif':
             title_text = 'REKAP DAFTAR UTANG SUPPLIER (HUTANG AKTIF / BELUM LUNAS)'
@@ -5864,17 +5897,18 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws['A2'] = f'Tanggal Cetak: {timezone.now().strftime("%d-%m-%Y %H:%M")}{periode_str}'
         ws['A2'].font = Font(italic=True, size=10, color='64748B')
 
-        headers = [
-            'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. SPB', 'No. Faktur',
-            'Tgl SPB', 'Tgl Faktur', 'Tgl Titip', 'Jatuh Tempo', 'Umur Utang',
-            'Nominal Faktur (Rp)', 'Sudah Dibayar (Rp)', 'Sisa Utang (Rp)', 'Status'
-        ]
         ws.append([])
         ws.append(headers)
 
         header_row = 4
         header_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
         header_font = Font(bold=True, color='FFFFFF')
+        fill_pay_tgl_hdr = PatternFill(start_color='0E7490', end_color='0E7490', fill_type='solid')  # Dark Cyan Hdr
+        fill_pay_jml_hdr = PatternFill(start_color='0D9488', end_color='0D9488', fill_type='solid')  # Dark Teal Hdr
+
+        fill_tgl_bayar = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')  # Kuning
+        fill_jml_bayar = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid')  # Biru Muda
+
         thin_border = Border(
             left=Side(style='thin', color='CBD5E1'),
             right=Side(style='thin', color='CBD5E1'),
@@ -5884,7 +5918,10 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=header_row, column=col_num)
-            cell.fill = header_fill
+            if col_num <= 15:
+                cell.fill = header_fill
+            else:
+                cell.fill = fill_pay_tgl_hdr if (col_num - 15) % 2 != 0 else fill_pay_jml_hdr
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = thin_border
@@ -5893,19 +5930,6 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         tot_nom = 0.0
         tot_byr = 0.0
         tot_sisa = 0.0
-
-        utang_list = list(qs)
-        utang_ids = [u.id for u in utang_list]
-        pay_map = {}
-        if utang_ids:
-            pays = (
-                PembayaranUtang.objects
-                .filter(utang_id__in=utang_ids, status__in=['realisasi_sebagian', 'realisasi_lunas', 'retur'])
-                .values('utang_id')
-                .annotate(total=Sum('jumlah_bayar'))
-            )
-            for p in pays:
-                pay_map[p['utang_id']] = float(p['total'] or 0)
 
         # Koleksi statistik per kategori
         cat_stats = defaultdict(lambda: {'count': 0, 'nominal': 0.0, 'dibayar': 0.0, 'sisa': 0.0})
@@ -5940,7 +5964,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             umur_str = f"{max(0, (today_date - u.tanggal_titip).days)} Hari" if u.tanggal_titip else '-'
             status_lbl = dict(UtangSupplier.STATUS_CHOICES).get(u.status, u.status)
 
-            ws.append([
+            row_data = [
                 idx,
                 u.get_sumber_display(),
                 u.vendor_nama,
@@ -5956,12 +5980,41 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 byr,
                 sisa,
                 status_lbl,
-            ])
+            ]
+
+            p_list = pay_details_map.get(u.id, [])
+            for p_idx in range(max_pay):
+                if p_idx < len(p_list):
+                    tgl_p = p_list[p_idx]['tanggal'].strftime('%d-%m-%Y') if p_list[p_idx]['tanggal'] else '-'
+                    jml_p = p_list[p_idx]['nominal']
+                else:
+                    tgl_p = '-'
+                    jml_p = 0.0
+                row_data.append(tgl_p)
+                row_data.append(jml_p)
+
+            ws.append(row_data)
 
             row_i = ws.max_row
-            ws.cell(row=row_i, column=12).number_format = '#,##0.00'
-            ws.cell(row=row_i, column=13).number_format = '#,##0.00'
-            ws.cell(row=row_i, column=14).number_format = '#,##0.00'
+            for c_idx in range(1, len(headers) + 1):
+                cell = ws.cell(row=row_i, column=c_idx)
+                cell.border = thin_border
+                if c_idx > 15:
+                    if (c_idx - 15) % 2 != 0:
+                        cell.fill = fill_tgl_bayar
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
+                    else:
+                        cell.fill = fill_jml_bayar
+                        cell.alignment = Alignment(horizontal='right', vertical='center')
+                        cell.number_format = '#,##0.00'
+                else:
+                    if c_idx in (12, 13, 14):
+                        cell.alignment = Alignment(horizontal='right', vertical='center')
+                        cell.number_format = '#,##0.00'
+                    elif c_idx in (3, 4):
+                        cell.alignment = Alignment(horizontal='left', vertical='center')
+                    else:
+                        cell.alignment = Alignment(horizontal='center', vertical='center')
 
         # Baris Grand Total Tabel Utama
         total_row_idx = ws.max_row + 1
@@ -5970,20 +6023,42 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         ws.cell(row=total_row_idx, column=12, value=tot_nom)
         ws.cell(row=total_row_idx, column=13, value=tot_byr)
         ws.cell(row=total_row_idx, column=14, value=tot_sisa)
+        ws.cell(row=total_row_idx, column=15, value='-')
+
+        for p_idx in range(max_pay):
+            sum_pay_i = sum(
+                pay_details_map[u.id][p_idx]['nominal']
+                for u in utang_list
+                if len(pay_details_map.get(u.id, [])) > p_idx
+            )
+            col_tgl_idx = 15 + (p_idx * 2) + 1
+            col_jml_idx = 15 + (p_idx * 2) + 2
+            ws.cell(row=total_row_idx, column=col_tgl_idx, value='-')
+            ws.cell(row=total_row_idx, column=col_jml_idx, value=sum_pay_i)
 
         total_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
         total_font = Font(bold=True, color='FFFFFF')
 
-        for c_idx in range(1, 16):
+        for c_idx in range(1, len(headers) + 1):
             c = ws.cell(row=total_row_idx, column=c_idx)
-            c.fill = total_fill
-            c.font = total_font
             c.border = thin_border
-            if c_idx in (12, 13, 14):
-                c.number_format = '#,##0.00'
-                c.alignment = Alignment(horizontal='right', vertical='center')
+            if c_idx <= 15:
+                c.fill = total_fill
+                c.font = total_font
+                if c_idx in (12, 13, 14):
+                    c.number_format = '#,##0.00'
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                else:
+                    c.alignment = Alignment(horizontal='center', vertical='center')
             else:
-                c.alignment = Alignment(horizontal='center', vertical='center')
+                c.font = Font(name='Calibri', size=11, bold=True, color='0F172A')
+                if (c_idx - 15) % 2 != 0:
+                    c.fill = fill_tgl_bayar
+                    c.alignment = Alignment(horizontal='center', vertical='center')
+                else:
+                    c.fill = fill_jml_bayar
+                    c.alignment = Alignment(horizontal='right', vertical='center')
+                    c.number_format = '#,##0.00'
 
         # ─────────────────────────────────────────────────────────────
         # TABEL RINGKASAN TOTAL PER KATEGORI (Di Bawah Tabel Utama)
@@ -6073,7 +6148,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             if col_i == 1:
                 c.alignment = Alignment(horizontal='center', vertical='center')
 
-        ws.auto_filter.ref = f'A4:O{total_row_idx - 1}'
+        ws.auto_filter.ref = f'A4:{end_col_letter}{total_row_idx - 1}'
 
         col_widths = {
             'A': 8, 'B': 14, 'C': 34, 'D': 42, 'E': 18, 'F': 22,
@@ -6082,6 +6157,13 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         }
         for col_letter, width in col_widths.items():
             ws.column_dimensions[col_letter].width = width
+
+        for c_idx in range(16, len(headers) + 1):
+            col_letter = get_column_letter(c_idx)
+            if (c_idx - 15) % 2 != 0:
+                ws.column_dimensions[col_letter].width = 16  # TGL BAYAR
+            else:
+                ws.column_dimensions[col_letter].width = 20  # JML BAYAR
 
         # ─────────────────────────────────────────────────────────────
         # SHEET 2: RINGKASAN KATEGORI (Halaman Khusus Executive Summary)
@@ -6594,7 +6676,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             ws = wb.active
             ws.title = "Riwayat Pembayaran"
 
-            ws.merge_cells('A1:K1')
+            ws.merge_cells('A1:L1')
             ws['A1'] = 'REKAP RIWAYAT PEMBAYARAN UTANG SUPPLIER'
             ws['A1'].font = Font(bold=True, size=14)
             ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
@@ -6606,7 +6688,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             ws['A2'].font = Font(italic=True, size=10)
 
             headers = [
-                'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. Faktur',
+                'No', 'Sumber', 'Vendor / Supplier', 'Kategori', 'No. Faktur', 'Tgl Faktur',
                 'Tgl Titip', 'Tgl Bayar', 'Jumlah Bayar (Rp)', 'Status', 'Keterangan', 'Operator'
             ]
             ws.append([])
@@ -6668,6 +6750,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     cat_stats_pay[kat_label]['count'] += 1
                     cat_stats_pay[kat_label]['total'] += jumlah
 
+                    tgl_faktur_str = utang.tanggal_faktur.strftime('%d-%m-%Y') if (utang and utang.tanggal_faktur) else '-'
                     tgl_titip_str = utang.tanggal_titip.strftime('%d-%m-%Y') if (utang and utang.tanggal_titip) else '-'
                     tgl_bayar_str = item.tanggal_proses.strftime('%d-%m-%Y') if item.tanggal_proses else '-'
                     sumber_label = utang.get_sumber_display() if utang else '-'
@@ -6682,6 +6765,7 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         utang.vendor_nama if utang else '-',
                         kat_label if kat_label != 'TANPA KATEGORI' else '-',
                         faktur_str,
+                        tgl_faktur_str,
                         tgl_titip_str,
                         tgl_bayar_str,
                         float(jumlah),
@@ -6692,12 +6776,12 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     global_index += 1
 
                     row_num = ws.max_row
-                    for col in range(1, 12):
+                    for col in range(1, 13):
                         c = ws.cell(row=row_num, column=col)
                         c.border = thin_border
-                        if col in [1, 2, 5, 6, 7, 9]:
+                        if col in [1, 2, 5, 6, 7, 8, 10]:
                             c.alignment = Alignment(horizontal='center', vertical='center')
-                        elif col == 8:
+                        elif col == 9:
                             c.number_format = '#,##0.00'
                             c.alignment = Alignment(horizontal='right', vertical='center')
                         else:
@@ -6706,40 +6790,40 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 # Subtotal per vendor
                 subtotal_row = ws.max_row + 1
                 ws.cell(row=subtotal_row, column=1, value=f'SUBTOTAL {vendor_nama.upper()}')
-                ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=7)
+                ws.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=8)
 
-                subtotal_cell = ws.cell(row=subtotal_row, column=8, value=float(vendor_subtotal))
+                subtotal_cell = ws.cell(row=subtotal_row, column=9, value=float(vendor_subtotal))
                 subtotal_cell.number_format = '#,##0.00'
 
-                for col in range(1, 12):
+                for col in range(1, 13):
                     c = ws.cell(row=subtotal_row, column=col)
                     c.fill = subtotal_fill
                     c.font = subtotal_font
                     c.border = thin_border
                     if col == 1:
                         c.alignment = Alignment(horizontal='right', vertical='center')
-                    elif col == 8:
+                    elif col == 9:
                         c.alignment = Alignment(horizontal='right', vertical='center')
 
             # Baris Grand Total Riwayat
             grand_row = ws.max_row + 1
             ws.cell(row=grand_row, column=1, value='GRAND TOTAL REALISASI PEMBAYARAN')
-            ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=7)
+            ws.merge_cells(start_row=grand_row, start_column=1, end_row=grand_row, end_column=8)
 
-            grand_cell = ws.cell(row=grand_row, column=8, value=float(grand_total))
+            grand_cell = ws.cell(row=grand_row, column=9, value=float(grand_total))
             grand_cell.number_format = '#,##0.00'
 
             grand_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
             grand_font = Font(bold=True, color='FFFFFF')
 
-            for col in range(1, 12):
+            for col in range(1, 13):
                 c = ws.cell(row=grand_row, column=col)
                 c.fill = grand_fill
                 c.font = grand_font
                 c.border = thin_border
                 if col == 1:
                     c.alignment = Alignment(horizontal='right', vertical='center')
-                elif col == 8:
+                elif col == 9:
                     c.alignment = Alignment(horizontal='right', vertical='center')
 
             # TABEL RINGKASAN PEMBAYARAN PER KATEGORI
@@ -6817,12 +6901,13 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 'C': 34,  # Vendor / Supplier
                 'D': 30,  # Kategori
                 'E': 22,  # No. Faktur
-                'F': 14,  # Tgl Titip
-                'G': 14,  # Tgl Bayar
-                'H': 22,  # Jumlah Bayar (Rp)
-                'I': 20,  # Status
-                'J': 36,  # Keterangan
-                'K': 18,  # Operator
+                'F': 14,  # Tgl Faktur
+                'G': 14,  # Tgl Titip
+                'H': 14,  # Tgl Bayar
+                'I': 22,  # Jumlah Bayar (Rp)
+                'J': 20,  # Status
+                'K': 36,  # Keterangan
+                'L': 18,  # Operator
             }
             for col_letter, width in col_widths.items():
                 ws.column_dimensions[col_letter].width = width

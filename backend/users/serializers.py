@@ -7,14 +7,27 @@ User = get_user_model()
 
 class UnitSerializer(serializers.ModelSerializer):
     user_count = serializers.SerializerMethodField()
+    parent_nama = serializers.CharField(source='parent.nama', read_only=True, default=None)
+    kategori_label = serializers.CharField(source='get_kategori_display', read_only=True)
+    kepala_unit_nama = serializers.SerializerMethodField()
 
     class Meta:
         model  = Unit
-        fields = ['id', 'nama', 'is_active', 'created_at', 'user_count']
-        read_only_fields = ['id', 'created_at']
+        fields = [
+            'id', 'nama', 'kategori', 'kategori_label',
+            'parent', 'parent_nama',
+            'kepala_unit', 'kepala_unit_nama',
+            'is_active', 'created_at', 'updated_at', 'user_count'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_user_count(self, obj):
         return obj.users.filter(is_active=True).count()
+
+    def get_kepala_unit_nama(self, obj):
+        if obj.kepala_unit:
+            return obj.kepala_unit.get_full_name() or obj.kepala_unit.username
+        return None
 
 
 class UserSerializer(serializers.ModelSerializer):

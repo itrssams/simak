@@ -32,6 +32,38 @@ def has_sdm_access(user):
     )
 
 
+def user_can_approve_izin(user, izin):
+    """
+    Menentukan apakah `user` berhak melakukan single approval untuk `izin`.
+    Aturan:
+    - User tidak dapat menyetujui izin miliknya sendiri.
+    - Superuser & Direktur selalu berhak menyetujui.
+    - User berada dalam rantai approvers chain (Kasi / Manajer / Wadir yang membawahi pemohon).
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if izin.user_id == user.id:
+        return False
+    if user.is_superuser or user.role == 'direktur':
+        return True
+    approvers = izin.user.get_approvers_chain()
+    return any(a.id == user.id for a in approvers)
+
+
+def get_subordinate_user_ids(boss):
+    """Mendapatkan daftar ID bawahan aktif yang berada di bawah wewenang persetujuan `boss`"""
+    if not boss or not boss.is_authenticated:
+        return []
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    sub_ids = []
+    for emp in User.objects.filter(is_active=True).exclude(id=boss.id):
+        chain = emp.get_approvers_chain()
+        if any(a.id == boss.id for a in chain):
+            sub_ids.append(emp.id)
+    return sub_ids
+
+
 class IzinKeluarViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     pagination_class = None
@@ -43,18 +75,32 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = IzinKeluar.objects.select_related('user', 'user__unit').prefetch_related('logs', 'logs__created_by')
+        qs = IzinKeluar.objects.select_related('user', 'user__unit', 'approved_by').prefetch_related('logs', 'logs__created_by')
 
-        # Mode filter 'mine' (khusus izin sendiri, berguna bagi SDM saat di tab Izin Saya)
+        # Mode filter 'mine' (khusus izin sendiri, berguna saat di tab Izin Saya)
         is_mine = self.request.query_params.get('mine') in ('1', 'true', 'True')
+        # Mode filter 'approval' (khusus daftar antrean yang butuh di-approve oleh user)
+        is_approval = self.request.query_params.get('need_approval') in ('1', 'true', 'True')
 
-        if not has_sdm_access(user) or is_mine:
+        if is_mine:
             qs = qs.filter(user=user)
-        else:
+        elif is_approval:
+            sub_ids = get_subordinate_user_ids(user)
+            if user.is_superuser or user.role == 'direktur':
+                qs = qs.filter(status='menunggu_approval').exclude(user=user)
+            else:
+                qs = qs.filter(status='menunggu_approval', user_id__in=sub_ids)
+        elif has_sdm_access(user):
             # Akses SDM / Direksi: dapat memfilter berdasarkan unit
             unit_id = self.request.query_params.get('unit')
             if unit_id:
                 qs = qs.filter(user__unit_id=unit_id)
+        elif user.role in ('kepala_seksi', 'manajer', 'wakil_direktur'):
+            # Pejabat struktural: bisa melihat izin miliknya + izin seluruh bawahan langsung & tidak langsung
+            sub_ids = get_subordinate_user_ids(user)
+            qs = qs.filter(Q(user=user) | Q(user_id__in=sub_ids))
+        else:
+            qs = qs.filter(user=user)
 
         # Filter Kategori
         kategori = self.request.query_params.get('kategori')
@@ -104,12 +150,12 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         jam_keluar = serializer.validated_data.get('jam_keluar')
         jam_kembali = serializer.validated_data.get('jam_kembali')
 
-        # Kunci jam rencana awal dan set status berjalan
+        # Izin baru masuk ke status menunggu persetujuan atasan
         serializer.save(
             user=user,
             jam_keluar_awal=jam_keluar,
             jam_kembali_awal=jam_kembali,
-            status='berjalan',
+            status='menunggu_approval',
             is_adjusted=False
         )
 
@@ -121,6 +167,59 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
             raise ValidationError('Izin yang sudah selesai tidak dapat dihapus.')
         instance.delete()
 
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve(self, request, pk=None):
+        """Single approval oleh salah satu atasan (Kasi, Manajer, Wadir, Direktur)"""
+        izin = self.get_object()
+
+        if izin.status != 'menunggu_approval':
+            return Response(
+                {'error': f'Izin ini tidak dapat disetujui karena status saat ini adalah {izin.get_status_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not user_can_approve_izin(request.user, izin):
+            raise PermissionDenied('Anda tidak memiliki wewenang struktural untuk menyetujui izin ini.')
+
+        catatan = request.data.get('catatan_approval', '').strip()
+        izin.status = 'disetujui'
+        izin.approved_by = request.user
+        izin.approved_at = timezone.now()
+        if catatan:
+            izin.catatan_approval = catatan
+        izin.save()
+
+        return Response(IzinKeluarSerializer(izin, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='reject')
+    def reject(self, request, pk=None):
+        """Penolakan izin oleh atasan"""
+        izin = self.get_object()
+
+        if izin.status != 'menunggu_approval':
+            return Response(
+                {'error': f'Izin ini tidak dapat ditolak karena status saat ini adalah {izin.get_status_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not user_can_approve_izin(request.user, izin):
+            raise PermissionDenied('Anda tidak memiliki wewenang struktural untuk menolak izin ini.')
+
+        catatan = request.data.get('catatan_approval', '').strip()
+        if not catatan:
+            return Response(
+                {'error': 'Wajib mencantumkan alasan / catatan penolakan.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        izin.status = 'ditolak'
+        izin.approved_by = request.user
+        izin.approved_at = timezone.now()
+        izin.catatan_approval = catatan
+        izin.save()
+
+        return Response(IzinKeluarSerializer(izin, context={'request': request}).data)
+
     @action(detail=True, methods=['post'], url_path='sesuaikan-jam')
     def sesuaikan_jam(self, request, pk=None):
         """Menyesuaikan jam keluar / kembali dengan mencatat histori perubahan"""
@@ -130,9 +229,9 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         if izin.user != request.user and not has_sdm_access(request.user):
             raise PermissionDenied('Anda tidak memiliki izin mengubah data ini.')
 
-        if izin.status != 'berjalan':
+        if izin.status not in ('menunggu_approval', 'disetujui', 'berjalan'):
             return Response(
-                {'error': 'Hanya izin yang berstatus Sedang di Luar yang dapat disesuaikan jamnya.'},
+                {'error': f'Izin dengan status {izin.get_status_display()} tidak dapat disesuaikan jamnya.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -160,7 +259,7 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         izin.is_adjusted = True
         izin.save()
 
-        return Response(IzinKeluarSerializer(izin).data)
+        return Response(IzinKeluarSerializer(izin, context={'request': request}).data)
 
     @action(detail=True, methods=['post'], url_path='konfirmasi-kembali')
     def konfirmasi_kembali(self, request, pk=None):
@@ -170,9 +269,9 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         if izin.user != request.user and not has_sdm_access(request.user):
             raise PermissionDenied('Anda tidak memiliki izin mengonfirmasi kepulangan ini.')
 
-        if izin.status != 'berjalan':
+        if izin.status not in ('disetujui', 'berjalan'):
             return Response(
-                {'error': f'Izin ini sudah berstatus {izin.get_status_display()}.'},
+                {'error': f'Hanya izin yang sudah disetujui atau sedang di luar yang dapat dikonfirmasi kepulangannya (status saat ini: {izin.get_status_display()}).'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -189,7 +288,7 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         izin.status = 'selesai'
         izin.save()
 
-        return Response(IzinKeluarSerializer(izin).data)
+        return Response(IzinKeluarSerializer(izin, context={'request': request}).data)
 
     @action(detail=True, methods=['post'], url_path='batalkan')
     def batalkan(self, request, pk=None):
@@ -199,16 +298,16 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         if izin.user != request.user and not has_sdm_access(request.user):
             raise PermissionDenied('Anda tidak memiliki izin membatalkan izin ini.')
 
-        if izin.status != 'berjalan':
+        if izin.status in ('selesai', 'dibatalkan', 'ditolak'):
             return Response(
-                {'error': 'Hanya izin yang sedang berjalan yang dapat dibatalkan.'},
+                {'error': f'Izin dengan status {izin.get_status_display()} tidak dapat dibatalkan.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         izin.status = 'dibatalkan'
         izin.save()
 
-        return Response(IzinKeluarSerializer(izin).data)
+        return Response(IzinKeluarSerializer(izin, context={'request': request}).data)
 
     @action(detail=False, methods=['get'], url_path='statistik')
     def statistik(self, request):
@@ -216,17 +315,32 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         user = request.user
         today = timezone.localdate()
 
-        # Cek izin aktif milik user sendiri
+        # Cek izin aktif milik user sendiri (disetujui atau sedang berjalan)
         active_mine = IzinKeluar.objects.filter(
             user=user,
-            status='berjalan'
+            status__in=['disetujui', 'berjalan']
         ).order_by('-tanggal', '-created_at').first()
 
-        active_mine_data = IzinKeluarSerializer(active_mine).data if active_mine else None
+        active_mine_data = IzinKeluarSerializer(active_mine, context={'request': request}).data if active_mine else None
+
+        # Jumlah izin pending milik sendiri
+        pending_mine_count = IzinKeluar.objects.filter(user=user, status='menunggu_approval').count()
+
+        # Hitung antrean approval yang butuh persetujuan user ini
+        sub_ids = get_subordinate_user_ids(user)
+        if user.is_superuser or user.role == 'direktur':
+            need_approval_count = IzinKeluar.objects.filter(status='menunggu_approval').exclude(user=user).count()
+        elif sub_ids:
+            need_approval_count = IzinKeluar.objects.filter(status='menunggu_approval', user_id__in=sub_ids).count()
+        else:
+            need_approval_count = 0
 
         data = {
             'has_sdm_access': has_sdm_access(user),
+            'is_approver': bool(need_approval_count > 0 or sub_ids or user.role in ('kepala_seksi', 'manajer', 'wakil_direktur', 'direktur')),
             'active_mine': active_mine_data,
+            'pending_mine_count': pending_mine_count,
+            'need_approval_count': need_approval_count,
         }
 
         if has_sdm_access(user):
@@ -234,7 +348,8 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
             month_qs = IzinKeluar.objects.filter(tanggal__year=today.year, tanggal__month=today.month)
 
             data.update({
-                'today_sedang_keluar': today_qs.filter(status='berjalan').count(),
+                'today_menunggu_approval': today_qs.filter(status='menunggu_approval').count(),
+                'today_sedang_keluar': today_qs.filter(status__in=['disetujui', 'berjalan']).count(),
                 'today_sudah_kembali': today_qs.filter(status='selesai').count(),
                 'month_total': month_qs.count(),
                 'month_dinas': month_qs.filter(kategori='dinas').count(),

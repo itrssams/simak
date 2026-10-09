@@ -107,6 +107,7 @@ export default function AppLauncher() {
     const canPettyCash = Boolean(user?.is_superuser || isManajerUp || isKeuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
     const canLaporanPC = Boolean(isManajerUp || user?.is_petty_cash_cashier || isKeuangan || user?.view_petty_cash || user?.is_superuser);
     const isDriverAccess = user?.is_driver || isDirekturUp;
+    const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || isDirekturUp);
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
     const allApps = useMemo(() => [
@@ -205,8 +206,8 @@ export default function AppLauncher() {
         },
         {
             id: 'sdm',
-            name: 'SDM',
-            subtitle: 'Izin Meninggalkan Tempat Kerja',
+            name: hasSdmAccess ? 'SDM' : 'Izin Meninggalkan Tempat Kerja',
+            subtitle: hasSdmAccess ? 'Pengajuan Izin & Dashboard IMTK' : 'Pencatatan Izin Keluar Kantor',
             icon: UserCheck,
             color: '#6366f1',
             glowColor: 'rgba(99, 102, 241, 0.45)',
@@ -214,8 +215,12 @@ export default function AppLauncher() {
             glassGlowLight: 'rgba(99, 102, 241, 0.15)',
             path: '/sdm/izin-kerja',
             allowed: true,
-            submenus: [
-                { label: 'Izin Meninggalkan Kerja', path: '/sdm/izin-kerja' },
+            submenus: hasSdmAccess ? [
+                { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },
+                { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
+                { label: 'Struktur Organisasi', path: '/sdm/struktur' },
+            ] : [
+                { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja' },
             ],
         },
         {

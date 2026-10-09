@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToastState } from '../../context/ToastContext';
 import {
     AlertTriangle,
@@ -8,6 +9,7 @@ import {
     Edit3,
     Eye,
     EyeOff,
+    GitFork,
     KeyRound,
     Layers3,
     Lock,
@@ -70,10 +72,12 @@ const initialForm = {
 
 export default function ManajemenUser() {
     const { user: currentUser } = useAuth();
+    const navigate = useNavigate();
     const canManage = ['direktur', 'wakil_direktur'].includes(currentUser?.role) || currentUser?.is_superuser;
 
     const [activeTab, setActiveTab] = useState('users');
     const [users, setUsers] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -98,7 +102,7 @@ export default function ManajemenUser() {
     const [modalUnit, setModalUnit] = useState(false);
     const [modalEditUnit, setModalEditUnit] = useState(null);
     const [modalHapusUnit, setModalHapusUnit] = useState(null);
-    const [unitForm, setUnitForm] = useState({ nama: '', is_active: true });
+    const [unitForm, setUnitForm] = useState({ nama: '', kategori: 'unit', parent: '', kepala_unit: '', is_active: true });
 
     useEffect(() => {
         fetchAll();
@@ -108,13 +112,15 @@ export default function ManajemenUser() {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            const [userRes, unitRes] = await Promise.all([
+            const [userRes, unitRes, allUsersRes] = await Promise.all([
                 api.get('/users/', { params: pageParams(userPage, userPageSize, { role: filterRole || undefined }) }),
                 api.get('/users/units/'),
+                api.get('/users/?page_size=100'),
             ]);
             setUsers(getResults(userRes.data));
             setUserTotal(getCount(userRes.data));
             setUnits(getResults(unitRes.data));
+            setAllUsers(getResults(allUsersRes.data));
         } catch (e) {
             console.error(e);
             setError('Gagal memuat data user.');
@@ -258,7 +264,7 @@ export default function ManajemenUser() {
                 is_logistik: form.is_logistik,
                 is_akuntansi: form.is_akuntansi,
                 is_sdm: form.is_sdm,
-                unit: ['karyawan', 'kepala_seksi'].includes(form.role) ? (form.unit || null) : null,
+                unit: form.unit ? Number(form.unit) : null,
             });
             showSuccess(`Akun ${modalEdit.username} berhasil diupdate.`);
             closeUserModals();
@@ -320,10 +326,16 @@ export default function ManajemenUser() {
         if (!unitForm.nama.trim()) return setError('Nama unit wajib diisi.');
         setSaving(true);
         try {
-            await api.post('/users/units/', { ...unitForm, nama: unitForm.nama.trim() });
+            await api.post('/users/units/', {
+                nama: unitForm.nama.trim(),
+                kategori: unitForm.kategori || 'unit',
+                parent: unitForm.parent ? Number(unitForm.parent) : null,
+                kepala_unit: unitForm.kepala_unit ? Number(unitForm.kepala_unit) : null,
+                is_active: unitForm.is_active,
+            });
             showSuccess(`Unit ${unitForm.nama} berhasil ditambahkan.`);
             closeUnitModals();
-            setUnitForm({ nama: '', is_active: true });
+            setUnitForm({ nama: '', kategori: 'unit', parent: '', kepala_unit: '', is_active: true });
             fetchAll();
         } catch (e) {
             setError(parseError(e, 'Gagal menambah unit.'));
@@ -337,7 +349,13 @@ export default function ManajemenUser() {
         if (!unitForm.nama.trim()) return setError('Nama unit wajib diisi.');
         setSaving(true);
         try {
-            await api.patch(`/users/units/${modalEditUnit.id}/`, { ...unitForm, nama: unitForm.nama.trim() });
+            await api.patch(`/users/units/${modalEditUnit.id}/`, {
+                nama: unitForm.nama.trim(),
+                kategori: unitForm.kategori || 'unit',
+                parent: unitForm.parent ? Number(unitForm.parent) : null,
+                kepala_unit: unitForm.kepala_unit ? Number(unitForm.kepala_unit) : null,
+                is_active: unitForm.is_active,
+            });
             showSuccess('Unit berhasil diupdate.');
             closeUnitModals();
             fetchAll();
@@ -394,7 +412,7 @@ export default function ManajemenUser() {
                         <button
                             className="mu-btn primary"
                             onClick={() => {
-                                setUnitForm({ nama: '', is_active: true });
+                                setUnitForm({ nama: '', kategori: 'unit', parent: '', kepala_unit: '', is_active: true });
                                 setError('');
                                 setModalUnit(true);
                             }}
@@ -468,13 +486,48 @@ export default function ManajemenUser() {
                 )}
 
                 {activeTab === 'units' && (
-                    <UnitsTable
-                        loading={loading}
-                        units={units}
-                        stats={stats}
-                        onEdit={(u) => { setUnitForm({ nama: u.nama, is_active: u.is_active }); setError(''); setModalEditUnit(u); }}
-                        onDelete={(u) => { setError(''); setModalHapusUnit(u); }}
-                    />
+                    <>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 18px',
+                            background: '#f8fafc',
+                            borderBottom: '1px solid #e2e8f0',
+                            flexWrap: 'wrap',
+                            gap: 12
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#475569' }}>
+                                <GitFork size={18} style={{ color: '#0d9488' }} />
+                                <span>Unit & hierarki ini terhubung langsung dengan <strong>Bagan Struktur Organisasi</strong> dan alur approval SDM.</span>
+                            </div>
+                            <button
+                                type="button"
+                                className="mu-btn soft"
+                                style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                                onClick={() => navigate('/sdm/struktur')}
+                            >
+                                <GitFork size={14} /> Buka Bagan Pohon Organisasi
+                            </button>
+                        </div>
+                        <UnitsTable
+                            loading={loading}
+                            units={units}
+                            stats={stats}
+                            onEdit={(u) => {
+                                setUnitForm({
+                                    nama: u.nama,
+                                    kategori: u.kategori || 'unit',
+                                    parent: u.parent || '',
+                                    kepala_unit: u.kepala_unit || '',
+                                    is_active: u.is_active,
+                                });
+                                setError('');
+                                setModalEditUnit(u);
+                            }}
+                            onDelete={(u) => { setError(''); setModalHapusUnit(u); }}
+                        />
+                    </>
                 )}
             </div>
 
@@ -559,6 +612,8 @@ export default function ManajemenUser() {
                     title="Tambah Unit"
                     form={unitForm}
                     setForm={setUnitForm}
+                    units={units}
+                    allUsers={allUsers}
                     error={error}
                     saving={saving}
                     onClose={closeUnitModals}
@@ -572,6 +627,8 @@ export default function ManajemenUser() {
                     title="Edit Unit"
                     form={unitForm}
                     setForm={setUnitForm}
+                    units={units.filter((u) => u.id !== modalEditUnit.id)}
+                    allUsers={allUsers}
                     error={error}
                     saving={saving}
                     onClose={closeUnitModals}
@@ -682,7 +739,9 @@ function UnitsTable({ loading, units, stats, onEdit, onDelete }) {
             <table className="mu-table">
                 <thead>
                     <tr>
-                        <th>Nama Unit</th>
+                        <th>Nama Unit & Tingkat</th>
+                        <th>Unit Induk (Parent)</th>
+                        <th>Kepala Unit / Pimpinan</th>
                         <th>User Aktif</th>
                         <th>Status</th>
                         <th style={{ textAlign: 'right' }}>Aksi</th>
@@ -695,10 +754,46 @@ function UnitsTable({ loading, units, stats, onEdit, onDelete }) {
                                 <div className="mu-user">
                                     <div className="mu-avatar"><Building2 size={16} /></div>
                                     <div>
-                                        <div className="mu-user-name">{u.nama}</div>
+                                        <div className="mu-user-name" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                            <span>{u.nama}</span>
+                                            {u.kategori && (
+                                                <span style={{
+                                                    fontSize: 10,
+                                                    padding: '1px 6px',
+                                                    borderRadius: 4,
+                                                    fontWeight: 600,
+                                                    background: u.kategori === 'direktorat' ? '#ede9fe' : u.kategori === 'bidang' ? '#e0e7ff' : u.kategori === 'seksi' ? '#e0f2fe' : '#f1f5f9',
+                                                    color: u.kategori === 'direktorat' ? '#7c3aed' : u.kategori === 'bidang' ? '#4f46e5' : u.kategori === 'seksi' ? '#0284c7' : '#475569'
+                                                }}>
+                                                    {u.kategori_label || u.kategori}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="mu-user-sub">Bagian dari {stats.units} unit terdaftar</div>
                                     </div>
                                 </div>
+                            </td>
+                            <td>
+                                {u.parent_nama ? (
+                                    <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
+                                        {u.parent_nama}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                                        (Pucuk Pimpinan)
+                                    </span>
+                                )}
+                            </td>
+                            <td>
+                                {u.kepala_unit_nama ? (
+                                    <span style={{ fontSize: 13, color: '#0f766e', fontWeight: 600 }}>
+                                        👤 {u.kepala_unit_nama}
+                                    </span>
+                                ) : (
+                                    <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                                        Belum ditentukan
+                                    </span>
+                                )}
                             </td>
                             <td>{u.user_count || 0} user</td>
                             <td><StatusBadge active={u.is_active} /></td>
@@ -828,13 +923,13 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                 <div className="mu-grid2">
                                     <div className="mu-field">
                                         <label>Role *</label>
-                                        <select className="mu-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, unit: '' })}>
+                                        <select className="mu-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
                                             {ROLE_CHOICES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                                         </select>
                                     </div>
                                     <div className="mu-field">
                                         <label>Unit {['karyawan', 'kepala_seksi'].includes(form.role) ? '*' : ''}</label>
-                                        <select className="mu-select" value={form.unit} disabled={!['karyawan', 'kepala_seksi'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+                                        <select className="mu-select" value={form.unit} disabled={!['karyawan', 'kepala_seksi', 'manajer', 'wakil_direktur'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
                                             <option value="">Tidak ada unit</option>
                                             {units.map((u) => <option key={u.id} value={u.id}>{u.nama}</option>)}
                                         </select>
@@ -1037,7 +1132,7 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                             <tr>
                                                 <td>
                                                     <strong>SDM / HRD</strong>
-                                                    <small>Rekapitulasi izin keluar RS, monitoring staf, & export laporan</small>
+                                                    <small>Akses menu SDM penuh (Rekapitulasi izin keluar RS, struktur organisasi unit, & monitoring staf)</small>
                                                 </td>
                                                 <td colSpan={2} className="mu-perm-single">
                                                     <PermissionToggle checked={form.is_sdm} onChange={(c) => setForm({ ...form, is_sdm: c })} />
@@ -1105,16 +1200,43 @@ function PasswordModal({ user, form, setForm, error, saving, showPwd, setShowPwd
     );
 }
 
-function UnitFormModal({ title, form, setForm, error, saving, onClose, onSubmit, submitText, showStatus = false }) {
+function UnitFormModal({ title, form, setForm, units = [], allUsers = [], error, saving, onClose, onSubmit, submitText, showStatus = false }) {
     return createPortal(
         <div className="mu-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="mu-modal sm">
-                <ModalHead title={title} subtitle="Unit dipakai untuk pengelompokan user karyawan." onClose={onClose} />
+                <ModalHead title={title} subtitle="Unit dipakai untuk hierarki organisasi dan alur approval SDM." onClose={onClose} />
                 <div className="mu-modal-body">
                     {error && <Alert type="err" message={error} />}
                     <div className="mu-field">
-                        <label>Nama Unit *</label>
-                        <input className="mu-input" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Contoh: Radiologi" />
+                        <label>Nama Unit / Bagian *</label>
+                        <input className="mu-input" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Contoh: Radiologi, Bidang Penunjang Medis" />
+                    </div>
+                    <div className="mu-field">
+                        <label>Tingkatan / Level</label>
+                        <select className="mu-select" value={form.kategori || 'unit'} onChange={(e) => setForm({ ...form, kategori: e.target.value })}>
+                            <option value="direktorat">Direktorat / Wadir</option>
+                            <option value="bidang">Bidang / Bagian (Manajer)</option>
+                            <option value="seksi">Seksi / Sub-Bagian (Kasi)</option>
+                            <option value="unit">Unit / Instalasi Pelaksana</option>
+                        </select>
+                    </div>
+                    <div className="mu-field">
+                        <label>Unit Induk (Parent)</label>
+                        <select className="mu-select" value={form.parent || ''} onChange={(e) => setForm({ ...form, parent: e.target.value })}>
+                            <option value="">(Tanpa Induk / Pucuk Pimpinan)</option>
+                            {units.map((u) => (
+                                <option key={u.id} value={u.id}>{u.nama} ({u.kategori_label || u.kategori})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="mu-field">
+                        <label>Kepala Unit / Pejabat Penanggung Jawab</label>
+                        <select className="mu-select" value={form.kepala_unit || ''} onChange={(e) => setForm({ ...form, kepala_unit: e.target.value })}>
+                            <option value="">(Belum ada pejabat definitif)</option>
+                            {allUsers.map((u) => (
+                                <option key={u.id} value={u.id}>{displayName(u)} (@{u.username})</option>
+                            ))}
+                        </select>
                     </div>
                     {showStatus && (
                         <div className="mu-field">

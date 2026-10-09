@@ -153,8 +153,12 @@ const AppRoutes = () => {
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
 
             {/* SDM (Kepegawaian) */}
-            <Route path="/sdm" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm" element={<Navigate to="/sdm/izin-kerja" replace />} />
+            <Route path="/sdm/pengajuan-izin" element={<Navigate to="/sdm/izin-kerja" replace />} />
             <Route path="/sdm/izin-kerja" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm/approval" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm/rekapitulasi" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm/struktur" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />

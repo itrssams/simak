@@ -37,6 +37,12 @@ class IzinKeluarSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source='get_status_display', read_only=True)
     logs = IzinKeluarLogSerializer(many=True, read_only=True)
 
+    # Approval Fields
+    approved_by_id = serializers.IntegerField(source='approved_by.id', read_only=True, allow_null=True)
+    approved_by_nama = serializers.SerializerMethodField()
+    can_approve = serializers.SerializerMethodField()
+    approvers_list = serializers.SerializerMethodField()
+
     class Meta:
         model = IzinKeluar
         fields = [
@@ -45,11 +51,14 @@ class IzinKeluarSerializer(serializers.ModelSerializer):
             'jam_keluar_awal', 'jam_kembali_awal',
             'jam_keluar', 'jam_kembali', 'jam_kembali_aktual',
             'status', 'status_label', 'is_adjusted', 'catatan_kembali',
+            'approved_by_id', 'approved_by_nama', 'approved_at', 'catatan_approval',
+            'can_approve', 'approvers_list',
             'logs', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'jam_keluar_awal', 'jam_kembali_awal',
-            'status', 'is_adjusted', 'created_at', 'updated_at'
+            'status', 'is_adjusted', 'approved_by', 'approved_at',
+            'created_at', 'updated_at'
         ]
 
     def get_nama_lengkap(self, obj):
@@ -60,6 +69,32 @@ class IzinKeluarSerializer(serializers.ModelSerializer):
         if not obj.user.foto:
             return None
         return obj.user.foto.url
+
+    def get_approved_by_nama(self, obj):
+        if not obj.approved_by:
+            return None
+        nama = f"{obj.approved_by.first_name} {obj.approved_by.last_name}".strip()
+        return nama or obj.approved_by.username
+
+    def get_can_approve(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        if obj.status != 'menunggu_approval':
+            return False
+        from .views import user_can_approve_izin
+        return user_can_approve_izin(request.user, obj)
+
+    def get_approvers_list(self, obj):
+        approvers = obj.user.get_approvers_chain()
+        return [
+            {
+                'id': u.id,
+                'nama': f"{u.first_name} {u.last_name}".strip() or u.username,
+                'role': u.get_role_display()
+            }
+            for u in approvers
+        ]
 
 
 class IzinKeluarCreateSerializer(serializers.ModelSerializer):

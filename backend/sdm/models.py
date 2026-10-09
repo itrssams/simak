@@ -11,9 +11,12 @@ class IzinKeluar(models.Model):
     ]
 
     STATUS_CHOICES = [
-        ('berjalan', 'Sedang di Luar'),
-        ('selesai', 'Sudah Kembali'),
-        ('dibatalkan', 'Dibatalkan'),
+        ('menunggu_approval', 'Menunggu Persetujuan'),
+        ('disetujui',         'Disetujui'),
+        ('ditolak',           'Ditolak'),
+        ('berjalan',          'Sedang di Luar'),
+        ('selesai',           'Sudah Kembali'),
+        ('dibatalkan',        'Dibatalkan'),
     ]
 
     user = models.ForeignKey(
@@ -36,9 +39,20 @@ class IzinKeluar(models.Model):
     # Waktu aktual saat karyawan menekan konfirmasi "Sudah Kembali"
     jam_kembali_aktual = models.TimeField(null=True, blank=True)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='berjalan')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='menunggu_approval')
     is_adjusted = models.BooleanField(default=False)
     catatan_kembali = models.TextField(blank=True, default='')
+
+    # Approval atasan (Single Approval)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='izin_keluar_disetujui'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    catatan_approval = models.TextField(blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

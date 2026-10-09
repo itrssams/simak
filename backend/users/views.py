@@ -34,6 +34,14 @@ class OptionalPaginationMixin:
     pagination_class = OptionalPageNumberPagination
 
 
+def can_manage_unit(user):
+    return user.is_authenticated and (
+        user.role in ('direktur', 'wakil_direktur') or
+        getattr(user, 'is_sdm', False) or
+        user.is_superuser
+    )
+
+
 # ── Unit ViewSet ───────────────────────────────────────────
 class UnitViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -44,23 +52,24 @@ class UnitViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         return UnitSerializer
 
     def get_queryset(self):
-        if not is_direktur(self.request.user):
-            return Unit.objects.none()
-        return Unit.objects.all().order_by('nama')
+        user = self.request.user
+        if can_manage_unit(user):
+            return Unit.objects.all().order_by('kategori', 'nama')
+        return Unit.objects.filter(is_active=True).order_by('nama')
 
     def create(self, request, *args, **kwargs):
-        if not is_direktur(request.user):
-            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat menambah unit.'}, status=403)
+        if not can_manage_unit(request.user):
+            return Response({'error': 'Hanya SDM, Direktur, atau Wakil Direktur yang dapat menambah unit.'}, status=403)
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        if not is_direktur(request.user):
-            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat mengubah unit.'}, status=403)
+        if not can_manage_unit(request.user):
+            return Response({'error': 'Hanya SDM, Direktur, atau Wakil Direktur yang dapat mengubah unit.'}, status=403)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        if not is_direktur(request.user):
-            return Response({'error': 'Hanya direktur atau wakil direktur yang dapat menghapus unit.'}, status=403)
+        if not can_manage_unit(request.user):
+            return Response({'error': 'Hanya SDM, Direktur, atau Wakil Direktur yang dapat menghapus unit.'}, status=403)
         return super().destroy(request, *args, **kwargs)
 
 
