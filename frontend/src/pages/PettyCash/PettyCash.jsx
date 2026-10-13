@@ -60,7 +60,7 @@ const PC_STATUS = {
     menunggu_approval_laporan: { label: 'Menunggu Approval Laporan', bg: '#eef2ff', color: '#4338ca', dot: '#6366f1' },
     dilaporkan: { label: 'Dilaporkan', bg: '#f5f3ff', color: '#6d28d9', dot: '#8b5cf6' },
     menunggu_pengembalian: { label: 'Menunggu Kembali', bg: '#fefce8', color: '#a16207', dot: '#eab308' },
-    menunggu_reimburse: { label: 'Menunggu Reimbursement', bg: '#fef3c7', color: '#b45309', dot: '#f59e0b' },
+    menunggu_reimburse: { label: 'Menunggu Reimburse Lokal', bg: '#fef3c7', color: '#b45309', dot: '#f59e0b' },
     selesai: { label: 'Selesai', bg: '#f0fdf4', color: '#166534', dot: '#22c55e' },
     dibatalkan: { label: 'Dibatalkan', bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
 };
@@ -689,8 +689,8 @@ export default function PettyCash() {
     const handleKonfirmasiPC = async () => {
         setSaving(true);
         try {
-            await api.post(`/keuangan/petty-cash/${modalKonfirmasi.id}/konfirmasi-pengembalian/`);
-            showSuccess('Pengembalian dikonfirmasi. Petty cash selesai!');
+            const res = await api.post(`/keuangan/petty-cash/${modalKonfirmasi.id}/konfirmasi-pengembalian/`);
+            showSuccess(res.data?.message || (Number(modalKonfirmasi.laporan?.selisih) < 0 ? 'Kekurangan dana berhasil dicairkan. Petty cash selesai!' : 'Pengembalian dikonfirmasi. Petty cash selesai!'));
             setModalKonfirmasi(null); fetchAll();
         } catch (e) { setError(e.response?.data?.error || 'Gagal konfirmasi.'); }
         finally { setSaving(false); }
@@ -1621,7 +1621,14 @@ export default function PettyCash() {
                                                 <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.keperluan}</p>
                                                 <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.created_by_name}</p>
                                             </td>
-                                            <td style={{ fontWeight: 700, color: '#1a4731' }}>{fmt(item.nominal)}</td>
+                                            <td style={{ fontWeight: 700, color: '#1a4731' }}>
+                                                <div>{fmt(item.nominal)}</div>
+                                                {item.nominal_awal && Number(item.nominal_awal) !== Number(item.nominal) && (
+                                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginTop: 2 }}>
+                                                        Awal: {fmt(item.nominal_awal)}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td>
                                                 <StatusBadge cfg={PC_STATUS} status={item.status} />
                                                 {item.status === 'dicairkan' && item.laporan && item.catatan_tolak && (
@@ -1672,6 +1679,15 @@ export default function PettyCash() {
                                                     )}
                                                     {isPettyCashCashier && ['dilaporkan', 'menunggu_pengembalian'].includes(item.status) && (
                                                         <button className="pc-btn-sm y" onClick={() => { resetError(); setModalKonfirmasi(item); }}>Konfirmasi</button>
+                                                    )}
+                                                    {isPettyCashCashier && item.status === 'menunggu_reimburse' && (
+                                                        <button
+                                                            className="pc-btn-sm g"
+                                                            onClick={() => { resetError(); setModalKonfirmasi(item); }}
+                                                            title="Cairkan kekurangan dana belanja (Reimburse Lokal)"
+                                                        >
+                                                            Cairkan Reimburse
+                                                        </button>
                                                     )}
                                                     <button className="pc-btn-sm n" onClick={() => setModalDetail(item)}>Detail</button>
                                                     {['ditolak', 'dibatalkan'].includes(item.status) && (item.created_by === user?.id || isDirekturWadir) && (
@@ -1785,7 +1801,11 @@ export default function PettyCash() {
                             label={modalDetail.no_pengajuan}
                             value={fmt(modalDetail.nominal)}
                             description={modalDetail.keperluan}
-                            meta={`Tanggal pengajuan ${fmtTgl(modalDetail.tanggal)}`}
+                            meta={
+                                modalDetail.nominal_awal && Number(modalDetail.nominal_awal) !== Number(modalDetail.nominal)
+                                    ? `Pengajuan Awal: ${fmt(modalDetail.nominal_awal)} (Reimburse Lokal: +${fmt(Math.abs(Number(modalDetail.nominal) - Number(modalDetail.nominal_awal)))}) • Tanggal ${fmtTgl(modalDetail.tanggal)}`
+                                    : `Tanggal pengajuan ${fmtTgl(modalDetail.tanggal)}`
+                            }
                             side={<StatusBadge cfg={PC_STATUS} status={modalDetail.status} />}
                         />
                         <StepTracker status={modalDetail.status} />
@@ -1793,7 +1813,14 @@ export default function PettyCash() {
                             <DetailGrid items={[
                                 ['No. Pengajuan', modalDetail.no_pengajuan],
                                 ['Tanggal', fmtTgl(modalDetail.tanggal)],
-                                ['Nominal', fmt(modalDetail.nominal)],
+                                ...(modalDetail.nominal_awal && Number(modalDetail.nominal_awal) !== Number(modalDetail.nominal)
+                                    ? [
+                                        ['Nominal Akhir (Riil)', fmt(modalDetail.nominal)],
+                                        ['Pengajuan Awal', fmt(modalDetail.nominal_awal)],
+                                        ['Reimburse Lokal', fmt(Math.abs(Number(modalDetail.nominal) - Number(modalDetail.nominal_awal)))],
+                                      ]
+                                    : [['Nominal', fmt(modalDetail.nominal)]]
+                                ),
                                 ['Status', PC_STATUS[modalDetail.status]?.label],
                                 ['Diajukan Oleh', modalDetail.created_by_name],
                                 ['Disetujui Oleh', modalDetail.disetujui_oleh_name || '-'],
@@ -2346,10 +2373,10 @@ export default function PettyCash() {
                                                 <AlertCircle size={16} className="pc-report-shortage-icon" />
                                                 <div className="pc-report-shortage-body">
                                                     <p className="pc-report-shortage-title">
-                                                        Kekurangan dana {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))} ditalangi pemohon.
+                                                        Realisasi melebihi pengajuan awal (Kekurangan: {fmt(totalPengeluaranRiil - Number(modalLaporan.nominal))}).
                                                     </p>
                                                     <p className="pc-report-shortage-desc">
-                                                        Setelah laporan ini disetujui Pimpinan, sistem akan <strong>otomatis menerbitkan Reimbursement</strong> penggantian dana dan mencatatkannya di Catatan Utang.
+                                                        Kekurangan dana ditalangi pemohon dan akan diproses sebagai <strong>Reimburse Lokal</strong> pada Petty Cash ini setelah laporan disetujui Pimpinan.
                                                     </p>
                                                 </div>
                                             </div>
@@ -2607,14 +2634,18 @@ export default function PettyCash() {
                 </div>, document.body
             )}
 
-            {/* Konfirmasi Pengembalian */}
-            {modalKonfirmasi && createPortal(
+            {/* Konfirmasi Pengembalian / Reimburse Lokal */}
+            {modalKonfirmasi && (() => {
+                const isReimburseLokal = Number(modalKonfirmasi.laporan?.selisih) < 0 || modalKonfirmasi.status === 'menunggu_reimburse';
+                const kekuranganDana = isReimburseLokal ? Math.abs(Number(modalKonfirmasi.laporan?.selisih || 0)) : 0;
+
+                return createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal lg">
                         <ModalHeader
                             icon={<Wallet size={18} />}
-                            title="Konfirmasi Pengembalian"
-                            subtitle={`Konfirmasi penerimaan sisa dana petty cash (${modalKonfirmasi.no_pengajuan})`}
+                            title={isReimburseLokal ? "Cairkan Reimburse Lokal" : "Konfirmasi Pengembalian"}
+                            subtitle={isReimburseLokal ? `Konfirmasi pencairan kekurangan dana belanja petty cash (${modalKonfirmasi.no_pengajuan})` : `Konfirmasi penerimaan sisa dana petty cash (${modalKonfirmasi.no_pengajuan})`}
                         />
                         {modalKonfirmasi.laporan && (
                             <div className="pc-approval-review-card">
@@ -2637,13 +2668,23 @@ export default function PettyCash() {
                                     )}
                                 </div>
                                 <div className="pc-review-grid">
-                                    <div><p className="pc-review-label">Dana Dicairkan</p><p className="pc-review-value large">{fmt(modalKonfirmasi.nominal)}</p></div>
-                                    <div><p className="pc-review-label">Dana Digunakan</p><p className="pc-review-value large">{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</p></div>
+                                    <div><p className="pc-review-label">Dana Dicairkan Awal</p><p className="pc-review-value large">{fmt(modalKonfirmasi.nominal_awal || modalKonfirmasi.nominal)}</p></div>
+                                    <div><p className="pc-review-label">Total Belanja Riil</p><p className="pc-review-value large">{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</p></div>
                                 </div>
-                                <div className={`pc-review-selisih-box${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>
-                                    <p className="pc-review-selisih-label">Kembalian ke Kasir</p>
-                                    <p className={`pc-review-selisih-val${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalKonfirmasi.laporan.selisih)}</p>
-                                </div>
+                                {isReimburseLokal ? (
+                                    <div className="pc-review-selisih-box" style={{ background: '#fef3c7', border: '1px solid #fcd34d' }}>
+                                        <p className="pc-review-selisih-label" style={{ color: '#92400e', fontWeight: 700 }}>Kekurangan Dana Dibayarkan ke Pemohon (Reimburse Lokal)</p>
+                                        <p className="pc-review-selisih-val" style={{ color: '#b45309' }}>+ {fmt(kekuranganDana)}</p>
+                                        <p style={{ fontSize: 11, color: '#a16207', margin: '4px 0 0', fontWeight: 500 }}>
+                                            Setelah dicairkan, nominal transaksi Petty Cash ini akan diperbarui menjadi <strong>{fmt(modalKonfirmasi.laporan.nominal_digunakan)}</strong>.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className={`pc-review-selisih-box${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>
+                                        <p className="pc-review-selisih-label">Kembalian ke Kasir</p>
+                                        <p className={`pc-review-selisih-val${Number(modalKonfirmasi.laporan.selisih) > 0 ? '' : ' zero'}`}>{fmt(modalKonfirmasi.laporan.selisih)}</p>
+                                    </div>
+                                )}
                                 {modalKonfirmasi.laporan.items && modalKonfirmasi.laporan.items.length > 0 && (
                                     <div style={{ marginTop: 12 }}>
                                         <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
@@ -2686,17 +2727,22 @@ export default function PettyCash() {
                         )}
                         {error && <div className="pc-alert-err">{error}</div>}
                         <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
-                            {Number(modalKonfirmasi.laporan?.selisih) > 0
+                            {isReimburseLokal
+                                ? `Pastikan uang kekurangan belanja sebesar ${fmt(kekuranganDana)} sudah diserahkan secara tunai kepada pemohon (${modalKonfirmasi.created_by_name || 'karyawan'}). Klik Cairkan Reimburse & Selesai untuk menyelesaikan.`
+                                : Number(modalKonfirmasi.laporan?.selisih) > 0
                                 ? 'Pastikan uang kembalian sudah diterima dari karyawan.'
                                 : 'Tidak ada kembalian. Klik konfirmasi untuk menyelesaikan.'}
                         </p>
                         <div className="pc-modal-footer">
                             <button className="pc-btn-ghost" onClick={() => { setModalKonfirmasi(null); resetError(); }}>Batal</button>
-                            <button className="pc-btn-primary" onClick={handleKonfirmasiPC} disabled={saving}>{saving ? 'Memproses...' : <><Check size={15} /> Konfirmasi Selesai</>}</button>
+                            <button className="pc-btn-primary" onClick={handleKonfirmasiPC} disabled={saving}>
+                                {saving ? 'Memproses...' : <><Check size={15} /> {isReimburseLokal ? 'Cairkan Reimburse & Selesai' : 'Konfirmasi Selesai'}</>}
+                            </button>
                         </div>
                     </div>
                 </div>, document.body
-            )}
+                );
+            })()}
 
             {/* Batal PC */}
             {modalBatal && createPortal(

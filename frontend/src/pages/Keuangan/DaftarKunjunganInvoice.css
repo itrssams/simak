@@ -13,7 +13,7 @@
 /* SUMMARY */
 .dki-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -1013,13 +1013,21 @@ select.dki-select {
 }
 
 /* RESPONSIVE */
+@media (max-width: 1200px) {
+  .dki-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dki-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .dki-page {
     padding: 14px;
-  }
-
-  .dki-summary {
-    grid-template-columns: 1fr;
   }
 
   .dki-card-head,

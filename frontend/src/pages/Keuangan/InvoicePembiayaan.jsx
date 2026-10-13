@@ -34,6 +34,7 @@ import {
     Stethoscope,
     Trash2,
     UndoDot,
+    WalletCards,
     Wrench,
     X,
 } from 'lucide-react';
@@ -272,6 +273,7 @@ export default function InvoicePembiayaan() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
+    const [summaryStats, setSummaryStats] = useState(null);
 
     const fetchOptions = useCallback(async () => {
         try {
@@ -302,6 +304,7 @@ export default function InvoicePembiayaan() {
             if (requestId === latestRequestIdRef.current) {
                 setItems(getResults(res.data));
                 setTotal(getCount(res.data));
+                setSummaryStats(res.data?.summary || null);
             }
         } catch (err) {
             if (requestId === latestRequestIdRef.current) {
@@ -1029,6 +1032,34 @@ export default function InvoicePembiayaan() {
                     </div>
                 </div>
             </div>
+
+            <section className="inv-summary">
+                <div className="inv-summary-card piutang">
+                    <span><WalletCards size={24} /></span>
+                    <div className="inv-summary-card-body">
+                        <small>Total Piutang</small>
+                        <strong>{money(summaryStats?.total_piutang ?? 0)}</strong>
+                        <span className="inv-summary-sub">
+                            {summaryStats
+                                ? `${summaryStats.count_piutang} invoice (${summaryStats.belum_bayar_count} belum bayar · ${summaryStats.bayar_sebagian_count} bayar sebagian)`
+                                : 'Memuat data...'}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="inv-summary-card overdue">
+                    <span><AlertTriangle size={24} /></span>
+                    <div className="inv-summary-card-body">
+                        <small>Piutang Jatuh Tempo</small>
+                        <strong>{money(summaryStats?.jatuh_tempo_nominal ?? 0)}</strong>
+                        <span className="inv-summary-sub overdue">
+                            {summaryStats
+                                ? `${summaryStats.count_jatuh_tempo} invoice belum lunas lewat jatuh tempo`
+                                : 'Memuat data...'}
+                        </span>
+                    </div>
+                </div>
+            </section>
 
             <div className="inv-card table">
                 <div className="inv-card-head">

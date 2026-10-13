@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Activity,
     BadgeCheck,
+    Banknote,
     CalendarDays,
     CheckCircle2,
     ClipboardList,
@@ -91,6 +92,7 @@ export default function DaftarKunjunganInvoice() {
     const [newPembiayaanOpen, setNewPembiayaanOpen] = useState(false);
     const [newPembiayaan, setNewPembiayaan] = useState({ nama: '', alamat: '' });
     const [total, setTotal] = useState(0);
+    const [totalNilai, setTotalNilai] = useState(0);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [filters, setFilters] = useState({
@@ -193,6 +195,7 @@ export default function DaftarKunjunganInvoice() {
             if (requestId === latestRequestIdRef.current) {
                 setRows(getResults(res.data));
                 setTotal(getCount(res.data));
+                setTotalNilai(res.data?.total_nilai || 0);
             }
         } catch (err) {
             if (requestId === latestRequestIdRef.current) {
@@ -448,6 +451,7 @@ export default function DaftarKunjunganInvoice() {
                 <SummaryCard icon={ReceiptText} label="Dipilih" value={`${selectedNos.length} kunjungan`} />
                 <SummaryCard icon={BadgeCheck} label="Total Terpilih" value={money(selectedTotal)} accent />
                 <SummaryCard icon={Activity} label="Data Tampil" value={`${total} kunjungan`} />
+                <SummaryCard icon={Banknote} label="Total Nilai Tampil" value={money(totalNilai)} accent />
             </section>
 
             <section className="dki-card">

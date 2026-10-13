@@ -896,6 +896,7 @@ class PettyCash(models.Model):
     tanggal        = models.DateField()
     keperluan      = models.TextField()
     nominal        = models.DecimalField(max_digits=15, decimal_places=2)
+    nominal_awal   = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text='Nominal pengajuan awal sebelum penyesuaian reimburse lokal')
     keterangan     = models.TextField(blank=True)
     berkas         = models.FileField(upload_to=berkas_pc_path, null=True, blank=True)
     status         = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
@@ -921,6 +922,8 @@ class PettyCash(models.Model):
             prefix = f"PC-{today.strftime('%Y%m')}-"
             last   = PettyCash.objects.filter(no_pengajuan__startswith=prefix).order_by('no_pengajuan').last()
             self.no_pengajuan = f"{prefix}{str(int(last.no_pengajuan.split('-')[-1]) + 1).zfill(3)}" if last else f"{prefix}001"
+        if not self.nominal_awal and self.nominal is not None:
+            self.nominal_awal = self.nominal
         super().save(*args, **kwargs)
 
     def __str__(self):

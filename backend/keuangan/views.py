@@ -858,8 +858,13 @@ class KunjunganInvoiceView(APIView):
                     INNER JOIN rssams.verif_kunjung e ON a.no = e.no
                     WHERE {where_sql}
                 """
-                cursor.execute(f"SELECT COUNT(*) AS total {count_base_sql}", values)
-                total = cursor.fetchone()[0]
+                cursor.execute(
+                    f"SELECT COUNT(*) AS total, COALESCE(SUM({KUNJUNGAN_TOTAL_SQL}), 0) AS total_nilai {count_base_sql}",
+                    values
+                )
+                count_row = cursor.fetchone()
+                total = count_row[0] if count_row else 0
+                total_nilai = float(count_row[1] or 0) if count_row else 0.0
 
                 list_base_sql = f"""
                     FROM rssams.kunjung a
@@ -892,7 +897,7 @@ class KunjunganInvoiceView(APIView):
                 row['status_done'] = bool(row.get('cek'))
                 row['status_invoice'] = st
                 row['status_invoice_label'] = lbl
-            return Response({'count': total, 'results': rows}, status=status.HTTP_200_OK)
+            return Response({'count': total, 'total_nilai': total_nilai, 'results': rows}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -1610,6 +1615,42 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             elif aging == 'over_60':
                 qs = qs.filter(jatuh_tempo__lt=today - timedelta(days=60))
         return qs.order_by('-nomor_faktur')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        today = timezone.localdate()
+        diff_expr = Coalesce(F('total_tagihan'), Decimal('0')) - Coalesce(F('total_dibayar'), Decimal('0'))
+        summary = queryset.order_by().aggregate(
+            total_piutang=Coalesce(Sum(diff_expr, filter=Q(status__in=['belum_bayar', 'bayar_sebagian'])), Decimal('0')),
+            count_piutang=Count('id', filter=Q(status__in=['belum_bayar', 'bayar_sebagian'])),
+            belum_bayar_count=Count('id', filter=Q(status='belum_bayar')),
+            bayar_sebagian_count=Count('id', filter=Q(status='bayar_sebagian')),
+            jatuh_tempo_nominal=Coalesce(Sum(diff_expr, filter=Q(status__in=['belum_bayar', 'bayar_sebagian'], jatuh_tempo__isnull=False, jatuh_tempo__lt=today)), Decimal('0')),
+            count_jatuh_tempo=Count('id', filter=Q(status__in=['belum_bayar', 'bayar_sebagian'], jatuh_tempo__isnull=False, jatuh_tempo__lt=today)),
+        )
+        summary_data = {
+            'total_piutang': float(summary['total_piutang'] or 0),
+            'count_piutang': summary['count_piutang'] or 0,
+            'belum_bayar_count': summary['belum_bayar_count'] or 0,
+            'bayar_sebagian_count': summary['bayar_sebagian_count'] or 0,
+            'jatuh_tempo_nominal': float(summary['jatuh_tempo_nominal'] or 0),
+            'count_jatuh_tempo': summary['count_jatuh_tempo'] or 0,
+        }
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            res = self.get_paginated_response(serializer.data)
+            res.data['summary'] = summary_data
+            return res
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': len(serializer.data),
+            'summary': summary_data,
+        })
 
     @action(detail=True, methods=['post'], url_path='bayar')
     def bayar(self, request, pk=None):
@@ -4572,6 +4613,12 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         dari = (params.get('dari') or '').strip()
         sampai = (params.get('sampai') or '').strip()
         ordering = (params.get('ordering') or '').strip()
+        ids_param = (params.get('ids') or '').strip()
+
+        if ids_param:
+            id_list = [int(i.strip()) for i in ids_param.split(',') if i.strip().isdigit()]
+            if id_list:
+                qs = qs.filter(id__in=id_list)
 
         if search:
             qs = qs.filter(
@@ -8551,67 +8598,17 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             elif laporan.selisih < 0:
                 instance.status = 'menunggu_reimburse'
                 laporan.pengembalian_selesai = False
-
-                # Potong saldo kas kecil untuk bagian nominal yang sudah dicairkan (advance)
-                saldo = get_or_create_saldo()
-                saldo_sebelum = saldo.saldo
-                saldo.saldo -= instance.nominal
-                saldo.updated_by = request.user
-                saldo.save()
-
-                RiwayatSaldoPettyCash.objects.create(
-                    jenis='pengurangan',
-                    jumlah=instance.nominal,
-                    saldo_sebelum=saldo_sebelum,
-                    saldo_sesudah=saldo.saldo,
-                    keterangan=f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]} (Kekurangan belanja dialihkan ke Reimbursement)',
-                    created_by=request.user,
-                    nama_pengaju=user_display_name(instance.created_by),
-                    unit_pengaju=laporan_unit_label(instance.created_by),
-                )
+                kekurangan = abs(laporan.selisih)
+                reimburse_info = f"Pengeluaran melebihi pengajuan awal (Kekurangan: Rp {kekurangan:,.0f}). Laporan disetujui, silakan lanjutkan ke petugas kasir untuk pencairan kekurangan dana (Reimburse Lokal)."
             else:
                 instance.status = 'dilaporkan'
 
             instance.catatan_tolak = ''
             instance.laporan_disetujui_oleh = request.user
             instance.laporan_disetujui_at = timezone.now()
+            if not instance.nominal_awal:
+                instance.nominal_awal = instance.nominal
             instance.save()
-
-            if laporan.selisih < 0:
-                kekurangan = abs(laporan.selisih)
-                # Auto-create pengajuan Reimbursement untuk menutupi kekurangan dana belanja Petty Cash
-                rb_auto = Reimbursement.objects.create(
-                    petty_cash=instance,
-                    tanggal=timezone.localdate(),
-                    tanggal_nota=laporan.tanggal_nota or timezone.localdate(),
-                    keperluan=f"[Kekurangan Petty Cash {instance.no_pengajuan}] {instance.keperluan[:150]}",
-                    nominal=kekurangan,
-                    keterangan=f"Auto-create dari kekurangan belanja Petty Cash {instance.no_pengajuan}. Total belanja: Rp {laporan.nominal_digunakan:,.0f}, dana dicairkan: Rp {instance.nominal:,.0f}.",
-                    status='disetujui',
-                    disetujui_oleh=request.user,
-                    created_by=instance.created_by,
-                )
-                if laporan.nota:
-                    try:
-                        from django.core.files.base import ContentFile
-                        rb_auto.berkas.save(os.path.basename(laporan.nota.name), ContentFile(laporan.nota.read()), save=True)
-                    except Exception as e:
-                        logger.warning(f"Gagal menyalin nota laporan PC ke berkas Reimbursement: {e}")
-
-                reimburse_info = f"Pengajuan Reimbursement {rb_auto.no_reimbursement} senilai Rp {kekurangan:,.0f} otomatis diterbitkan & disetujui, dan tercatat di Catatan Utang. Status Petty Cash menjadi 'Menunggu Reimbursement' hingga reimbursement dicairkan."
-                if hasattr(laporan, 'foto_list'):
-                    from django.core.files.base import ContentFile
-                    for f in laporan.foto_list.all():
-                        try:
-                            f_name = os.path.basename(f.foto.name)
-                            FotoReimbursement.objects.create(
-                                reimbursement=rb_auto,
-                                foto=ContentFile(f.foto.read(), name=f_name),
-                                urutan=f.urutan,
-                                keterangan=f.keterangan or ''
-                            )
-                        except Exception as e:
-                            logger.warning(f"Gagal menyalin foto laporan PC ke FotoReimbursement: {e}")
 
         msg = 'Laporan penggunaan berhasil disetujui.'
         if reimburse_info:
@@ -8622,31 +8619,45 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'status': instance.status,
         }, status=status.HTTP_200_OK)
 
-    # POST /{id}/konfirmasi-pengembalian/ — petugas kas petty cash konfirmasi uang kembali & selesaikan
+    # POST /{id}/konfirmasi-pengembalian/ — petugas kas petty cash konfirmasi uang kembali / reimburse lokal & selesaikan
     @action(detail=True, methods=['post'], url_path='konfirmasi-pengembalian')
     def konfirmasi_pengembalian(self, request, pk=None):
         if not is_petty_cash_cashier(request.user):
-            return Response({'error': 'Hanya petugas kas petty cash yang dapat mengkonfirmasi pengembalian.'}, status=403)
+            return Response({'error': 'Hanya petugas kas petty cash yang dapat memproses transaksi ini.'}, status=403)
         instance = self.get_object()
-        if instance.status not in ('menunggu_pengembalian', 'dilaporkan'):
+        if instance.status not in ('menunggu_pengembalian', 'dilaporkan', 'menunggu_reimburse'):
             return Response({'error': 'Status tidak valid untuk dikonfirmasi.'}, status=400)
  
         laporan = instance.laporan
         nominal_pakai = laporan.nominal_digunakan
+        selisih = laporan.selisih
  
         with transaction.atomic():
             saldo         = get_or_create_saldo()
             saldo_sebelum = saldo.saldo
+            if saldo.saldo < nominal_pakai:
+                return Response({
+                    'error': f'Saldo kas kecil tidak mencukupi untuk merealisasikan belanja (Dibutuhkan: Rp {nominal_pakai:,.0f}, Saldo saat ini: Rp {saldo.saldo:,.0f}).'
+                }, status=400)
+
             saldo.saldo  -= nominal_pakai
             saldo.updated_by = request.user
             saldo.save()
+
+            if selisih < 0:
+                kekurangan = abs(selisih)
+                ket_mutasi = f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]} (Pengajuan awal Rp {instance.nominal_awal or instance.nominal:,.0f} + Reimburse lokal Rp {kekurangan:,.0f})'
+            elif selisih > 0:
+                ket_mutasi = f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]} (Pengembalian sisa Rp {selisih:,.0f})'
+            else:
+                ket_mutasi = f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]}'
  
             RiwayatSaldoPettyCash.objects.create(
                 jenis='pengurangan',
                 jumlah=nominal_pakai,
                 saldo_sebelum=saldo_sebelum,
                 saldo_sesudah=saldo.saldo,
-                keterangan=f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]}',
+                keterangan=ket_mutasi,
                 created_by=request.user,
                 nama_pengaju=user_display_name(instance.created_by),
                 unit_pengaju=laporan_unit_label(instance.created_by),
@@ -8654,12 +8665,17 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
             laporan.pengembalian_selesai = True
             laporan.dikonfirmasi_oleh    = request.user
-            laporan.save()
+            laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
  
+            # Jika ada kekurangan (reimburse lokal), pastikan nominal_awal tercatat lalu update nominal petty cash menjadi nominal riil
+            if not instance.nominal_awal:
+                instance.nominal_awal = instance.nominal
+            instance.nominal = nominal_pakai
             instance.status = 'selesai'
-            instance.save()
+            instance.save(update_fields=['nominal_awal', 'nominal', 'status', 'updated_at'])
  
-        return Response({'message': 'Pengembalian dikonfirmasi. Petty cash selesai.', 'status': instance.status})
+        msg = 'Kekurangan dana berhasil dicairkan. Nominal Petty Cash disesuaikan menjadi nominal riil dan transaksi selesai.' if selisih < 0 else 'Pengembalian dikonfirmasi. Petty cash selesai.'
+        return Response({'message': msg, 'status': instance.status})
 
     # POST /{id}/revisi/ — karyawan revisi yang ditolak
     @action(detail=True, methods=['post'], url_path='revisi', parser_classes=[MultiPartParser, FormParser, JSONParser])
@@ -8691,9 +8707,9 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=400)
             
         with transaction.atomic():
-            # Jika pengajuan dibatalkan setelah status 'selesai' atau 'menunggu_reimburse' (di mana saldo sudah dipotong saat konfirmasi/approval), kembalikan saldo ke kas
-            if instance.status in ('selesai', 'menunggu_reimburse') and hasattr(instance, 'laporan'):
-                nominal_kembali = instance.nominal if instance.laporan.selisih < 0 else instance.laporan.nominal_digunakan
+            # Jika pengajuan dibatalkan setelah status 'selesai' (di mana saldo sudah dipotong saat konfirmasi kasir), kembalikan saldo ke kas
+            if instance.status == 'selesai' and hasattr(instance, 'laporan'):
+                nominal_kembali = instance.laporan.nominal_digunakan
                 if nominal_kembali > 0:
                     saldo = get_or_create_saldo()
                     saldo_sebelum = saldo.saldo

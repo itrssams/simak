@@ -302,6 +302,7 @@ export default function CatatanUtangObatBhp() {
     const [manualForm, setManualForm] = useState(initialManualForm);
     const [selectedKeys, setSelectedKeys] = useState([]);
     const [selectedPengajuanIds, setSelectedPengajuanIds] = useState([]);
+    const [selectedActiveIds, setSelectedActiveIds] = useState([]);
     const [showBulkRealisasiModal, setShowBulkRealisasiModal] = useState(false);
     const [bulkRealisasiDate, setBulkRealisasiDate] = useState(todayISO());
     const [editTanggalTarget, setEditTanggalTarget] = useState(null);
@@ -407,6 +408,7 @@ export default function CatatanUtangObatBhp() {
         setPage(1);
         setSelectedKeys([]);
         setSelectedPengajuanIds([]);
+        setSelectedActiveIds([]);
         setFilters(prev => ({
             ...prev,
             ordering: getDefaultOrdering(mode),
@@ -417,6 +419,7 @@ export default function CatatanUtangObatBhp() {
     useEffect(() => {
         setSelectedKeys([]);
         setSelectedPengajuanIds([]);
+        setSelectedActiveIds([]);
     }, [page]);
 
     useEffect(() => {
@@ -655,11 +658,21 @@ export default function CatatanUtangObatBhp() {
             } else if (mode === 'aktif') {
                 if (!activeFilters.status) activeFilters.status = 'aktif';
                 exportEndpoint = '/keuangan/utang-supplier/export-excel/';
-                fileName = `Daftar_Utang_Aktif_Supplier_${todayISO()}.xlsx`;
+                if (selectedActiveIds.length > 0) {
+                    activeFilters.ids = selectedActiveIds.join(',');
+                    fileName = `Daftar_Utang_Aktif_Terpilih_${selectedActiveIds.length}_Faktur_${todayISO()}.xlsx`;
+                } else {
+                    fileName = `Daftar_Utang_Aktif_Supplier_${todayISO()}.xlsx`;
+                }
             } else if (mode === 'semua') {
                 if (!activeFilters.status) activeFilters.status = 'semua';
                 exportEndpoint = '/keuangan/utang-supplier/export-excel/';
-                fileName = `Daftar_Semua_Utang_Supplier_${todayISO()}.xlsx`;
+                if (selectedActiveIds.length > 0) {
+                    activeFilters.ids = selectedActiveIds.join(',');
+                    fileName = `Daftar_Semua_Utang_Terpilih_${selectedActiveIds.length}_Faktur_${todayISO()}.xlsx`;
+                } else {
+                    fileName = `Daftar_Semua_Utang_Supplier_${todayISO()}.xlsx`;
+                }
             } else {
                 exportEndpoint = '/keuangan/utang-supplier/export-excel/';
                 fileName = `Daftar_Utang_Supplier_${todayISO()}.xlsx`;
@@ -803,6 +816,20 @@ export default function CatatanUtangObatBhp() {
             setSelectedPengajuanIds(pageItems.map((i) => i.id).filter(Boolean));
         } else {
             setSelectedPengajuanIds([]);
+        }
+    };
+
+    const toggleSelectActive = (id) => {
+        setSelectedActiveIds((prev) => 
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAllActive = (checked, pageItems) => {
+        if (checked) {
+            setSelectedActiveIds(pageItems.map((i) => i.id).filter(Boolean));
+        } else {
+            setSelectedActiveIds([]);
         }
     };
 
@@ -1035,11 +1062,55 @@ export default function CatatanUtangObatBhp() {
         );
     }
 
-    const pendingValue = pendingSummary?.nominal || 0;
-    const pendingCountValue = pendingSummary?.count || 0;
+    const hasActiveSelection = (mode === 'semua' || mode === 'aktif') && selectedActiveIds.length > 0;
+    const hasPendingSelection = mode === 'menunggu' && selectedKeys.length > 0;
 
-    const activeValue = summary?.total_sisa || 0;
-    const activeCountValue = summary?.utang_count || 0;
+    const selectedActiveItems = useMemo(
+        () => items.filter((item) => selectedActiveIds.includes(item.id)),
+        [items, selectedActiveIds],
+    );
+    const selectedActiveSisa = useMemo(
+        () => selectedActiveItems.reduce((acc, item) => acc + (item.status === 'dibatalkan' ? 0 : Number(item.sisa_utang || 0)), 0),
+        [selectedActiveItems],
+    );
+
+    const selectedPendingItems = useMemo(
+        () => items.filter((i) => selectedKeys.includes(`${i.sumber}-${i.app_siaga_faktur_id}`)),
+        [items, selectedKeys],
+    );
+    const selectedPendingNominal = useMemo(
+        () => selectedPendingItems.reduce((acc, i) => acc + Number(i.nominal || 0), 0),
+        [selectedPendingItems],
+    );
+
+    let displayPendingValue = pendingSummary?.nominal || 0;
+    let displayPendingSubtext = `${pendingSummary?.count || 0} Total Faktur`;
+
+    let displayActiveValue = summary?.total_sisa || 0;
+    let displayActiveSubtext = `${summary?.utang_count || 0} Total Faktur`;
+
+    let displayTotalUtangValue = displayPendingValue + displayActiveValue;
+    let displayTotalUtangSubtext = `${(pendingSummary?.count || 0) + (summary?.utang_count || 0)} Total Faktur`;
+
+    if (hasActiveSelection) {
+        displayPendingValue = 0;
+        displayPendingSubtext = '0 Faktur Terpilih';
+
+        displayActiveValue = selectedActiveSisa;
+        displayActiveSubtext = `${selectedActiveIds.length} Faktur Terpilih`;
+
+        displayTotalUtangValue = selectedActiveSisa;
+        displayTotalUtangSubtext = `${selectedActiveIds.length} Faktur Terpilih`;
+    } else if (hasPendingSelection) {
+        displayPendingValue = selectedPendingNominal;
+        displayPendingSubtext = `${selectedKeys.length} Faktur Terpilih`;
+
+        displayActiveValue = 0;
+        displayActiveSubtext = '0 Faktur Terpilih';
+
+        displayTotalUtangValue = selectedPendingNominal;
+        displayTotalUtangSubtext = `${selectedKeys.length} Faktur Terpilih`;
+    }
 
     return (
         <div className="utang-page">
@@ -1058,8 +1129,8 @@ export default function CatatanUtangObatBhp() {
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Hutang Menunggu Verifikasi</span>
-                            <span className="card-value">{money(pendingValue)}</span>
-                            <span className="card-subtext">{pendingCountValue} Total Faktur</span>
+                            <span className="card-value">{money(displayPendingValue)}</span>
+                            <span className="card-subtext">{displayPendingSubtext}</span>
                         </div>
                         <span className="card-icon pending"><FileClock size={24} /></span>
                     </div>
@@ -1069,8 +1140,8 @@ export default function CatatanUtangObatBhp() {
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Utang Aktif</span>
-                            <span className="card-value">{money(activeValue)}</span>
-                            <span className="card-subtext">{activeCountValue} Total Faktur</span>
+                            <span className="card-value">{money(displayActiveValue)}</span>
+                            <span className="card-subtext">{displayActiveSubtext}</span>
                         </div>
                         <span className="card-icon active"><ReceiptText size={24} /></span>
                     </div>
@@ -1080,8 +1151,8 @@ export default function CatatanUtangObatBhp() {
                     <div className="card-inner">
                         <div className="card-info">
                             <span className="card-label">Total Utang</span>
-                            <span className="card-value">{money(pendingValue + activeValue)}</span>
-                            <span className="card-subtext">{pendingCountValue + activeCountValue} Total Faktur</span>
+                            <span className="card-value">{money(displayTotalUtangValue)}</span>
+                            <span className="card-subtext">{displayTotalUtangSubtext}</span>
                         </div>
                         <span className="card-icon total"><CircleDollarSign size={24} /></span>
                     </div>
@@ -1136,7 +1207,49 @@ export default function CatatanUtangObatBhp() {
                                 </button>
                             </>
                         )}
-                        {(mode === 'aktif' || mode === 'semua' || mode === 'histori' || (mode === 'pengajuan' && selectedPengajuanIds.length === 0)) && (
+                        {(mode === 'aktif' || mode === 'semua') && selectedActiveIds.length > 0 && (
+                            <>
+                                <div className="utang-selected-pill" style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                                    color: '#047857',
+                                    padding: '6px 14px',
+                                    borderRadius: '9px',
+                                    fontSize: '13px',
+                                    fontWeight: '700'
+                                }}>
+                                    <span>Terpilih: <strong>{selectedActiveIds.length} faktur</strong></span>
+                                    <span style={{ opacity: 0.5 }}>|</span>
+                                    <span>Sisa: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(selectedActiveSisa)}</strong></span>
+                                </div>
+                                <button
+                                    className="utang-btn primary"
+                                    type="button"
+                                    onClick={exportExcel}
+                                    style={{ background: '#0284c7', borderColor: '#0369a1', color: '#ffffff' }}
+                                    title="Export hanya faktur yang dicentang ke Excel"
+                                >
+                                    <FileSpreadsheet size={16} /> Export ({selectedActiveIds.length}) Terpilih
+                                </button>
+                                <button
+                                    className="utang-btn secondary"
+                                    type="button"
+                                    onClick={() => setSelectedActiveIds([])}
+                                    style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                                    title="Batalkan pilihan centang"
+                                >
+                                    Reset Pilihan
+                                </button>
+                            </>
+                        )}
+                        {(
+                            mode === 'histori' ||
+                            ((mode === 'aktif' || mode === 'semua') && selectedActiveIds.length === 0) ||
+                            (mode === 'pengajuan' && selectedPengajuanIds.length === 0)
+                        ) && (
                             <button className="utang-btn primary" type="button" onClick={exportExcel}>
                                 <FileSpreadsheet size={16} /> Export Excel
                             </button>
@@ -1263,6 +1376,9 @@ export default function CatatanUtangObatBhp() {
                                 onEdit={openEdit}
                                 onBatalkan={openBatalkan}
                                 onSort={setOrdering}
+                                selectedIds={selectedActiveIds}
+                                onToggleAll={toggleSelectAllActive}
+                                onToggleItem={toggleSelectActive}
                             />
                         )}
                         {mode === 'pengajuan' && (
@@ -2687,11 +2803,33 @@ function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll,
     );
 }
 
-function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, onSort }) {
+function ActiveTable({
+    items,
+    onPayment,
+    onDetail,
+    onRetur,
+    onEdit,
+    onBatalkan,
+    onSort,
+    selectedIds = [],
+    onToggleAll,
+    onToggleItem,
+}) {
+    const allSelected = items.length > 0 && items.every((i) => selectedIds.includes(i.id));
+
     return (
         <table className="utang-table">
             <thead>
                 <tr>
+                    <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={(e) => onToggleAll && onToggleAll(e.target.checked, items)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10b981' }}
+                            title="Pilih Semua Halaman Ini"
+                        />
+                    </th>
                     <th>Sumber</th>
                     <SortTh label="Vendor & SPB" field="vendor" onSort={onSort} />
                     <SortTh label="No Faktur & Tanggal" field="nomor_faktur" onSort={onSort} />
@@ -2711,9 +2849,21 @@ function ActiveTable({ items, onPayment, onDetail, onRetur, onEdit, onBatalkan, 
                     const canRetur = item.status === 'belum_dibayar' && !isPendingApproval && Number(item.total_dibayar || 0) === 0;
                     const canEdit = Number(item.total_dibayar || 0) === 0 && item.status !== 'lunas' && !isPendingApproval && !isDibatalkan;
                     const canBatalkan = item.status !== 'lunas' && !isDibatalkan && Number(item.total_dibayar || 0) === 0;
+                    const isSelected = selectedIds.includes(item.id);
 
                     return (
-                    <tr key={item.id ? `utang-act-${item.id}-${idx}` : `utang-act-idx-${idx}`} className={isDibatalkan ? 'utang-row-dibatalkan' : ''}>
+                    <tr
+                        key={item.id ? `utang-act-${item.id}-${idx}` : `utang-act-idx-${idx}`}
+                        className={[isDibatalkan ? 'utang-row-dibatalkan' : '', isSelected ? 'utang-row-selected' : ''].filter(Boolean).join(' ')}
+                    >
+                        <td style={{ textAlign: 'center' }}>
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => onToggleItem && onToggleItem(item.id)}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10b981' }}
+                            />
+                        </td>
                         <td><SumberBadge sumber={item.sumber} /></td>
                         <td className="utang-name-cell">
                             <strong style={{ display: 'block', ...(isDibatalkan ? { textDecoration: 'line-through', opacity: 0.6 } : {}) }}>
