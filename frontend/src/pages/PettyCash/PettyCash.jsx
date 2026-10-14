@@ -1010,11 +1010,19 @@ export default function PettyCash() {
         unit: r.unit_pengaju || r.created_by_unit || '',
     });
 
+    // Helper: pastikan hanya top-up pengisian saldo kas kecil (bukan koreksi internal) yang menjadi pembatas siklus
+    const isTopUpRecord = (r) => {
+        if (!r || r.jenis !== 'penambahan') return false;
+        const ket = (r.keterangan || '').toLowerCase();
+        if (ket.includes('koreksi') || ket.includes('pemulihan')) return false;
+        return true;
+    };
+
     // Riwayat siklus top up saldo petty cash (dihitung dari setiap penambahan saldo di riwayatSaldo)
     const topUpCycles = useMemo(() => {
         const penambahanIndices = [];
         riwayatSaldo.forEach((r, idx) => {
-            if (r.jenis === 'penambahan') penambahanIndices.push(idx);
+            if (isTopUpRecord(r)) penambahanIndices.push(idx);
         });
 
         const cycles = [];
@@ -1078,7 +1086,7 @@ export default function PettyCash() {
 
     // Perhitungan otomatis pemakaian belanja sejak top up saldo terakhir
     const pemakaianSejakTopUp = useMemo(() => {
-        const lastTopUpIndex = riwayatSaldo.findIndex(r => r.jenis === 'penambahan');
+        const lastTopUpIndex = riwayatSaldo.findIndex(isTopUpRecord);
         const list = lastTopUpIndex === -1
             ? riwayatSaldo.filter(r => r.jenis === 'pengurangan')
             : riwayatSaldo.slice(0, lastTopUpIndex).filter(r => r.jenis === 'pengurangan');
