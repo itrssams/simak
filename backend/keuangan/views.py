@@ -2114,7 +2114,13 @@ class InvoicePDF(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-def render_invoice_pdf_response(faktur, mode='invoice'):
+def _resolve_signer_name(signer):
+    s = str(signer or '').strip().lower()
+    if s in ('evi', 'evi setyaningrum', 'evi setyaningrum, s.e'):
+        return "Evi Setyaningrum, S.E"
+    return "Nevi Nevada, S.Ip., M.M."
+
+def render_invoice_pdf_response(faktur, mode='invoice', signer=''):
     pdf = InvoicePDF()
     pdf.alias_nb_pages()
     pdf.add_page()
@@ -2270,9 +2276,18 @@ def render_invoice_pdf_response(faktur, mode='invoice'):
     pdf.text(20, 250, "cc.")
     pdf.text(25, 250, "- Akuntansi RS-SAMS")
     pdf.text(25, 254, "- Arsip")
-    pdf.text(148, 209, "RS. SIAGA AL MUNAWWARAH")
-    pdf.text(164, 213, "SAMARINDA")
-    pdf.text(150, 246, "Nevi Nevada, S.Ip., M.M.")
+
+    rs_text = "RS. SIAGA AL MUNAWWARAH"
+    city_text = "SAMARINDA"
+    signer_name = _resolve_signer_name(signer)
+
+    center_x = 148 + (pdf.get_string_width(rs_text) / 2)
+    city_x = center_x - (pdf.get_string_width(city_text) / 2)
+    signer_x = center_x - (pdf.get_string_width(signer_name) / 2)
+
+    pdf.text(148, 209, rs_text)
+    pdf.text(city_x, 213, city_text)
+    pdf.text(signer_x, 246, signer_name)
 
     pdf_bytes = bytes(pdf.output(dest='S'))
 
@@ -2786,7 +2801,7 @@ def _pdf_wrap_line(pdf, text, max_width):
     lines.append(current)
     return lines
 
-def render_kwitansi_pdf_response(faktur):
+def render_kwitansi_pdf_response(faktur, signer=''):
     pdf = FPDF('P', 'mm', 'A4')
     pdf.set_auto_page_break(False)
     pdf.add_page()
@@ -2934,15 +2949,16 @@ def render_kwitansi_pdf_response(faktur):
 
     pdf.set_xy(sign_x, 142)
     pdf.set_font('Arial', '', 9)
-    pdf.cell(sign_w, 4, 'Nevi Nevada, S.Ip., M.M.', 0, 1, 'C')
+    pdf.cell(sign_w, 4, _resolve_signer_name(signer), 0, 1, 'C')
 
     pdf_bytes = bytes(pdf.output(dest='S'))
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="Kwitansi_{faktur.nomor_faktur}.pdf"'
     return response
 
-def _render_legacy_invoice(faktur, mode):
+def _render_legacy_invoice(faktur, mode, signer=''):
     """Replicate exact FPDF output from app_siaga print_invoice.php"""
+    signer_name = _resolve_signer_name(signer)
     total, jml_bayar = _invoice_print_amounts(faktur)
     
     # Build cost rows dengan labels yang persis sama seperti PHP
@@ -3072,7 +3088,7 @@ def _render_legacy_invoice(faktur, mode):
         .bank {{ margin-bottom: 2mm; font-size: 10px; line-height: 1.5; }}
         .footer {{ display: flex; justify-content: space-between; margin-top: 2mm; font-size: 11px; line-height: 1.5; }}
         .cc {{ }}
-        .signature {{ text-align: right; }}
+        .signature {{ text-align: center; }}
         .sig-space {{ height: 18mm; }}
         .sig-name {{ font-weight: bold; text-decoration: underline; }}
         .print-btn {{ position: fixed; top: 10px; right: 10px; padding: 8px 12px; background: #0f766e; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; z-index: 1000; }}
@@ -3144,7 +3160,7 @@ def _render_legacy_invoice(faktur, mode):
                     <div>RS. SIAGA AL MUNAWWARAH</div>
                     <div>SAMARINDA</div>
                     <div class="sig-space"></div>
-                    <div class="sig-name">Nevi Nevada, S.Ip., M.M.</div>
+                    <div class="sig-name">{signer_name}</div>
                 </div>
             </div>
         </div>
@@ -3290,9 +3306,10 @@ def _render_legacy_rincian(faktur, mode):
 def faktur_legacy_print_view(request, pk):
     faktur = get_object_or_404(Faktur.objects.select_related('pelanggan'), pk=pk)
     mode = request.GET.get('mode', 'invoice')
+    signer = (request.GET.get('signer') or request.GET.get('ttd') or '').strip().lower()
 
     if mode in ('invoice', 'invoice_ppn'):
-        return render_invoice_pdf_response(faktur, mode)
+        return render_invoice_pdf_response(faktur, mode, signer=signer)
 
     if mode == 'rincian':
         return render_rincian_pdf_response(faktur, mode)
@@ -3301,10 +3318,10 @@ def faktur_legacy_print_view(request, pk):
         return render_rincian_ppn_pdf_response(faktur, mode)
 
     if mode == 'kwitansi':
-        return render_kwitansi_pdf_response(faktur)
+        return render_kwitansi_pdf_response(faktur, signer=signer)
         
     else:
-        html = _render_legacy_invoice(faktur, mode)
+        html = _render_legacy_invoice(faktur, mode, signer=signer)
 
     return HttpResponse(html)
 

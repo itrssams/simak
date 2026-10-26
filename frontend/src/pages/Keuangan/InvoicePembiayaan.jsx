@@ -253,6 +253,7 @@ export default function InvoicePembiayaan() {
     const [createOpen, setCreateOpen] = useState(false);
     const [editingInvoice, setEditingInvoice] = useState(null);
     const [printMenuOpen, setPrintMenuOpen] = useState(false);
+    const [signer, setSigner] = useState('nevi');
     const [rekapOpen, setRekapOpen] = useState(false);
     const [rekapForm, setRekapForm] = useState({ tgl1: '', tgl2: '', id_pembiayaan: '' });
     const [receiptOpen, setReceiptOpen] = useState(false);
@@ -787,7 +788,8 @@ export default function InvoicePembiayaan() {
         };
         const baseURL = String(api.defaults.baseURL || '/api').replace(/\/$/, '');
         const printMode = modes[mode] || modes.invoice;
-        const printWindow = window.open(`${baseURL}/keuangan/faktur/${selected.id}/print/?mode=${printMode}`, '_blank');
+        const signerParam = signer ? `&signer=${encodeURIComponent(signer)}` : '';
+        const printWindow = window.open(`${baseURL}/keuangan/faktur/${selected.id}/print/?mode=${printMode}${signerParam}`, '_blank');
         if (!printWindow) {
             toast.error('Popup cetak diblokir browser.');
             return;
@@ -1417,20 +1419,27 @@ export default function InvoicePembiayaan() {
                                         </div>
                                     </div>
                                     <div className="inv-detail-actions">
-                                        {/* <div className="inv-print-menu">
-                                            <button className="inv-print-btn" type="button" onClick={() => setPrintMenuOpen((value) => !value)}>
-                                                <Printer size={16} /> Cetak
-                                            </button>
-                                            {printMenuOpen && (
-                                                <div className="inv-print-dropdown">
-                                                    <button type="button" onClick={() => printInvoice('invoice')}><Printer size={15} /> Invoice</button>
-                                                    <button type="button" onClick={() => printInvoice('invoice_ppn')}><FileText size={15} /> Invoice PPN</button>
-                                                    <button type="button" onClick={() => printInvoice('rincian')}><ReceiptText size={15} /> Rincian</button>
-                                                    <button type="button" onClick={() => printInvoice('rincian_ppn')}><ClipboardList size={15} /> Rincian PPN</button>
-                                                    <button type="button" onClick={() => printInvoice('kwitansi')}><ReceiptText size={15} /> Kwitansi</button>
-                                                </div>
-                                            )}
-                                        </div> */}
+                                        <div className="inv-signer-box">
+                                            <span className="inv-signer-label">TTD:</span>
+                                            <div className="inv-signer-toggle">
+                                                <button
+                                                    type="button"
+                                                    className={`inv-signer-pill ${signer === 'nevi' ? 'active' : ''}`}
+                                                    onClick={() => setSigner('nevi')}
+                                                    title="Penandatangan: Nevi Nevada, S.Ip., M.M."
+                                                >
+                                                    Nevi Nevada
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`inv-signer-pill ${signer === 'evi' ? 'active' : ''}`}
+                                                    onClick={() => setSigner('evi')}
+                                                    title="Penandatangan: Evi Setyaningrum, S.E"
+                                                >
+                                                    Evi Setyaningrum
+                                                </button>
+                                            </div>
+                                        </div>
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice')}><Printer size={15} /> Invoice</button>
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian')}><ReceiptText size={15} /> Rincian</button>
                                         <button className="inv-print-btn" type="button" onClick={() => printInvoice('kwitansi')}><ReceiptText size={15} /> Kwitansi</button>
