@@ -21,8 +21,10 @@ def get_monitoring_level(user):
     """Return: 'all' (direktur), 'unit' (kepala_seksi/manajer), atau None"""
     if not user or not user.is_authenticated:
         return None
-    if user.is_superuser or user.role in ('direktur', 'wakil_direktur'):
+    if user.is_superuser or user.role in ('direktur', 'wakil_direktur') or getattr(user, 'is_sdm', False):
         return 'all'
+    if user.role in ('manajer', 'kepala_seksi') or (hasattr(user, 'unit_yang_dipimpin') and user.unit_yang_dipimpin.filter(is_active=True).exists()):
+        return 'unit'
     return None
 
 

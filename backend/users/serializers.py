@@ -34,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
     role_label = serializers.CharField(source='get_role_display', read_only=True)
     unit_nama  = serializers.CharField(source='unit.nama', read_only=True)
     foto       = serializers.SerializerMethodField()
+    is_approver = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
@@ -43,9 +44,14 @@ class UserSerializer(serializers.ModelSerializer):
             'akses_catatan_utang', 'akses_kas_besar', 'akses_reimbursement',
             'view_petty_cash', 'view_kas_besar', 'view_logistik',
             'is_logistik', 'is_akuntansi', 'is_sdm', 'unit', 'unit_nama',
-            'foto', 'is_active', 'is_staff', 'is_superuser', 'date_joined',
+            'foto', 'is_active', 'is_staff', 'is_superuser', 'date_joined', 'is_approver',
         ]
         read_only_fields = ['id', 'date_joined']
+
+    def get_is_approver(self, obj):
+        if obj.is_superuser or obj.role in ('direktur', 'wakil_direktur', 'manajer', 'kepala_seksi'):
+            return True
+        return hasattr(obj, 'unit_yang_dipimpin') and obj.unit_yang_dipimpin.filter(is_active=True).exists()
 
     def get_foto(self, obj):
         if not obj.foto:

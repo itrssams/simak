@@ -836,7 +836,7 @@ export default function MasterPembiayaan() {
                                 <>
                                     <div className="mp-auto-group-banner">
                                         <p>
-                                             Sistem mendeteksi <strong>{autoGroupData.total_pembiayaan_matched} pembiayaan</strong> yang cocok dikelompokkan ke dalam <strong>{autoGroupData.total_groups} Induk Pembiayaan</strong> berdasarkan kesamaan pola TPA / Asuransi Induk.
+                                            Sistem mendeteksi <strong>{autoGroupData.total_pembiayaan_matched} pembiayaan</strong> yang cocok dikelompokkan ke dalam <strong>{autoGroupData.total_groups} Induk Pembiayaan</strong> berdasarkan kesamaan pola TPA / Asuransi Induk.
                                         </p>
                                     </div>
                                     <div className="mp-auto-group-list">

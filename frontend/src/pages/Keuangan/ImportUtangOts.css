@@ -127,7 +127,8 @@
   display: none;
 }
 
-.btn-select-file {
+.ots-btn-select-file,
+.ots-container .btn-select-file {
   display: inline-block;
   padding: 0.65rem 1.4rem;
   background: #f8fafc;
@@ -140,13 +141,15 @@
   transition: all 0.2s ease;
 }
 
-.btn-select-file:hover {
+.ots-btn-select-file:hover,
+.ots-container .btn-select-file:hover {
   border-color: #2563eb;
   color: #2563eb;
   background: #eff6ff;
 }
 
-.btn-process {
+.ots-btn-process,
+.ots-container .btn-process {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -162,7 +165,8 @@
   transition: all 0.2s ease;
 }
 
-.btn-process:hover {
+.ots-btn-process:hover,
+.ots-container .btn-process:hover {
   background: #1d4ed8;
 }
 

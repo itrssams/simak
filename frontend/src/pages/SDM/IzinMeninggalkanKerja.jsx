@@ -606,7 +606,7 @@ export default function IzinMeninggalkanKerja() {
         };
       case 'rekap':
         return {
-          title: 'Dashboard IMTK',
+          title: 'Dashboard Izin Meninggalkan Tempat Kerja',
           subtitle: 'Monitoring menyeluruh seluruh izin keluar pegawai, kepatuhan jam kerja, dan laporan rekapitulasi',
           Icon: Building2,
         };
@@ -618,7 +618,7 @@ export default function IzinMeninggalkanKerja() {
         };
       default:
         return {
-          title: hasSdmAccess ? 'Pengajuan Izin Meninggalkan Kerja' : 'Izin Meninggalkan Tempat Kerja',
+          title: hasSdmAccess ? 'Pengajuan Izin Meninggalkan Tempat Kerja' : 'Izin Meninggalkan Tempat Kerja',
           subtitle: 'Pencatatan izin dinas luar & urusan pribadi, status persetujuan atasan, dan kepatuhan waktu',
           Icon: LogOut,
         };

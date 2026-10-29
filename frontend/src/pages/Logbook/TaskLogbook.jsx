@@ -21,6 +21,7 @@ import {
     History,
     FileText
 } from 'lucide-react';
+import SearchableSelect from '../../components/SearchableSelect';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
@@ -108,6 +109,20 @@ export default function TaskLogbook() {
         if (!formData.uraian_tugas_id || formData.uraian_tugas_id === 'lainnya') return null;
         return uraianTugasOpts.find(opt => String(opt.id) === String(formData.uraian_tugas_id));
     }, [formData.uraian_tugas_id, uraianTugasOpts]);
+
+    const uraianTugasSelectOptions = useMemo(() => {
+        const list = uraianTugasOpts.map(opt => ({
+            value: String(opt.id),
+            label: opt.deskripsi,
+        }));
+        list.push({
+            value: 'lainnya',
+            label: 'Lainnya (Di luar uraian tugas)',
+            isSpecial: true,
+            subtext: 'Pilih opsi ini jika tugas pekerjaan di luar daftar indikator uraian tugas Anda'
+        });
+        return list;
+    }, [uraianTugasOpts]);
 
     // Modal Finish Task
     const [taskToFinish, setTaskToFinish] = useState(null);
@@ -662,19 +677,17 @@ export default function TaskLogbook() {
                             <div className="logbook-modal-body">
                                 <div className="logbook-field-group">
                                     <label>Uraian Tugas <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <select
+                                    <SearchableSelect
                                         name="uraian_tugas_id"
+                                        options={uraianTugasSelectOptions}
                                         value={formData.uraian_tugas_id}
-                                        onChange={e => setFormData({ ...formData, uraian_tugas_id: e.target.value })}
-                                        className="logbook-select"
+                                        onChange={(val) => setFormData(prev => ({ ...prev, uraian_tugas_id: val }))}
+                                        placeholder="Pilih atau cari Uraian Tugas..."
+                                        searchPlaceholder="Ketik kata kunci untuk mencari uraian tugas..."
+                                        emptyMessage="Tidak ada uraian tugas yang cocok dengan pencarian"
+                                        clearable
                                         required
-                                    >
-                                        <option value="">Pilih Uraian Tugas...</option>
-                                        {uraianTugasOpts.map(opt => (
-                                            <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
-                                        ))}
-                                        <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
-                                    </select>
+                                    />
                                     {selectedUraianTugas && (
                                         <div className="logbook-jobdesc-preview">
                                             <FileText size={15} className="logbook-jobdesc-preview-icon" />
@@ -779,19 +792,17 @@ export default function TaskLogbook() {
 
                                 <div className="logbook-field-group">
                                     <label>Uraian Tugas <span style={{ color: '#ef4444' }}>*</span></label>
-                                    <select
+                                    <SearchableSelect
                                         name="uraian_tugas_id"
+                                        options={uraianTugasSelectOptions}
                                         value={finishForm.uraian_tugas_id}
-                                        onChange={e => setFinishForm({ ...finishForm, uraian_tugas_id: e.target.value })}
-                                        className="logbook-select"
+                                        onChange={(val) => setFinishForm(prev => ({ ...prev, uraian_tugas_id: val }))}
+                                        placeholder="Pilih atau cari Uraian Tugas..."
+                                        searchPlaceholder="Ketik kata kunci untuk mencari uraian tugas..."
+                                        emptyMessage="Tidak ada uraian tugas yang cocok dengan pencarian"
+                                        clearable
                                         required
-                                    >
-                                        <option value="">Pilih Uraian Tugas...</option>
-                                        {uraianTugasOpts.map(opt => (
-                                            <option key={opt.id} value={String(opt.id)}>{opt.deskripsi}</option>
-                                        ))}
-                                        <option value="lainnya">Lainnya (Di luar uraian tugas)</option>
-                                    </select>
+                                    />
                                     {selectedFinishUraianTugas && (
                                         <div className="logbook-jobdesc-preview">
                                             <FileText size={15} className="logbook-jobdesc-preview-icon" />

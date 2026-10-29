@@ -4367,6 +4367,9 @@ def _build_pending_where_logistik(params):
         "(s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))",
         "(t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))"
     ]
+    from logistik.schema import ensure_workflow_schema
+    if ensure_workflow_schema():
+        where.append("COALESCE(t.kirim_keuangan, 'Y') = 'Y'")
     values = []
     search = (params.get('search') or '').strip()
     vendor_id = (params.get('vendor_id') or '').strip()
@@ -5595,7 +5598,9 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     all_pending_farm = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
                     # 2. Fetch pending Logistik purchases
-                    cursor.execute("""
+                    from logistik.schema import ensure_workflow_schema
+                    kirim_gate = "AND COALESCE(t.kirim_keuangan, 'Y') = 'Y'" if ensure_workflow_schema() else ""
+                    cursor.execute(f"""
                         SELECT t.id, r.id_rekanan, COALESCE(t.rekanan, r.nama, '') AS nama, t.tgl_spk AS tgl_faktur, t.no_spk AS no_faktur, t.id AS no_spb,
                                COALESCE(t.nilai, 0) AS total_biaya
                         FROM rssams.tran_beli_brg_log t
@@ -5605,6 +5610,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                           AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                           AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
                           AND u.id IS NULL
+                          {kirim_gate}
                           AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
                           AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
                     """)
@@ -7833,7 +7839,9 @@ class UtangPelunasanDataLamaView(APIView):
             farmasi_rows = [dict(zip(cols_f, row)) for row in cursor.fetchall()]
 
             # 2. Fetch unverified logistik purchases
-            cursor.execute("""
+            from logistik.schema import ensure_workflow_schema
+            kirim_gate = "AND COALESCE(t.kirim_keuangan, 'Y') = 'Y'" if ensure_workflow_schema() else ""
+            cursor.execute(f"""
                 SELECT 
                     CONVERT(t.id USING utf8mb4) AS app_siaga_faktur_id,
                     CONVERT(COALESCE(NULLIF(s.no_spb, ''), NULLIF(t.id_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
@@ -7851,6 +7859,7 @@ class UtangPelunasanDataLamaView(APIView):
                   AND u.id IS NULL 
                   AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                   AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
+                  {kirim_gate}
                   AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
                   AND (s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
                   AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))

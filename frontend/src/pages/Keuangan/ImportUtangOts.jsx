@@ -330,14 +330,14 @@ export default function ImportUtangOts() {
 
             <div className="file-input-wrapper">
               <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} id="ots-file-input" />
-              <label htmlFor="ots-file-input" className="btn-select-file">
+              <label htmlFor="ots-file-input" className="ots-btn-select-file btn-select-file">
                 {file ? file.name : 'Pilih File Excel...'}
               </label>
             </div>
 
             {file && (
               <button
-                className="btn-primary btn-process"
+                className="btn-primary ots-btn-process btn-process"
                 onClick={handleUploadAndPreview}
                 disabled={loading}
               >

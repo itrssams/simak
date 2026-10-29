@@ -1223,7 +1223,7 @@ export default function CatatanUtangObatBhp() {
                                 }}>
                                     <span>Terpilih: <strong>{selectedActiveIds.length} faktur</strong></span>
                                     <span style={{ opacity: 0.5 }}>|</span>
-                                    <span>Sisa: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(selectedActiveSisa)}</strong></span>
+                                    <span>Nilai: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(selectedActiveSisa)}</strong></span>
                                 </div>
                                 <button
                                     className="utang-btn primary"

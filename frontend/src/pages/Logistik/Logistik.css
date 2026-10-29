@@ -5,9 +5,34 @@
 .log-table td:first-child, .log-table td:nth-child(3) { white-space: normal; }
 .inv-row-actions { display: inline-flex; align-items: center; gap: 7px; }
 .inv-row-actions button, .inv-row-btn {
-  width: 34px; height: 34px; border: 1px solid rgba(226,232,240,.9); border-radius: 10px;
-  background: rgba(255,255,255,.9); color: #4f46e5; display: inline-flex; align-items: center;
-  justify-content: center; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 10px;
+  background: rgba(255,255,255,.9);
+  color: #4f46e5;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none !important;
+}
+
+.inv-row-actions button svg, .inv-row-btn svg {
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+  stroke: currentColor;
+  pointer-events: none;
 }
 
 /* Vibrant Action Button Color Variants */
@@ -16,7 +41,7 @@
 }
 .inv-row-actions button.btn-view:hover {
   color: #ffffff; background: #0284c7; border-color: #0284c7;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important; transform: translateY(-2px);
 }
 
 .inv-row-actions button.btn-edit {
@@ -24,7 +49,7 @@
 }
 .inv-row-actions button.btn-edit:hover {
   color: #ffffff; background: #d97706; border-color: #d97706;
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35); transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35) !important; transform: translateY(-2px);
 }
 
 .inv-row-actions button.btn-print {
@@ -32,15 +57,17 @@
 }
 .inv-row-actions button.btn-print:hover {
   color: #ffffff; background: #7c3aed; border-color: #7c3aed;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35) !important; transform: translateY(-2px);
 }
 
 .inv-row-actions button.btn-process {
   color: #059669; background: #ecfdf5; border-color: #a7f3d0;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 .inv-row-actions button.btn-process:hover {
   color: #ffffff; background: #059669; border-color: #059669;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35); transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important; transform: translateY(-2px);
 }
 
 .inv-row-actions button.btn-delete {
@@ -48,7 +75,79 @@
 }
 .inv-row-actions button.btn-delete:hover {
   color: #ffffff; background: #e11d48; border-color: #e11d48;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35); transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35) !important; transform: translateY(-2px);
+}
+
+/* Dark Mode Vibrant Theme for Row Action Buttons */
+[data-theme="dark"] .inv-row-actions button.btn-view {
+  color: #38bdf8 !important;
+  background: rgba(2, 132, 199, 0.16) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+[data-theme="dark"] .inv-row-actions button.btn-view:hover {
+  color: #ffffff !important;
+  background: #0284c7 !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
+}
+
+[data-theme="dark"] .inv-row-actions button.btn-edit {
+  color: #fbbf24 !important;
+  background: rgba(217, 119, 6, 0.16) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+[data-theme="dark"] .inv-row-actions button.btn-edit:hover {
+  color: #ffffff !important;
+  background: #d97706 !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45) !important;
+}
+
+[data-theme="dark"] .inv-row-actions button.btn-print {
+  color: #a78bfa !important;
+  background: rgba(124, 58, 237, 0.16) !important;
+  border-color: rgba(167, 139, 250, 0.35) !important;
+}
+[data-theme="dark"] .inv-row-actions button.btn-print:hover {
+  color: #ffffff !important;
+  background: #7c3aed !important;
+  border-color: #7c3aed !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45) !important;
+}
+
+[data-theme="dark"] .inv-row-actions button.btn-process {
+  color: #34d399 !important;
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+[data-theme="dark"] .inv-row-actions button.btn-process:hover {
+  color: #ffffff !important;
+  background: #059669 !important;
+  border-color: #059669 !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45) !important;
+}
+
+[data-theme="dark"] .inv-row-actions button.btn-delete {
+  color: #fb7185 !important;
+  background: rgba(225, 29, 72, 0.16) !important;
+  border-color: rgba(251, 113, 133, 0.35) !important;
+}
+[data-theme="dark"] .inv-row-actions button.btn-delete:hover {
+  color: #ffffff !important;
+  background: #e11d48 !important;
+  border-color: #e11d48 !important;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.45) !important;
+}
+.log-reject-note {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #e11d48;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
 }
 .log-modal .inv-close {
   width: auto; min-width: 86px; height: 40px; padding: 0 13px; border-radius: 14px;

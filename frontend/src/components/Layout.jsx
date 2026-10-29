@@ -617,8 +617,8 @@ const getActiveModuleConfig = (pathname, user) => {
         }
 
         const menus = [
-            { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },
             { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
+            { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },            
             { label: 'Struktur Organisasi', path: '/sdm/struktur' },
         ];
 
