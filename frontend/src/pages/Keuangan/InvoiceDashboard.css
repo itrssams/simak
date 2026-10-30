@@ -16,10 +16,16 @@
 /* HEADER */
 .idash-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.idash-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .idash-title {
@@ -807,4 +813,359 @@
 [data-theme="dark"] .idash-mini-btn:hover {
   background: rgba(99, 102, 241, 0.3) !important;
   color: #ffffff !important;
+}
+
+/* ==========================================================================
+   LAPTOP & COMPACT DENSITY VIEW (Resolusi <= 1440px atau Tinggi Viewport <= 860px)
+   Dioptimalkan khusus layar monitor laptop 1366x768 agar Dashboard Invoice lega & seamless
+   ========================================================================== */
+@media screen and (max-height: 860px), screen and (max-width: 1440px) {
+  /* 1. Page Wrapper Transparan & Bersih (Tanpa Alas Dobel) */
+  .idash-page {
+    padding: 0 !important;
+    background: transparent !important;
+    gap: 8px !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 2. Hero Section / Header (Satu Deret dengan Date Range Picker di Kanan) */
+  .idash-head {
+    margin-bottom: 6px !important;
+    gap: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+  }
+
+  .idash-title {
+    gap: 10px !important;
+  }
+
+  .idash-title > span {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, .2) !important;
+  }
+
+  .idash-title > span svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .idash-title h1 {
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+  }
+
+  .idash-title p {
+    display: none !important;
+  }
+
+  /* Date Range Picker di Sebelah Kanan Hero Header */
+  .idash-head-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .idash-head-actions .drp-container,
+  .idash-head-actions .drp-trigger {
+    height: 29px !important;
+    min-height: 29px !important;
+    font-size: 11.5px !important;
+    border-radius: 7px !important;
+  }
+
+  .idash-head-actions .drp-trigger {
+    padding: 0 10px !important;
+    gap: 6px !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  }
+
+  .idash-head-actions .drp-icon {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .idash-head-actions .drp-label {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+
+  [data-theme="dark"] .idash-head-actions .drp-trigger {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+  }
+
+  /* 4. Metric Cards (Summary KPI) - Padat & Sleek */
+  .idash-summary-grid {
+    gap: 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .idash-metric {
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    gap: 10px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .idash-metric-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 8px !important;
+  }
+
+  .idash-metric-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .idash-metric-label {
+    font-size: 9px !important;
+    letter-spacing: 0.04em !important;
+    line-height: 1.1 !important;
+  }
+
+  .idash-metric-value {
+    font-size: 14px !important;
+    font-weight: 850 !important;
+    line-height: 1.15 !important;
+  }
+
+  .idash-metric-note {
+    font-size: 9.5px !important;
+    line-height: 1.1 !important;
+  }
+
+  /* 5. Middle Grid (Aging Piutang & Top Sisa Piutang) */
+  .idash-grid {
+    gap: 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .idash-panel {
+    padding: 8px 12px !important;
+    border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .idash-panel-head {
+    gap: 8px !important;
+  }
+
+  .idash-panel-head h2 {
+    font-size: 12.5px !important;
+    font-weight: 800 !important;
+  }
+
+  .idash-panel-head p {
+    font-size: 10px !important;
+    margin: 1px 0 0 !important;
+  }
+
+  .idash-panel-head svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .idash-aging-list,
+  .idash-top-list {
+    margin-top: 6px !important;
+    gap: 4px !important;
+  }
+
+  .idash-aging-row,
+  .idash-top-item {
+    min-height: 34px !important;
+    height: 34px !important;
+    border-radius: 7px !important;
+    padding: 4px 10px !important;
+    gap: 8px !important;
+  }
+
+  .idash-aging-row > span,
+  .idash-top-item > span {
+    width: 4px !important;
+    height: 20px !important;
+  }
+
+  .idash-aging-row strong,
+  .idash-top-item strong {
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    line-height: 1.2 !important;
+  }
+
+  .idash-aging-row small,
+  .idash-top-item small {
+    font-size: 9.5px !important;
+    margin-top: 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  .idash-top-item b {
+    font-size: 11.5px !important;
+  }
+
+  /* 6. Card Tabel (Daftar Pembiayaan) */
+  .idash-card {
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .idash-table-head {
+    padding: 7px 14px !important;
+    border-radius: 12px 12px 0 0 !important;
+    gap: 10px !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+  }
+
+  .idash-table-head h2 {
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+  }
+
+  .idash-table-head p {
+    font-size: 10.5px !important;
+    margin: 1px 0 0 !important;
+  }
+
+  .idash-search {
+    width: min(240px, 100%) !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    border-radius: 6px !important;
+    padding: 0 8px !important;
+    gap: 6px !important;
+  }
+
+  .idash-search svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .idash-search input {
+    font-size: 11px !important;
+  }
+
+  /* 7. Baris Tabel High Density */
+  .idash-table th {
+    padding: 6px 10px !important;
+    font-size: 10.5px !important;
+    height: 30px !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .idash-table td {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  .idash-name {
+    gap: 7px !important;
+  }
+
+  .idash-name > span {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 6px !important;
+  }
+
+  .idash-name > span svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .idash-name strong {
+    font-size: 11.5px !important;
+    line-height: 1.2 !important;
+  }
+
+  .idash-name small {
+    font-size: 10px !important;
+    margin-top: 1px !important;
+  }
+
+  .idash-pill {
+    padding: 2px 7px !important;
+    font-size: 10.5px !important;
+    border-radius: 5px !important;
+    min-width: 26px !important;
+  }
+
+  .idash-progress {
+    grid-template-columns: minmax(60px, 1fr) 36px !important;
+    gap: 6px !important;
+  }
+
+  .idash-progress > div {
+    height: 6px !important;
+  }
+
+  .idash-progress small {
+    font-size: 10.5px !important;
+  }
+
+  .idash-mini-btn {
+    height: 25px !important;
+    min-height: 25px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    gap: 4px !important;
+  }
+
+  .idash-mini-btn svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* 8. Pagination */
+  .idash-card > .simple-pagination,
+  .idash-card > div:last-child {
+    padding: 6px 14px !important;
+  }
+
+  .idash-page-btn,
+  .idash-page-select {
+    min-height: 26px !important;
+    height: 26px !important;
+    font-size: 10.5px !important;
+    border-radius: 5px !important;
+    padding: 0 7px !important;
+  }
+
+  /* 9. Dark Mode Overrides Khusus Tampilan Laptop */
+  [data-theme="dark"] .idash-page {
+    background: transparent !important;
+  }
+
+  [data-theme="dark"] :where(.idash-filter-card, .idash-panel, .idash-card) {
+    background: rgba(21, 28, 44, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  [data-theme="dark"] .idash-table-head {
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  }
 }

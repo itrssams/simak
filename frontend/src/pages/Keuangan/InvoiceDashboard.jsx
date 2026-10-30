@@ -98,14 +98,7 @@ export default function InvoiceDashboard() {
                         <p>Ringkasan piutang pembiayaan, pembayaran, dan prioritas penagihan.</p>
                     </div>
                 </div>
-            </div>
-
-            <section className="idash-filter-card">
-                <div>
-                    <strong>Range Tanggal Invoice</strong>
-                    <span>Filter dashboard berdasarkan tanggal pembuatan invoice.</span>
-                </div>
-                <div className="idash-date-tools">
+                <div className="idash-head-actions">
                     <DateRangePicker
                         dari={range.dari}
                         sampai={range.sampai}
@@ -113,7 +106,7 @@ export default function InvoiceDashboard() {
                         placeholder="Pilih Periode Tanggal"
                     />
                 </div>
-            </section>
+            </div>
 
             <section className="idash-summary-grid">
                 <MetricCard

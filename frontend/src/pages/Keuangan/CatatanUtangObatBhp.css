@@ -25,9 +25,9 @@
 
 .utang-page {
   min-height: 100vh;
-  padding: 24px;
+  padding: 0;
   color: var(--utang-text);
-  background: var(--utang-bg);
+  background: transparent !important;
 }
 
 .utang-hero {
@@ -285,13 +285,18 @@
 
 .utang-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 22px;
+  gap: 14px;
+  padding: 8px 14px;
   border-bottom: 1px solid rgba(226, 232, 240, .72);
-  background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.36));
-  border-radius: 24px 24px 0 0;
+  background: transparent;
+  border-radius: 14px 14px 0 0;
+  flex-wrap: wrap;
+}
+
+.utang-card-head .utang-tabs {
+  margin: 0;
 }
 
 .utang-card-title h2 {
@@ -3207,6 +3212,527 @@ textarea.utang-input {
 [data-theme="dark"] .utang-retur-calc-box.invalid strong {
   color: #f87171 !important;
 }
+/* ==========================================================================
+   LAPTOP & COMPACT DENSITY VIEW (Resolusi <= 1440px atau Tinggi Viewport <= 860px)
+   Dioptimalkan khusus layar monitor 1366x768 & laptop agar muat 6-8+ baris data tabel
+   ========================================================================== */
+@media screen and (max-height: 860px), screen and (max-width: 1440px) {
+  /* 1. Halaman & Layout Utama - Transparan tanpa alas dobel */
+  .utang-page {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
 
+  /* 2. Hero Section / Judul Halaman */
+  .utang-hero {
+    margin-bottom: 8px !important;
+  }
+  .utang-title {
+    gap: 10px !important;
+  }
+  .utang-title > span {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, .2) !important;
+  }
+  .utang-title > span svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+  .utang-title h1 {
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+  }
+  .utang-title p {
+    display: none !important; /* Sembunyikan subtitle panjang di laptop untuk menghemat ruang vertikal */
+  }
 
+  /* 3. Kartu Ringkasan (Summary Cards) - Sleek & Ramping */
+  .utang-summary-cards {
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+  .utang-summary-card {
+    padding: 8px 14px !important;
+    border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+  [data-theme="dark"] .utang-summary-card {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  .card-info {
+    gap: 1px !important;
+  }
+  .card-label {
+    font-size: 9.5px !important;
+    letter-spacing: 0.4px !important;
+    font-weight: 700 !important;
+  }
+  .card-value {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.3px !important;
+    line-height: 1.2 !important;
+  }
+  .card-subtext {
+    font-size: 10.5px !important;
+    margin-top: 1px !important;
+  }
+  .card-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 8px !important;
+  }
+  .card-icon svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
 
+  /* 4. Table Card & Header Card - Seamless Glass */
+  .utang-card,
+  .utang-card.table {
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04) !important;
+  }
+  [data-theme="dark"] .utang-card,
+  [data-theme="dark"] .utang-card.table {
+    background: rgba(21, 28, 44, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  .utang-card-head {
+    padding: 8px 14px !important;
+    border-radius: 12px 12px 0 0 !important;
+    gap: 10px !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+  }
+  [data-theme="dark"] .utang-card-head {
+    background: transparent !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  }
+  .utang-card-title h2 {
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+  }
+  .utang-card-title p {
+    font-size: 11px !important;
+    margin: 1px 0 0 !important;
+  }
+  .utang-btn,
+  .utang-btn-manual {
+    min-height: 30px !important;
+    padding: 0 11px !important;
+    font-size: 11.5px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+  }
+  .utang-btn svg,
+  .utang-btn-manual svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .utang-selected-pill {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* 5. Baris Tab & Pencarian */
+  .utang-tabs-row {
+    padding: 6px 14px 4px 14px !important;
+    gap: 8px !important;
+  }
+  .utang-tabs {
+    margin: 0 !important;
+    padding: 3px !important;
+    gap: 3px !important;
+    border-radius: 8px !important;
+  }
+  .utang-tab {
+    height: 28px !important;
+    padding: 0 9px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+    gap: 5px !important;
+  }
+  .utang-tab svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .utang-tab-badge {
+    font-size: 9.5px !important;
+    padding: 1px 4px !important;
+    border-radius: 5px !important;
+  }
+  .utang-tab-search {
+    min-width: 180px !important;
+    max-width: 320px !important;
+  }
+  .utang-tab-search input {
+    height: 28px !important;
+    font-size: 11px !important;
+    border-radius: 7px !important;
+    padding-left: 28px !important;
+  }
+
+  /* 6. Filter Toolbar */
+  .utang-filter {
+    padding: 6px 14px !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+  }
+  [data-theme="dark"] .utang-filter {
+    background: transparent !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  }
+  .utang-filter-row {
+    gap: 5px 6px !important;
+  }
+  .utang-filter-row .dki-select,
+  .utang-filter-row .dki-filter-status,
+  .utang-filter-row .dki-filter-reset,
+  .utang-vendor-select .sps-button,
+  .utang-date-filter {
+    height: 29px !important;
+    min-height: 29px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    padding: 0 7px !important;
+  }
+  .utang-vendor-select {
+    flex: 1 1 130px !important;
+    min-width: 110px !important;
+  }
+  .utang-filter-row .dki-select {
+    flex: 1 1 100px !important;
+    min-width: 90px !important;
+  }
+  .utang-date-filter {
+    padding: 0 6px !important;
+    gap: 5px !important;
+  }
+  .utang-date-filter span {
+    font-size: 10px !important;
+  }
+  .utang-date-filter .df-wrap {
+    width: 78px !important;
+  }
+  .utang-date-filter .df-input {
+    height: 25px !important;
+    font-size: 10.5px !important;
+  }
+
+  /* 7. Baris Data Tabel (High Density) */
+  .utang-table th {
+    padding: 6px 10px !important;
+    font-size: 10.5px !important;
+    letter-spacing: .02em !important;
+  }
+  .utang-table td {
+    padding: 5px 10px !important;
+    font-size: 11.5px !important;
+    line-height: 1.25 !important;
+  }
+  .utang-name-cell {
+    max-width: 200px !important;
+  }
+  .utang-name-cell strong {
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+  .utang-name-cell small {
+    font-size: 10.5px !important;
+    margin-top: 1px !important;
+  }
+  .utang-sisa-main {
+    font-size: 12.5px !important;
+    line-height: 1.2 !important;
+  }
+  .utang-subtext {
+    font-size: 10.5px !important;
+    margin-top: 1px !important;
+  }
+  .utang-status {
+    padding: 2px 7px !important;
+    font-size: 10.5px !important;
+    gap: 4px !important;
+  }
+  .utang-operator-badge {
+    padding: 2px 6px !important;
+    font-size: 10.5px !important;
+  }
+  .utang-action-btn {
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+  }
+  .utang-action-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .utang-actions {
+    gap: 3px !important;
+  }
+
+  /* 8. Pagination */
+  .utang-pagination-wrap {
+    padding: 6px 14px !important;
+  }
+  .utang-page-btn,
+  .utang-page-size {
+    min-height: 28px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+  }
+
+  /* 9. Pop up / Modal Verifikasi Faktur & Konfirmasi (Sleek & Compact Laptop) */
+  .utang-confirm-backdrop,
+  .utang-modal-backdrop {
+    padding: 10px !important;
+  }
+
+  .utang-confirm-modal {
+    zoom: 0.88;
+    width: clamp(320px, 92vw, 440px) !important;
+    max-height: calc((100vh - 24px) / 0.88) !important;
+    border-radius: 14px !important;
+  }
+
+  .utang-confirm-head {
+    padding: 9px 14px !important;
+  }
+
+  .utang-confirm-head-copy {
+    gap: 8px !important;
+  }
+
+  .utang-confirm-head-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+  }
+
+  .utang-confirm-head-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .utang-confirm-head-copy h2 {
+    font-size: 13.5px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+  }
+
+  .utang-confirm-head-copy p {
+    font-size: 10.5px !important;
+    margin: 1px 0 0 0 !important;
+  }
+
+  .utang-confirm-close {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .utang-confirm-close svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .utang-confirm-body {
+    padding: 8px 14px !important;
+    gap: 7px !important;
+  }
+
+  .utang-verify-card {
+    padding: 7px 10px !important;
+    border-radius: 9px !important;
+    gap: 3px !important;
+  }
+
+  .utang-verify-row {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  .utang-verify-row .lbl {
+    font-size: 10.5px !important;
+  }
+
+  .utang-verify-row .val {
+    font-size: 11px !important;
+  }
+
+  .utang-verify-row .val.mono {
+    padding: 1px 5px !important;
+    font-size: 10.5px !important;
+    border-radius: 4px !important;
+  }
+
+  .utang-verify-row.total {
+    margin-top: 2px !important;
+    padding-top: 5px !important;
+  }
+
+  .utang-verify-row.total .lbl {
+    font-size: 11.5px !important;
+    font-weight: 750 !important;
+  }
+
+  .utang-verify-row.total .price {
+    font-size: 13.5px !important;
+    font-weight: 850 !important;
+  }
+
+  .utang-vendor-notice,
+  .utang-vendor-warning {
+    padding: 5px 8px !important;
+    font-size: 10.5px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+  }
+
+  .utang-vendor-notice svg,
+  .utang-vendor-warning svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .utang-field-block {
+    gap: 2px !important;
+  }
+
+  .utang-field-lbl {
+    font-size: 11px !important;
+    gap: 4px !important;
+    font-weight: 700 !important;
+  }
+
+  .utang-field-lbl svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .utang-field-block select.utang-input,
+  .utang-field-block input.utang-input,
+  .utang-field-block .df-trigger,
+  .utang-field-block .df-input,
+  .utang-field-block .sps-button {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    padding: 0 8px !important;
+  }
+
+  .utang-field-block small {
+    font-size: 9.5px !important;
+    margin-top: 1px !important;
+    line-height: 1.2 !important;
+  }
+
+  .utang-field-block textarea.utang-input {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
+  }
+
+  .utang-confirm-actions {
+    padding: 7px 14px 9px 14px !important;
+    gap: 8px !important;
+  }
+
+  .utang-confirm-actions .utang-btn {
+    height: 29px !important;
+    min-height: 29px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+    padding: 0 10px !important;
+    font-weight: 750 !important;
+  }
+
+  .utang-confirm-actions .utang-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* 10. Modals Lainnya (Payment, Retur, Realisasi, Detail) */
+  .utang-modal {
+    zoom: 0.88;
+    border-radius: 14px !important;
+    max-height: calc((100vh - 20px) / 0.88) !important;
+  }
+
+  .utang-modal-head {
+    padding: 8px 14px !important;
+    gap: 10px !important;
+  }
+
+  .utang-modal-head-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+  }
+
+  .utang-modal-head-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .utang-modal-head-title-row h2,
+  .utang-modal-head h2 {
+    font-size: 13.5px !important;
+  }
+
+  .utang-modal-head p,
+  .utang-modal-head-subtitle {
+    font-size: 10.5px !important;
+  }
+
+  .utang-close {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .utang-close svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .utang-modal-body {
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+
+  .utang-modal-actions {
+    padding: 7px 14px 9px 14px !important;
+    gap: 8px !important;
+  }
+
+  .utang-modal-actions .utang-btn {
+    height: 29px !important;
+    min-height: 29px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+    padding: 0 10px !important;
+  }
+
+  .utang-modal-actions .utang-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+}

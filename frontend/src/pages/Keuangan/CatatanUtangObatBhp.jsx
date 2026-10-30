@@ -1162,11 +1162,36 @@ export default function CatatanUtangObatBhp() {
 
             <section className="utang-card table">
                 <div className="utang-card-head">
-                    <div className="utang-card-title">
-                        <h2>{meta.cardTitle}</h2>
-                        <p>{total} data tercatat sesuai filter.</p>
+                    <div className="utang-tabs">
+                        {TABS.map((tab) => {
+                            const TabIcon = tab.icon;
+                            const isActive = mode === tab.id;
+                            const isMenunggu = tab.id === 'menunggu';
+                            const showBadge = isMenunggu && pendingCount > 0;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    className={`utang-tab ${isActive ? 'active' : ''}`}
+                                    onClick={() => setSearchParams({ tab: tab.id })}
+                                >
+                                    <TabIcon size={16} />
+                                    <span>{tab.label}</span>
+                                    {showBadge && (
+                                        <span className="utang-tab-badge" title={`${pendingCount} faktur menunggu verifikasi`}>
+                                            {pendingCount > 99 ? '99+' : pendingCount}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                     <div className="utang-card-actions">
+                        <DebouncedSearchInput
+                            value={filters.search}
+                            onChange={(val) => setFilters((prev) => ({ ...prev, search: val }))}
+                            placeholder="Cari vendor / faktur / SPB / keterangan..."
+                            className="utang-tab-search"
+                        />
                         {mode === 'pengajuan' && selectedPengajuanIds.length > 0 && (
                             <>
                                 <div className="utang-selected-pill" style={{
@@ -1310,38 +1335,6 @@ export default function CatatanUtangObatBhp() {
                             <FilePlus2 size={16} /> Catat Utang Manual
                         </button>
                     </div>
-                </div>
-
-                <div className="utang-tabs-row">
-                    <div className="utang-tabs">
-                        {TABS.map((tab) => {
-                            const TabIcon = tab.icon;
-                            const isActive = mode === tab.id;
-                            const isMenunggu = tab.id === 'menunggu';
-                            const showBadge = isMenunggu && pendingCount > 0;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    className={`utang-tab ${isActive ? 'active' : ''}`}
-                                    onClick={() => setSearchParams({ tab: tab.id })}
-                                >
-                                    <TabIcon size={16} />
-                                    <span>{tab.label}</span>
-                                    {showBadge && (
-                                        <span className="utang-tab-badge" title={`${pendingCount} faktur menunggu verifikasi`}>
-                                            {pendingCount > 99 ? '99+' : pendingCount}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <DebouncedSearchInput
-                        value={filters.search}
-                        onChange={(val) => setFilters((prev) => ({ ...prev, search: val }))}
-                        placeholder="Cari vendor / faktur / SPB / keterangan..."
-                        className="utang-tab-search"
-                    />
                 </div>
 
                 <FilterBar

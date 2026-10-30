@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Activity,
     BadgeCheck,
@@ -662,7 +663,7 @@ export default function DaftarKunjunganInvoice() {
                 </div>
             </section>
 
-            {invoiceDialogOpen && (
+            {invoiceDialogOpen && createPortal(
                 <div className="dki-modal-backdrop" onMouseDown={closeInvoiceDialog}>
                     <form className="dki-modal dki-create-modal" onSubmit={createInvoice} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="dki-modal-head">
@@ -812,10 +813,11 @@ export default function DaftarKunjunganInvoice() {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {appendDialogOpen && (
+            {appendDialogOpen && createPortal(
                 <div className="dki-modal-backdrop" onMouseDown={closeAppendDialog}>
                     <div className="dki-modal dki-create-modal dki-append-modal" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="dki-modal-head">
@@ -890,10 +892,11 @@ export default function DaftarKunjunganInvoice() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {detail && (
+            {detail && createPortal(
                 <div className="dki-modal-backdrop" onMouseDown={() => setDetail(null)}>
                     <div className="dki-modal" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="dki-modal-head">
@@ -933,7 +936,8 @@ export default function DaftarKunjunganInvoice() {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

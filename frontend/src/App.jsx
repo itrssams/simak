@@ -45,6 +45,7 @@ import TransactionCorrection from './pages/IT/TransactionCorrection';
 import LaporanIT from './pages/Laporan/LaporanIT';
 import Profile from './pages/Profile/Profile';
 import IzinMeninggalkanKerja from './pages/SDM/IzinMeninggalkanKerja';
+import PresensiPegawai from './pages/SDM/PresensiPegawai';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -155,6 +156,7 @@ const AppRoutes = () => {
             {/* SDM (Kepegawaian) */}
             <Route path="/sdm" element={<Navigate to="/sdm/izin-kerja" replace />} />
             <Route path="/sdm/pengajuan-izin" element={<Navigate to="/sdm/izin-kerja" replace />} />
+            <Route path="/sdm/presensi" element={<ProtectedRoute><PresensiPegawai /></ProtectedRoute>} />
             <Route path="/sdm/izin-kerja" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
             <Route path="/sdm/approval" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
             <Route path="/sdm/rekapitulasi" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />

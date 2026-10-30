@@ -86,3 +86,8 @@ backend/logs/
 # ==========================
 app_siaga/
 Siaga/
+
+# ==========================
+# Scratch / Temp Notes
+# ==========================
+pertanyaan.*

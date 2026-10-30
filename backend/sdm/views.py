@@ -6,10 +6,13 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
 from django.utils import timezone
 from django.http import HttpResponse
+from django.contrib.auth import get_user_model
 from datetime import datetime, date, timedelta
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+
+User = get_user_model()
 
 from .models import IzinKeluar, IzinKeluarLog
 from .serializers import (
@@ -503,5 +506,317 @@ class IzinKeluarViewSet(viewsets.ModelViewSet):
         )
         file_name = f"Rekap_Izin_Keluar_{timezone.localdate().strftime('%Y%m%d')}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+        wb.save(response)
+        return response
+
+
+# ==============================================================================
+# VIEWSETS UNTUK INTEGRASI MESIN ABSENSI & PRESENSI PEGAWAI
+# ==============================================================================
+
+from .models import MesinAbsen, KaryawanMesinMapping, LogPresensi, PresensiHarian
+from .serializers import (
+    MesinAbsenSerializer,
+    KaryawanMesinMappingSerializer,
+    LogPresensiSerializer,
+    PresensiHarianSerializer,
+)
+from .services.zk_service import sync_mesin_absen, auto_match_user_by_name, recalculate_presensi_harian
+import socket
+
+
+class MesinAbsenViewSet(viewsets.ModelViewSet):
+    queryset = MesinAbsen.objects.all()
+    serializer_class = MesinAbsenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Otomatis buatkan record mesin default jika belum ada
+        if not MesinAbsen.objects.exists():
+            MesinAbsen.objects.create(
+                nama='Mesin Absen Utama (S-IPC)',
+                ip_address='192.168.44.120',
+                port=4370,
+                comm_key=0,
+                serial_number='A8ME230660078',
+                device_name='S-IPC',
+                status_koneksi='connected',
+                is_active=True
+            )
+        return MesinAbsen.objects.all()
+
+    @action(detail=True, methods=['post'])
+    def test_koneksi(self, request, pk=None):
+        """Tes ping dan socket port 4370 ke mesin absen"""
+        mesin = self.get_object()
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(3.0)
+            result = s.connect_ex((mesin.ip_address, mesin.port))
+            s.close()
+            if result == 0:
+                mesin.status_koneksi = 'connected'
+                mesin.save(update_fields=['status_koneksi'])
+                return Response({
+                    'connected': True,
+                    'message': f"Berhasil terhubung ke {mesin.ip_address}:{mesin.port}"
+                })
+            else:
+                mesin.status_koneksi = 'disconnected'
+                mesin.save(update_fields=['status_koneksi'])
+                return Response({
+                    'connected': False,
+                    'message': f"Port {mesin.port} tidak merespons (Kode: {result})"
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            mesin.status_koneksi = 'error'
+            mesin.save(update_fields=['status_koneksi'])
+            return Response({
+                'connected': False,
+                'message': f"Gagal menghubungi mesin: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def sync_sekarang(self, request, pk=None):
+        """Trigger sinkronisasi langsung dari mesin absen"""
+        mesin = self.get_object()
+        res = sync_mesin_absen(mesin_id=mesin.id)
+        if res.get('success'):
+            return Response(res)
+        return Response(res, status=status.HTTP_400_BAD_REQUEST)
+
+
+class KaryawanMesinMappingViewSet(viewsets.ModelViewSet):
+    queryset = KaryawanMesinMapping.objects.select_related('user', 'user__unit').all()
+    serializer_class = KaryawanMesinMappingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        unmapped = self.request.query_params.get('unmapped')
+        search = self.request.query_params.get('search')
+        
+        if unmapped == 'true':
+            qs = qs.filter(user__isnull=True)
+        elif unmapped == 'false':
+            qs = qs.filter(user__isnull=False)
+
+        if search:
+            qs = qs.filter(
+                Q(pin__icontains=search) |
+                Q(nama_di_mesin__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__username__icontains=search)
+            )
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def link_user(self, request, pk=None):
+        """Memasangkan PIN mesin ke akun User SIMAK tertentu"""
+        mapping = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            mapping.user = None
+            mapping.save(update_fields=['user'])
+            return Response({'success': True, 'message': 'Mapping user berhasil dilepas.'})
+            
+        user = User.objects.filter(id=user_id, is_active=True).first()
+        if not user:
+            return Response({'detail': 'User tidak ditemukan atau tidak aktif.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        mapping.user = user
+        mapping.save(update_fields=['user'])
+        
+        # Kaitkan juga log-log lampau dengan PIN ini ke user
+        LogPresensi.objects.filter(pin=mapping.pin, user__isnull=True).update(user=user)
+        
+        # Hitung ulang tanggal-tanggal terkait
+        affected_dates = LogPresensi.objects.filter(user=user).values_list('waktu__date', flat=True).distinct()
+        for d in affected_dates:
+            recalculate_presensi_harian(user.id, d)
+            
+        serializer = self.get_serializer(mapping)
+        return Response(serializer.data)
+
+    @action(methods=['post'], detail=False)
+    def auto_match_all(self, request):
+        """Mencoba mencocokkan otomatis semua PIN yang belum ter-mapping ke User SIMAK"""
+        unmapped = KaryawanMesinMapping.objects.filter(user__isnull=True)
+        matched_count = 0
+        for m in unmapped:
+            user = auto_match_user_by_name(m.nama_di_mesin)
+            if user:
+                m.user = user
+                m.save(update_fields=['user'])
+                LogPresensi.objects.filter(pin=m.pin, user__isnull=True).update(user=user)
+                matched_count += 1
+                
+        return Response({
+            'success': True,
+            'matched_count': matched_count,
+            'message': f"{matched_count} karyawan berhasil dicocokkan otomatis."
+        })
+
+
+class LogPresensiViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = LogPresensi.objects.select_related('user', 'mesin').all()
+    serializer_class = LogPresensiSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user_id = self.request.query_params.get('user_id')
+        pin = self.request.query_params.get('pin')
+        tanggal = self.request.query_params.get('tanggal')
+
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        if pin:
+            qs = qs.filter(pin=pin)
+        if tanggal:
+            try:
+                tgl = datetime.strptime(tanggal, '%Y-%m-%d').date()
+                start_dt = timezone.make_aware(datetime.combine(tgl, datetime.min.time()))
+                end_dt = timezone.make_aware(datetime.combine(tgl, datetime.max.time()))
+                qs = qs.filter(waktu__range=(start_dt, end_dt))
+            except Exception:
+                pass
+        return qs
+
+
+class PresensiHarianViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = PresensiHarian.objects.select_related('user', 'user__unit', 'izin_keluar').all()
+    serializer_class = PresensiHarianSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        # User biasa hanya melihat presensi miliknya sendiri, kecuali SDM / Direksi
+        if not has_sdm_access(user):
+            qs = qs.filter(user=user)
+
+        tanggal = self.request.query_params.get('tanggal')
+        bulan = self.request.query_params.get('bulan')
+        tahun = self.request.query_params.get('tahun')
+        unit_id = self.request.query_params.get('unit_id')
+        status_filter = self.request.query_params.get('status')
+        search = self.request.query_params.get('search')
+
+        if tanggal:
+            qs = qs.filter(tanggal=tanggal)
+        else:
+            if tahun and bulan:
+                qs = qs.filter(tanggal__year=tahun, tanggal__month=bulan)
+            elif not search and not self.request.query_params.get('all'):
+                # Default hari ini jika tanpa filter
+                qs = qs.filter(tanggal=timezone.localdate())
+
+        if unit_id:
+            qs = qs.filter(user__unit_id=unit_id)
+
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        if search:
+            qs = qs.filter(
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__username__icontains=search)
+            )
+
+        return qs
+
+    @action(methods=['get'], detail=False)
+    def dashboard_stat(self, request):
+        """Statistik ringkasan kehadiran hari ini"""
+        today = timezone.localdate()
+        total_pegawai = User.objects.filter(is_active=True).count()
+        
+        presensi_today = PresensiHarian.objects.filter(tanggal=today)
+        hadir_tepat = presensi_today.filter(status='hadir').count()
+        terlambat = presensi_today.filter(status='terlambat').count()
+        pulang_cepat = presensi_today.filter(status='pulang_cepat').count()
+        izin_keluar = presensi_today.filter(status='izin_keluar').count()
+        total_tap = presensi_today.count()
+        belum_absen = max(0, total_pegawai - total_tap)
+
+        return Response({
+            'tanggal': today.isoformat(),
+            'total_pegawai': total_pegawai,
+            'total_tap': total_tap,
+            'hadir_tepat': hadir_tepat,
+            'terlambat': terlambat,
+            'pulang_cepat': pulang_cepat,
+            'izin_keluar': izin_keluar,
+            'belum_absen': belum_absen,
+        })
+
+    @action(methods=['get'], detail=False)
+    def export_excel(self, request):
+        """Export rekap presensi ke file Excel (.xlsx)"""
+        qs = self.filter_queryset(self.get_queryset())
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Rekap Presensi"
+
+        # Styling
+        font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        fill_header = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        font_bold = Font(name="Calibri", size=11, bold=True)
+        thin = Side(border_style="thin", color="D1D5DB")
+        border_all = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        # Title
+        tgl_filter = request.query_params.get('tanggal') or timezone.localdate().strftime('%d-%m-%Y')
+        ws.merge_cells("A1:I1")
+        ws["A1"] = "REKAPITULASI PRESENSI PEGAWAI - RS SIAGA AL MUNAWWARAH"
+        ws["A1"].font = Font(name="Calibri", size=14, bold=True, color="1E3A8A")
+        ws["A1"].alignment = Alignment(horizontal="center")
+
+        ws.merge_cells("A2:I2")
+        ws["A2"] = f"Tanggal Laporan: {tgl_filter}"
+        ws["A2"].font = Font(name="Calibri", size=11, italic=True)
+        ws["A2"].alignment = Alignment(horizontal="center")
+
+        headers = [
+            "No", "Tanggal", "Nama Pegawai", "Unit Kerja", "Jam Masuk",
+            "Jam Pulang", "Status Kehadiran", "Keterlambatan", "Izin Terkait"
+        ]
+        
+        for col_idx, h in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col_idx, value=h)
+            cell.font = font_header
+            cell.fill = fill_header
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = border_all
+
+        row_idx = 5
+        for idx, item in enumerate(qs, 1):
+            ws.cell(row=row_idx, column=1, value=idx).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=2, value=str(item.tanggal)).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=3, value=item.user.get_full_name() or item.user.username)
+            ws.cell(row=row_idx, column=4, value=item.user.unit.nama if item.user.unit else "-")
+            ws.cell(row=row_idx, column=5, value=str(item.jam_masuk) if item.jam_masuk else "-").alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=6, value=str(item.jam_pulang) if item.jam_pulang else "-").alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=7, value=item.get_status_display()).alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=8, value=f"{item.menit_keterlambatan} mnt" if item.menit_keterlambatan > 0 else "Tepat Waktu").alignment = Alignment(horizontal="center")
+            ws.cell(row=row_idx, column=9, value=f"Izin: {item.izin_keluar.get_kategori_display()}" if item.izin_keluar else "-")
+
+            for c in range(1, 10):
+                ws.cell(row=row_idx, column=c).border = border_all
+            row_idx += 1
+
+        # Adjust column widths
+        widths = [6, 12, 28, 20, 14, 14, 20, 16, 24]
+        for idx, w in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(idx)].width = w
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="Rekap_Presensi_{timezone.localdate().strftime("%Y%m%d")}.xlsx"'
         wb.save(response)
         return response

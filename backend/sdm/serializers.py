@@ -133,3 +133,120 @@ class IzinKeluarAdjustSerializer(serializers.Serializer):
 class IzinKeluarReturnSerializer(serializers.Serializer):
     jam_kembali_aktual = serializers.TimeField(required=False)
     catatan_kembali = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+# ==============================================================================
+# SERIALIZERS UNTUK MESIN ABSEN & PRESENSI PEGAWAI
+# ==============================================================================
+
+from .models import MesinAbsen, KaryawanMesinMapping, LogPresensi, PresensiHarian
+
+
+class MesinAbsenSerializer(serializers.ModelSerializer):
+    status_koneksi_label = serializers.CharField(source='get_status_koneksi_display', read_only=True)
+
+    class Meta:
+        model = MesinAbsen
+        fields = [
+            'id', 'nama', 'ip_address', 'port', 'comm_key',
+            'serial_number', 'device_name', 'mac_address',
+            'is_active', 'status_koneksi', 'status_koneksi_label',
+            'total_user_mesin', 'total_log_mesin', 'last_sync_at',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'serial_number', 'device_name', 'mac_address', 'last_sync_at', 'created_at', 'updated_at']
+
+
+class KaryawanMesinMappingSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True, allow_null=True)
+    username = serializers.CharField(source='user.username', read_only=True, default='-')
+    nama_lengkap = serializers.SerializerMethodField()
+    unit_nama = serializers.CharField(source='user.unit.nama', read_only=True, default='-')
+    role = serializers.CharField(source='user.role', read_only=True, default='-')
+    foto = serializers.SerializerMethodField()
+
+    class Meta:
+        model = KaryawanMesinMapping
+        fields = [
+            'id', 'mesin', 'pin', 'nama_di_mesin',
+            'user', 'user_id', 'username', 'nama_lengkap', 'unit_nama', 'role', 'foto',
+            'is_active', 'created_at', 'updated_at'
+        ]
+
+    def get_nama_lengkap(self, obj):
+        if not obj.user:
+            return '-'
+        nama = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return nama or obj.user.username
+
+    def get_foto(self, obj):
+        if obj.user and obj.user.foto:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.foto.url)
+            return obj.user.foto.url
+        return None
+
+
+class LogPresensiSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True, default='-')
+    nama_lengkap = serializers.SerializerMethodField()
+    mesin_nama = serializers.CharField(source='mesin.nama', read_only=True, default='-')
+
+    class Meta:
+        model = LogPresensi
+        fields = [
+            'id', 'mesin', 'mesin_nama', 'pin', 'user', 'username', 'nama_lengkap',
+            'waktu', 'status_verifikasi', 'tipe_punch', 'created_at'
+        ]
+
+    def get_nama_lengkap(self, obj):
+        if not obj.user:
+            return '-'
+        nama = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return nama or obj.user.username
+
+
+class PresensiHarianSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    nama_lengkap = serializers.SerializerMethodField()
+    unit_id = serializers.IntegerField(source='user.unit.id', read_only=True, allow_null=True)
+    unit_nama = serializers.CharField(source='user.unit.nama', read_only=True, default='-')
+    role = serializers.CharField(source='user.role', read_only=True, default='-')
+    foto = serializers.SerializerMethodField()
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    izin_info = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PresensiHarian
+        fields = [
+            'id', 'user_id', 'username', 'nama_lengkap', 'unit_id', 'unit_nama', 'role', 'foto',
+            'tanggal', 'jam_masuk', 'jam_pulang', 'status', 'status_label',
+            'menit_keterlambatan', 'menit_pulang_cepat', 'total_jam_kerja',
+            'izin_keluar', 'izin_info', 'catatan', 'created_at', 'updated_at'
+        ]
+
+    def get_nama_lengkap(self, obj):
+        nama = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return nama or obj.user.username
+
+    def get_foto(self, obj):
+        if obj.user.foto:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.foto.url)
+            return obj.user.foto.url
+        return None
+
+    def get_izin_info(self, obj):
+        if not obj.izin_keluar:
+            return None
+        return {
+            'id': obj.izin_keluar.id,
+            'kategori': obj.izin_keluar.get_kategori_display(),
+            'keperluan': obj.izin_keluar.keperluan,
+            'jam_keluar': str(obj.izin_keluar.jam_keluar),
+            'jam_kembali': str(obj.izin_keluar.jam_kembali),
+            'status': obj.izin_keluar.status,
+        }

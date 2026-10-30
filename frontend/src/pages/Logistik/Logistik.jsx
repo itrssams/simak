@@ -1012,7 +1012,7 @@ export default function Logistik() {
                                         className="inv-input"
                                         value={vendorKategoriFilter}
                                         onChange={(e) => { setPage(1); setVendorKategoriFilter(e.target.value); }}
-                                        style={{ minWidth: 220, padding: '8px 12px', fontSize: '13px' }}
+                                        style={{ width: '160px', minWidth: '150px', maxWidth: '180px', flex: '0 0 auto', height: '29px', padding: '3px 8px', fontSize: '11.5px', borderRadius: '6px' }}
                                     >
                                         <option value="">Semua Kategori</option>
                                         <option value="__empty__">⚠️ Belum Diatur (Kosong)</option>
@@ -1026,17 +1026,6 @@ export default function Logistik() {
                                         <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('logistik'); }}>Khusus Logistik</button>
                                         <button className={vendorSumberFilter === 'manual' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('manual'); }}>Khusus Manual</button>
                                     </div>
-                                    <button
-                                        className="inv-btn-secondary"
-                                        type="button"
-                                        onClick={handleAutoPopulateCategories}
-                                        disabled={autoPopulating}
-                                        title="Otomatis tentukan kategori default untuk vendor farmasi/logistik yang masih belum memiliki kategori"
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '7px 12px', whiteSpace: 'nowrap' }}
-                                    >
-                                        <Sparkles size={15} style={{ color: '#d97706' }} />
-                                        {autoPopulating ? 'Menyinkronkan...' : 'Auto-Set Kategori'}
-                                    </button>
                                 </>
                             )}
                             {['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (

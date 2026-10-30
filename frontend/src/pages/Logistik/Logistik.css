@@ -159,8 +159,9 @@
   background: rgba(248,250,252,.88);
 }
 .log-filter-segment button {
-  border: 0; border-radius: 10px; min-height: 32px; padding: 0 12px;
+  border: 0; border-radius: 10px; min-height: 32px; padding: 0 14px;
   background: transparent; color: #64748b; font-size: 12px; font-weight: 900; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
 }
 .log-filter-segment button.active {
   color: #4f46e5; background: white; box-shadow: 0 8px 20px rgba(15,23,42,.08);
@@ -1155,7 +1156,7 @@
 }
 
 /* Modal Action Buttons (Tutup, Kirim ke Keuangan, Simpan, Batal) */
-.inv-btn {
+:where(.inv-modal-actions, .inv-modal-foot, .log-modal-actions, .inv-modal) .inv-btn {
   min-height: 42px !important;
   padding: 10px 22px !important;
   border-radius: 12px !important;
@@ -1400,4 +1401,207 @@
 
 [data-theme="dark"] .log-search-empty {
     color: #94a3b8 !important;
+}
+
+/* ==========================================================================
+   LAPTOP & COMPACT DENSITY VIEW (Resolusi <= 1440px atau Tinggi Viewport <= 860px)
+   Dioptimalkan khusus layar monitor laptop 1366x768 & Master Vendor
+   ========================================================================== */
+@media screen and (max-height: 860px), screen and (max-width: 1440px) {
+  /* 1. Page Wrapper Transparan & Bersih */
+  .log-page,
+  .inv-page.log-page {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 2. Hero Section - Ukuran Presisi Sama dengan Catatan Utang */
+  .log-page .inv-hero,
+  .log-hero {
+    margin-bottom: 8px !important;
+  }
+
+  .log-page .inv-title,
+  .log-title {
+    gap: 10px !important;
+  }
+
+  .log-page .inv-title > span,
+  .log-title > span {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, .2) !important;
+  }
+
+  .log-page .inv-title > span svg,
+  .log-title > span svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .log-page .inv-title h1,
+  .log-title h1 {
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+  }
+
+  .log-page .inv-title p,
+  .log-title p {
+    display: none !important;
+  }
+
+  /* 3. Card & Header Glass Seamless */
+  .log-page .inv-card,
+  .log-page .inv-card.table {
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  [data-theme="dark"] .log-page .inv-card,
+  [data-theme="dark"] .log-page .inv-card.table {
+    background: rgba(21, 28, 44, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .log-page .inv-card-head {
+    padding: 7px 14px !important;
+    border-radius: 12px 12px 0 0 !important;
+    gap: 10px !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6) !important;
+  }
+
+  [data-theme="dark"] .log-page .inv-card-head {
+    background: transparent !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .log-page .inv-card-title h2 {
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+  }
+
+  .log-page .inv-card-title p {
+    font-size: 10.5px !important;
+    margin: 1px 0 0 !important;
+  }
+
+  /* 4. Tombol Aksi Card Head (Refresh, Tambah, Export Excel) Ramping & Proporsional */
+  .log-page .inv-card-actions,
+  .log-card-head .inv-card-actions {
+    gap: 6px !important;
+  }
+
+  .log-page .inv-btn,
+  .log-page .inv-btn.soft,
+  .log-page .inv-btn.primary,
+  .log-page .inv-btn.excel-btn,
+  .log-page .inv-card-actions .inv-btn {
+    min-height: 29px !important;
+    height: 29px !important;
+    padding: 0 11px !important;
+    font-size: 11.5px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+  }
+
+  .log-page .inv-btn svg,
+  .log-page .inv-card-actions .inv-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* 5. Segmented Tabs Filter Vendor (Semua Vendor, Khusus Farmasi, Khusus Logistik, Khusus Manual) */
+  .log-filter-segment {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    min-height: 29px !important;
+    height: 29px !important;
+    padding: 2px !important;
+    border-radius: 7px !important;
+    flex-shrink: 0 !important;
+    width: auto !important;
+  }
+
+  .log-filter-segment button {
+    min-height: 25px !important;
+    height: 25px !important;
+    padding: 0 13px !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+    white-space: nowrap !important;
+    border-radius: 5px !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* 6. Filter Toolbar & Input */
+  .log-page .inv-filter-strip,
+  .log-page .log-filter {
+    padding: 5px 12px !important;
+    gap: 8px !important;
+  }
+
+  .log-page .inv-search-input,
+  .log-page .inv-input,
+  .log-page select {
+    height: 28px !important;
+    min-height: 28px !important;
+    font-size: 11px !important;
+    border-radius: 5px !important;
+    padding: 0 7px !important;
+  }
+
+  /* 7. Baris Tabel High Density */
+  .log-table th {
+    padding: 6px 10px !important;
+    font-size: 10.5px !important;
+    height: 30px !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .log-table td {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  /* 8. Tombol Aksi di Tiap Baris Tabel */
+  .inv-row-actions button,
+  .inv-row-btn {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    border-radius: 5px !important;
+  }
+
+  .inv-row-actions button svg,
+  .inv-row-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  /* 9. Pagination */
+  .log-page .inv-pagination {
+    padding: 5px 12px !important;
+  }
+
+  .log-page .inv-pagination button,
+  .log-page .inv-pagination select {
+    min-height: 26px !important;
+    height: 26px !important;
+    padding: 0 7px !important;
+    font-size: 10.5px !important;
+    border-radius: 5px !important;
+  }
 }
