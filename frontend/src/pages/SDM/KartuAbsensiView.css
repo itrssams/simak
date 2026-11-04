@@ -1,0 +1,337 @@
+/* ==========================================================================
+   KARTU ABSENSI BULANAN PEGAWAI STYLES (KartuAbsensiView.css)
+   ========================================================================== */
+
+.kartu-absensi-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ── Control Bar ── */
+.kartu-controls-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.kartu-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #475569;
+}
+
+.kartu-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+}
+
+.kartu-select.pegawai-select {
+  min-width: 320px;
+}
+
+.btn-print-kartu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-print-kartu:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.kartu-loading-box {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 60px 24px;
+  text-align: center;
+}
+
+/* ── Lembar Kartu Absensi (A4 Format) ── */
+.kartu-print-sheet {
+  background: #ffffff;
+  padding: 32px 36px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000000;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.kartu-kop-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.kartu-kop-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kartu-kop-img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.kartu-kop-text {
+  flex: 1;
+}
+
+.kartu-kop-rs {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  margin: 1px 0;
+}
+
+.kartu-kop-alamat {
+  font-size: 10px;
+  color: #334155;
+}
+
+.kartu-kop-judul {
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+}
+
+.kartu-kop-divider {
+  border-top: 2px solid #000000;
+  border-bottom: 1px solid #000000;
+  height: 3px;
+  margin: 10px 0 14px;
+}
+
+/* ── Info Pegawai ── */
+.kartu-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  font-size: 11.5px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 2px;
+}
+
+.info-lbl {
+  width: 140px;
+  color: #475569;
+}
+
+.info-colon {
+  width: 12px;
+}
+
+.info-val {
+  flex: 1;
+  color: #0f172a;
+}
+
+.info-val.bold {
+  font-weight: 750;
+}
+
+.info-val.badge-pct {
+  font-weight: 800;
+  color: #059669;
+}
+
+/* ── Tabel Presensi 31 Hari ── */
+.kartu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.kartu-table thead th {
+  background: #f1f5f9;
+  border: 1px solid #94a3b8;
+  padding: 6px 4px;
+  font-weight: 750;
+  text-align: center;
+  color: #0f172a;
+}
+
+.kartu-table tbody td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.kartu-table tbody tr.row-libur {
+  background: #f8fafc;
+}
+
+.kartu-table tbody tr.row-alfa {
+  background: #fef2f2;
+}
+
+.shift-code-pill {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 750;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
+
+.status-kartu-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.status-kartu-tag.hadir { background: #dcfce7; color: #166534; }
+.status-kartu-tag.terlambat { background: #fef3c7; color: #92400e; }
+.status-kartu-tag.pulang_cepat { background: #ffedd5; color: #9a3412; }
+.status-kartu-tag.libur { background: #f1f5f9; color: #475569; }
+.status-kartu-tag.cuti { background: #e0e7ff; color: #3730a3; }
+.status-kartu-tag.sakit { background: #fce7f3; color: #9d174d; }
+.status-kartu-tag.izin, .status-kartu-tag.izin_keluar { background: #e0f2fe; color: #075985; }
+.status-kartu-tag.tidak_hadir { background: #fee2e2; color: #991b1b; }
+
+/* ── Rekapitulasi Summary Box ── */
+.kartu-summary-box {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.sum-item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sum-item .lbl { color: #475569; }
+.sum-item .val { font-weight: 700; color: #0f172a; }
+.sum-item .val.hadir { color: #059669; }
+.sum-item .val.telat { color: #dc2626; }
+.sum-item .val.alfa { color: #b91c1c; }
+
+/* ── Tanda Tangan Section ── */
+.kartu-ttd-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 24px;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.ttd-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ttd-title {
+  height: 32px;
+  font-weight: 600;
+}
+
+.ttd-space {
+  height: 52px;
+}
+
+.ttd-name {
+  font-size: 11.5px;
+}
+
+.ttd-name.bold {
+  font-weight: 750;
+  text-decoration: underline;
+}
+
+.ttd-nip {
+  font-size: 10.5px;
+  color: #334155;
+  margin-top: 2px;
+}
+
+/* ════════════════ PRINT MEDIA QUERIES ════════════════ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #kartu-absensi-print-area, #kartu-absensi-print-area * {
+    visibility: visible;
+  }
+  #kartu-absensi-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 10mm;
+    box-shadow: none;
+    border: none;
+    max-width: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

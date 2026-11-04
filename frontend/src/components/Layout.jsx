@@ -32,6 +32,7 @@ import {
     Download,
     Pill,
     UserCheck,
+    Boxes,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -215,7 +216,7 @@ function getMenuItems(user) {
     const canPC = Boolean(user?.is_superuser || isManajerUp(user) || user?.is_keuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
     const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || ['direktur', 'wakil_direktur'].includes(user?.role));
     const sdmMenuItem = hasSdmAccess
-        ? { label: 'SDM', path: '/sdm/izin-kerja', icon: 'pelanggan' }
+        ? { label: 'SDM', path: '/sdm/presensi', icon: 'pelanggan' }
         : { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja', icon: 'izin' };
 
     if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK, sdmMenuItem])));
@@ -456,6 +457,36 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
+    // 4b. Manajemen Aset
+    if (pathname.startsWith('/aset')) {
+        const isAsetAdmin = Boolean(
+            user?.is_superuser ||
+            user?.is_aset_admin ||
+            user?.is_akuntansi ||
+            ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role) ||
+            (user?.role === 'kepala_seksi' && user?.unit?.nama?.toLowerCase().includes('umum'))
+        );
+        const menus = [
+            { label: 'Dashboard Aset', path: '/aset' },
+            { label: 'Daftar Aset', path: '/aset/daftar' },
+            { label: 'Kerusakan & Perbaikan', path: '/aset/perbaikan' },
+        ];
+        if (isAsetAdmin) {
+            menus.push(
+                { label: 'Master Jenis', path: '/aset/jenis' },
+                { label: 'Master Ruangan', path: '/aset/ruangan' },
+                { label: 'Laporan & KIR', path: '/aset/laporan' }
+            );
+        }
+        return {
+            id: 'manajemen-aset',
+            title: 'Manajemen Aset',
+            icon: Boxes,
+            iconColor: '#6366f1',
+            menus,
+        };
+    }
+
     // 5. Petty Cash & Reimbursement
     if (pathname.startsWith('/petty-cash') || pathname.startsWith('/kas-besar') || pathname.startsWith('/reimbursement') || pathname.startsWith('/laporan/petty-cash')) {
         const canPettyCash = Boolean(user?.is_superuser || isManajerUp(user) || user?.is_keuangan || user?.is_petty_cash_cashier || user?.view_petty_cash);
@@ -596,7 +627,7 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 13. SDM / Izin Meninggalkan Tempat Kerja
+    // 13. SDM / Izin Meninggalkan Tempat Kerja (Navigasi dipindahkan ke Sidebar Internal SDM)
     if (pathname.startsWith('/sdm')) {
         const hasSdmAccess = Boolean(
             user?.is_superuser ||
@@ -604,30 +635,12 @@ const getActiveModuleConfig = (pathname, user) => {
             ['direktur', 'wakil_direktur'].includes(user?.role)
         );
 
-        if (!hasSdmAccess) {
-            return {
-                id: 'sdm',
-                title: 'Izin Meninggalkan Tempat Kerja',
-                icon: UserCheck,
-                iconColor: '#6366f1',
-                menus: [
-                    { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja' },
-                ],
-            };
-        }
-
-        const menus = [
-            { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
-            { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },            
-            { label: 'Struktur Organisasi', path: '/sdm/struktur' },
-        ];
-
         return {
             id: 'sdm',
-            title: 'SDM',
+            title: hasSdmAccess ? 'SDM' : 'Izin Meninggalkan Tempat Kerja',
             icon: Users,
             iconColor: '#6366f1',
-            menus,
+            menus: [], // Dikelola langsung oleh Sidebar Internal Modul SDM
         };
     }
 

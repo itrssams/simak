@@ -46,6 +46,14 @@ import LaporanIT from './pages/Laporan/LaporanIT';
 import Profile from './pages/Profile/Profile';
 import IzinMeninggalkanKerja from './pages/SDM/IzinMeninggalkanKerja';
 import PresensiPegawai from './pages/SDM/PresensiPegawai';
+import SdmLayout from './pages/SDM/SdmLayout';
+import './pages/Aset/Aset.css';
+import AsetDashboard from './pages/Aset/AsetDashboard';
+import AsetList from './pages/Aset/AsetList';
+import AsetRuangan from './pages/Aset/AsetRuangan';
+import AsetLaporan from './pages/Aset/AsetLaporan';
+import AsetPerbaikan from './pages/Aset/AsetPerbaikan';
+import AsetJenis from './pages/Aset/AsetJenis';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -58,6 +66,8 @@ const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].in
 const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
 const isLogistik = (u) => u?.is_superuser || u?.is_logistik || u?.view_logistik;
+const canAset = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || u?.akses_aset || isManajerUp(u) || u?.unit);
+const isAsetAdminOnly = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || isManajerUp(u) || (u?.role === 'kepala_seksi' && u?.unit?.nama?.toLowerCase().includes('umum')));
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
 const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || u?.view_kas_besar || isDirekturUp(u);
@@ -153,14 +163,14 @@ const AppRoutes = () => {
             <Route path="/logbook/verifikasi" element={<ProtectedRoute><LogbookVerifikasi /></ProtectedRoute>} />
             <Route path="/logbook/laporan" element={<ProtectedRoute><LogbookLaporan /></ProtectedRoute>} />
 
-            {/* SDM (Kepegawaian) */}
-            <Route path="/sdm" element={<Navigate to="/sdm/izin-kerja" replace />} />
+            {/* SDM (Kepegawaian & HRIS dengan Dedicated Internal Sidebar) */}
+            <Route path="/sdm" element={<Navigate to="/sdm/presensi" replace />} />
             <Route path="/sdm/pengajuan-izin" element={<Navigate to="/sdm/izin-kerja" replace />} />
-            <Route path="/sdm/presensi" element={<ProtectedRoute><PresensiPegawai /></ProtectedRoute>} />
-            <Route path="/sdm/izin-kerja" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
-            <Route path="/sdm/approval" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
-            <Route path="/sdm/rekapitulasi" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
-            <Route path="/sdm/struktur" element={<ProtectedRoute><IzinMeninggalkanKerja /></ProtectedRoute>} />
+            <Route path="/sdm/presensi" element={<ProtectedRoute><SdmLayout><PresensiPegawai /></SdmLayout></ProtectedRoute>} />
+            <Route path="/sdm/izin-kerja" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
+            <Route path="/sdm/approval" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
+            <Route path="/sdm/rekapitulasi" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
+            <Route path="/sdm/struktur" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
 
             {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />
@@ -186,6 +196,14 @@ const AppRoutes = () => {
             <Route path="/keuangan/catatan-utang/import-ots" element={<ProtectedRoute allow={canCatatanUtang}><ImportUtangOts /></ProtectedRoute>} />
             <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
             <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><Logistik /></ProtectedRoute>} />
+
+            {/* Modul Manajemen Aset */}
+            <Route path="/aset" element={<ProtectedRoute allow={canAset}><AsetDashboard /></ProtectedRoute>} />
+            <Route path="/aset/daftar" element={<ProtectedRoute allow={canAset}><AsetList /></ProtectedRoute>} />
+            <Route path="/aset/perbaikan" element={<ProtectedRoute allow={canAset}><AsetPerbaikan /></ProtectedRoute>} />
+            <Route path="/aset/jenis" element={<ProtectedRoute allow={isAsetAdminOnly}><AsetJenis /></ProtectedRoute>} />
+            <Route path="/aset/ruangan" element={<ProtectedRoute allow={isAsetAdminOnly}><AsetRuangan /></ProtectedRoute>} />
+            <Route path="/aset/laporan" element={<ProtectedRoute allow={(u) => isAsetAdminOnly(u) || Boolean(u?.is_akuntansi)}><AsetLaporan /></ProtectedRoute>} />
             <Route path="/laporan/logistik" element={<Navigate to="/logistik/laporan" replace />} />
 
             {/* Lainnya */}

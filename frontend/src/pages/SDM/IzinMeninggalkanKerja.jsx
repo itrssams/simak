@@ -33,7 +33,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import './IzinMeninggalkanKerja.css';
+import './PresensiPegawai.css';
 import OrgTreeChart from './OrgTreeChart';
+import SdmPagination from './SdmPagination';
 
 const KATEGORI_CONFIG = {
   dinas: { label: 'Dinas Luar', class: 'dinas' },
@@ -63,6 +65,14 @@ export default function IzinMeninggalkanKerja() {
   const [stats, setStats] = useState(null);
   const [units, setUnits] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+
+  // Pagination states
+  const [sayaPage, setSayaPage] = useState(1);
+  const [sayaPageSize, setSayaPageSize] = useState(10);
+  const [apprPage, setApprPage] = useState(1);
+  const [apprPageSize, setApprPageSize] = useState(10);
+  const [rekapIzinPage, setRekapIzinPage] = useState(1);
+  const [rekapIzinPageSize, setRekapIzinPageSize] = useState(15);
 
   // Hak Approval & Akses SDM
   const isApprover = useMemo(() => {
@@ -917,7 +927,7 @@ export default function IzinMeninggalkanKerja() {
                       </td>
                     </tr>
                   ) : (
-                    izinSaya.map((item) => (
+                    izinSaya.slice((sayaPage - 1) * sayaPageSize, sayaPage * sayaPageSize).map((item) => (
                       <tr key={item.id}>
                         <td>
                           <strong>{item.tanggal}</strong>
@@ -1032,6 +1042,14 @@ export default function IzinMeninggalkanKerja() {
                 </tbody>
               </table>
             </div>
+            <SdmPagination
+              totalItems={izinSaya.length}
+              currentPage={sayaPage}
+              pageSize={sayaPageSize}
+              onPageChange={setSayaPage}
+              onPageSizeChange={setSayaPageSize}
+              label="pengajuan izin"
+            />
           </div>
         </>
       )}
@@ -1083,9 +1101,9 @@ export default function IzinMeninggalkanKerja() {
                     </td>
                   </tr>
                 ) : (
-                  approvalData.map((item, idx) => (
+                  approvalData.slice((apprPage - 1) * apprPageSize, apprPage * apprPageSize).map((item, idx) => (
                     <tr key={item.id}>
-                      <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{idx + 1}</td>
+                      <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{(apprPage - 1) * apprPageSize + idx + 1}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {item.foto ? (
@@ -1181,6 +1199,14 @@ export default function IzinMeninggalkanKerja() {
               </tbody>
             </table>
           </div>
+          <SdmPagination
+            totalItems={approvalData.length}
+            currentPage={apprPage}
+            pageSize={apprPageSize}
+            onPageChange={setApprPage}
+            onPageSizeChange={setApprPageSize}
+            label="antrean approval"
+          />
         </div>
       )}
 
@@ -1372,9 +1398,9 @@ export default function IzinMeninggalkanKerja() {
                       </td>
                     </tr>
                   ) : (
-                    rekapData.map((item, idx) => (
+                    rekapData.slice((rekapIzinPage - 1) * rekapIzinPageSize, rekapIzinPage * rekapIzinPageSize).map((item, idx) => (
                       <tr key={item.id}>
-                        <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{idx + 1}</td>
+                        <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{(rekapIzinPage - 1) * rekapIzinPageSize + idx + 1}</td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             {item.foto ? (
@@ -1491,6 +1517,14 @@ export default function IzinMeninggalkanKerja() {
                 </tbody>
               </table>
             </div>
+            <SdmPagination
+              totalItems={rekapData.length}
+              currentPage={rekapIzinPage}
+              pageSize={rekapIzinPageSize}
+              onPageChange={setRekapIzinPage}
+              onPageSizeChange={setRekapIzinPageSize}
+              label="data izin"
+            />
           </div>
         </>
       )}

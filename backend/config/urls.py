@@ -84,6 +84,7 @@ urlpatterns = [
     path('api/inventaris/', include('inventaris.urls')),
     path('api/logbook/', include('logbook.urls')),
     path('api/sdm/', include('sdm.urls')),
+    path('api/aset/', include('aset.urls')),
     
     # Serve React assets explicitly
     re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),

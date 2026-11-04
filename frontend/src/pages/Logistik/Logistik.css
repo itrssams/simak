@@ -1605,3 +1605,90 @@
     border-radius: 5px !important;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   MULTI-SELECT BULK DELETE BARANG (WAKIL DIREKTUR KE ATAS)
+   ═══════════════════════════════════════════════════════════════════ */
+.log-bulk-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.06);
+}
+
+[data-theme="dark"] .log-bulk-action-bar {
+  background: rgba(30, 58, 138, 0.25);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.log-bulk-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+[data-theme="dark"] .log-bulk-info {
+  color: #93c5fd;
+}
+
+.log-bulk-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOGISTIK TOOLBAR & SEARCH PROPORTIONS
+   ═══════════════════════════════════════════════════════════════════ */
+.log-page .dki-filter {
+  padding: 8px 16px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.72) !important;
+}
+
+[data-theme="dark"] .log-page .dki-filter {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.log-page .dki-filter-row-1 {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+.log-page .dki-search {
+  height: 29px !important;
+  min-height: 29px !important;
+  border-radius: 7px !important;
+  padding: 0 8px !important;
+  max-width: 320px !important;
+  flex: 1 1 240px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.log-page .dki-search input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  color: inherit !important;
+}

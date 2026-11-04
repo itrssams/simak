@@ -43,7 +43,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'role_label', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier',
             'akses_catatan_utang', 'akses_kas_besar', 'akses_reimbursement',
             'view_petty_cash', 'view_kas_besar', 'view_logistik',
-            'is_logistik', 'is_akuntansi', 'is_sdm', 'unit', 'unit_nama',
+            'is_logistik', 'is_akuntansi', 'is_sdm', 'is_aset_admin', 'akses_aset', 'unit', 'unit_nama',
             'foto', 'is_active', 'is_staff', 'is_superuser', 'date_joined', 'is_approver',
         ]
         read_only_fields = ['id', 'date_joined']
@@ -69,7 +69,7 @@ class UserInputSerializer(serializers.ModelSerializer):
             'role', 'is_driver', 'is_it', 'is_keuangan', 'is_petty_cash_cashier',
             'akses_catatan_utang', 'akses_kas_besar', 'akses_reimbursement',
             'view_petty_cash', 'view_kas_besar', 'view_logistik',
-            'is_logistik', 'is_akuntansi', 'is_sdm', 'unit', 'is_active', 'password', 'foto',
+            'is_logistik', 'is_akuntansi', 'is_sdm', 'is_aset_admin', 'akses_aset', 'unit', 'is_active', 'password', 'foto',
         ]
 
     def create(self, validated_data):

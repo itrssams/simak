@@ -20,6 +20,7 @@ import {
     ClipboardList,
     Download,
     MonitorCog,
+    Boxes,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
@@ -108,6 +109,8 @@ export default function AppLauncher() {
     const canLaporanPC = Boolean(isManajerUp || user?.is_petty_cash_cashier || isKeuangan || user?.view_petty_cash || user?.is_superuser);
     const isDriverAccess = user?.is_driver || isDirekturUp;
     const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || isDirekturUp);
+    const canAset = Boolean(user?.is_superuser || user?.is_aset_admin || user?.akses_aset || isManajerUp || user?.unit);
+    const isAsetAdmin = Boolean(user?.is_superuser || user?.is_aset_admin || isManajerUp || (user?.role === 'kepala_seksi' && user?.unit?.nama?.toLowerCase().includes('umum')));
 
     // Master App List with Glassmorphism Color Palettes & Pure Lucide Vector Icons
     const allApps = useMemo(() => [
@@ -145,6 +148,26 @@ export default function AppLauncher() {
                 { label: 'Verifikasi Pembayaran', path: '/keuangan/invoices/verifikasi' },
                 { label: 'Alokasi Pembiayaan', path: '/keuangan/alokasi-pembiayaan' },
                 { label: 'Master Pembiayaan', path: '/keuangan/master-pembiayaan' },
+            ],
+        },
+        {
+            id: 'manajemen-aset',
+            name: 'Manajemen Aset',
+            subtitle: 'Inventaris & Penyusutan PMK 72',
+            icon: Boxes,
+            color: '#6366f1',
+            glowColor: 'rgba(99, 102, 241, 0.45)',
+            glassGlow: 'rgba(99, 102, 241, 0.22)',
+            glassGlowLight: 'rgba(99, 102, 241, 0.15)',
+            path: '/aset',
+            allowed: Boolean(canAset),
+            submenus: [
+                { label: 'Dashboard Aset', path: '/aset' },
+                { label: 'Daftar Aset', path: '/aset/daftar' },
+                ...(isAsetAdmin ? [
+                    { label: 'Master Ruangan', path: '/aset/ruangan' },
+                    { label: 'Laporan & KIR', path: '/aset/laporan' },
+                ] : []),
             ],
         },
         {
@@ -207,20 +230,24 @@ export default function AppLauncher() {
         {
             id: 'sdm',
             name: hasSdmAccess ? 'SDM' : 'Izin Meninggalkan Tempat Kerja',
-            subtitle: hasSdmAccess ? 'Pengajuan Izin & Dashboard IMTK' : 'Pencatatan Izin Keluar Kantor',
-            icon: UserCheck,
+            subtitle: hasSdmAccess ? 'Presensi, Roster, IMTK & Kepegawaian' : 'Pencatatan Izin Keluar Kantor',
+            icon: Users,
             color: '#6366f1',
             glowColor: 'rgba(99, 102, 241, 0.45)',
             glassGlow: 'rgba(99, 102, 241, 0.22)',
             glassGlowLight: 'rgba(99, 102, 241, 0.15)',
-            path: '/sdm/izin-kerja',
+            path: hasSdmAccess ? '/sdm/presensi' : '/sdm/izin-kerja',
             allowed: true,
             submenus: hasSdmAccess ? [
-                { label: 'Pengajuan Izin', path: '/sdm/izin-kerja' },
+                { label: 'Rekap Presensi', path: '/sdm/presensi?tab=rekap' },
+                { label: 'Roster Dinas Bulanan', path: '/sdm/presensi?tab=roster' },
+                { label: 'Tukar Dinas', path: '/sdm/presensi?tab=tukar_dinas' },
+                { label: 'Pengajuan IMTK', path: '/sdm/izin-kerja' },
                 { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
                 { label: 'Struktur Organisasi', path: '/sdm/struktur' },
             ] : [
                 { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja' },
+                { label: 'Roster Saya', path: '/sdm/presensi?tab=roster' },
             ],
         },
         {

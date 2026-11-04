@@ -20,6 +20,7 @@ import {
     X,
     Home,
     MonitorCog,
+    Boxes,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './AppSwitcherModal.css';
@@ -74,6 +75,16 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             allowed: Boolean(isKeuangan),
         },
         {
+            id: 'manajemen-aset',
+            name: 'Manajemen Aset',
+            icon: Boxes,
+            color: '#6366f1',
+            glowColor: 'rgba(99, 102, 241, 0.45)',
+            glassGlow: 'rgba(99, 102, 241, 0.22)',
+            path: '/aset',
+            allowed: Boolean(user?.is_superuser || user?.is_aset_admin || user?.akses_aset || isManajerUp || user?.unit),
+        },
+        {
             id: 'gudang-logistik',
             name: 'Gudang Logistik',
             icon: Package,
@@ -104,23 +115,13 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             allowed: true,
         },
         {
-            id: 'sdm-presensi',
-            name: 'Presensi & Mesin Absen',
-            icon: Fingerprint,
-            color: '#10b981',
-            glowColor: 'rgba(16, 185, 129, 0.45)',
-            glassGlow: 'rgba(16, 185, 129, 0.22)',
-            path: '/sdm/presensi',
-            allowed: true,
-        },
-        {
             id: 'sdm',
-            name: hasSdmAccess ? 'SDM (Izin Keluar)' : 'Izin Meninggalkan Tempat Kerja',
-            icon: UserCheck,
+            name: hasSdmAccess ? 'SDM' : 'Izin Meninggalkan Tempat Kerja',
+            icon: Users,
             color: '#6366f1',
             glowColor: 'rgba(99, 102, 241, 0.45)',
             glassGlow: 'rgba(99, 102, 241, 0.22)',
-            path: '/sdm/izin-kerja',
+            path: hasSdmAccess ? '/sdm/presensi' : '/sdm/izin-kerja',
             allowed: true,
         },
         {

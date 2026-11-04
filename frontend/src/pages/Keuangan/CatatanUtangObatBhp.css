@@ -1638,8 +1638,21 @@ textarea.utang-input {
    DARK MODE OVERRIDES (.utang-page)
    ========================================= */
 [data-theme="dark"] .utang-page {
-  background-color: #0b0f19 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
   color: #f8fafc !important;
+}
+
+[data-theme="dark"] .utang-hero,
+[data-theme="dark"] .utang-summary-cards {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 [data-theme="dark"] :where(.utang-stat-card, .utang-card, .utang-modal, .utang-confirm-modal) {

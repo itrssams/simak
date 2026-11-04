@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     'system',
     'logbook',
     'sdm',
+    'aset',
 ]
 
 
@@ -186,7 +187,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # INTERNATIONALIZATION
 # ==============================================================================
 LANGUAGE_CODE = 'id'
-TIME_ZONE = 'Asia/Jakarta'
+TIME_ZONE = 'Asia/Makassar'
 USE_I18N = True
 USE_TZ = True
 
@@ -344,3 +345,9 @@ LOGGING = {
         },
     },
 }
+
+# ==============================================================================
+# AI & EXTERNAL INTEGRATIONS
+# ==============================================================================
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
+

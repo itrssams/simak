@@ -4,7 +4,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from zk import ZK
 
-from ..models import MesinAbsen, KaryawanMesinMapping, LogPresensi, PresensiHarian, IzinKeluar
+from ..models import MesinAbsen, KaryawanMesinMapping, LogPresensi, PresensiHarian, IzinKeluar, Pegawai
 
 User = get_user_model()
 
@@ -107,6 +107,15 @@ def sync_mesin_absen(mesin_id=None):
                 mapping.nama_di_mesin = name
                 mapping.save(update_fields=['nama_di_mesin'])
                 
+            # Cek ke direktori master Pegawai RS
+            if not mapping.pegawai:
+                pegawai_obj = Pegawai.objects.filter(pin=pin).first()
+                if pegawai_obj:
+                    mapping.pegawai = pegawai_obj
+                    if not mapping.user and pegawai_obj.user:
+                        mapping.user = pegawai_obj.user
+                    mapping.save(update_fields=['pegawai', 'user'])
+
             # Jika belum dipasangkan dengan User SIMAK, coba auto-match
             if not mapping.user and name:
                 matched_user = auto_match_user_by_name(name)
@@ -117,7 +126,9 @@ def sync_mesin_absen(mesin_id=None):
                     
             users_synced_count += 1
 
-        # 3. Cache Mapping PIN -> User ID
+        # 3. Cache Mapping PIN -> Pegawai & User ID
+        from ..attendance_engine import build_pegawai_pin_map, process_attendance_for_date_range
+        pegawai_pin_map = build_pegawai_pin_map()
         pin_to_user_map = dict(
             KaryawanMesinMapping.objects.filter(mesin=mesin, user__isnull=False)
             .values_list('pin', 'user_id')
@@ -128,6 +139,7 @@ def sync_mesin_absen(mesin_id=None):
         mesin.total_log_mesin = len(attendances)
         
         new_logs_count = 0
+        affected_dates = set()
         affected_user_dates = set()
 
         for att in attendances:
@@ -139,7 +151,9 @@ def sync_mesin_absen(mesin_id=None):
             else:
                 waktu_aware = waktu
 
-            user_id = pin_to_user_map.get(pin)
+            pegawai_obj = pegawai_pin_map.get(pin) or pegawai_pin_map.get(pin.lstrip('0') or '0') or pegawai_pin_map.get(pin.zfill(3)) or pegawai_pin_map.get(pin.zfill(4))
+            pegawai_id = pegawai_obj.id if pegawai_obj else None
+            user_id = pin_to_user_map.get(pin) or (pegawai_obj.user_id if pegawai_obj else None)
 
             # Buat record log baru jika belum ada
             log_obj, created = LogPresensi.objects.get_or_create(
@@ -147,28 +161,43 @@ def sync_mesin_absen(mesin_id=None):
                 waktu=waktu_aware,
                 defaults={
                     'mesin': mesin,
+                    'pegawai_id': pegawai_id,
                     'user_id': user_id,
                     'status_verifikasi': getattr(att, 'status', 1),
                     'tipe_punch': getattr(att, 'punch', 0),
                 }
             )
             
-            # Jika log lama belum ada user_id-nya dan sekarang sudah ter-mapping, update user_id
+            # Jika log lama belum ada pegawai/user dan sekarang sudah ada
+            update_fields = []
+            if not log_obj.pegawai_id and pegawai_id:
+                log_obj.pegawai_id = pegawai_id
+                update_fields.append('pegawai')
             if not log_obj.user_id and user_id:
                 log_obj.user_id = user_id
-                log_obj.save(update_fields=['user'])
+                update_fields.append('user')
                 created = True # Trigger recalculate
+            if update_fields:
+                log_obj.save(update_fields=update_fields)
                 
             if created:
                 new_logs_count += 1
+                affected_dates.add(waktu_aware.date())
                 if user_id:
                     affected_user_dates.add((user_id, waktu_aware.date()))
 
-        # 5. Hitung Ulang Agregasi Presensi Harian untuk User & Tanggal Terkait
+        # 5. Hitung Ulang Agregasi Presensi Harian menggunakan Attendance Engine RS
         updated_daily_count = 0
-        for user_id, tgl in affected_user_dates:
-            recalculate_presensi_harian(user_id, tgl)
-            updated_daily_count += 1
+        if affected_dates:
+            min_date = min(affected_dates)
+            max_date = max(affected_dates)
+            try:
+                engine_res = process_attendance_for_date_range(min_date, max_date)
+                updated_daily_count = engine_res.get('processed', 0)
+            except Exception as eng_err:
+                for u_id, tgl in affected_user_dates:
+                    recalculate_presensi_harian(u_id, tgl)
+                    updated_daily_count += 1
 
         mesin.last_sync_at = timezone.now()
         mesin.save()

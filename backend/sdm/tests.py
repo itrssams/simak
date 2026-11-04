@@ -134,3 +134,202 @@ class SdmIzinKeluarTestCase(TestCase):
             res_export_sdm['Content-Type'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
+
+
+class JadwalRebuildAndEngineTestCase(TestCase):
+    def setUp(self):
+        import datetime
+        from django.utils import timezone
+        from sdm.models import Pegawai, Shift, JadwalMaster, JadwalKoreksi, JadwalDinas, LogPresensi
+
+        self.pegawai = Pegawai.objects.create(
+            nama='Nakes Uji',
+            pin='9901',
+            kategori='SHIFT',
+            unit_kerja='IGD'
+        )
+        self.shift_p, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='P',
+            defaults={
+                'nama': 'Shift Pagi',
+                'jam_masuk': time(7, 30),
+                'jam_pulang': time(14, 30),
+                'batas_tepat_waktu': time(7, 30, 0),
+                'toleransi_terlambat_menit': 0,
+                'is_libur': False,
+            }
+        )
+        self.shift_s, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='S',
+            defaults={
+                'nama': 'Shift Siang',
+                'jam_masuk': time(14, 30),
+                'jam_pulang': time(21, 30),
+                'batas_tepat_waktu': time(14, 30, 0),
+                'toleransi_terlambat_menit': 0,
+                'is_libur': False,
+            }
+        )
+        self.shift_p1, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='P1',
+            defaults={
+                'nama': 'Pagi Non-Shift',
+                'jam_masuk': time(8, 0),
+                'jam_pulang': time(16, 0),
+                'batas_tepat_waktu': time(8, 0, 59),
+                'toleransi_terlambat_menit': 1,
+                'is_libur': False,
+            }
+        )
+        self.shift_p2, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='P2',
+            defaults={
+                'nama': 'Pagi Sabtu',
+                'jam_masuk': time(8, 0),
+                'jam_pulang': time(13, 0),
+                'batas_tepat_waktu': time(7, 59, 59),
+                'toleransi_terlambat_menit': 0,
+                'is_libur': False,
+            }
+        )
+        self.shift_ps, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='PS',
+            defaults={
+                'nama': 'Pagi-Siang',
+                'jam_masuk': time(7, 0),
+                'jam_pulang': time(21, 0),
+                'batas_tepat_waktu': time(7, 30, 0),
+                'toleransi_terlambat_menit': 0,
+                'is_libur': False,
+            }
+        )
+        self.shift_ip, _ = Shift.objects.update_or_create(
+            kelompok='UMUM',
+            kode='IP',
+            defaults={
+                'nama': 'Izin Pagi',
+                'is_libur': True,
+            }
+        )
+        self.shift_cs_p, _ = Shift.objects.update_or_create(
+            kelompok='CS',
+            kode='P',
+            defaults={
+                'nama': 'Pagi CS',
+                'jam_masuk': time(7, 0),
+                'jam_pulang': time(14, 0),
+                'batas_tepat_waktu': time(7, 0, 0),
+                'is_libur': False,
+            }
+        )
+
+    def test_rebuild_master_koreksi_and_idempotency(self):
+        from sdm.models import JadwalMaster, JadwalKoreksi, JadwalDinas
+        from sdm.services.jadwal_service import rebuild_jadwal_final, validate_shift_for_pegawai
+
+        tgl = date(2026, 10, 7)
+
+        # (a) Hanya Master
+        JadwalMaster.objects.create(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_p)
+        res1 = rebuild_jadwal_final(pegawai_ids=[self.pegawai.id], start=tgl, end=tgl)
+        self.assertEqual(res1['from_master'], 1)
+        jd = JadwalDinas.objects.get(pegawai=self.pegawai, tanggal=tgl)
+        self.assertEqual(jd.shift, self.shift_p)
+        self.assertEqual(jd.shift_master, self.shift_p)
+        self.assertEqual(jd.sumber, 'master')
+
+        # (b) Master + Koreksi -> Koreksi menang
+        kor = JadwalKoreksi.objects.create(
+            pegawai=self.pegawai,
+            tanggal=tgl,
+            shift=self.shift_s,
+            jenis='tukar_shift',
+            alasan='Tukar dengan rekan'
+        )
+        res2 = rebuild_jadwal_final(pegawai_ids=[self.pegawai.id], start=tgl, end=tgl)
+        self.assertEqual(res2['from_koreksi'], 1)
+        jd.refresh_from_db()
+        self.assertEqual(jd.shift, self.shift_s)
+        self.assertEqual(jd.shift_master, self.shift_p)
+        self.assertEqual(jd.sumber, 'koreksi')
+        self.assertEqual(jd.koreksi, kor)
+
+        # (d) Idempotent (jalankan ulang tanpa perubahan -> 0 create, 0 update)
+        res_idem = rebuild_jadwal_final(pegawai_ids=[self.pegawai.id], start=tgl, end=tgl)
+        self.assertEqual(res_idem['created'], 0)
+        self.assertEqual(res_idem['updated'], 0)
+
+        # (c) Koreksi dihapus -> kembali ke Master
+        kor.delete()
+        rebuild_jadwal_final(pegawai_ids=[self.pegawai.id], start=tgl, end=tgl)
+        jd.refresh_from_db()
+        self.assertEqual(jd.shift, self.shift_p)
+        self.assertEqual(jd.sumber, 'master')
+        self.assertIsNone(jd.koreksi)
+
+        # Validasi kelompok shift
+        with self.assertRaises(ValueError):
+            validate_shift_for_pegawai(self.pegawai, self.shift_cs_p)
+
+    def test_excel_attendance_rules(self):
+        import datetime
+        from django.utils import timezone
+        from sdm.models import JadwalDinas, LogPresensi
+        from sdm.attendance_engine import calculate_attendance_record
+
+        def make_logs(tgl, t_in, t_out):
+            dt1 = timezone.make_aware(datetime.datetime.combine(tgl, t_in))
+            dt2 = timezone.make_aware(datetime.datetime.combine(tgl, t_out))
+            return [
+                LogPresensi(pegawai=self.pegawai, pin=self.pegawai.pin, waktu=dt1, tipe_punch=0),
+                LogPresensi(pegawai=self.pegawai, pin=self.pegawai.pin, waktu=dt2, tipe_punch=1),
+            ]
+
+        tgl = date(2026, 10, 8)
+        # 1. P 07:30 -> tepat waktu, 07:31 -> telat 1m
+        jd_p = JadwalDinas(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_p)
+        r_ok = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p, logs_for_pegawai=make_logs(tgl, time(7, 30), time(14, 35)))
+        self.assertEqual(r_ok['status'], 'hadir')
+        self.assertEqual(r_ok['menit_keterlambatan'], 0)
+
+        r_late = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p, logs_for_pegawai=make_logs(tgl, time(7, 31), time(14, 35)))
+        self.assertEqual(r_late['status'], 'terlambat')
+        self.assertEqual(r_late['menit_keterlambatan'], 1)
+
+        # 2. P1 08:00 -> tepat waktu, 08:01 -> telat 1m
+        jd_p1 = JadwalDinas(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_p1)
+        r_p1_ok = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p1, logs_for_pegawai=make_logs(tgl, time(8, 0), time(16, 5)))
+        self.assertEqual(r_p1_ok['status'], 'hadir')
+        self.assertEqual(r_p1_ok['menit_keterlambatan'], 0)
+
+        r_p1_late = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p1, logs_for_pegawai=make_logs(tgl, time(8, 1), time(16, 5)))
+        self.assertEqual(r_p1_late['status'], 'terlambat')
+        self.assertEqual(r_p1_late['menit_keterlambatan'], 1)
+
+        # 3. P2 08:00 -> terlambat (tap harus < 08:00), 07:59 -> hadir
+        jd_p2 = JadwalDinas(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_p2)
+        r_p2_ok = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p2, logs_for_pegawai=make_logs(tgl, time(7, 59), time(13, 5)))
+        self.assertEqual(r_p2_ok['status'], 'hadir')
+        r_p2_late = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_p2, logs_for_pegawai=make_logs(tgl, time(8, 0), time(13, 5)))
+        self.assertEqual(r_p2_late['status'], 'terlambat')
+
+        # 4. PS (jam masuk 07:00, batas 07:30) -> tap 07:25 hadir, tap 07:31 telat 31m
+        jd_ps = JadwalDinas(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_ps)
+        r_ps_ok = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_ps, logs_for_pegawai=make_logs(tgl, time(7, 25), time(21, 5)))
+        self.assertEqual(r_ps_ok['status'], 'hadir')
+        self.assertEqual(r_ps_ok['menit_keterlambatan'], 0)
+        r_ps_late = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_ps, logs_for_pegawai=make_logs(tgl, time(7, 31), time(21, 5)))
+        self.assertEqual(r_ps_late['status'], 'terlambat')
+        self.assertEqual(r_ps_late['menit_keterlambatan'], 31)
+
+        # 5. IP -> selalu izin ONTIME, telat 0 menit meskipun ada tap
+        jd_ip = JadwalDinas(pegawai=self.pegawai, tanggal=tgl, shift=self.shift_ip)
+        r_ip = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_ip, logs_for_pegawai=make_logs(tgl, time(9, 15), time(14, 30)))
+        self.assertEqual(r_ip['status'], 'izin')
+        self.assertEqual(r_ip['menit_keterlambatan'], 0)
+

@@ -180,6 +180,29 @@ export default function Logistik() {
     const [kartuDari, setKartuDari] = useState('');
     const [kartuSampai, setKartuSampai] = useState('');
 
+    const isWadirOrAbove = Boolean(user?.is_superuser || ['wakil_direktur', 'direktur'].includes(user?.role));
+    const [selectedBarangIds, setSelectedBarangIds] = useState([]);
+
+    useEffect(() => {
+        setSelectedBarangIds([]);
+    }, [section]);
+
+    const handleToggleSelectAllBarang = () => {
+        const currentPageIds = rows.map((r) => r.id);
+        const allCurrentSelected = currentPageIds.length > 0 && currentPageIds.every((id) => selectedBarangIds.includes(id));
+        if (allCurrentSelected) {
+            setSelectedBarangIds((prev) => prev.filter((id) => !currentPageIds.includes(id)));
+        } else {
+            setSelectedBarangIds((prev) => Array.from(new Set([...prev, ...currentPageIds])));
+        }
+    };
+
+    const handleToggleSelectOneBarang = (id) => {
+        setSelectedBarangIds(prev => 
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
     const filteredKartuRows = useMemo(() => {
         return kartuRows.filter((r) => {
             if (kartuJenis !== 'all' && r.jenis !== kartuJenis) return false;
@@ -454,6 +477,30 @@ export default function Logistik() {
                     setSection('penerimaan');
                 } catch (err) {
                     toast.error(getError(err, 'Gagal membuat penerimaan.'));
+                } finally {
+                    setSaving(false);
+                }
+            }
+        });
+    };
+
+    const bulkDeleteBarang = () => {
+        if (!selectedBarangIds.length) return;
+        setConfirmState({
+            title: 'Hapus Banyak Master Barang Sekaligus?',
+            description: `Apakah Anda yakin ingin menghapus ${selectedBarangIds.length} barang terpilih dari daftar master barang logistik? Tindakan ini hanya dapat dilakukan oleh tingkat Wakil Direktur ke atas.`,
+            icon: <Trash2 size={24} />,
+            confirmLabel: `Ya, Hapus ${selectedBarangIds.length} Barang`,
+            variant: 'danger',
+            action: async () => {
+                setSaving(true);
+                try {
+                    const res = await api.post('/keuangan/logistik/barang/bulk-delete/', { ids: selectedBarangIds });
+                    toast.success(res.data?.detail || `${selectedBarangIds.length} barang berhasil dihapus.`);
+                    setSelectedBarangIds([]);
+                    await Promise.all([fetchRows(), fetchOptions()]);
+                } catch (err) {
+                    toast.error(getError(err, 'Gagal menghapus banyak barang sekaligus.'));
                 } finally {
                     setSaving(false);
                 }
@@ -978,12 +1025,37 @@ export default function Logistik() {
                             <p>Total {fmt(total)} data</p>
                         </div>
                         <div className="inv-card-actions">
+                            <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={16} /> Refresh</button>
+
+                            {section === 'barang' && isWadirOrAbove && (
+                                <button
+                                    className="inv-btn danger"
+                                    onClick={bulkDeleteBarang}
+                                    type="button"
+                                    disabled={saving || selectedBarangIds.length === 0}
+                                    title={selectedBarangIds.length === 0 ? 'Pilih checkbox barang pada tabel terlebih dahulu' : `Hapus ${selectedBarangIds.length} barang terpilih`}
+                                    style={selectedBarangIds.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                                >
+                                    <Trash2 size={16} /> Hapus Terpilih {selectedBarangIds.length > 0 ? `(${selectedBarangIds.length})` : ''}
+                                </button>
+                            )}
+
+                            {section === 'barang' && isWadirOrAbove && selectedBarangIds.length > 0 && (
+                                <button
+                                    className="inv-btn soft"
+                                    onClick={() => setSelectedBarangIds([])}
+                                    type="button"
+                                    title="Batalkan semua pilihan checkbox"
+                                >
+                                    <X size={14} /> Batal ({selectedBarangIds.length})
+                                </button>
+                            )}
+
                             {section === 'barang' && (
                                 <button className="inv-btn excel-btn" onClick={exportExcel} type="button" disabled={saving}>
                                     <FileSpreadsheet size={16} /> Export Excel
                                 </button>
                             )}
-                            <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={16} /> Refresh</button>
                             {['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
                                 <>
                                     <button className="inv-btn soft" onClick={() => setModal('barang-keluar')} type="button">
@@ -1039,6 +1111,10 @@ export default function Logistik() {
                         </div>
                     </div>
                     <DataTable
+                        isWadirOrAbove={isWadirOrAbove}
+                        selectedBarangIds={selectedBarangIds}
+                        onToggleSelectAllBarang={handleToggleSelectAllBarang}
+                        onToggleSelectOneBarang={handleToggleSelectOneBarang}
                         section={section}
                         rows={section === 'penerimaan' ? filteredRows : rows}
                         loading={loading}
@@ -1327,13 +1403,13 @@ function VendorCategoryBadge({ kategori }) {
     );
 }
 
-function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan, onSubmitSpb, onApproveSpb, onRejectSpb, onBatalSpb, onSubmitPenerimaan, onApprovePenerimaan, onRejectPenerimaan }) {
+function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan, onSubmitSpb, onApproveSpb, onRejectSpb, onBatalSpb, onSubmitPenerimaan, onApprovePenerimaan, onRejectPenerimaan, isWadirOrAbove, selectedBarangIds = [], onToggleSelectAllBarang, onToggleSelectOneBarang }) {
     const { user } = useAuth();
     const KASI_ROLES = ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'];
     const isKasiOrAbove = user?.is_superuser || KASI_ROLES.includes(user?.role);
     const canApprove = (item) => isKasiOrAbove && (user?.is_superuser || (item.created_by && String(item.created_by) !== String(user?.id)));
     const headers = {
-        barang: ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
+        barang: (isWadirOrAbove && section === 'barang') ? ['select', 'Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'] : ['Kode', 'Barang & Golongan', 'Kemasan', 'Satuan', 'Merek', 'Stok', 'Minimum', 'Aksi'],
         vendor: ['Nama Rekanan / Vendor', 'Kategori Rekanan', 'Sumber', 'Alamat', 'Kontak & PIC', 'Aksi'],
         spb: ['No SPB', 'Tanggal', 'Vendor', 'Nilai', 'Status', 'Aksi'],
         penerimaan: ['Tanggal', 'No SPB', 'Vendor', 'Qty Masuk', 'Grand Total', 'Status', 'Aksi'],
@@ -1351,7 +1427,17 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
     const body = () => {
         if (!rows.length) return <tr><td colSpan={headers.length} className="inv-empty">Belum ada data.</td></tr>;
         if (['barang', 'stok-minimum'].includes(section)) return rows.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} style={selectedBarangIds.includes(r.id) ? { background: 'rgba(59, 130, 246, 0.08)' } : undefined}>
+                {isWadirOrAbove && section === 'barang' && (
+                    <td style={{ width: 38, textAlign: 'center' }}>
+                        <input
+                            type="checkbox"
+                            checked={selectedBarangIds.includes(r.id)}
+                            onChange={() => onToggleSelectOneBarang(r.id)}
+                            style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#2563eb' }}
+                        />
+                    </td>
+                )}
                 <td>
                     <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.84rem', color: '#0284c7', background: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>
                         {r.kode_material || '-'}
@@ -1597,7 +1683,37 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
         return null;
     };
 
-    return <div className="inv-table-wrap table-fade-in"><table className="inv-table log-table"><thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{body()}</tbody></table></div>;
+    const isAllCurrentPageSelected = rows.length > 0 && rows.every((r) => selectedBarangIds.includes(r.id));
+    const isSomeCurrentPageSelected = rows.some((r) => selectedBarangIds.includes(r.id)) && !isAllCurrentPageSelected;
+
+    return <div className="inv-table-wrap table-fade-in">
+            <table className="inv-table log-table">
+                <thead>
+                    <tr>
+                        {headers.map((h) => {
+                            if (h === 'select') {
+                                return (
+                                    <th key="select" style={{ width: 38, textAlign: 'center' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllCurrentPageSelected}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = isSomeCurrentPageSelected;
+                                            }}
+                                            onChange={onToggleSelectAllBarang}
+                                            title={isAllCurrentPageSelected ? "Batalkan pilihan di halaman ini" : "Pilih semua di halaman ini"}
+                                            style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#2563eb' }}
+                                        />
+                                    </th>
+                                );
+                            }
+                            return <th key={h}>{h}</th>;
+                        })}
+                    </tr>
+                </thead>
+                <tbody>{body()}</tbody>
+            </table>
+        </div>;
 }
 
 function Badge({ children, type, variant, danger, warning, success, info, neutral, purple }) {

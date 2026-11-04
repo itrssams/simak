@@ -327,7 +327,7 @@ def legacy_stock(id_brg):
                           WHERE il.id_brg = %s AND il.tgl_entri > %s AND COALESCE(tb.rekanan, '') != 'STOCK OPNAME'{gate}), 0)
                 - COALESCE((SELECT SUM(o.qty) FROM rssams.item_out_log o
                             LEFT JOIN rssams.tran_out_brg_log t ON t.id = LEFT(o.id, 6)
-                            WHERE o.id_brg = %s AND o.tgl > %s AND COALESCE(t.penerima, '') != 'STOCK OPNAME'), 0) AS delta
+                            WHERE o.id_brg = %s AND o.tgl > %s AND COALESCE(t.penerima, '') != 'STOCK OPNAME' AND (o.status IN ('Sudah Diberikan', 'Disetujui', 'Sudah Diterima'))), 0) AS delta
             """,
             [id_brg, opname_tgl, id_brg, opname_tgl],
         )
@@ -341,7 +341,7 @@ def legacy_stock(id_brg):
                           WHERE il.id_brg = %s AND COALESCE(tb.rekanan, '') != 'STOCK OPNAME'{gate}), 0)
                 - COALESCE((SELECT SUM(o.qty) FROM rssams.item_out_log o
                             LEFT JOIN rssams.tran_out_brg_log t ON t.id = LEFT(o.id, 6)
-                            WHERE o.id_brg = %s AND COALESCE(t.penerima, '') != 'STOCK OPNAME'), 0) AS stock
+                            WHERE o.id_brg = %s AND COALESCE(t.penerima, '') != 'STOCK OPNAME' AND (o.status IN ('Sudah Diberikan', 'Disetujui', 'Sudah Diterima'))), 0) AS stock
             """,
             [id_brg, id_brg],
         )
