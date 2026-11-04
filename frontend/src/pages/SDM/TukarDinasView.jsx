@@ -393,49 +393,50 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
         </div>
       </div>
 
-      {/* ════════════════ SUB-TAB SWITCHER ════════════════ */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          className={subTab === 'koreksi' ? 'btn-primary-sdm' : 'btn-secondary-sdm'}
-          onClick={() => setSubTab('koreksi')}
-          style={{ padding: '7px 14px', fontSize: '12.5px' }}
-        >
-          <FileText size={14} style={{ marginRight: '6px' }} />
-          Daftar Koreksi Jadwal &amp; Tukar Shift ({koreksiList.length})
-        </button>
-        <button
-          type="button"
-          className={subTab === 'tukar' ? 'btn-primary-sdm' : 'btn-secondary-sdm'}
-          onClick={() => setSubTab('tukar')}
-          style={{ padding: '7px 14px', fontSize: '12.5px' }}
-        >
-          <ArrowLeftRight size={14} style={{ marginRight: '6px' }} />
-          Pengajuan Tukar Dinas Berpasangan ({tukarList.length})
-        </button>
-      </div>
-
       {/* ════════════════ TOOLBAR & CONTROLS ════════════════ */}
       <div className="tukar-toolbar">
         <div className="tukar-toolbar-left">
+          {/* Segmented Sub-Tab Switcher */}
+          <div className="tukar-mode-switch" role="tablist" aria-label="Pilih Mode Tukar Dinas">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={subTab === 'koreksi'}
+              className={`tukar-mode-btn ${subTab === 'koreksi' ? 'active' : ''}`}
+              onClick={() => setSubTab('koreksi')}
+              title="Daftar Koreksi Jadwal & Tukar Shift"
+            >
+              <FileText size={13} />
+              <span>Koreksi ({koreksiList.length})</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={subTab === 'tukar'}
+              className={`tukar-mode-btn ${subTab === 'tukar' ? 'active' : ''}`}
+              onClick={() => setSubTab('tukar')}
+              title="Pengajuan Tukar Dinas Berpasangan"
+            >
+              <ArrowLeftRight size={13} />
+              <span>Tukar ({tukarList.length})</span>
+            </button>
+          </div>
+
           {/* Month / Year */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} color="#64748b" />
+          <div className="tukar-filter-pill">
+            <Calendar size={14} className="tukar-filter-icon" />
             <select
               value={bulan}
               onChange={(e) => setBulan(parseInt(e.target.value))}
-              className="form-control-sdm"
-              style={{ padding: '6px 10px', fontSize: '12px' }}
             >
               {NAMA_BULAN.map((m, idx) => (
                 <option key={idx + 1} value={idx + 1}>{m}</option>
               ))}
             </select>
+            <span className="tukar-pill-sep">/</span>
             <select
               value={tahun}
               onChange={(e) => setTahun(parseInt(e.target.value))}
-              className="form-control-sdm"
-              style={{ padding: '6px 10px', fontSize: '12px' }}
             >
               {[2025, 2026, 2027].map(y => (
                 <option key={y} value={y}>{y}</option>
@@ -443,57 +444,69 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
             </select>
           </div>
 
-          {subTab === 'tukar' ? (
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-control-sdm"
-              style={{ padding: '6px 10px', fontSize: '12px' }}
-            >
-              <option value="">Semua Status Pengajuan</option>
-              <option value="menunggu_atasan">Menunggu Verifikasi</option>
-              <option value="disetujui">Disetujui</option>
-              <option value="ditolak">Ditolak</option>
-              <option value="dibatalkan">Dibatalkan</option>
-            </select>
-          ) : (
-            <select
-              value={jenisKoreksiFilter}
-              onChange={(e) => setJenisKoreksiFilter(e.target.value)}
-              className="form-control-sdm"
-              style={{ padding: '6px 10px', fontSize: '12px' }}
-            >
-              <option value="">Semua Jenis Koreksi</option>
-              {JENIS_KOREKSI_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          )}
+          {/* Jenis / Status Filter */}
+          <div className="tukar-filter-pill">
+            <Filter size={14} className="tukar-filter-icon" />
+            {subTab === 'tukar' ? (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ width: 120 }}
+              >
+                <option value="">Semua Status</option>
+                <option value="menunggu_atasan">Menunggu Verifikasi</option>
+                <option value="disetujui">Disetujui</option>
+                <option value="ditolak">Ditolak</option>
+                <option value="dibatalkan">Dibatalkan</option>
+              </select>
+            ) : (
+              <select
+                value={jenisKoreksiFilter}
+                onChange={(e) => setJenisKoreksiFilter(e.target.value)}
+                style={{ width: 120 }}
+              >
+                <option value="">Semua Jenis</option>
+                {JENIS_KOREKSI_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
 
           {/* Unit Filter */}
-          <select
-            value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
-            className="form-control-sdm"
-            style={{ padding: '6px 10px', fontSize: '12px' }}
-          >
-            <option value="">Semua Unit Kerja</option>
-            {distinctUnits.map(unit => (
-              <option key={unit} value={unit}>{unit}</option>
-            ))}
-          </select>
+          <div className="tukar-filter-pill">
+            <Building2 size={14} className="tukar-filter-icon" />
+            <select
+              value={selectedUnit}
+              onChange={(e) => setSelectedUnit(e.target.value)}
+              style={{ width: 125 }}
+            >
+              <option value="">Semua Unit</option>
+              {distinctUnits.map(unit => (
+                <option key={unit} value={unit}>{unit}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Search Box */}
-          <div style={{ position: 'relative', width: '220px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }} />
+          <div className="tukar-filter-pill tukar-search-pill">
+            <Search size={14} className="tukar-filter-icon" />
             <input
               type="text"
-              placeholder="Cari Nama / PIN / Alasan..."
+              placeholder="Cari staf / PIN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="form-control-sdm"
-              style={{ paddingLeft: '32px', fontSize: '12px', height: '34px' }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                className="tukar-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Bersihkan pencarian"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -503,10 +516,10 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
               type="button"
               className="btn-secondary-sdm"
               onClick={() => setIsKoreksiModalOpen(true)}
-              style={{ padding: '7px 14px', fontSize: '12.5px' }}
+              style={{ height: '36px', padding: '0 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
             >
-              <Plus size={15} style={{ marginRight: '5px' }} />
-              Catat Koreksi / Izin / Cuti
+              <Plus size={14} />
+              <span>Catat Koreksi</span>
             </button>
           )}
 
@@ -514,10 +527,10 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
             type="button"
             className="btn-primary-sdm"
             onClick={() => setIsCreateModalOpen(true)}
-            style={{ padding: '7px 14px', fontSize: '12.5px' }}
+            style={{ height: '36px', padding: '0 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
           >
-            <Plus size={15} style={{ marginRight: '6px' }} />
-            Ajukan Tukar Dinas
+            <Plus size={14} />
+            <span>Ajukan Tukar</span>
           </button>
 
           <button
@@ -525,7 +538,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
             className="btn-secondary-sdm"
             onClick={fetchTukarList}
             disabled={loading}
-            style={{ padding: '7px 12px', fontSize: '12px' }}
+            style={{ height: '36px', width: '36px', padding: 0, justifyContent: 'center', flexShrink: 0 }}
             title="Segarkan data"
           >
             <RefreshCw size={14} className={loading ? 'spin' : ''} />
@@ -569,20 +582,20 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                     const rowNum = (pageSize === 'all' ? 0 : (page - 1) * pageSize) + idx + 1;
                     return (
                       <tr key={item.id}>
-                        <td style={{ textAlign: 'center', fontWeight: '600', color: '#64748b' }}>
+                        <td className="tukar-td-muted" style={{ textAlign: 'center', fontWeight: '600' }}>
                           {rowNum}
                         </td>
-                        <td style={{ fontWeight: '700', color: '#0f172a' }}>
+                        <td className="tukar-td-strong">
                           {item.tanggal}
                         </td>
-                        <td style={{ fontFamily: 'monospace', fontWeight: '700', color: '#2563eb' }}>
+                        <td className="tukar-td-pin">
                           {item.pegawai_pin || '-'}
                         </td>
                         <td>
-                          <div style={{ fontWeight: '700', color: '#0f172a' }}>
+                          <div className="tukar-td-strong">
                             {item.pegawai_nama}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          <div className="tukar-td-sub">
                             {item.pegawai_unit || '-'}
                           </div>
                         </td>
@@ -591,7 +604,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                             <span className="shift-tag" style={{ background: item.shift_warna || '#3b82f6' }}>
                               {item.shift_kode}
                             </span>
-                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155' }}>
+                            <span className="tukar-shift-name">
                               {item.shift_nama}
                             </span>
                           </div>
@@ -601,7 +614,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                             {item.jenis_label}
                           </span>
                         </td>
-                        <td style={{ fontSize: '12px', color: '#334155' }}>
+                        <td className="tukar-td-body">
                           {item.alasan || '-'}
                         </td>
                         {hasSdmAccess && (
@@ -611,7 +624,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                               className="btn-secondary-sdm"
                               onClick={() => handleDeleteKoreksi(item)}
                               disabled={actionLoadingId === `kor-${item.id}`}
-                              style={{ padding: '4px 10px', fontSize: '11px', color: '#ef4444' }}
+                              style={{ padding: '4px 10px', fontSize: '11px', color: '#f87171' }}
                               title="Hapus koreksi ini dan kembalikan ke Jadwal Master"
                             >
                               Reset ke Master
@@ -671,15 +684,15 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                     const rowNum = (pageSize === 'all' ? 0 : (page - 1) * pageSize) + idx + 1;
                     return (
                     <tr key={item.id}>
-                      <td style={{ textAlign: 'center', fontWeight: '600', color: '#64748b' }}>
+                      <td className="tukar-td-muted" style={{ textAlign: 'center', fontWeight: '600' }}>
                         {rowNum}
                       </td>
                       <td>
-                        <div style={{ fontWeight: '700', color: '#0f172a' }}>
+                        <div className="tukar-td-strong">
                           {item.tanggal_pemohon}
                         </div>
                         {item.tanggal_pengganti && item.tanggal_pengganti !== item.tanggal_pemohon && (
-                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                          <div className="tukar-td-sub">
                             vs {item.tanggal_pengganti}
                           </div>
                         )}
@@ -687,10 +700,10 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
 
                       {/* Pemohon */}
                       <td>
-                        <div style={{ fontWeight: '700', color: '#0f172a' }}>
+                        <div className="tukar-td-strong">
                           {item.pemohon_nama}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        <div className="tukar-td-sub">
                           {item.pemohon_unit}
                         </div>
                         <div className="swap-badge-flow" style={{ marginTop: '4px' }}>
@@ -701,7 +714,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                           <span className="shift-tag" style={{ background: item.shift_tujuan_pemohon_warna || '#3b82f6' }}>
                             {item.shift_tujuan_pemohon_kode}
                           </span>
-                          <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155' }}>
+                          <span className="tukar-shift-name">
                             {item.shift_tujuan_pemohon_nama}
                           </span>
                         </div>
@@ -714,10 +727,10 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
 
                       {/* Pengganti */}
                       <td>
-                        <div style={{ fontWeight: '700', color: '#0f172a' }}>
+                        <div className="tukar-td-strong">
                           {item.pengganti_nama}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        <div className="tukar-td-sub">
                           {item.pengganti_unit}
                         </div>
                         {item.shift_tujuan_pengganti_kode && item.shift_tujuan_pengganti_kode !== '-' ? (
@@ -729,7 +742,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                             <span className="shift-tag" style={{ background: item.shift_tujuan_pengganti_warna || '#3b82f6' }}>
                               {item.shift_tujuan_pengganti_kode}
                             </span>
-                            <span style={{ fontSize: '11px', fontWeight: '600', color: '#334155' }}>
+                            <span className="tukar-shift-name">
                               {item.shift_tujuan_pengganti_nama}
                             </span>
                           </div>
@@ -742,10 +755,10 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
 
                       {/* Jenis & Alasan */}
                       <td>
-                        <div style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569' }}>
+                        <div className="tukar-td-sub" style={{ fontWeight: '600' }}>
                           {item.jenis_label}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#0f172a', marginTop: '2px' }}>
+                        <div className="tukar-td-body" style={{ marginTop: '2px' }}>
                           {item.alasan || '-'}
                         </div>
                       </td>
@@ -762,7 +775,7 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
 
                       {/* Verifikasi */}
                       <td>
-                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#334155' }}>
+                        <div className="tukar-td-body" style={{ fontWeight: '600' }}>
                           {item.disetujui_oleh_name || '-'}
                         </div>
                         {item.catatan_atasan && (
