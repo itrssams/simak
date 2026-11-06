@@ -79,6 +79,7 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path('api/system/', include('system.urls')),
     path('api/logistik/', include('logistik.urls')),
+    path('api/gudang/', include('gudang.urls')),
     path('api/driver/', include('driver.urls')),
     path('api/it/', include('it.urls')),
     path('api/inventaris/', include('inventaris.urls')),

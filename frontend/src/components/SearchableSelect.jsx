@@ -17,6 +17,7 @@ export default function SearchableSelect({
     required = false,
     name = '',
     clearable = false,
+    creatable = false,
     minDropdownWidth = 420,
     maxDropdownWidth = 720,
 }) {
@@ -33,19 +34,44 @@ export default function SearchableSelect({
 
     // Find selected option object
     const selectedOption = useMemo(() => {
-        return options.find((item) => String(item.value) === String(value)) || null;
+        const found = options.find((item) => String(item.value) === String(value));
+        if (found) return found;
+        if (value && typeof value === 'string' && value.trim()) {
+            return { value, label: value };
+        }
+        return null;
     }, [options, value]);
 
     // Filter options based on query
     const filteredOptions = useMemo(() => {
         const needle = normalize(query);
-        if (!needle) return options;
-        return options.filter((item) => {
-            const label = normalize(item.label);
-            const subtext = normalize(item.subtext);
-            return label.includes(needle) || subtext.includes(needle);
-        });
-    }, [options, query]);
+        let list = options;
+        if (needle) {
+            list = options.filter((item) => {
+                const label = normalize(item.label);
+                const subtext = normalize(item.subtext);
+                return label.includes(needle) || subtext.includes(needle);
+            });
+        }
+        if (creatable && query.trim()) {
+            const trimmed = query.trim();
+            const exists = options.some(opt => normalize(opt.label) === normalize(trimmed));
+            if (!exists) {
+                return [
+                    ...list,
+                    {
+                        value: `__new__:${trimmed}`,
+                        label: `Gunakan "${trimmed}"`,
+                        subtext: 'Pilih untuk gunakan nama ini',
+                        isSpecial: true,
+                        isNew: true,
+                        rawLabel: trimmed
+                    }
+                ];
+            }
+        }
+        return list;
+    }, [options, query, creatable]);
 
     // Keep activeIndex within bounds
     useEffect(() => {
@@ -157,7 +183,11 @@ export default function SearchableSelect({
 
     const handleSelect = (option) => {
         if (!option) return;
-        onChange?.(option.value);
+        if (option.isNew) {
+            onChange?.(option.rawLabel || option.label, option);
+        } else {
+            onChange?.(option.value, option);
+        }
         setOpen(false);
         setQuery('');
         triggerRef.current?.focus();
@@ -165,7 +195,7 @@ export default function SearchableSelect({
 
     const handleClear = (e) => {
         e.stopPropagation();
-        onChange?.('');
+        onChange?.('', null);
         setQuery('');
     };
 
@@ -206,7 +236,7 @@ export default function SearchableSelect({
                 top: `${position.top}px`,
                 left: `${position.left}px`,
                 width: `${position.width}px`,
-                zIndex: 999999,
+                zIndex: 10000050,
             }}
             onKeyDown={handlePopoverKeyDown}
             role="dialog"
@@ -224,6 +254,7 @@ export default function SearchableSelect({
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handlePopoverKeyDown}
+                        style={{ paddingLeft: '40px', paddingRight: '32px' }}
                     />
                     {query && (
                         <button

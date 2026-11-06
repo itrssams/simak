@@ -1425,13 +1425,32 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
                 return Response({'detail': 'SPB tidak ditemukan.'}, status=400)
 
-            if spb['status'] != 'Disetujui':
+            if spb['status'] not in ('Disetujui', 'Selesai'):
 
                 return Response({'detail': 'SPB belum disetujui Kepala Seksi, belum dapat diproses ke Penerimaan.'}, status=400)
 
-            if legacy_fetchone('SELECT id FROM rssams.tran_beli_brg_log WHERE id = %s OR id_spb = %s LIMIT 1', [spb_ref, spb_ref]):
+            existing_beli = legacy_fetchone(
+                """
+                SELECT t.id, t.done, t.id_spb,
+                       (SELECT COUNT(*) FROM rssams.item_logistik i WHERE i.id = t.id) AS item_cnt
+                FROM rssams.tran_beli_brg_log t
+                WHERE t.id = %s OR t.id_spb = %s
+                LIMIT 1
+                """,
+                [spb_ref, spb_ref]
+            )
 
-                return Response({'detail': 'SPB ini sudah diproses menjadi Penerimaan.'}, status=400)
+            if existing_beli:
+
+                if existing_beli.get('done') == 'N' and not existing_beli.get('id_spb') and int(existing_beli.get('item_cnt') or 0) == 0:
+
+                    with connection.cursor() as cursor:
+
+                        cursor.execute("DELETE FROM rssams.tran_beli_brg_log WHERE id = %s AND done = 'N' AND id_spb IS NULL", [existing_beli['id']])
+
+                else:
+
+                    return Response({'detail': 'SPB ini sudah diproses menjadi Penerimaan.'}, status=400)
 
         actor_id, actor_name = _actor(request.user)
 
@@ -1703,7 +1722,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
                         UPDATE rssams.tran_beli_brg_log
 
-                        SET approval_status = 'Disetujui', done = 'Y', catatan_tolak = NULL,
+                        SET approval_status = 'Disetujui', done = 'Y', kirim_keuangan = 'Y', catatan_tolak = NULL,
 
                             approved_by = %s, approved_by_name = %s, approved_at = NOW()
 
@@ -2805,7 +2824,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         row = legacy_fetchone(
 
-            "SELECT id, status, created_by FROM rssams.logistik_spb WHERE id = %s", [pk]
+            "SELECT id, rekanan, tanggal, no_spb, nilai, metode_pembayaran, status, created_by, created_by_name FROM rssams.logistik_spb WHERE id = %s", [pk]
 
         )
 
@@ -2827,27 +2846,80 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         if aksi == 'setujui':
 
-            with connection.cursor() as cursor:
+            with transaction.atomic():
 
-                cursor.execute(
+                with connection.cursor() as cursor:
 
-                    """
+                    # Bersihkan bila ada header kosong/yatim di tran_beli_brg_log dengan ID yang sama
+                    cursor.execute(
+                        """
+                        DELETE FROM rssams.tran_beli_brg_log
+                        WHERE id = %s AND done = 'N' AND id_spb IS NULL
+                          AND NOT EXISTS (SELECT 1 FROM rssams.item_logistik i WHERE i.id = rssams.tran_beli_brg_log.id)
+                        """,
+                        [pk],
+                    )
 
-                    UPDATE rssams.logistik_spb
+                    already_in_beli = legacy_fetchone(
+                        "SELECT id FROM rssams.tran_beli_brg_log WHERE id = %s OR id_spb = %s LIMIT 1",
+                        [pk, pk],
+                    )
 
-                    SET status = 'Disetujui', catatan_tolak = NULL,
+                    if not already_in_beli:
 
-                        approved_by = %s, approved_by_name = %s, approved_at = NOW()
+                        cursor.execute(
+                            """
+                            INSERT INTO rssams.tran_beli_brg_log(
+                                id, rekanan, tgl_spk, no_spk, nilai, done, id_spb, metode_pembayaran,
+                                approval_status, kirim_keuangan, created_by, created_by_name
+                            )
+                            VALUES(%s, %s, %s, %s, %s, 'N', %s, %s, 'Draft', 'N', %s, %s)
+                            """,
+                            [
+                                pk,
+                                str(row.get('rekanan') or '').upper(),
+                                row.get('tanggal') or timezone.localdate(),
+                                row.get('no_spb') or '',
+                                row.get('nilai') or 0,
+                                pk,
+                                row.get('metode_pembayaran') or 'Kredit',
+                                row.get('created_by') or actor_id,
+                                row.get('created_by_name') or actor_name,
+                            ],
+                        )
 
-                    WHERE id = %s
+                        cursor.execute(
+                            """
+                            INSERT INTO rssams.item_logistik(id, id_brg, qty, qty_pesan, isi, harga, jml_mutasi)
+                            SELECT %s, id_brg, SUM(qty), SUM(qty), MAX(isi), MAX(harga), 0
+                            FROM rssams.logistik_spb_item
+                            WHERE spb_id = %s
+                            GROUP BY id_brg
+                            """,
+                            [pk, pk],
+                        )
 
-                    """,
+                        _refresh_pembelian_total(pk)
 
-                    [actor_id, actor_name, pk],
+                    cursor.execute(
 
-                )
+                        """
 
-            return Response({'detail': 'SPB disetujui Kepala Seksi.'})
+                        UPDATE rssams.logistik_spb
+
+                        SET status = 'Selesai', catatan_tolak = NULL,
+
+                            approved_by = %s, approved_by_name = %s, approved_at = NOW()
+
+                        WHERE id = %s
+
+                        """,
+
+                        [actor_id, actor_name, pk],
+
+                    )
+
+            return Response({'detail': 'SPB disetujui dan otomatis diteruskan ke daftar Penerimaan.'})
 
         if aksi == 'tolak':
 

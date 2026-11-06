@@ -4842,6 +4842,39 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             'utang': UtangSupplierSerializer(instance, context={'request': request}).data
         }, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='kembalikan-ke-pending')
+    def kembalikan_ke_pending(self, request, pk=None):
+        """Mengembalikan catatan utang non-manual yang belum ada realisasi kembali ke status Menunggu Verifikasi."""
+        instance = self.get_object()
+
+        if instance.sumber == UtangSupplier.SUMBER_MANUAL:
+            return Response(
+                {'error': 'Faktur manual tidak berasal dari data antrean verifikasi gudang/keuangan.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Cek apakah sudah ada pembayaran realisasi
+        has_realisasi = instance.pembayaran.filter(
+            status__in=[PembayaranUtang.STATUS_REALISASI_SEBAGIAN, PembayaranUtang.STATUS_REALISASI_LUNAS, PembayaranUtang.STATUS_RETUR]
+        ).exists()
+        if has_realisasi or (instance.total_dibayar and instance.total_dibayar > 0):
+            return Response(
+                {'error': 'Faktur yang sudah memiliki riwayat pembayaran terealisasi tidak dapat dikembalikan ke antrean verifikasi.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        nomor_faktur = instance.nomor_faktur
+        nomor_spb = instance.nomor_spb
+
+        with transaction.atomic():
+            # Hapus/batalkan pembayaran pending jika ada
+            instance.pembayaran.filter(status=PembayaranUtang.STATUS_PENDING).delete()
+            instance.delete()
+
+        return Response({
+            'message': f'Faktur {nomor_faktur} (SPB: {nomor_spb or "-"}) berhasil dikembalikan ke tab Menunggu Verifikasi.',
+        }, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=['post'], url_path='create-manual')
     def create_manual(self, request):
         """Membuat catatan utang secara manual (tidak dari database legacy)."""
@@ -7611,8 +7644,13 @@ class UtangMenungguVerifikasiView(APIView):
             return Response({'sumber': f'Nilai sumber tidak valid: {sumber}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Cek duplikat berdasarkan kombinasi (faktur_id, sumber)
-        if UtangSupplier.objects.filter(app_siaga_faktur_id=str(app_siaga_faktur_id), sumber=sumber).exists():
-            return Response({'error': 'Faktur ini sudah diverifikasi.'}, status=status.HTTP_400_BAD_REQUEST)
+        existing = UtangSupplier.objects.filter(app_siaga_faktur_id=str(app_siaga_faktur_id), sumber=sumber).first()
+        if existing:
+            if existing.status == UtangSupplier.STATUS_DIBATALKAN:
+                # Faktur sebelumnya pernah dibatalkan, bersihkan record lama agar bisa diverifikasi ulang
+                existing.delete()
+            else:
+                return Response({'error': 'Faktur ini sudah diverifikasi.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if sumber == UtangSupplier.SUMBER_FARMASI:
             faktur = _fetch_app_siaga_faktur(app_siaga_faktur_id)

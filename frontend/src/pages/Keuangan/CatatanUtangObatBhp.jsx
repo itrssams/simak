@@ -1051,6 +1051,30 @@ export default function CatatanUtangObatBhp() {
         }
     };
 
+    const handleKembalikanKePending = async (item) => {
+        if (!item) return;
+        const confirmMsg = `KONFIRMASI KEMBALIKAN KE MENUNGGU VERIFIKASI:\n\nApakah Anda yakin ingin mengembalikan faktur '${item.nomor_faktur || item.nomor_spb || item.vendor_nama}' ke tab 'Menunggu Verifikasi'?\n\n- Catatan utang ini akan dihapus dari daftar.\n- Data faktur akan kembali muncul di tab 'Menunggu Verifikasi' dengan nominal terbaru dari gudang/keuangan.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        setSaving(true);
+        try {
+            const res = await api.post(`/keuangan/utang-supplier/${item.id}/kembalikan-ke-pending/`);
+            toast.success(res.data?.message || 'Faktur berhasil dikembalikan ke Menunggu Verifikasi.');
+            if (detailTarget && detailTarget.id === item.id) setDetailTarget(null);
+            if (batalTarget && batalTarget.id === item.id) setBatalTarget(null);
+            await fetchSummary();
+            await fetchData();
+            if (activeTab === 'menunggu') {
+                await fetchPendingData();
+            }
+        } catch (err) {
+            console.error('Gagal mengembalikan faktur:', err);
+            toast.error(errorMessage(err, 'Gagal mengembalikan faktur ke antrean verifikasi.'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (!canAccess) {
         return (
             <div className="utang-page">
@@ -1369,6 +1393,7 @@ export default function CatatanUtangObatBhp() {
                                 onRetur={openRetur}
                                 onEdit={openEdit}
                                 onBatalkan={openBatalkan}
+                                onKembalikanKePending={handleKembalikanKePending}
                                 onSort={setOrdering}
                                 selectedIds={selectedActiveIds}
                                 onToggleAll={toggleSelectAllActive}
@@ -2208,6 +2233,17 @@ export default function CatatanUtangObatBhp() {
                             </div>
                         </div>
                         <div className="utang-modal-actions">
+                            {detailTarget.status === 'dibatalkan' && detailTarget.sumber !== 'manual' && (
+                                <button
+                                    className="utang-btn soft"
+                                    type="button"
+                                    style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff', marginRight: 'auto' }}
+                                    onClick={() => handleKembalikanKePending(detailTarget)}
+                                    disabled={saving}
+                                >
+                                    <RotateCcw size={16} /> Kembalikan ke Menunggu Verifikasi
+                                </button>
+                            )}
                             <button className="utang-btn soft" type="button" onClick={() => setDetailTarget(null)}>Tutup</button>
                         </div>
                     </div>
@@ -2463,6 +2499,11 @@ export default function CatatanUtangObatBhp() {
                                 <AlertTriangle size={18} className="utang-notice-box-icon" />
                                 <div className="utang-notice-content">
                                     <strong>Perhatian:</strong> Faktur yang dibatalkan tidak akan lagi dihitung dalam total hutang aktif maupun pengajuan pembayaran. Data dan riwayat pencatatan tetap tersimpan demi audit trail pembukuan.
+                                    {batalTarget.sumber !== 'manual' && (
+                                        <div style={{ marginTop: 6, fontSize: '0.82rem', color: '#0369a1' }}>
+                                            <strong>Tips:</strong> Jika ingin memverifikasi ulang karena revisi nominal dari gudang atau salah verifikasi, gunakan tombol <strong>"Kembalikan ke Menunggu Verifikasi"</strong> di bawah.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -2479,7 +2520,19 @@ export default function CatatanUtangObatBhp() {
                             </div>
                         </div>
                         <div className="utang-modal-actions">
-                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setBatalTarget(null)}>Batal</button>
+                            {batalTarget.sumber !== 'manual' && (
+                                <button
+                                    className="utang-btn soft"
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => handleKembalikanKePending(batalTarget)}
+                                    style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff', marginRight: 'auto' }}
+                                    title="Hapus verifikasi dan kembalikan faktur ke tab Menunggu Verifikasi"
+                                >
+                                    <RotateCcw size={16} /> Kembalikan ke Menunggu Verifikasi
+                                </button>
+                            )}
+                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setBatalTarget(null)}>Tutup</button>
                             <button className="utang-btn primary" type="submit" disabled={saving} onClick={submitBatalkan} style={{ background: '#dc2626', borderColor: '#b91c1c' }}>
                                 <Ban size={16} /> {saving ? 'Memproses...' : 'Konfirmasi Batalkan Faktur'}
                             </button>
@@ -2804,6 +2857,7 @@ function ActiveTable({
     onRetur,
     onEdit,
     onBatalkan,
+    onKembalikanKePending,
     onSort,
     selectedIds = [],
     onToggleAll,
@@ -2950,6 +3004,17 @@ function ActiveTable({
                                         title="Batalkan Catatan Utang / Faktur"
                                     >
                                         <Ban size={16} />
+                                    </button>
+                                )}
+                                {item.status === 'dibatalkan' && item.sumber !== 'manual' && onKembalikanKePending && (
+                                    <button
+                                        className="utang-action-btn"
+                                        type="button"
+                                        style={{ color: '#0284c7', background: '#f0f9ff', borderColor: '#bae6fd' }}
+                                        onClick={() => onKembalikanKePending(item)}
+                                        title="Kembalikan Faktur ke Menunggu Verifikasi"
+                                    >
+                                        <RotateCcw size={16} />
                                     </button>
                                 )}
                                 <button

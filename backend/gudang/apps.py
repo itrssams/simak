@@ -1,0 +1,8 @@
+from django.apps import AppConfig
+
+
+class GudangConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'gudang'
+    verbose_name = 'Gudang Logistik v2'
+

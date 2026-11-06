@@ -97,6 +97,7 @@ INSTALLED_APPS = [
     'it',
     'inventaris',
     'logistik',
+    'gudang',
     'driver',
     'system',
     'logbook',

@@ -26,7 +26,7 @@ function toYMD(d) {
     return `${year}-${month}-${day}`;
 }
 
-export default function DateRangePicker({ dari = '', sampai = '', onChange, placeholder = 'Pilih Periode', className = '', disabled = false }) {
+export default function DateRangePicker({ dari = '', sampai = '', onChange, placeholder = 'Pilih Periode', className = '', disabled = false, triggerStyle = {} }) {
     const [open, setOpen] = useState(false);
     const triggerRef = useRef(null);
     const popoverRef = useRef(null);
@@ -238,6 +238,7 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
                 className={`drp-trigger ${open ? 'active' : ''} ${(dari || sampai) ? 'has-value' : ''}`}
                 onClick={() => !disabled && setOpen(!open)}
                 disabled={disabled}
+                style={triggerStyle}
             >
                 <CalendarDays size={15} className="drp-icon" />
                 <span className="drp-label">{triggerText}</span>

@@ -195,7 +195,13 @@ const createDonutSlicePath = (cx, cy, rInner, rOuter, startAngle, endAngle) => {
     ].join(' ');
 };
 
-const fmtNum = (v) => Number(v || 0).toLocaleString('id-ID');
+const fmtNum = (v) => {
+    const n = Number(v || 0);
+    if (Math.abs(n) >= 100 || Number.isInteger(n)) {
+        return Math.round(n).toLocaleString('id-ID');
+    }
+    return n.toLocaleString('id-ID', { maximumFractionDigits: 1 });
+};
 
 export default function LogistikPieInfographic({
     items = [],
@@ -204,12 +210,14 @@ export default function LogistikPieInfographic({
     subtitle = 'Visualisasi persentase dan proporsi',
     badgeText = 'Top Kontribusi',
     unitLabel = 'Qty',
+    valuePrefix = '',
     isUnitMode = false,
     selectedId = null,
     onSelectItem = null,
+    extraActions = null,
 }) {
     const [chartLimit, setChartLimit] = useState(6);
-    const [isSteppedRadius, setIsSteppedRadius] = useState(true);
+    const [isSteppedRadius, setIsSteppedRadius] = useState(false);
     const [hoveredIdx, setHoveredIdx] = useState(null);
 
     // Compute chart data with auto "Lainnya" grouping
@@ -254,9 +262,9 @@ export default function LogistikPieInfographic({
     const slices = useMemo(() => {
         if (!chartData.length) return [];
         let currentAngle = 0;
-        const baseInner = 70;
-        const baseOuter = 135;
-        const stepMax = isSteppedRadius ? 26 : 0;
+        const baseInner = 82;
+        const baseOuter = 142;
+        const stepMax = isSteppedRadius ? 18 : 0;
         const totalSlices = chartData.length;
 
         return chartData.map((d, idx) => {
@@ -300,20 +308,19 @@ export default function LogistikPieInfographic({
                     <div>
                         <div className="lpi-title-row">
                             <h3>{title}</h3>
-                            <span className="lpi-cute-pill">
-                                <Sparkles size={11} /> {badgeText}
-                            </span>
                         </div>
                         <p>{subtitle}</p>
                     </div>
                 </div>
 
                 <div className="lpi-actions-row">
+                    {extraActions}
+
                     <button
                         type="button"
                         className={`lpi-toggle-btn ${isSteppedRadius ? 'active' : ''}`}
                         onClick={() => setIsSteppedRadius(!isSteppedRadius)}
-                        title="Ubah radius visual: Berjenjang (Stepped) atau Rata"
+                        title="Ubah radius visual: Rata atau Berjenjang (Stepped)"
                     >
                         <SlidersHorizontal size={13} />
                         <span>{isSteppedRadius ? 'Radius Bertingkat' : 'Radius Rata'}</span>
@@ -392,31 +399,50 @@ export default function LogistikPieInfographic({
                         </g>
 
                         {/* Donut Center Hole Details */}
-                        <circle cx="200" cy="200" r="66" fill="#ffffff" filter="drop-shadow(0 4px 10px rgba(0,0,0,0.06))" />
+                        <circle cx="200" cy="200" r="78" fill="#ffffff" filter="drop-shadow(0 4px 12px rgba(0,0,0,0.06))" />
                         <g className="lpi-center-text">
                             {activeItem ? (
                                 <>
-                                    <text x="200" y="185" textAnchor="middle" className="lpi-center-label">
+                                    <text x="200" y="178" textAnchor="middle" className="lpi-center-label">
                                         {activeItem.name?.length > 18 ? activeItem.name.slice(0, 16) + '...' : activeItem.name}
                                     </text>
-                                    <text x="200" y="210" textAnchor="middle" className="lpi-center-val" fill={activeItem.pal.color}>
+                                    <text x="200" y="205" textAnchor="middle" className="lpi-center-val" fill={activeItem.pal.color} style={{ fontSize: '22px' }}>
                                         {activeItem.pct}%
                                     </text>
-                                    <text x="200" y="226" textAnchor="middle" className="lpi-center-sub">
-                                        {fmtNum(activeItem.value)} {unitLabel}
+                                    <text x="200" y="225" textAnchor="middle" className="lpi-center-sub" style={{ fontSize: '11px', fontWeight: 700, fill: '#475569' }}>
+                                        {valuePrefix}{fmtNum(activeItem.value)}{unitLabel ? ` ${unitLabel}` : ''}
                                     </text>
                                 </>
                             ) : (
                                 <>
-                                    <text x="200" y="185" textAnchor="middle" className="lpi-center-label">
+                                    <text x="200" y="178" textAnchor="middle" className="lpi-center-label">
                                         TOTAL AKUMULASI
                                     </text>
-                                    <text x="200" y="212" textAnchor="middle" className="lpi-center-val" fill="#0f172a">
-                                        {fmtNum(totalValue)}
+                                    <text
+                                        x="200"
+                                        y="204"
+                                        textAnchor="middle"
+                                        className="lpi-center-val"
+                                        fill="#0f172a"
+                                    >
+                                        {valuePrefix ? (
+                                            <>
+                                                <tspan style={{ fontSize: '12px', fontWeight: 600, fill: '#64748b' }}>{valuePrefix}</tspan>
+                                                <tspan style={{ fontSize: String(fmtNum(totalValue)).length > 10 ? '16px' : '18px', fontWeight: 800 }}>
+                                                    {fmtNum(totalValue)}
+                                                </tspan>
+                                            </>
+                                        ) : (
+                                            <tspan style={{ fontSize: String(fmtNum(totalValue)).length > 10 ? '16px' : '18px', fontWeight: 800 }}>
+                                                {fmtNum(totalValue)}
+                                            </tspan>
+                                        )}
                                     </text>
-                                    <text x="200" y="228" textAnchor="middle" className="lpi-center-sub">
-                                        {unitLabel}
-                                    </text>
+                                    {unitLabel && (
+                                        <text x="200" y="224" textAnchor="middle" className="lpi-center-sub">
+                                            {unitLabel}
+                                        </text>
+                                    )}
                                 </>
                             )}
                         </g>
@@ -470,7 +496,7 @@ export default function LogistikPieInfographic({
                                     </div>
                                     <div className="lpi-legend-sub-row">
                                         <span className="lpi-val-text">
-                                            <strong>{fmtNum(s.value)}</strong> {s.satuan || unitLabel}
+                                            <strong>{valuePrefix}{fmtNum(s.value)}</strong> {s.satuan || unitLabel}
                                         </span>
                                         {s.sublabel && <span className="lpi-subtext">• {s.sublabel}</span>}
                                     </div>

@@ -32,6 +32,7 @@ import MasterPembiayaan from './pages/Keuangan/MasterPembiayaan';
 import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
 import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
+import GudangIndex from './pages/Gudang/GudangIndex';
 import SystemMaintenance from './pages/System/SystemMaintenance';
 import AppLauncher from './pages/AppLauncher/AppLauncher';
 import LogbookBeranda from './pages/Logbook/LogbookBeranda';
@@ -196,6 +197,10 @@ const AppRoutes = () => {
             <Route path="/keuangan/catatan-utang/import-ots" element={<ProtectedRoute allow={canCatatanUtang}><ImportUtangOts /></ProtectedRoute>} />
             <Route path="/logistik" element={<ProtectedRoute allow={isLogistik}><Navigate to="/logistik/barang" /></ProtectedRoute>} />
             <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><Logistik /></ProtectedRoute>} />
+
+            {/* Modul Gudang Logistik v.2 */}
+            <Route path="/gudang" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
+            <Route path="/gudang/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
 
             {/* Modul Manajemen Aset */}
             <Route path="/aset" element={<ProtectedRoute allow={canAset}><AsetDashboard /></ProtectedRoute>} />

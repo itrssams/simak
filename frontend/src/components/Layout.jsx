@@ -148,6 +148,19 @@ const MENU_CATATAN_UTANG = [
 const MENU_LOGISTIK = [
     {
         label: 'Gudang Logistik', icon: 'inventory', children: [
+            { label: 'Dashboard & Stok', path: '/gudang' },
+            { label: 'Master Barang', path: '/gudang/barang' },
+            { label: 'Master Vendor', path: '/gudang/vendor' },
+            { label: 'Surat Pesanan (PO)', path: '/gudang/po' },
+            { label: 'Penerimaan (GRN)', path: '/gudang/penerimaan' },
+            { label: 'Pengeluaran Unit', path: '/gudang/pengeluaran' },
+            { label: 'Kartu Stok', path: '/gudang/kartu-stok' },
+            { label: 'Stok Opname', path: '/gudang/opname' },
+            { label: 'Laporan Logistik', path: '/gudang/laporan' },
+        ],
+    },
+    {
+        label: 'Arsip Logistik Lama', icon: 'inventory', children: [
             { label: 'Daftar Barang', path: '/logistik/barang' },
             { label: 'Master Vendor', path: '/logistik/vendor?sumber=logistik' },
             { label: 'SPB', path: '/logistik/spb' },
@@ -163,7 +176,7 @@ const MENU_LOGISTIK = [
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = true;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik', 'Petty Cash', 'SDM', 'Izin Meninggalkan Tempat Kerja', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik v.2', 'Gudang Logistik (Legacy / v1)', 'Gudang Logistik', 'Petty Cash', 'SDM', 'Izin Meninggalkan Tempat Kerja', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
 
 const MENU_SDM = [
     { label: 'SDM', path: '/sdm/izin-kerja', icon: 'pelanggan' },
@@ -436,14 +449,26 @@ const getActiveModuleConfig = (pathname, user) => {
         };
     }
 
-    // 4. Gudang Logistik (sama persis dengan sidebar sebelumnya)
-    if (pathname.startsWith('/logistik') || pathname.startsWith('/laporan/logistik')) {
+    // 4a. Gudang Logistik (Navigasi dikelola oleh Sidebar Internal Modul Gudang)
+    if (pathname.startsWith('/gudang')) {
         return {
             id: 'gudang-logistik',
             title: 'Gudang Logistik',
             icon: Package,
             iconColor: '#f59e0b',
+            menus: [], // Dikelola langsung oleh Sidebar Internal Modul Gudang
+        };
+    }
+
+    // 4b. Arsip Gudang Logistik Lama
+    if (pathname.startsWith('/logistik') || pathname.startsWith('/laporan/logistik')) {
+        return {
+            id: 'gudang-logistik-legacy',
+            title: 'Arsip Logistik Lama',
+            icon: Package,
+            iconColor: '#f59e0b',
             menus: [
+                { label: 'Kembali ke Gudang Utama', path: '/gudang' },
                 { label: 'Daftar Barang', path: '/logistik/barang' },
                 { label: 'Master Vendor', path: '/logistik/vendor?sumber=logistik' },
                 { label: 'SPB', path: '/logistik/spb' },
@@ -917,6 +942,7 @@ export default function Layout({ children }) {
                 }
 
                 .app-shell {
+                    flex: 1;
                     min-height: calc(100vh / 0.88);
                     display: flex;
                     flex-direction: column;

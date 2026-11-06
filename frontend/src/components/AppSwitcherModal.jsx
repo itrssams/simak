@@ -91,8 +91,8 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             color: '#f59e0b',
             glowColor: 'rgba(245, 158, 11, 0.45)',
             glassGlow: 'rgba(245, 158, 11, 0.22)',
-            path: '/logistik/barang',
-            allowed: Boolean(isLogistik),
+            path: '/gudang',
+            allowed: Boolean(isLogistik || canCatatanUtang || isManajerUp),
         },
         {
             id: 'petty-cash',
