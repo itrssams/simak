@@ -41,7 +41,7 @@ import {
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { getInvoiceDisplayAmounts } from './invoiceDisplayUtils';
+import { getInvoiceDisplayAmounts, roundMoney } from './invoiceDisplayUtils';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import DateRangePicker from '../../components/DateRangePicker';
 import DebouncedSearchInput from '../../components/DebouncedSearchInput';
@@ -480,7 +480,7 @@ export default function InvoicePembiayaan() {
         return sequence;
     }, [selected]);
     const selectedDisplayAmounts = useMemo(() => getInvoiceDisplayAmounts(selected), [selected]);
-    const paymentLimit = Math.max(0, Math.min(selectedDisplayAmounts.sisa, walletSaldo) - pendingPaymentTotal);
+    const paymentLimit = Math.max(0, roundMoney(Math.min(selectedDisplayAmounts.sisa, walletSaldo) - pendingPaymentTotal));
     const isFinanceManager = Boolean(user?.is_superuser || (user?.is_keuangan && ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role)));
 
     const openCreate = () => {
@@ -803,8 +803,8 @@ export default function InvoicePembiayaan() {
         if (!selected?.tgl_kirim) return toast.error('Invoice harus dikirim dulu sebelum bisa dibayar.');
         if (!payment.tanggal) return toast.error('Tanggal bayar wajib diisi.');
         if (jumlah <= 0) return toast.error('Jumlah bayar harus lebih dari nol.');
-        if (jumlah > selectedDisplayAmounts.sisa) return toast.error('Jumlah bayar melebihi sisa tagihan.');
-        if (jumlah > walletSaldo) return toast.error('Jumlah bayar melebihi saldo pembiayaan.');
+        if (roundMoney(jumlah - selectedDisplayAmounts.sisa) > 0) return toast.error('Jumlah bayar melebihi sisa tagihan.');
+        if (roundMoney(jumlah - walletSaldo) > 0) return toast.error('Jumlah bayar melebihi saldo pembiayaan.');
         setPaying(true);
         try {
             await api.post(`/keuangan/faktur/${selected.id}/bayar/`, {
@@ -881,7 +881,7 @@ export default function InvoicePembiayaan() {
         setPayment((prev) => ({
             ...prev,
             bayar_penuh: checked,
-            jumlah: checked && paymentLimit > 0 ? String(paymentLimit) : prev.jumlah,
+            jumlah: checked && paymentLimit > 0 ? String(roundMoney(paymentLimit)) : prev.jumlah,
         }));
     };
 
