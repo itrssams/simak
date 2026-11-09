@@ -399,6 +399,33 @@ def handle_bot_command(chat_id, username, text, first_name=""):
             if not target:
                 target = Pegawai.objects.filter(pin=input_pin.zfill(4), is_active=True).first()
 
+            # Fallback pencarian ke pemetaan mesin absen (KaryawanMesinMapping)
+            if not target:
+                from sdm.models import KaryawanMesinMapping
+                mapping = (
+                    KaryawanMesinMapping.objects.filter(pin=input_pin, is_active=True).first()
+                    or KaryawanMesinMapping.objects.filter(pin=input_pin.lstrip('0'), is_active=True).first()
+                    or KaryawanMesinMapping.objects.filter(pin=input_pin.zfill(3), is_active=True).first()
+                    or KaryawanMesinMapping.objects.filter(pin=input_pin.zfill(4), is_active=True).first()
+                )
+                if mapping:
+                    if mapping.pegawai:
+                        target = mapping.pegawai
+                    else:
+                        nama = mapping.nama_di_mesin
+                        if mapping.user:
+                            nama = mapping.user.get_full_name() or mapping.user.username
+                        target, _ = Pegawai.objects.get_or_create(
+                            pin=mapping.pin,
+                            defaults={
+                                'nama': nama,
+                                'user': mapping.user,
+                                'is_active': True,
+                            }
+                        )
+                        mapping.pegawai = target
+                        mapping.save(update_fields=['pegawai'])
+
             if not target:
                 reply = (
                     f"❌ <b>PIN #{input_pin} tidak ditemukan</b> di direktori pegawai SIMAK RS Siaga.\n\n"
