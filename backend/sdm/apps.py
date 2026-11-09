@@ -13,17 +13,22 @@ class SdmConfig(AppConfig):
         if any(cmd in sys.argv for cmd in ['makemigrations', 'migrate', 'collectstatic', 'test', 'help']):
             return
 
-        # Start Telegram Bot Long-Polling Listener (Bot Utama @simak_rssiaga_bot)
-        try:
-            from .services.telegram_service import start_telegram_bot_listener, start_telegram_sdm_bot_listener
-            start_telegram_bot_listener()
-            start_telegram_sdm_bot_listener()
-        except Exception:
-            pass
+        enable_telegram = os.getenv('ENABLE_TELEGRAM_BOT_POLLING', 'True').lower() in ('true', '1', 'yes')
+        enable_sync = os.getenv('ENABLE_MESIN_AUTO_SYNC', 'True').lower() in ('true', '1', 'yes')
+
+        # Start Telegram Bot Long-Polling Listener (Bot Utama @simak_rssiaga_bot & @simak_sdm_bot)
+        if enable_telegram:
+            try:
+                from .services.telegram_service import start_telegram_bot_listener, start_telegram_sdm_bot_listener
+                start_telegram_bot_listener()
+                start_telegram_sdm_bot_listener()
+            except Exception:
+                pass
 
         # Start Mesin Absensi Periodic Auto-Sync Real-Time (tiap 5 detik)
-        try:
-            from .services.zk_service import start_mesin_auto_sync_scheduler
-            start_mesin_auto_sync_scheduler(interval_seconds=5)
-        except Exception:
-            pass
+        if enable_sync:
+            try:
+                from .services.zk_service import start_mesin_auto_sync_scheduler
+                start_mesin_auto_sync_scheduler(interval_seconds=5)
+            except Exception:
+                pass
