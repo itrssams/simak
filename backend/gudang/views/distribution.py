@@ -118,11 +118,8 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         - Memotong kartu stok gudang secara otomatis
         - Mengubah status Permintaan menjadi SELESAI
         """
-        permintaan = self.get_object()
-        if permintaan.status != Permintaan.STATUS_DISETUJUI:
-            return Response({
-                'error': f'Hanya permintaan berstatus DISETUJUI yang dapat diserahkan fisiknya (status saat ini: {permintaan.status}).'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        from decimal import Decimal
+        from django.db import transaction
 
         penerima_nama = str(request.data.get('penerima_nama') or '').strip()
         if not penerima_nama:
@@ -132,55 +129,100 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         catatan = str(request.data.get('catatan') or '').strip()
         items_payload = request.data.get('items', [])
 
-        from decimal import Decimal
-        items_data = []
-        if items_payload:
-            for it in items_payload:
-                barang_id = it.get('barang') or it.get('barang_id')
-                qty = it.get('qty') or it.get('qty_serah')
-                if barang_id and Decimal(str(qty or 0)) > Decimal('0'):
-                    items_data.append({
-                        'barang': barang_id,
-                        'permintaan_item': it.get('permintaan_item') or it.get('id'),
-                        'qty': Decimal(str(qty)),
-                        'satuan': it.get('satuan', 'PCS'),
-                        'keterangan': it.get('keterangan', '')
-                    })
-        else:
-            for pi in permintaan.items.all():
-                target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
-                remaining = max(Decimal('0'), target_qty - pi.qty_dikeluarkan)
-                if remaining > Decimal('0'):
-                    items_data.append({
-                        'barang': pi.barang.id,
-                        'permintaan_item': pi.id,
-                        'qty': remaining,
-                        'satuan': pi.satuan,
-                        'keterangan': pi.keterangan
-                    })
-
-        if not items_data:
-            return Response({'error': 'Tidak ada kuantitas barang yang dapat diserahkan.'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            pengeluaran = DistributionService.create_pengeluaran(
-                ruang=permintaan.ruang,
-                items_data=items_data,
-                user=request.user,
-                permintaan=permintaan,
-                tanggal=tanggal,
-                penerima_nama=penerima_nama,
-                catatan=catatan or f"Penyerahan fisik realisasi Permintaan {permintaan.nomor}"
-            )
-            pengeluaran = DistributionService.approve_pengeluaran(pengeluaran, user=request.user)
+            with transaction.atomic():
+                permintaan = Permintaan.objects.select_for_update().filter(id=pk).first()
+                if not permintaan:
+                    return Response({'error': 'Permintaan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
 
-            permintaan.refresh_from_db()
-            return Response({
-                'message': f'Barang berhasil diserahkan kepada {penerima_nama} (Bon OUT: {pengeluaran.nomor}). Stok gudang otomatis terpotong.',
-                'permintaan': self.get_serializer(permintaan).data,
-                'pengeluaran_id': pengeluaran.id,
-                'pengeluaran_nomor': pengeluaran.nomor
-            }, status=status.HTTP_200_OK)
+                if permintaan.status == Permintaan.STATUS_SELESAI:
+                    return Response({
+                        'error': f'Permintaan {permintaan.nomor} sudah SELESAI (barang fisik sudah diserahkan penuh sebelumnya).'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                if permintaan.status != Permintaan.STATUS_DISETUJUI:
+                    return Response({
+                        'error': f'Hanya permintaan berstatus DISETUJUI yang dapat diserahkan fisiknya (status saat ini: {permintaan.status}).'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Ambil item-item permintaan terbaru dari database dengan lock
+                pi_map = {
+                    pi.id: pi
+                    for pi in PermintaanItem.objects.select_for_update().select_related('barang').filter(permintaan=permintaan)
+                }
+
+                items_data = []
+                if items_payload:
+                    for it in items_payload:
+                        pi_id = it.get('permintaan_item') or it.get('id')
+                        try:
+                            pi = pi_map.get(int(pi_id)) if pi_id else None
+                        except (ValueError, TypeError):
+                            pi = None
+
+                        if not pi:
+                            continue
+
+                        target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
+                        sisa = max(Decimal('0'), target_qty - pi.qty_dikeluarkan)
+                        if sisa <= Decimal('0'):
+                            continue  # Item ini sudah terpenuhi penuh
+
+                        qty_serah = Decimal(str(it.get('qty') or it.get('qty_serah') or 0))
+                        if qty_serah <= Decimal('0'):
+                            continue
+
+                        if qty_serah > sisa:
+                            return Response({
+                                'error': f"Kuantitas serah untuk '{pi.barang.nama}' ({qty_serah}) melebihi sisa jatah permintaan ({sisa})."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                        items_data.append({
+                            'barang': pi.barang.id,
+                            'permintaan_item': pi.id,
+                            'qty': qty_serah,
+                            'satuan': it.get('satuan') or pi.satuan,
+                            'keterangan': it.get('keterangan') or pi.keterangan
+                        })
+                else:
+                    for pi in pi_map.values():
+                        target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
+                        remaining = max(Decimal('0'), target_qty - pi.qty_dikeluarkan)
+                        if remaining > Decimal('0'):
+                            items_data.append({
+                                'barang': pi.barang.id,
+                                'permintaan_item': pi.id,
+                                'qty': remaining,
+                                'satuan': pi.satuan,
+                                'keterangan': pi.keterangan
+                            })
+
+                if not items_data:
+                    return Response({
+                        'error': f'Seluruh barang pada permintaan {permintaan.nomor} sudah diserahkan penuh sebelumnya (tidak ada sisa barang).'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                pengeluaran = DistributionService.create_pengeluaran(
+                    ruang=permintaan.ruang,
+                    items_data=items_data,
+                    user=request.user,
+                    permintaan=permintaan,
+                    tanggal=tanggal,
+                    penerima_nama=penerima_nama,
+                    catatan=catatan or f"Penyerahan fisik realisasi Permintaan {permintaan.nomor}"
+                )
+                pengeluaran = DistributionService.approve_pengeluaran(pengeluaran, user=request.user)
+
+                permintaan.refresh_from_db()
+                serializer = self.get_serializer(permintaan)
+
+                return Response({
+                    'message': f'Barang berhasil diserahkan kepada {penerima_nama} (Bon OUT: {pengeluaran.nomor}). Stok gudang otomatis terpotong.',
+                    'permintaan': serializer.data,
+                    'pengeluaran_id': pengeluaran.id,
+                    'pengeluaran_nomor': pengeluaran.nomor
+                }, status=status.HTTP_200_OK)
+
         except ValidationError as e:
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:

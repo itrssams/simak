@@ -22,6 +22,7 @@ build/
 db.sqlite3
 *.sqlite3
 backend/backups/*.sql*
+backend/backup_mesin*.json
 
 # ==========================
 # Environment / Secrets

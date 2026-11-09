@@ -6,13 +6,16 @@ from django.db.models import Q, Count, Sum
 from decimal import Decimal
 from django.utils import timezone
 
-from .models import AsetKelompok, AsetKategori, AsetJenis, AsetRuangan, Aset, AsetRiwayat, AsetPerbaikan
+from .models import (
+    AsetKelompok, AsetKategori, AsetJenis, AsetRuangan,
+    Aset, AsetRiwayat, AsetPerbaikan, AsetPerbaikanLog
+)
 from .serializers import (
-    AsetPerbaikanSerializer,
+    AsetPerbaikanSerializer, AsetPerbaikanFinishSerializer, AsetPerbaikanLogSerializer,
     AsetKelompokSerializer, AsetKategoriSerializer, AsetJenisSerializer,
     AsetRuanganSerializer, AsetRiwayatSerializer,
     AsetListSerializer, AsetDetailSerializer, AsetInputSerializer,
-    AsetKelayakanUpdateSerializer, is_financial_viewer
+    AsetKelayakanUpdateSerializer, is_financial_viewer, is_aset_manager
 )
 from .services import hitung_penyusutan_aset, generate_jadwal_penyusutan, catat_riwayat_kelayakan, get_ai_asset_suggestions
 
@@ -361,16 +364,27 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
         user = self.request.user
         perbaikan = serializer.save(pelapor=user)
 
-        # Ubah status aset menjadi dalam_perbaikan
+        # Ubah status operasional aset menjadi dalam_perbaikan.
+        # Catatan: status_kelayakan fisik (Grade A-E) sengaja tidak diturunkan
+        # karena kelayakan fisik memerlukan penetapan/pengecekan terpisah.
         aset = perbaikan.aset
         aset.status_aset = 'dalam_perbaikan'
-        if perbaikan.tingkat_kerusakan == 'berat' and aset.status_kelayakan not in ('D', 'E'):
-            aset.status_kelayakan = 'E'
-        elif perbaikan.tingkat_kerusakan == 'sedang' and aset.status_kelayakan not in ('C', 'D', 'E'):
-            aset.status_kelayakan = 'D'
-        aset.save(update_fields=['status_aset', 'status_kelayakan', 'updated_at'])
+        aset.save(update_fields=['status_aset', 'updated_at'])
 
-        # Log riwayat
+        # Catat Log Riwayat Kronologis Perbaikan
+        AsetPerbaikanLog.objects.create(
+            perbaikan=perbaikan,
+            status_sebelum='',
+            status_sesudah=perbaikan.status_perbaikan,
+            tindakan=f'Laporan kerusakan dibuat: {perbaikan.rincian_kerusakan}',
+            teknisi='',
+            estimasi_biaya=0,
+            biaya_riil=0,
+            foto=perbaikan.foto_kerusakan,
+            dibuat_oleh=user,
+        )
+
+        # Log riwayat umum aset
         AsetRiwayat.objects.create(
             aset=aset,
             aksi='perbaikan',
@@ -385,23 +399,76 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
             dilakukan_oleh=user
         )
 
+    def update(self, request, *args, **kwargs):
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya pengguna dengan akses utama Manajemen Aset yang berhak mengisi dan memperbarui tindak lanjut perbaikan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya pengguna dengan akses utama Manajemen Aset yang berhak mengisi dan memperbarui tindak lanjut perbaikan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya pengguna dengan akses utama Manajemen Aset yang berhak menghapus tiket perbaikan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        instance = self.get_object()
+        aset = instance.aset
+        response = super().destroy(request, *args, **kwargs)
+        if not AsetPerbaikan.objects.filter(aset=aset, status_perbaikan__in=['belum_mulai', 'inspeksi', 'dalam_proses']).exists():
+            if aset.status_aset == 'dalam_perbaikan':
+                aset.status_aset = 'aktif'
+                aset.save(update_fields=['status_aset', 'updated_at'])
+        return response
+
     def perform_update(self, serializer):
         user = self.request.user
+        instance = self.get_object()
+        status_sebelum = instance.status_perbaikan
+
         perbaikan = serializer.save()
         aset = perbaikan.aset
 
-        # Sinkronisasi status aset saat update
+        # Sinkronisasi status operasional aset saat update
+        # Status kelayakan fisik tetap dipertahankan (penetapan kelayakan fisik dilakukan terpisah)
         if perbaikan.status_perbaikan == 'selesai':
             if perbaikan.kondisi_setelah_perbaikan == 'berfungsi_normal':
                 aset.status_aset = 'aktif'
-                if aset.status_kelayakan in ('D', 'E'):
-                    aset.status_kelayakan = 'B'
-                aset.save(update_fields=['status_aset', 'status_kelayakan', 'updated_at'])
+                aset.save(update_fields=['status_aset', 'updated_at'])
             elif perbaikan.kondisi_setelah_perbaikan == 'masih_bermasalah':
                 aset.status_aset = 'dalam_perbaikan'
                 aset.save(update_fields=['status_aset', 'updated_at'])
+        elif perbaikan.status_perbaikan in ('belum_mulai', 'inspeksi', 'dalam_proses'):
+            if aset.status_aset != 'dalam_perbaikan':
+                aset.status_aset = 'dalam_perbaikan'
+                aset.save(update_fields=['status_aset', 'updated_at'])
 
-        # Catat riwayat
+        # Catat Log Riwayat Kronologis Perbaikan
+        tindakan_text = perbaikan.hasil_inspeksi or perbaikan.tindak_lanjut or f'Pembaruan status tiket ke {perbaikan.get_status_perbaikan_display()}'
+        AsetPerbaikanLog.objects.create(
+            perbaikan=perbaikan,
+            status_sebelum=status_sebelum,
+            status_sesudah=perbaikan.status_perbaikan,
+            tindakan=tindakan_text,
+            teknisi=perbaikan.teknisi,
+            estimasi_biaya=perbaikan.estimasi_biaya,
+            biaya_riil=perbaikan.biaya_perbaikan,
+            kondisi_setelah_perbaikan=perbaikan.kondisi_setelah_perbaikan or '',
+            tindak_lanjut_berikutnya=perbaikan.tindak_lanjut_berikutnya or '',
+            foto=perbaikan.foto_setelah_perbaikan or perbaikan.foto_kerusakan,
+            dibuat_oleh=user,
+        )
+
+        # Catat riwayat umum aset
         kondisi_str = perbaikan.get_kondisi_setelah_perbaikan_display() or '-'
         catatan_text = f'Update tiket {perbaikan.nomor_tiket}: {perbaikan.get_status_perbaikan_display()} - Kondisi: {kondisi_str}.'
         if perbaikan.tindak_lanjut:
@@ -422,3 +489,93 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
             foto=perbaikan.foto_setelah_perbaikan or perbaikan.foto_kerusakan,
             dilakukan_oleh=user
         )
+
+    @action(detail=True, methods=['post'], url_path='finish')
+    def finish(self, request, pk=None):
+        """
+        Action penyelesaian perbaikan (Finish Pop-up):
+        - Kondisi setelah perbaikan (berfungsi normal / masih bermasalah)
+        - Update penetapan status kelayakan fisik aset (Grade A-E)
+        - Biaya perbaikan riil
+        - Tindak lanjut berikutnya (jika masih bermasalah)
+        - Foto bukti setelah perbaikan
+        """
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya pengguna dengan akses utama Manajemen Aset yang berhak menyelesaikan tiket perbaikan.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        perbaikan = self.get_object()
+        serializer = AsetPerbaikanFinishSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        kondisi = data['kondisi_setelah_perbaikan']
+        status_kelayakan_baru = data['status_kelayakan_baru']
+        biaya_riil = data['biaya_riil']
+        tindak_lanjut_berikutnya = data.get('tindak_lanjut_berikutnya', '')
+        catatan_penutupan = data.get('catatan_penutupan', '')
+        tanggal_selesai = data.get('tanggal_selesai') or timezone.now().date()
+        foto_setelah = request.FILES.get('foto_setelah_perbaikan')
+
+        status_sebelum = perbaikan.status_perbaikan
+        perbaikan.status_perbaikan = 'selesai'
+        perbaikan.kondisi_setelah_perbaikan = kondisi
+        perbaikan.biaya_perbaikan = biaya_riil
+        perbaikan.tindak_lanjut_berikutnya = tindak_lanjut_berikutnya
+        perbaikan.tanggal_selesai = tanggal_selesai
+        if foto_setelah:
+            perbaikan.foto_setelah_perbaikan = foto_setelah
+        if catatan_penutupan and not perbaikan.tindak_lanjut:
+            perbaikan.tindak_lanjut = catatan_penutupan
+        perbaikan.save()
+
+        # Update Master Aset (Kelayakan Fisik & Status Operasional)
+        aset = perbaikan.aset
+        kelayakan_lama = aset.status_kelayakan
+        aset.status_kelayakan = status_kelayakan_baru
+
+        if kondisi == 'berfungsi_normal':
+            aset.status_aset = 'aktif'
+        else:
+            aset.status_aset = 'dalam_perbaikan'
+        aset.save(update_fields=['status_kelayakan', 'status_aset', 'updated_at'])
+
+        # Catat Log Riwayat Kronologis Perbaikan
+        tindakan_log = f'Perbaikan selesai. Kondisi: {perbaikan.get_kondisi_setelah_perbaikan_display()}.'
+        if catatan_penutupan:
+            tindakan_log += f' Catatan: {catatan_penutupan}'
+        if tindak_lanjut_berikutnya:
+            tindakan_log += f' RTL: {tindak_lanjut_berikutnya}'
+
+        AsetPerbaikanLog.objects.create(
+            perbaikan=perbaikan,
+            status_sebelum=status_sebelum,
+            status_sesudah='selesai',
+            tindakan=tindakan_log,
+            teknisi=perbaikan.teknisi,
+            estimasi_biaya=perbaikan.estimasi_biaya,
+            biaya_riil=biaya_riil,
+            kondisi_setelah_perbaikan=kondisi,
+            tindak_lanjut_berikutnya=tindak_lanjut_berikutnya,
+            foto=perbaikan.foto_setelah_perbaikan,
+            dibuat_oleh=request.user,
+        )
+
+        # Catat Riwayat Aset (Perubahan Kelayakan & Selesai Servis)
+        AsetRiwayat.objects.create(
+            aset=aset,
+            aksi='perbaikan',
+            status_kelayakan_lama=kelayakan_lama,
+            status_kelayakan_baru=status_kelayakan_baru,
+            unit_lama=aset.unit.nama if aset.unit else '',
+            unit_baru=aset.unit.nama if aset.unit else '',
+            ruangan_lama=aset.lokasi_teks or (aset.ruangan.nama if aset.ruangan else ''),
+            ruangan_baru=aset.lokasi_teks or (aset.ruangan.nama if aset.ruangan else ''),
+            catatan=f'Tiket {perbaikan.nomor_tiket} diselesaikan (Biaya: Rp {biaya_riil:,.0f}). Kelayakan fisik diperbarui menjadi Grade {status_kelayakan_baru}.',
+            foto=perbaikan.foto_setelah_perbaikan,
+            dilakukan_oleh=request.user
+        )
+
+        return Response(AsetPerbaikanSerializer(perbaikan, context={'request': request}).data)

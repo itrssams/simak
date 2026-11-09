@@ -112,12 +112,16 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                         {/* Tanggal Pelaporan & Tanggal Kejadian (Side-by-Side dengan DateField) */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                             <div className="aset-form-group" style={{ marginBottom: 0 }}>
-                                <label className="aset-form-label">Tanggal Pelaporan</label>
-                                <DateField
-                                    value={tanggalLaporan}
-                                    onChange={val => setTanggalLaporan(val)}
-                                    placeholder="Pilih tanggal..."
-                                />
+                                <label className="aset-form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span>Tanggal Pelaporan</span>
+                                    <span style={{ fontSize: '10px', color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                        Hari Ini (Terkunci)
+                                    </span>
+                                </label>
+                                <div className="aset-readonly-box" style={{ height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>
+                                    <span style={{ fontWeight: 600 }}>{tanggalLaporan}</span>
+                                    <Calendar size={14} color="#94a3b8" />
+                                </div>
                             </div>
                             <div className="aset-form-group" style={{ marginBottom: 0 }}>
                                 <label className="aset-form-label">Tanggal Kerusakan Terjadi *</label>
@@ -134,25 +138,23 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                             <label className="aset-form-label">Tingkat Kerusakan *</label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '2px' }}>
                                 {[
-                                    { id: 'ringan', label: 'Ringan', icon: '🟡', desc: 'Fungsi sebagian', borderActive: '#eab308', bgActive: 'rgba(234, 179, 8, 0.15)' },
-                                    { id: 'sedang', label: 'Sedang', icon: '🟠', desc: 'Terganggu / butuh servis', borderActive: '#f97316', bgActive: 'rgba(249, 115, 22, 0.15)' },
-                                    { id: 'berat', label: 'Berat', icon: '🔴', desc: 'Mati total / tidak fungsi', borderActive: '#ef4444', bgActive: 'rgba(239, 68, 68, 0.15)' },
+                                    { id: 'ringan', label: 'Ringan', icon: '🟡', desc: 'Fungsi sebagian' },
+                                    { id: 'sedang', label: 'Sedang', icon: '🟠', desc: 'Terganggu / butuh servis' },
+                                    { id: 'berat', label: 'Berat', icon: '🔴', desc: 'Mati total / tidak fungsi' },
                                 ].map(item => {
                                     const isSelected = tingkatKerusakan === item.id;
                                     return (
                                         <div
                                             key={item.id}
                                             onClick={() => setTingkatKerusakan(item.id)}
-                                            className="aset-choice-card"
-                                            style={{
-                                                borderColor: isSelected ? item.borderActive : undefined,
-                                                background: isSelected ? item.bgActive : undefined,
-                                            }}
+                                            className={`aset-choice-card ${isSelected ? `selected active-${item.id}` : ''}`}
+                                            role="button"
+                                            tabIndex={0}
                                         >
-                                            <div style={{ fontSize: '12.5px', fontWeight: 600 }}>
+                                            <div style={{ fontSize: '12.5px', fontWeight: isSelected ? 700 : 600 }}>
                                                 {item.icon} {item.label}
                                             </div>
-                                            <div style={{ fontSize: '10.5px', opacity: 0.75, marginTop: '2px', lineHeight: 1.2 }}>
+                                            <div style={{ fontSize: '10.5px', opacity: isSelected ? 0.95 : 0.75, marginTop: '2px', lineHeight: 1.2 }}>
                                                 {item.desc}
                                             </div>
                                         </div>

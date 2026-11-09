@@ -252,6 +252,7 @@ class AsetPerbaikan(models.Model):
 
     STATUS_PERBAIKAN_CHOICES = [
         ('belum_mulai', 'Belum Mulai'),
+        ('inspeksi', 'Inspeksi / Penugasan Teknisi'),
         ('dalam_proses', 'Dalam Proses'),
         ('selesai', 'Selesai'),
     ]
@@ -271,13 +272,15 @@ class AsetPerbaikan(models.Model):
 
     status_perbaikan = models.CharField(max_length=25, choices=STATUS_PERBAIKAN_CHOICES, default='belum_mulai')
     tindak_lanjut = models.TextField(blank=True, verbose_name='Tindak Lanjut Penanganan')
+    hasil_inspeksi = models.TextField(blank=True, verbose_name='Hasil Inspeksi Teknisi')
     kondisi_setelah_perbaikan = models.CharField(max_length=25, choices=KONDISI_SETELAH_CHOICES, null=True, blank=True)
     tindak_lanjut_berikutnya = models.TextField(blank=True, verbose_name='Tindak Lanjut Berikutnya (Wajib jika Masih Bermasalah)')
 
     foto_kerusakan = models.ImageField(upload_to=foto_perbaikan_path, null=True, blank=True)
     foto_setelah_perbaikan = models.ImageField(upload_to=foto_perbaikan_path, null=True, blank=True)
 
-    biaya_perbaikan = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    estimasi_biaya = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name='Estimasi Biaya Perbaikan')
+    biaya_perbaikan = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name='Biaya Riil Perbaikan')
     teknisi = models.CharField(max_length=120, blank=True, verbose_name='Teknisi / Pihak Ketiga')
     pelapor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='laporan_perbaikan_aset')
     tanggal_selesai = models.DateField(null=True, blank=True)
@@ -300,3 +303,30 @@ class AsetPerbaikan(models.Model):
 
     def __str__(self):
         return f'{self.nomor_tiket} - {self.aset.kode_aset} ({self.get_status_perbaikan_display()})'
+
+
+class AsetPerbaikanLog(models.Model):
+    """
+    Log / Catatan Riwayat Kronologis Penanganan dan Tindak Lanjut Perbaikan.
+    """
+    perbaikan = models.ForeignKey(AsetPerbaikan, on_delete=models.CASCADE, related_name='log_list')
+    status_sebelum = models.CharField(max_length=25, blank=True)
+    status_sesudah = models.CharField(max_length=25)
+    tindakan = models.TextField(verbose_name='Aktivitas / Catatan Penanganan')
+    teknisi = models.CharField(max_length=120, blank=True)
+    estimasi_biaya = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    biaya_riil = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    kondisi_setelah_perbaikan = models.CharField(max_length=25, blank=True)
+    tindak_lanjut_berikutnya = models.TextField(blank=True)
+    foto = models.ImageField(upload_to=foto_perbaikan_path, null=True, blank=True)
+    dibuat_oleh = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'aset_perbaikan_log'
+        ordering = ['-created_at']
+        verbose_name = 'Log Riwayat Perbaikan'
+        verbose_name_plural = 'Log Riwayat Perbaikan'
+
+    def __str__(self):
+        return f'[{self.created_at.strftime("%Y-%m-%d %H:%M")}] {self.perbaikan.nomor_tiket} ({self.status_sesudah})'

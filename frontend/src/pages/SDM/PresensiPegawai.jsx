@@ -33,6 +33,7 @@ import {
   Moon,
   Sun,
   Tag,
+  Send,
   ArrowLeftRight,
   ShieldAlert,
   BarChart3
@@ -121,7 +122,9 @@ export default function PresensiPegawai() {
   const [pegawaiList, setPegawaiList] = useState([]);
   const [pegawaiLoading, setPegawaiLoading] = useState(false);
   const [pegawaiKategoriFilter, setPegawaiKategoriFilter] = useState('');
+  const [pegawaiTelegramFilter, setPegawaiTelegramFilter] = useState('');
   const [pegawaiSearchQuery, setPegawaiSearchQuery] = useState('');
+  const [testingTelegramId, setTestingTelegramId] = useState(null);
 
   // Master Shift State
   const [shiftList, setShiftList] = useState([]);
@@ -165,7 +168,7 @@ export default function PresensiPegawai() {
   // Reset halaman ke 1 saat filter berubah
   useEffect(() => { setRekapPage(1); }, [selectedDate, statusFilter, searchQuery]);
   useEffect(() => { setLogPage(1); }, [selectedDate, logPeriodFilter, logMachineFilter, logSearchQuery]);
-  useEffect(() => { setPegawaiPage(1); }, [pegawaiKategoriFilter, pegawaiSearchQuery]);
+  useEffect(() => { setPegawaiPage(1); }, [pegawaiKategoriFilter, pegawaiTelegramFilter, pegawaiSearchQuery]);
   useEffect(() => { setShiftPage(1); }, [shiftKelompokFilter, shiftSearchQuery]);
   useEffect(() => { setMappingPage(1); }, [mappingSearch]);
 
@@ -216,9 +219,12 @@ export default function PresensiPegawai() {
     }
   };
 
+  // Live Realtime Auto-Update States
+  const [isLiveActive, setIsLiveActive] = useState(true);
+
   // Fetch Presensi List (SIMAK Rekapitulasi)
-  const fetchPresensi = useCallback(async () => {
-    setLoading(true);
+  const fetchPresensi = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const params = { tanggal: selectedDate };
       if (unitFilter) params.unit_id = unitFilter;
@@ -229,15 +235,15 @@ export default function PresensiPegawai() {
       setPresensiList(res.data?.results || res.data || []);
     } catch (err) {
       console.error('Gagal mengambil data presensi:', err);
-      showToast('Gagal memuat data presensi harian.', 'error');
+      if (!isBackground) showToast('Gagal memuat data presensi harian.', 'error');
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [selectedDate, unitFilter, statusFilter, searchQuery, showToast]);
 
   // Fetch Realtime Machine Logs
-  const fetchRealtimeLogs = useCallback(async () => {
-    setRealtimeLogsLoading(true);
+  const fetchRealtimeLogs = useCallback(async (isBackground = false) => {
+    if (!isBackground) setRealtimeLogsLoading(true);
     try {
       const params = {};
       if (logPeriodFilter === 'hari_ini') {
@@ -259,7 +265,7 @@ export default function PresensiPegawai() {
     } catch (err) {
       console.error('Gagal mengambil log tap real-time:', err);
     } finally {
-      setRealtimeLogsLoading(false);
+      if (!isBackground) setRealtimeLogsLoading(false);
     }
   }, [selectedDate, logPeriodFilter, logMachineFilter, logSearchQuery]);
 
@@ -298,6 +304,30 @@ export default function PresensiPegawai() {
     fetchPegawaiList();
     fetchShiftList();
   }, [fetchMesin, fetchStats, fetchPresensi, fetchRealtimeLogs, fetchPegawaiList, fetchShiftList]);
+
+  // Live Auto-Update Polling (Setiap 10 Detik)
+  useEffect(() => {
+    if (!isLiveActive) return;
+
+    // Hanya auto-refresh jika melihat data hari ini (atau default tanggal kosong)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isToday = !selectedDate || selectedDate === todayStr;
+    if (!isToday) return;
+
+    const intervalId = setInterval(() => {
+      // Istirahat jika tab browser sedang di-minimize/background
+      if (document.hidden) return;
+
+      fetchStats();
+      fetchPresensi(true); // silent background update tanpa spinner
+      if (activeViewTab === 'raw_logs') {
+        fetchRealtimeLogs(true);
+      }
+      fetchMesin();
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [isLiveActive, selectedDate, activeViewTab, fetchStats, fetchPresensi, fetchRealtimeLogs, fetchMesin]);
 
   // Handle Sync Now (Sync all active machines)
   const handleSyncNow = async () => {
@@ -442,6 +472,11 @@ export default function PresensiPegawai() {
     if (pegawaiKategoriFilter) {
       list = list.filter(p => p.kategori === pegawaiKategoriFilter);
     }
+    if (pegawaiTelegramFilter === 'terhubung') {
+      list = list.filter(p => Boolean(p.telegram_chat_id));
+    } else if (pegawaiTelegramFilter === 'belum') {
+      list = list.filter(p => !p.telegram_chat_id);
+    }
     if (pegawaiSearchQuery) {
       const q = pegawaiSearchQuery.toLowerCase();
       list = list.filter(p =>
@@ -449,11 +484,42 @@ export default function PresensiPegawai() {
         (p.pin && p.pin.toLowerCase().includes(q)) ||
         (p.nik && p.nik.toLowerCase().includes(q)) ||
         (p.unit_kerja && p.unit_kerja.toLowerCase().includes(q)) ||
-        (p.jabatan && p.jabatan.toLowerCase().includes(q))
+        (p.jabatan && p.jabatan.toLowerCase().includes(q)) ||
+        (p.telegram_username && p.telegram_username.toLowerCase().includes(q))
       );
     }
     return list;
-  }, [pegawaiList, pegawaiKategoriFilter, pegawaiSearchQuery]);
+  }, [pegawaiList, pegawaiKategoriFilter, pegawaiTelegramFilter, pegawaiSearchQuery]);
+
+  // Handler Telegram Test & Reset SDM
+  const handleTestTelegram = async (pegawaiId, nama) => {
+    setTestingTelegramId(pegawaiId);
+    try {
+      const res = await api.post(`/sdm/pegawai/${pegawaiId}/test-telegram/`);
+      if (res.data?.success) {
+        showToast(`Pesan uji coba berhasil dikirim ke Telegram ${nama}!`, 'success');
+      } else {
+        showToast(res.data?.message || 'Gagal mengirim pesan uji coba.', 'warning');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.error || err.response?.data?.message || 'Gagal mengirim pesan uji coba.', 'error');
+    } finally {
+      setTestingTelegramId(null);
+    }
+  };
+
+  const handleResetTelegram = async (pegawaiId, nama) => {
+    if (!window.confirm(`Apakah Anda yakin ingin memutuskan tautan Telegram untuk pegawai '${nama}'?\n\nPegawai dapat menautkan kembali akunnya melalui perintah /hubungkan di bot.`)) {
+      return;
+    }
+    try {
+      const res = await api.post(`/sdm/pegawai/${pegawaiId}/reset-telegram/`);
+      showToast(res.data?.message || `Tautan Telegram ${nama} berhasil diputuskan.`, 'success');
+      fetchPegawaiList();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Gagal memutuskan tautan Telegram.', 'error');
+    }
+  };
 
   // Filtered Shifts RS
   const filteredShifts = useMemo(() => {
@@ -589,6 +655,15 @@ export default function PresensiPegawai() {
             </div>
           </div>
           <div className="sdm-hero-actions">
+            <button
+              type="button"
+              className={`live-sync-pill ${isLiveActive ? 'active' : 'paused'}`}
+              onClick={() => setIsLiveActive(!isLiveActive)}
+              title={isLiveActive ? 'Live Realtime Aktif (Pembaruan tiap 10s). Klik untuk jeda.' : 'Live Realtime Dijeda. Klik untuk mengaktifkan kembali.'}
+            >
+              <span className="live-pulse-dot" />
+              <span>{isLiveActive ? 'Live Realtime Aktif' : 'Live Dijeda'}</span>
+            </button>
             <button
               type="button"
               className="btn-secondary-sdm"
@@ -854,6 +929,17 @@ export default function PresensiPegawai() {
                   <option value="CS">Cleaning Service</option>
                   <option value="SECURITY_DRIVER">Security &amp; Driver</option>
                   <option value="MITRA">Mitra Kerohanian</option>
+                </select>
+              </div>
+              <div className="filter-input">
+                <Send size={15} color="#64748b" />
+                <select
+                  value={pegawaiTelegramFilter}
+                  onChange={(e) => setPegawaiTelegramFilter(e.target.value)}
+                >
+                  <option value="">Semua Status Bot ({pegawaiList.length})</option>
+                  <option value="terhubung">🟢 Terhubung Bot ({pegawaiList.filter(p => Boolean(p.telegram_chat_id)).length})</option>
+                  <option value="belum">⚪ Belum Terhubung ({pegawaiList.filter(p => !p.telegram_chat_id).length})</option>
                 </select>
               </div>
             </div>
@@ -1253,6 +1339,7 @@ export default function PresensiPegawai() {
                     <th>Jabatan &amp; Unit Kerja</th>
                     <th>Kategori Shift</th>
                     <th>Status Akun SIMAK</th>
+                    <th>Status Bot Telegram</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1315,6 +1402,55 @@ export default function PresensiPegawai() {
                           ) : (
                             <span style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic' }}>
                               Profil RS (Tanpa Login)
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {p.telegram_chat_id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span
+                                className="badge-status-presensi hadir"
+                                style={{
+                                  fontSize: 11.5,
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  color: '#059669',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 8px',
+                                  borderRadius: 6
+                                }}
+                                title={`Chat ID: ${p.telegram_chat_id}`}
+                              >
+                                <Send size={11} />
+                                <span>{p.telegram_username || `ID: ${p.telegram_chat_id}`}</span>
+                              </span>
+                              <button
+                                type="button"
+                                className="btn-secondary-sdm"
+                                title="Tes kirim notifikasi ke Telegram pegawai"
+                                onClick={() => handleTestTelegram(p.id, p.nama)}
+                                disabled={testingTelegramId === p.id}
+                                style={{ padding: '3px 7px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                              >
+                                {testingTelegramId === p.id ? <RefreshCw size={11} className="spin" /> : <Send size={11} color="#0284c7" />}
+                                <span>Tes</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary-sdm"
+                                title="Putuskan / Reset tautan Telegram pegawai ini"
+                                onClick={() => handleResetTelegram(p.id, p.nama)}
+                                style={{ padding: '3px 7px', fontSize: 11, color: '#e11d48', borderColor: '#fecdd3', background: '#fff1f2' }}
+                              >
+                                <Unlink size={11} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <AlertCircle size={12} color="#cbd5e1" />
+                              <span>Belum Terhubung</span>
                             </span>
                           )}
                         </td>

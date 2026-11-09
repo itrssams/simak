@@ -474,8 +474,8 @@ export default function ManajemenUser() {
                             onToggle={(u) => { setError(''); setModalKonfirm(u); }}
                             onDelete={(u) => { setError(''); setModalHapus(u); }}
                         />
-                        <div className="mu-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderTop: '1px solid #eef2f6', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 13, color: '#667085' }}>Hal {userPage} dari {pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} - {search || filterStatus ? filteredUsers.length : userTotal} user</span>
+                        <div className="mu-pagination">
+                            <span className="mu-pagination-info">Hal {userPage} dari {pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} - {search || filterStatus ? filteredUsers.length : userTotal} user</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <RowSizeSelect className="mu-select" value={userPageSize} onChange={(size) => { setUserPageSize(size); setUserPage(1); }} />
                                 <button className="mu-btn soft" disabled={userPage === 1} onClick={() => setUserPage((p) => Math.max(1, p - 1))}>{'<'}</button>
@@ -487,24 +487,14 @@ export default function ManajemenUser() {
 
                 {activeTab === 'units' && (
                     <>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '12px 18px',
-                            background: '#f8fafc',
-                            borderBottom: '1px solid #e2e8f0',
-                            flexWrap: 'wrap',
-                            gap: 12
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#475569' }}>
-                                <GitFork size={18} style={{ color: '#0d9488' }} />
+                        <div className="mu-unit-banner">
+                            <div className="mu-unit-banner-text">
+                                <GitFork size={18} className="mu-unit-banner-icon" />
                                 <span>Unit & hierarki ini terhubung langsung dengan <strong>Bagan Struktur Organisasi</strong> dan alur approval SDM.</span>
                             </div>
                             <button
                                 type="button"
-                                className="mu-btn soft"
-                                style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                                className="mu-btn soft mu-unit-banner-btn"
                                 onClick={() => navigate('/sdm/struktur')}
                             >
                                 <GitFork size={14} /> Buka Bagan Pohon Organisasi
@@ -739,7 +729,8 @@ function UnitsTable({ loading, units, stats, onEdit, onDelete }) {
             <table className="mu-table">
                 <thead>
                     <tr>
-                        <th>Nama Unit & Tingkat</th>
+                        <th>Nama Unit</th>
+                        <th>Tingkat / Kategori</th>
                         <th>Unit Induk (Parent)</th>
                         <th>Kepala Unit / Pimpinan</th>
                         <th>User Aktif</th>
@@ -754,43 +745,40 @@ function UnitsTable({ loading, units, stats, onEdit, onDelete }) {
                                 <div className="mu-user">
                                     <div className="mu-avatar"><Building2 size={16} /></div>
                                     <div>
-                                        <div className="mu-user-name" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                        <div className="mu-user-name">
                                             <span>{u.nama}</span>
-                                            {u.kategori && (
-                                                <span style={{
-                                                    fontSize: 10,
-                                                    padding: '1px 6px',
-                                                    borderRadius: 4,
-                                                    fontWeight: 600,
-                                                    background: u.kategori === 'direktorat' ? '#ede9fe' : u.kategori === 'bidang' ? '#e0e7ff' : u.kategori === 'seksi' ? '#e0f2fe' : '#f1f5f9',
-                                                    color: u.kategori === 'direktorat' ? '#7c3aed' : u.kategori === 'bidang' ? '#4f46e5' : u.kategori === 'seksi' ? '#0284c7' : '#475569'
-                                                }}>
-                                                    {u.kategori_label || u.kategori}
-                                                </span>
-                                            )}
                                         </div>
                                         <div className="mu-user-sub">Bagian dari {stats.units} unit terdaftar</div>
                                     </div>
                                 </div>
                             </td>
                             <td>
+                                {u.kategori ? (
+                                    <span className={`mu-unit-cat-badge cat-${u.kategori}`}>
+                                        {u.kategori_label || u.kategori}
+                                    </span>
+                                ) : (
+                                    <span className="mu-unit-muted">-</span>
+                                )}
+                            </td>
+                            <td>
                                 {u.parent_nama ? (
-                                    <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
+                                    <span className="mu-unit-parent">
                                         {u.parent_nama}
                                     </span>
                                 ) : (
-                                    <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                                    <span className="mu-unit-muted">
                                         (Pucuk Pimpinan)
                                     </span>
                                 )}
                             </td>
                             <td>
                                 {u.kepala_unit_nama ? (
-                                    <span style={{ fontSize: 13, color: '#0f766e', fontWeight: 600 }}>
+                                    <span className="mu-unit-leader">
                                         👤 {u.kepala_unit_nama}
                                     </span>
                                 ) : (
-                                    <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                                    <span className="mu-unit-muted">
                                         Belum ditentukan
                                     </span>
                                 )}
@@ -1265,7 +1253,7 @@ function ConfirmModal({ title, body, note, error, saving, confirmText, danger = 
                 <ModalHead title={title} subtitle="" onClose={onClose} />
                 <div className="mu-modal-body">
                     {note && <div className="mu-note">{note}</div>}
-                    <p style={{ color: '#475467', fontSize: 14, lineHeight: 1.6, margin: '0 0 14px' }}>{body}</p>
+                    <p className="mu-confirm-body">{body}</p>
                     {error && <Alert type="err" message={error} />}
                 </div>
                 <div className="mu-modal-foot">

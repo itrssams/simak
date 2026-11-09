@@ -99,7 +99,7 @@
 .dr-filter-bar { display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; align-items:center; background:#fff; }
 .dr-filter-search { position:relative; flex:1 1 260px; min-width:220px; }
 .dr-filter-search svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none; }
-.dr-filter-search .dr-input { padding-left:40px; }
+.dr-filter-search .dr-input { padding-left: 40px !important; }
 .dr-filter-select { flex:0 0 240px; max-width:100%; }
 .dr-date-range { display:flex; align-items:center; gap:7px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0 10px; min-height:40px; }
 .dr-date-range-label { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#64748b; font-weight:700; white-space:nowrap; }

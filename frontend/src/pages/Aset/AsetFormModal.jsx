@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Save, Package, Lock, Image as ImageIcon, Camera, Trash2 } from 'lucide-react';
+import { X, Plus, Save, Package, Lock, Image as ImageIcon, Camera, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import DateField from '../../components/DateField';
+import SearchableSelect from '../../components/SearchableSelect';
 import useBodyScrollLock from './useBodyScrollLock';
 import './Aset.css';
 import resolveMediaUrl from '../../utils/resolveMediaUrl';
@@ -109,6 +110,21 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     const fotoTerkiniInputRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiSuggestions, setAiSuggestions] = useState([]);
+    const [showAiPopover, setShowAiPopover] = useState(false);
+    const aiPopoverRef = useRef(null);
+
+    // Tutup popover rekomendasi AI saat klik di luar
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (aiPopoverRef.current && !aiPopoverRef.current.contains(e.target)) {
+                setShowAiPopover(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -168,6 +184,8 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             }
             setFotoAwalFile(null);
             setFotoTerkiniFile(null);
+            setShowAiPopover(false);
+            setAiSuggestions([]);
         }
     }, [isOpen, initialData]);
 
@@ -189,8 +207,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     };
 
     // Saat jenis aset dipilih, OTOMATIS menentukan Kelas Aset & Masa Manfaat
-    const handleJenisChange = (e) => {
-        const val = e.target.value;
+    const handleJenisSelect = (val) => {
         const jObj = jenisList.find(j => String(j.id) === String(val));
         const isMedis = jObj?.kategori_kode === 'AM' ||
             jObj?.kategori_nama?.toLowerCase().includes('medis') ||
@@ -220,8 +237,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
         setFormData(prev => ({ ...prev, harga_perolehan: raw }));
     };
 
-    const handleUnitChange = (e) => {
-        const val = e.target.value;
+    const handleUnitSelect = (val) => {
         setFormData(prev => ({
             ...prev,
             unit: val,
@@ -229,14 +245,54 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
         }));
     };
 
-    const handleRuanganChange = (e) => {
-        const val = e.target.value;
+    const handleRuanganSelect = (val) => {
         const rObj = ruanganList.find(r => String(r.id) === String(val));
         setFormData(prev => ({
             ...prev,
             ruangan: val,
-            lokasi_teks: rObj ? rObj.nama : prev.lokasi_teks,
+            lokasi_teks: prev.lokasi_teks || (rObj ? rObj.nama : ''),
         }));
+    };
+
+    // Hit API Bantuan AI Rekomendasi Alkes & Jenis Aset
+    const handleTriggerAi = async () => {
+        const query = (formData.deskripsi || '').trim();
+        if (query.length < 2) {
+            toast.error('Ketik nama barang / deskripsi (minimal 2 karakter) terlebih dahulu untuk meminta bantuan AI.');
+            return;
+        }
+
+        setAiLoading(true);
+        try {
+            const res = await api.get('/aset/jenis/suggest/', { params: { q: query } });
+            const results = res.data?.results || [];
+            if (results.length === 0) {
+                toast.info('Tidak ada rekomendasi alkes/aset yang cocok untuk nama tersebut.');
+                setShowAiPopover(false);
+            } else {
+                setAiSuggestions(results);
+                setShowAiPopover(true);
+            }
+        } catch (err) {
+            toast.error('Gagal mengambil rekomendasi AI.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const handleSelectAiSuggestion = (item) => {
+        const matched = jenisList.find(j =>
+            (item.kode && j.kode.toLowerCase() === item.kode.toLowerCase()) ||
+            (item.nama && j.nama.toLowerCase().includes(item.nama.toLowerCase()))
+        );
+
+        if (matched) {
+            handleJenisSelect(matched.id);
+            toast.success(`Jenis barang diterapkan: ${matched.nama} [${matched.kode}]`);
+        } else {
+            toast.info(`Rekomendasi alkes: ${item.nama} [${item.kode || '-'}]`);
+        }
+        setShowAiPopover(false);
     };
 
     const handleFotoAwalChange = (e) => {
@@ -271,6 +327,50 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Validasi Mandatori Seluruh Kolom Pendaftaran Aset Baru / Edit
+        if (!formData.jenis) {
+            toast.error('Jenis Barang / Klasifikasi wajib dipilih.');
+            return;
+        }
+        if (!formData.deskripsi.trim()) {
+            toast.error('Deskripsi / Nama Barang wajib diisi.');
+            return;
+        }
+        if (!formData.merk.trim()) {
+            toast.error('Merek (Merk) wajib diisi.');
+            return;
+        }
+        if (!formData.spesifikasi.trim()) {
+            toast.error('Spesifikasi / Kapasitas wajib diisi.');
+            return;
+        }
+        if (!formData.unit) {
+            toast.error('Unit Penanggung Jawab wajib dipilih.');
+            return;
+        }
+        if (!formData.ruangan) {
+            toast.error('Ruangan Master wajib dipilih.');
+            return;
+        }
+        if (!formData.lokasi_teks.trim()) {
+            toast.error('Lokasi Akurat / Keterangan Ruang wajib diisi.');
+            return;
+        }
+        if (!formData.bulan_perolehan) {
+            toast.error('Tanggal Perolehan wajib diisi.');
+            return;
+        }
+        const hargaNum = Number(formData.harga_perolehan);
+        if (!formData.harga_perolehan || isNaN(hargaNum) || hargaNum <= 0) {
+            toast.error('Harga Perolehan wajib diisi dan harus lebih dari Rp 0.');
+            return;
+        }
+        if (!isEdit && !fotoAwalFile) {
+            toast.error('Foto Kondisi Awal (Saat Registrasi) wajib diunggah saat pendaftaran aset baru.');
+            return;
+        }
+
         setLoading(true);
         try {
             const data = new FormData();
@@ -319,7 +419,14 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             if (onSuccess) onSuccess();
             onClose();
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Gagal menyimpan data aset.');
+            const dataErr = err.response?.data;
+            if (dataErr && typeof dataErr === 'object') {
+                const firstKey = Object.keys(dataErr)[0];
+                const msg = Array.isArray(dataErr[firstKey]) ? dataErr[firstKey][0] : dataErr[firstKey];
+                toast.error(typeof msg === 'string' ? msg : 'Gagal menyimpan data aset.');
+            } else {
+                toast.error('Gagal menyimpan data aset.');
+            }
         } finally {
             setLoading(false);
         }
@@ -330,6 +437,31 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     const filteredRuangan = formData.unit
         ? ruanganList.filter(r => String(r.unit) === String(formData.unit))
         : ruanganList;
+
+    // Options untuk SearchableSelect
+    const jenisOptions = useMemo(() => {
+        return jenisList.map(j => ({
+            value: j.id,
+            label: `${j.nama} [${j.kode}]`,
+            subtext: `${j.kategori_nama || j.kategori_kode || ''} • Kelas: ${j.kelompok_nama || '-'}`,
+        }));
+    }, [jenisList]);
+
+    const unitOptions = useMemo(() => {
+        return unitList.map(u => ({
+            value: u.id,
+            label: u.nama,
+            subtext: u.kode ? `Kode: ${u.kode}` : 'Unit RS',
+        }));
+    }, [unitList]);
+
+    const ruanganOptions = useMemo(() => {
+        return filteredRuangan.map(r => ({
+            value: r.id,
+            label: r.nama,
+            subtext: r.lantai_gedung ? `Lantai / Gedung: ${r.lantai_gedung}` : 'Ruangan Unit',
+        }));
+    }, [filteredRuangan]);
 
     // Temukan objek kelas aset terpilih untuk display read-only
     const selectedJenis = jenisList.find(j => String(j.id) === String(formData.jenis));
@@ -353,19 +485,14 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         <div className="aset-form-grid-2">
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Jenis Barang / Klasifikasi *</label>
-                                <select
-                                    className="aset-form-select"
+                                <SearchableSelect
+                                    options={jenisOptions}
                                     value={formData.jenis}
-                                    onChange={handleJenisChange}
+                                    onChange={handleJenisSelect}
+                                    placeholder="-- Cari / Pilih Jenis Barang --"
+                                    searchPlaceholder="Ketik nama alkes atau kode..."
                                     required
-                                >
-                                    <option value="">-- Pilih Jenis Barang --</option>
-                                    {jenisList.map(j => (
-                                        <option key={j.id} value={j.id}>
-                                            {j.nama} [{j.kode}] - {j.kategori_nama || j.kategori_kode}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
                             <div className="aset-form-group">
                                 <label className="aset-form-label">
@@ -383,35 +510,98 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
                         {/* Baris 2: Deskripsi, Merek, Spesifikasi */}
                         <div className="aset-form-grid-3">
-                            <div className="aset-form-group">
-                                <label className="aset-form-label">Deskripsi / Nama Barang *</label>
-                                <input
-                                    type="text"
-                                    className="aset-form-input"
-                                    placeholder="Contoh: AC Daikin / Tempat Tidur Pasien"
-                                    value={formData.deskripsi}
-                                    onChange={e => setFormData({ ...formData, deskripsi: e.target.value })}
-                                    required
-                                />
+                            <div className="aset-form-group" style={{ position: 'relative' }} ref={aiPopoverRef}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                    <label className="aset-form-label" style={{ margin: 0 }}>Deskripsi / Nama Barang *</label>
+                                    <button
+                                        type="button"
+                                        onClick={handleTriggerAi}
+                                        disabled={aiLoading}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%)',
+                                            border: '1px solid #8b5cf6',
+                                            color: '#c084fc',
+                                            cursor: 'pointer',
+                                        }}
+                                        title="Hit API AI Rekomendasi Jenis & Kelompok Aset"
+                                    >
+                                        {aiLoading ? <Loader2 size={11} className="aset-spin" /> : <Sparkles size={11} />}
+                                        <span>Bantuan AI</span>
+                                    </button>
+                                </div>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        className="aset-form-input"
+                                        placeholder="Contoh: AC Daikin / Tempat Tidur Pasien / USG"
+                                        value={formData.deskripsi}
+                                        onChange={e => setFormData({ ...formData, deskripsi: e.target.value })}
+                                        required
+                                    />
+                                    {showAiPopover && aiSuggestions.length > 0 && (
+                                        <div className="aset-autocomplete-dropdown" style={{ zIndex: 9999 }}>
+                                            <div className="aset-autocomplete-header">
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                    <Sparkles size={12} color="#a855f7" /> Rekomendasi Cerdas AI
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAiPopover(false)}
+                                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+                                                >
+                                                    <X size={13} />
+                                                </button>
+                                            </div>
+                                            {aiSuggestions.map((s, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="aset-autocomplete-item"
+                                                    onClick={() => handleSelectAiSuggestion(s)}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span style={{ fontWeight: 600 }}>{s.nama}</span>
+                                                        <span style={{ fontSize: '10.5px', color: '#6366f1', fontFamily: 'monospace' }}>
+                                                            [{s.kode}] &bull; {s.kategori_kode || ''}
+                                                        </span>
+                                                    </div>
+                                                    {s.penjelasan && (
+                                                        <div style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '2px' }}>
+                                                            {s.penjelasan}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Merek (Merk)</label>
+                                <label className="aset-form-label">Merek (Merk) *</label>
                                 <input
                                     type="text"
                                     className="aset-form-input"
                                     placeholder="Contoh: Sharp / Daikin / Philips / Mindray"
                                     value={formData.merk}
                                     onChange={e => setFormData({ ...formData, merk: e.target.value })}
+                                    required
                                 />
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Spesifikasi / Kapasitas</label>
+                                <label className="aset-form-label">Spesifikasi / Kapasitas *</label>
                                 <input
                                     type="text"
                                     className="aset-form-input"
                                     placeholder="Contoh: 2 PK / 32 inch / Electric 3 Crank"
                                     value={formData.spesifikasi}
                                     onChange={e => setFormData({ ...formData, spesifikasi: e.target.value })}
+                                    required
                                 />
                             </div>
                         </div>
@@ -419,7 +609,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 2.5: Nomor Seri, Nomor Registrasi & Toggle Kalibrasi */}
                         <div className="aset-form-section aset-form-grid-3" style={{ padding: '12px', margin: '0 0 14px' }}>
                             <div className="aset-form-group" style={{ margin: 0 }}>
-                                <label className="aset-form-label">Nomor Seri / S/N</label>
+                                <label className="aset-form-label">Nomor Seri / S/N <span style={{ fontSize: '11px', opacity: 0.75 }}>(Opsional)</span></label>
                                 <input
                                     type="text"
                                     className="aset-form-input"
@@ -460,39 +650,36 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         <div className="aset-form-grid-3">
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Unit Penanggung Jawab *</label>
-                                <select
-                                    className="aset-form-select"
+                                <SearchableSelect
+                                    options={unitOptions}
                                     value={formData.unit}
-                                    onChange={handleUnitChange}
+                                    onChange={handleUnitSelect}
+                                    placeholder="-- Pilih / Cari Unit --"
+                                    searchPlaceholder="Ketik nama unit..."
                                     required
-                                >
-                                    <option value="">-- Pilih Unit --</option>
-                                    {unitList.map(u => (
-                                        <option key={u.id} value={u.id}>{u.nama}</option>
-                                    ))}
-                                </select>
+                                />
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Ruangan Master</label>
-                                <select
-                                    className="aset-form-select"
+                                <label className="aset-form-label">Ruangan Master *</label>
+                                <SearchableSelect
+                                    options={ruanganOptions}
                                     value={formData.ruangan}
-                                    onChange={handleRuanganChange}
-                                >
-                                    <option value="">-- Pilih Ruangan --</option>
-                                    {filteredRuangan.map(r => (
-                                        <option key={r.id} value={r.id}>{r.nama}</option>
-                                    ))}
-                                </select>
+                                    onChange={handleRuanganSelect}
+                                    placeholder="-- Pilih / Cari Ruangan --"
+                                    searchPlaceholder="Ketik nama ruangan..."
+                                    required
+                                    disabled={!formData.unit}
+                                />
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Lokasi Akurat / Keterangan Ruang</label>
+                                <label className="aset-form-label">Lokasi Akurat / Keterangan Ruang *</label>
                                 <input
                                     type="text"
                                     className="aset-form-input"
                                     placeholder="Contoh: Ruang VIP 1 / Nurse Station"
                                     value={formData.lokasi_teks}
                                     onChange={e => setFormData({ ...formData, lokasi_teks: e.target.value })}
+                                    required
                                 />
                             </div>
                         </div>
@@ -500,11 +687,12 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 4: Kelayakan, Status Aset, Kepemilikan */}
                         <div className="aset-form-grid-3">
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Tingkat Kelayakan</label>
+                                <label className="aset-form-label">Tingkat Kelayakan *</label>
                                 <select
                                     className="aset-form-select"
                                     value={formData.status_kelayakan}
                                     onChange={e => setFormData({ ...formData, status_kelayakan: e.target.value })}
+                                    required
                                 >
                                     <option value="A">Sangat Layak (A)</option>
                                     <option value="B">Layak (B)</option>
@@ -514,11 +702,12 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                 </select>
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Status Operasional</label>
+                                <label className="aset-form-label">Status Operasional *</label>
                                 <select
                                     className="aset-form-select"
                                     value={formData.status_aset}
                                     onChange={e => setFormData({ ...formData, status_aset: e.target.value })}
+                                    required
                                 >
                                     <option value="aktif">Aktif</option>
                                     <option value="dalam_perbaikan">Dalam Perbaikan</option>
@@ -527,11 +716,12 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                 </select>
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Status Kepemilikan</label>
+                                <label className="aset-form-label">Status Kepemilikan *</label>
                                 <select
                                     className="aset-form-select"
                                     value={formData.status_kepemilikan}
                                     onChange={e => setFormData({ ...formData, status_kepemilikan: e.target.value })}
+                                    required
                                 >
                                     <option value="milik_sendiri">Milik Sendiri</option>
                                     <option value="sewa">Sewa</option>
@@ -553,7 +743,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
                             <div style={{ display: 'grid', gridTemplateColumns: '175px 1.1fr 1.6fr', gap: '12px' }}>
                                 <div className="aset-form-group" style={{ margin: 0 }}>
-                                    <label className="aset-form-label">Tanggal Perolehan</label>
+                                    <label className="aset-form-label">Tanggal Perolehan *</label>
                                     <DateField
                                         value={formData.bulan_perolehan}
                                         onChange={val => setFormData({ ...formData, bulan_perolehan: val })}
@@ -561,7 +751,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                     />
                                 </div>
                                 <div className="aset-form-group" style={{ margin: 0 }}>
-                                    <label className="aset-form-label">Harga Perolehan</label>
+                                    <label className="aset-form-label">Harga Perolehan *</label>
                                     <input
                                         type="text"
                                         className="aset-form-input"
@@ -569,6 +759,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                         placeholder="Rp 0"
                                         value={hargaDisplay}
                                         onChange={handleHargaChange}
+                                        required
                                     />
                                 </div>
                                 <div className="aset-form-group" style={{ margin: 0 }}>

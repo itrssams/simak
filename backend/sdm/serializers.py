@@ -192,7 +192,8 @@ class PegawaiSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_username', 'nama', 'nik', 'pin',
             'jabatan', 'unit_kerja', 'kategori', 'kategori_label', 'kelompok_shift',
             'status_kepegawaian', 'status_kepegawaian_label',
-            'no_telepon', 'is_active', 'created_at', 'updated_at'
+            'no_telepon', 'telegram_chat_id', 'telegram_username', 'telegram_notif_aktif',
+            'is_active', 'created_at', 'updated_at'
         ]
 
     def get_kelompok_shift(self, obj):

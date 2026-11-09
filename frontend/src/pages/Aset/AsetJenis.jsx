@@ -160,39 +160,51 @@ export default function AsetJenis() {
         return filteredList.slice(start, start + pageSize);
     }, [filteredList, page, pageSize]);
 
-    // Handle input nama jenis aset dengan auto-suggestion (Hybrid: Live API + Local Fallback)
+    // Handle input nama jenis aset (tanpa auto-hit API saat mengetik)
     const handleNamaChange = (val) => {
         setModalData(prev => ({ ...prev, nama: val }));
-
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
-
-        const trimmed = val.trim();
-        if (trimmed.length >= 2) {
-            setLoadingSuggest(true);
-            debounceTimerRef.current = setTimeout(async () => {
-                try {
-                    const res = await api.get('/aset/jenis/suggest/', { params: { q: trimmed } });
-                    const results = res.data?.results || [];
-                    setSuggestions(results);
-                    setSuggestionSource(res.data?.source || 'local');
-                    setShowSuggestions(results.length > 0);
-                } catch (err) {
-                    // Fallback to local dictionary
-                    const matches = STANDARD_HOSPITAL_EQUIPMENT.filter(eq =>
-                        eq.nama.toLowerCase().includes(trimmed.toLowerCase())
-                    );
-                    setSuggestions(matches);
-                    setSuggestionSource('local_dictionary');
-                    setShowSuggestions(matches.length > 0);
-                } finally {
-                    setLoadingSuggest(false);
-                }
-            }, 300);
-        } else {
+        if (!val.trim()) {
             setSuggestions([]);
             setShowSuggestions(false);
+        }
+    };
+
+    // Tombol Hit API Bantuan AI Rekomendasi Alkes / Jenis Aset
+    const handleTriggerAiSuggest = async () => {
+        const trimmed = (modalData.nama || '').trim();
+        if (trimmed.length < 2) {
+            toast.error('Ketik minimal 2 karakter nama barang terlebih dahulu untuk meminta rekomendasi AI.');
+            return;
+        }
+
+        setLoadingSuggest(true);
+        try {
+            const res = await api.get('/aset/jenis/suggest/', { params: { q: trimmed } });
+            const results = res.data?.results || [];
+            if (results.length === 0) {
+                // Fallback to local dictionary
+                const matches = STANDARD_HOSPITAL_EQUIPMENT.filter(eq =>
+                    eq.nama.toLowerCase().includes(trimmed.toLowerCase())
+                );
+                setSuggestions(matches);
+                setSuggestionSource('local_dictionary');
+                setShowSuggestions(matches.length > 0);
+                if (matches.length === 0) {
+                    toast.info('Tidak ditemukan rekomendasi alkes yang cocok.');
+                }
+            } else {
+                setSuggestions(results);
+                setSuggestionSource(res.data?.source || 'gemini_ai');
+                setShowSuggestions(true);
+            }
+        } catch (err) {
+            const matches = STANDARD_HOSPITAL_EQUIPMENT.filter(eq =>
+                eq.nama.toLowerCase().includes(trimmed.toLowerCase())
+            );
+            setSuggestions(matches);
+            setSuggestionSource('local_dictionary');
+            setShowSuggestions(matches.length > 0);
+        } finally {
             setLoadingSuggest(false);
         }
     };
@@ -455,35 +467,44 @@ export default function AsetJenis() {
                                             </span>
                                         )}
                                     </label>
-                                    <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
                                         <input
                                             type="text"
                                             className="aset-form-input"
                                             placeholder="Ketik nama jenis (misal: Termometer, Tensimeter, Bed Pasien)..."
                                             value={modalData.nama}
                                             onChange={e => handleNamaChange(e.target.value)}
-                                            onFocus={() => {
-                                                if (modalData.nama.trim().length >= 2 && suggestions.length > 0) {
-                                                    setShowSuggestions(true);
-                                                }
-                                            }}
                                             required
                                             autoComplete="off"
-                                            style={{ paddingRight: loadingSuggest ? '36px' : '12px' }}
+                                            style={{ flex: 1 }}
                                         />
-                                        {loadingSuggest && (
-                                            <div style={{
-                                                position: 'absolute',
-                                                right: '12px',
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                color: '#38bdf8',
+                                        <button
+                                            type="button"
+                                            onClick={handleTriggerAiSuggest}
+                                            disabled={loadingSuggest}
+                                            className="btn-aset btn-aset-secondary"
+                                            style={{
+                                                padding: '0 12px',
+                                                height: '38px',
                                                 display: 'flex',
-                                                alignItems: 'center'
-                                            }}>
-                                                <Loader2 size={16} className="aset-spin" />
-                                            </div>
-                                        )}
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                fontSize: '12px',
+                                                fontWeight: 600,
+                                                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%)',
+                                                borderColor: '#8b5cf6',
+                                                color: '#c084fc',
+                                                whiteSpace: 'nowrap',
+                                                cursor: 'pointer',
+                                            }}
+                                            title="Hit API AI Rekomendasi Jenis & Kelompok Aset"
+                                        >
+                                            {loadingSuggest ? (
+                                                <><Loader2 size={14} className="aset-spin" /> Analisis...</>
+                                            ) : (
+                                                <><Sparkles size={14} /> Bantuan AI</>
+                                            )}
+                                        </button>
                                     </div>
 
                                     {/* Dropdown Auto-Suggestion Popup */}

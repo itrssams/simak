@@ -273,15 +273,16 @@ class DistributionService:
                     pass
 
         # Cek apakah permintaan asal sudah terpenuhi penuh
-        if pengeluaran.permintaan:
-            permintaan = pengeluaran.permintaan
+        if pengeluaran.permintaan_id:
+            permintaan = Permintaan.objects.select_for_update().get(id=pengeluaran.permintaan_id)
+            all_items = list(PermintaanItem.objects.filter(permintaan=permintaan))
             all_fulfilled = True
-            for pi in permintaan.items.all():
+            for pi in all_items:
                 target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
                 if pi.qty_dikeluarkan < target_qty:
                     all_fulfilled = False
                     break
-            if all_fulfilled:
+            if all_fulfilled and all_items:
                 permintaan.status = Permintaan.STATUS_SELESAI
                 permintaan.save(update_fields=['status', 'updated_at'])
 

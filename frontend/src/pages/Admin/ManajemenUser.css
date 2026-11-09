@@ -188,6 +188,8 @@
     top: 50%;
     transform: translateY(-50%);
     color: #98a2b3;
+    pointer-events: none;
+    z-index: 2;
 }
 .mu-input,
 .mu-select {
@@ -217,7 +219,7 @@
     box-sizing: border-box;
     resize: vertical;
 }
-.mu-searchbox .mu-input { padding-left: 38px; }
+.mu-searchbox .mu-input { padding-left: 38px !important; }
 .mu-input:focus,
 .mu-select:focus,
 .mu-textarea:focus {
@@ -544,7 +546,7 @@
 .mu-password {
     position: relative;
 }
-.mu-password .mu-input { padding-right: 44px; }
+.mu-password .mu-input { padding-right: 44px !important; }
 .mu-password button {
     position: absolute;
     right: 8px;
@@ -1158,3 +1160,165 @@
 [data-theme="dark"] .mu-summary-item.gray {
     color: #94a3b8;
 }
+
+/* =========================================================
+   Unit Banner & Table Refinements
+   ========================================================= */
+.mu-unit-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.mu-unit-banner-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #475569;
+}
+.mu-unit-banner-text strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+.mu-unit-banner-icon {
+    color: #0d9488;
+    flex-shrink: 0;
+}
+.mu-unit-banner-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mu-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-top: 1px solid #eef2f6;
+    flex-wrap: wrap;
+}
+.mu-pagination-info {
+    font-size: 13px;
+    color: #667085;
+}
+
+.mu-unit-parent {
+    font-size: 13px;
+    color: #334155;
+    font-weight: 500;
+}
+.mu-unit-leader {
+    font-size: 13px;
+    color: #0f766e;
+    font-weight: 600;
+}
+.mu-unit-muted {
+    font-size: 12px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.mu-unit-cat-badge {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+.mu-unit-cat-badge.cat-direktorat { background: #ede9fe; color: #7c3aed; border: 1px solid #ddd6fe; }
+.mu-unit-cat-badge.cat-bidang { background: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+.mu-unit-cat-badge.cat-seksi { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+.mu-unit-cat-badge.cat-unit { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+.mu-confirm-body {
+    color: #475467;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 14px;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .mu-unit-banner {
+    background: #0f172a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .mu-unit-banner-text {
+    color: #94a3b8 !important;
+}
+[data-theme="dark"] .mu-unit-banner-text strong {
+    color: #38bdf8 !important;
+}
+[data-theme="dark"] .mu-unit-banner-icon {
+    color: #2dd4bf !important;
+}
+[data-theme="dark"] .mu-unit-banner-btn {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+[data-theme="dark"] .mu-unit-banner-btn:hover {
+    background: #334155 !important;
+    border-color: #475569 !important;
+}
+
+[data-theme="dark"] .mu-pagination {
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .mu-pagination-info {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mu-unit-parent {
+    color: #e2e8f0 !important;
+}
+[data-theme="dark"] .mu-unit-leader {
+    color: #2dd4bf !important;
+}
+[data-theme="dark"] .mu-unit-muted {
+    color: #64748b !important;
+}
+
+[data-theme="dark"] .mu-unit-cat-badge.cat-direktorat {
+    background: rgba(124, 58, 237, 0.25) !important;
+    color: #c4b5fd !important;
+    border: 1px solid rgba(124, 58, 237, 0.4) !important;
+}
+[data-theme="dark"] .mu-unit-cat-badge.cat-bidang {
+    background: rgba(79, 70, 229, 0.25) !important;
+    color: #a5b4fc !important;
+    border: 1px solid rgba(79, 70, 229, 0.4) !important;
+}
+[data-theme="dark"] .mu-unit-cat-badge.cat-seksi {
+    background: rgba(2, 132, 199, 0.25) !important;
+    color: #7dd3fc !important;
+    border: 1px solid rgba(2, 132, 199, 0.4) !important;
+}
+[data-theme="dark"] .mu-unit-cat-badge.cat-unit {
+    background: rgba(148, 163, 184, 0.15) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(148, 163, 184, 0.3) !important;
+}
+
+[data-theme="dark"] .mu-confirm-body {
+    color: #cbd5e1 !important;
+}
+
+/* Ensure role/status badges adapt nicely in dark mode */
+[data-theme="dark"] .mu-badge {
+    background: rgba(30, 41, 59, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+}
+

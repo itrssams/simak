@@ -245,7 +245,10 @@ export default function GudangPengeluaran() {
 
             toast.success(res.data?.message || 'Barang berhasil diserahkan! Stok gudang telah terpotong.');
             setShowSerahkanModal(false);
-            fetchPermintaan();
+            setShowDetailReqModal(false);
+            setSelectedReq(null);
+            await fetchPermintaan();
+            await fetchPengeluaran();
 
             // Auto-print receipt if bon id returned
             if (res.data?.pengeluaran_id) {

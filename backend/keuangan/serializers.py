@@ -340,6 +340,8 @@ class FakturSerializer(serializers.ModelSerializer):
         return Decimal('0')
 
     def get_total_piutang(self, obj):
+        if hasattr(obj, '_get_effective_total_tagihan'):
+            return obj._get_effective_total_tagihan()
         if obj.nomor_faktur:
             try:
                 with connection.cursor() as cursor:
@@ -374,7 +376,7 @@ class FakturSerializer(serializers.ModelSerializer):
                     return total_piutang
             except Exception:
                 pass
-        return obj.sisa_tagihan
+        return Decimal(str(obj.total_tagihan or 0))
 
     def _get_effective_status(self, obj):
         """Hitung status LIVE (bukan cuma andelin field DB), karena

@@ -1,3 +1,6 @@
+import time
+import threading
+import logging
 import datetime
 from django.utils import timezone
 from django.db import transaction
@@ -6,6 +9,7 @@ from zk import ZK
 
 from ..models import MesinAbsen, KaryawanMesinMapping, LogPresensi, PresensiHarian, IzinKeluar, Pegawai
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -50,10 +54,40 @@ def auto_match_user_by_name(name_on_machine):
     return None
 
 
-def sync_mesin_absen(mesin_id=None):
+def determine_tap_type(waktu_tap, presensi):
+    """
+    Menentukan apakah suatu tap presensi merupakan tap 'masuk' atau 'pulang'.
+    """
+    if not presensi or not presensi.jam_masuk:
+        return 'masuk'
+
+    tap_time = waktu_tap.time()
+    tgl = waktu_tap.date()
+    
+    dt_tap = datetime.datetime.combine(tgl, tap_time)
+    dt_in = datetime.datetime.combine(tgl, presensi.jam_masuk)
+    diff_in = abs((dt_tap - dt_in).total_seconds())
+
+    if presensi.jam_pulang:
+        dt_out = datetime.datetime.combine(tgl, presensi.jam_pulang)
+        diff_out = abs((dt_tap - dt_out).total_seconds())
+        if diff_out <= 300:
+            return 'pulang'
+
+    if diff_in <= 300:
+        return 'masuk'
+
+    if (dt_tap - dt_in).total_seconds() >= 2700:
+        return 'pulang'
+
+    return 'masuk'
+
+
+def sync_mesin_absen(mesin_id=None, sync_users=False, force_all_logs=False):
     """
     Menghubungkan ke Mesin Absen (ZKTeco/Secure S-IPC via port 4370)
     Tarik data User dan data riwayat Tap Presensi ke database SIMAK.
+    Mendukung fast-poll (sync_users=False) untuk deteksi real-time < 5 detik.
     """
     if mesin_id:
         mesin = MesinAbsen.objects.filter(id=mesin_id).first()
@@ -69,14 +103,15 @@ def sync_mesin_absen(mesin_id=None):
             is_active=True
         )
 
-    zk = ZK(mesin.ip_address, port=mesin.port, timeout=5, password=mesin.comm_key, force_udp=False, ommit_ping=True)
+    zk = ZK(mesin.ip_address, port=mesin.port, timeout=4, password=mesin.comm_key, force_udp=False, ommit_ping=True)
     conn = None
 
     try:
         conn = zk.connect()
         
-        # 1. Update Device Info
+        # 1. Update Device Info & Read Sizes
         try:
+            conn.read_sizes()
             mesin.device_name = conn.get_device_name() or 'S-IPC'
             mesin.serial_number = conn.get_serialnumber() or ''
             mesin.mac_address = conn.get_mac() or ''
@@ -84,47 +119,63 @@ def sync_mesin_absen(mesin_id=None):
             pass
             
         mesin.status_koneksi = 'connected'
+        total_logs_in_machine = getattr(conn, 'records', None)
 
-        # 2. Tarik Users dari Mesin
-        users_from_machine = conn.get_users()
-        mesin.total_user_mesin = len(users_from_machine)
-        
-        users_synced_count = 0
+        # FAST CHECK: Jika tidak minta sync users dan tidak ada log baru di mesin, selesai instan (< 150ms)!
+        if not force_all_logs and not sync_users and total_logs_in_machine is not None and mesin.total_log_mesin is not None:
+            if total_logs_in_machine == mesin.total_log_mesin:
+                mesin.last_sync_at = timezone.now()
+                mesin.save(update_fields=['status_koneksi', 'last_sync_at'])
+                return {
+                    'success': True,
+                    'message': 'Tidak ada log baru (up to date).',
+                    'mesin': {
+                        'id': mesin.id,
+                        'nama': mesin.nama,
+                        'ip_address': mesin.ip_address,
+                        'status_koneksi': mesin.status_koneksi,
+                        'last_sync_at': mesin.last_sync_at.isoformat(),
+                    },
+                    'total_logs_machine': total_logs_in_machine,
+                    'new_logs_saved': 0,
+                    'updated_daily_presensi': 0,
+                }
+
+        # 2. Tarik Users dari Mesin (Hanya jika diminta atau belum pernah ada data)
         auto_matched_count = 0
-        
-        for u in users_from_machine:
-            pin = str(u.user_id).strip()
-            name = str(u.name).strip() if u.name else ''
+        users_from_machine = []
+        if sync_users or not mesin.total_user_mesin:
+            users_from_machine = conn.get_users()
+            mesin.total_user_mesin = len(users_from_machine)
             
-            mapping, created = KaryawanMesinMapping.objects.get_or_create(
-                mesin=mesin,
-                pin=pin,
-                defaults={'nama_di_mesin': name}
-            )
-            
-            # Update nama jika ada perubahan di mesin
-            if mapping.nama_di_mesin != name and name:
-                mapping.nama_di_mesin = name
-                mapping.save(update_fields=['nama_di_mesin'])
+            for u in users_from_machine:
+                pin = str(u.user_id).strip()
+                name = str(u.name).strip() if u.name else ''
                 
-            # Cek ke direktori master Pegawai RS
-            if not mapping.pegawai:
-                pegawai_obj = Pegawai.objects.filter(pin=pin).first()
-                if pegawai_obj:
-                    mapping.pegawai = pegawai_obj
-                    if not mapping.user and pegawai_obj.user:
-                        mapping.user = pegawai_obj.user
-                    mapping.save(update_fields=['pegawai', 'user'])
-
-            # Jika belum dipasangkan dengan User SIMAK, coba auto-match
-            if not mapping.user and name:
-                matched_user = auto_match_user_by_name(name)
-                if matched_user:
-                    mapping.user = matched_user
-                    mapping.save(update_fields=['user'])
-                    auto_matched_count += 1
+                mapping, created = KaryawanMesinMapping.objects.get_or_create(
+                    mesin=mesin,
+                    pin=pin,
+                    defaults={'nama_di_mesin': name}
+                )
+                
+                if mapping.nama_di_mesin != name and name:
+                    mapping.nama_di_mesin = name
+                    mapping.save(update_fields=['nama_di_mesin'])
                     
-            users_synced_count += 1
+                if not mapping.pegawai:
+                    pegawai_obj = Pegawai.objects.filter(pin=pin).first()
+                    if pegawai_obj:
+                        mapping.pegawai = pegawai_obj
+                        if not mapping.user and pegawai_obj.user:
+                            mapping.user = pegawai_obj.user
+                        mapping.save(update_fields=['pegawai', 'user'])
+
+                if not mapping.user and name:
+                    matched_user = auto_match_user_by_name(name)
+                    if matched_user:
+                        mapping.user = matched_user
+                        mapping.save(update_fields=['user'])
+                        auto_matched_count += 1
 
         # 3. Cache Mapping PIN -> Pegawai & User ID
         from ..attendance_engine import build_pegawai_pin_map, process_attendance_for_date_range
@@ -135,12 +186,20 @@ def sync_mesin_absen(mesin_id=None):
         )
 
         # 4. Tarik Log Absensi (Attendance Records)
-        attendances = conn.get_attendance()
-        mesin.total_log_mesin = len(attendances)
+        all_attendances = conn.get_attendance()
+        mesin.total_log_mesin = len(all_attendances)
         
+        # Jika bukan force_all_logs, proses log terbaru (terutama hari ini)
+        if not force_all_logs and len(all_attendances) > 50:
+            attendances = all_attendances[-50:]
+        else:
+            attendances = all_attendances
+
         new_logs_count = 0
         affected_dates = set()
         affected_user_dates = set()
+        new_today_logs = []
+        today_date = timezone.localdate()
 
         for att in attendances:
             pin = str(att.user_id).strip()
@@ -150,6 +209,8 @@ def sync_mesin_absen(mesin_id=None):
                 waktu_aware = timezone.make_aware(waktu, timezone.get_current_timezone())
             else:
                 waktu_aware = waktu
+
+            waktu_local = timezone.localtime(waktu_aware)
 
             pegawai_obj = pegawai_pin_map.get(pin) or pegawai_pin_map.get(pin.lstrip('0') or '0') or pegawai_pin_map.get(pin.zfill(3)) or pegawai_pin_map.get(pin.zfill(4))
             pegawai_id = pegawai_obj.id if pegawai_obj else None
@@ -182,9 +243,17 @@ def sync_mesin_absen(mesin_id=None):
                 
             if created:
                 new_logs_count += 1
-                affected_dates.add(waktu_aware.date())
+                affected_dates.add(waktu_local.date())
                 if user_id:
-                    affected_user_dates.add((user_id, waktu_aware.date()))
+                    affected_user_dates.add((user_id, waktu_local.date()))
+                
+                # Kumpulkan tap baru hari ini untuk notifikasi Telegram
+                if waktu_local.date() == today_date and pegawai_obj:
+                    new_today_logs.append({
+                        'pegawai': pegawai_obj,
+                        'waktu_local': waktu_local,
+                        'mesin_nama': mesin.nama
+                    })
 
         # 5. Hitung Ulang Agregasi Presensi Harian menggunakan Attendance Engine RS
         updated_daily_count = 0
@@ -198,6 +267,53 @@ def sync_mesin_absen(mesin_id=None):
                 for u_id, tgl in affected_user_dates:
                     recalculate_presensi_harian(u_id, tgl)
                     updated_daily_count += 1
+
+        # 6. Kirim Notifikasi Telegram Presensi Otomatis untuk Tap Hari Ini
+        if new_today_logs:
+            try:
+                from .telegram_service import (
+                    notify_presensi_telegram,
+                    notify_sdm_tembusan,
+                    is_monitored_for_sdm_tembusan
+                )
+                notified_keys = set()
+                notified_sdm_keys = set()
+
+                for item in new_today_logs:
+                    pegawai = item['pegawai']
+                    waktu_tap = item['waktu_local']
+                    mesin_nama = item['mesin_nama']
+
+                    presensi = PresensiHarian.objects.filter(pegawai=pegawai, tanggal=today_date).first()
+                    tipe = determine_tap_type(waktu_tap, presensi)
+                    notify_key = (pegawai.id, tipe)
+
+                    # A. Notifikasi ke Pegawai yang bersangkutan (jika akun Telegram aktif)
+                    if getattr(pegawai, 'telegram_chat_id', None) and getattr(pegawai, 'telegram_notif_aktif', True):
+                        if notify_key not in notified_keys:
+                            notify_presensi_telegram(
+                                pegawai=pegawai,
+                                waktu_tap=waktu_tap,
+                                tipe=tipe,
+                                presensi_harian=presensi,
+                                mesin_nama=mesin_nama
+                            )
+                            notified_keys.add(notify_key)
+
+                    # B. Tembusan Otomatis ke SDM (Pak Saleh) jika pegawai dalam radar pantauan (Radiologi / Fasa testing)
+                    if is_monitored_for_sdm_tembusan(pegawai):
+                        if notify_key not in notified_sdm_keys:
+                            notify_sdm_tembusan(
+                                pegawai=pegawai,
+                                waktu_tap=waktu_tap,
+                                tipe=tipe,
+                                presensi_harian=presensi,
+                                mesin_nama=mesin_nama
+                            )
+                            notified_sdm_keys.add(notify_key)
+
+            except Exception as notif_err:
+                logger.warning(f"[SyncMesin] Gagal kirim notifikasi Telegram: {str(notif_err)}")
 
         mesin.last_sync_at = timezone.now()
         mesin.save()
@@ -213,9 +329,9 @@ def sync_mesin_absen(mesin_id=None):
                 'serial_number': mesin.serial_number,
                 'last_sync_at': mesin.last_sync_at.isoformat(),
             },
-            'total_users_machine': len(users_from_machine),
+            'total_users_machine': len(users_from_machine) if users_from_machine else mesin.total_user_mesin,
             'auto_matched_users': auto_matched_count,
-            'total_logs_machine': len(attendances),
+            'total_logs_machine': len(all_attendances),
             'new_logs_saved': new_logs_count,
             'updated_daily_presensi': updated_daily_count,
         }
@@ -234,6 +350,8 @@ def sync_mesin_absen(mesin_id=None):
                 conn.disconnect()
             except Exception:
                 pass
+
+
 
 
 def recalculate_presensi_harian(user_id, tanggal):
@@ -317,3 +435,47 @@ def recalculate_presensi_harian(user_id, tanggal):
     )
 
     return presensi_obj
+
+
+_SCHEDULER_RUNNING = False
+
+def sync_semua_mesin_aktif(sync_users=False, force_all_logs=False):
+    """
+    Menyinkronkan seluruh mesin absensi aktif secara berurutan.
+    """
+    active_machines = MesinAbsen.objects.filter(is_active=True).order_by('id')
+    results = []
+    for m in active_machines:
+        try:
+            res = sync_mesin_absen(mesin_id=m.id, sync_users=sync_users, force_all_logs=force_all_logs)
+            results.append(res)
+        except Exception as e:
+            results.append({'mesin_id': m.id, 'success': False, 'message': str(e)})
+    return results
+
+
+def start_mesin_auto_sync_scheduler(interval_seconds=5):
+    """
+    Menjalankan background daemon thread yang secara berkala (default tiap 5 detik)
+    menarik data presensi dari seluruh mesin absen aktif secara near-realtime.
+    """
+    global _SCHEDULER_RUNNING
+    if _SCHEDULER_RUNNING:
+        return
+    _SCHEDULER_RUNNING = True
+
+    def _loop():
+        logger.info(f"[AutoSyncScheduler] Background auto-sync mesin absen berjalan REAL-TIME (tiap {interval_seconds}s)...")
+        time.sleep(5)
+        while True:
+            try:
+                sync_semua_mesin_aktif(sync_users=False, force_all_logs=False)
+            except Exception as e:
+                logger.warning(f"[AutoSyncScheduler] Sync loop error: {str(e)}")
+            time.sleep(interval_seconds)
+
+    thread = threading.Thread(target=_loop, daemon=True, name="MesinAbsenAutoSyncThread")
+    thread.start()
+    return thread
+
+

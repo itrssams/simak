@@ -691,6 +691,83 @@ class PegawaiViewSet(viewsets.ModelViewSet):
             'by_kategori': by_kategori
         })
 
+    @action(detail=True, methods=['post'], url_path='test-telegram')
+    def test_telegram(self, request, pk=None):
+        """Kirim pesan uji coba ke Telegram pegawai"""
+        pegawai = self.get_object()
+        if not pegawai.telegram_chat_id:
+            return Response({'error': 'Pegawai belum memiliki Telegram Chat ID.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .services.telegram_service import send_telegram_message
+        msg = (
+            "🔔 <b>Uji Coba Notifikasi Presensi SIMAK RS Siaga</b>\n\n"
+            f"Halo, <b>{pegawai.nama}</b>!\n"
+            "Akun Telegram Anda terverifikasi aktif untuk menerima notifikasi presensi otomatis dari SIMAK RS Siaga.\n\n"
+            f"• <b>PIN:</b> #{pegawai.pin}\n"
+            f"• <b>Chat ID:</b> <code>{pegawai.telegram_chat_id}</code>\n"
+            f"• <b>Waktu:</b> {timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M:%S WITA')}\n\n"
+            "<i>Notifikasi kehadiran Anda di mesin absen akan dikirimkan otomatis ke sini.</i>"
+        )
+        ok, res = send_telegram_message(pegawai.telegram_chat_id, msg)
+        if ok:
+            return Response({'success': True, 'message': 'Pesan uji coba berhasil dikirim ke Telegram!'})
+        return Response({'success': False, 'message': f'Gagal kirim: {res}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='reset-telegram')
+    def reset_telegram(self, request, pk=None):
+        """Putuskan tautan Telegram pegawai oleh admin SDM"""
+        pegawai = self.get_object()
+        nama = pegawai.nama
+        old_chat_id = pegawai.telegram_chat_id
+        pegawai.telegram_chat_id = None
+        pegawai.telegram_username = None
+        pegawai.telegram_notif_aktif = False
+        pegawai.save(update_fields=['telegram_chat_id', 'telegram_username', 'telegram_notif_aktif'])
+
+        if old_chat_id:
+            try:
+                from .services.telegram_service import send_telegram_message
+                send_telegram_message(
+                    old_chat_id,
+                    f"ℹ️ <b>Tautan Akun Direset oleh SDM</b>\n\nTautan akun Telegram Anda ke data <b>{nama}</b> di SIMAK RS Siaga telah diputuskan oleh Admin SDM."
+                )
+            except Exception:
+                pass
+
+        return Response({
+            'success': True,
+            'message': f'Tautan Telegram untuk {nama} berhasil diputuskan.'
+        })
+
+    @action(detail=False, methods=['get', 'post'], url_path='my-telegram')
+    def my_telegram(self, request):
+        """Melihat atau memperbarui status telegram pegawai yang sedang login"""
+        pegawai = Pegawai.objects.filter(user=request.user).first()
+        if not pegawai:
+            return Response({'error': 'Akun Anda belum dipasangkan dengan data Pegawai.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method == 'POST':
+            chat_id = request.data.get('telegram_chat_id')
+            username = request.data.get('telegram_username', '')
+            notif_aktif = request.data.get('telegram_notif_aktif', True)
+
+            pegawai.telegram_chat_id = chat_id.strip() if chat_id else None
+            pegawai.telegram_username = username.strip() if username else None
+            pegawai.telegram_notif_aktif = bool(notif_aktif)
+            pegawai.save(update_fields=['telegram_chat_id', 'telegram_username', 'telegram_notif_aktif'])
+
+        return Response({
+            'pegawai_id': pegawai.id,
+            'nama': pegawai.nama,
+            'pin': pegawai.pin,
+            'telegram_chat_id': pegawai.telegram_chat_id,
+            'telegram_username': pegawai.telegram_username,
+            'telegram_notif_aktif': pegawai.telegram_notif_aktif,
+            'bot_username': 'simak_rssiaga_bot',
+            'bot_link': 'https://t.me/simak_rssiaga_bot'
+        })
+
+
 
 class ShiftViewSet(viewsets.ModelViewSet):
     """

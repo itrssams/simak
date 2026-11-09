@@ -351,4 +351,8 @@ LOGGING = {
 # AI & EXTERNAL INTEGRATIONS
 # ==============================================================================
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8654069034:AAHbdAo-sYyixpgWVN42dU0YGPmVjxxSx2s').strip()
+TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', 'simak_rssiaga_bot').strip()
+TELEGRAM_SDM_BOT_TOKEN = os.getenv('TELEGRAM_SDM_BOT_TOKEN', '8407492016:AAGY1LgVCLLQm5LYmr0wbZypTK1D9Mys7uA').strip()
+TELEGRAM_SDM_BOT_USERNAME = os.getenv('TELEGRAM_SDM_BOT_USERNAME', 'simak_sdm_bot').strip()
 
