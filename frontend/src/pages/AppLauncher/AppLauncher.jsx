@@ -21,6 +21,7 @@ import {
     Download,
     MonitorCog,
     Boxes,
+    PackagePlus,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './AppLauncher.css';
@@ -191,6 +192,22 @@ export default function AppLauncher() {
                 { label: 'Kartu Stok (Ledger)', path: '/gudang/kartu-stok' },
                 { label: 'Stok Opname', path: '/gudang/opname' },
                 { label: 'Laporan Logistik', path: '/gudang/laporan' },
+            ],
+        },
+        {
+            id: 'amprahan-unit',
+            name: 'Permintaan Barang',
+            subtitle: 'Amprahan Logistik Unit Ruangan',
+            icon: PackagePlus,
+            color: '#8b5cf6',
+            glowColor: 'rgba(139, 92, 246, 0.45)',
+            glassGlow: 'rgba(139, 92, 246, 0.22)',
+            glassGlowLight: 'rgba(139, 92, 246, 0.15)',
+            path: '/amprahan',
+            allowed: true, // Terbuka default untuk seluruh unit ruangan seperti My-Logbook
+            submenus: [
+                { label: 'Daftar Amprahan Ruangan', path: '/amprahan' },
+                ...(isLogistik ? [{ label: 'Pelayanan Gudang (BPPB)', path: '/gudang/pengeluaran' }] : []),
             ],
         },
         {

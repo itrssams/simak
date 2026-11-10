@@ -33,6 +33,7 @@ import {
     Pill,
     UserCheck,
     Boxes,
+    PackagePlus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
@@ -457,6 +458,21 @@ const getActiveModuleConfig = (pathname, user) => {
             icon: Package,
             iconColor: '#f59e0b',
             menus: [], // Dikelola langsung oleh Sidebar Internal Modul Gudang
+        };
+    }
+
+    // 4b. Portal Mandiri Permintaan Barang Unit (Amprahan)
+    if (pathname.startsWith('/amprahan') || pathname.startsWith('/permintaan-barang')) {
+        const canGdg = Boolean(user?.is_superuser || user?.is_logistik || user?.view_logistik);
+        return {
+            id: 'amprahan-unit',
+            title: 'Permintaan Barang',
+            icon: PackagePlus,
+            iconColor: '#8b5cf6',
+            menus: [
+                { label: 'Daftar Amprahan', path: '/amprahan' },
+                ...(canGdg ? [{ label: 'Pelayanan Gudang (BPPB)', path: '/gudang/pengeluaran' }] : []),
+            ],
         };
     }
 

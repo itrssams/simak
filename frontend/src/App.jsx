@@ -33,6 +33,7 @@ import CatatanUtangObatBhp from './pages/Keuangan/CatatanUtangObatBhp';
 import ImportUtangOts from './pages/Keuangan/ImportUtangOts';
 import Logistik from './pages/Logistik/Logistik';
 import GudangIndex from './pages/Gudang/GudangIndex';
+import PermintaanUnit from './pages/Gudang/PermintaanUnit';
 import SystemMaintenance from './pages/System/SystemMaintenance';
 import AppLauncher from './pages/AppLauncher/AppLauncher';
 import LogbookBeranda from './pages/Logbook/LogbookBeranda';
@@ -201,6 +202,10 @@ const AppRoutes = () => {
             {/* Modul Gudang Logistik v.2 */}
             <Route path="/gudang" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
             <Route path="/gudang/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
+
+            {/* Portal Mandiri Permintaan Barang Unit (Amprahan) - Terbuka untuk Semua Karyawan */}
+            <Route path="/amprahan" element={<ProtectedRoute><PermintaanUnit /></ProtectedRoute>} />
+            <Route path="/permintaan-barang" element={<Navigate to="/amprahan" replace />} />
 
             {/* Modul Manajemen Aset */}
             <Route path="/aset" element={<ProtectedRoute allow={canAset}><AsetDashboard /></ProtectedRoute>} />

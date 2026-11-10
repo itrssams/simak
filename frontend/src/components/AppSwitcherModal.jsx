@@ -21,6 +21,7 @@ import {
     Home,
     MonitorCog,
     Boxes,
+    PackagePlus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './AppSwitcherModal.css';
@@ -93,6 +94,16 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             glassGlow: 'rgba(245, 158, 11, 0.22)',
             path: '/gudang',
             allowed: Boolean(isLogistik || canCatatanUtang || isManajerUp),
+        },
+        {
+            id: 'amprahan-unit',
+            name: 'Permintaan Barang',
+            icon: PackagePlus,
+            color: '#8b5cf6',
+            glowColor: 'rgba(139, 92, 246, 0.45)',
+            glassGlow: 'rgba(139, 92, 246, 0.22)',
+            path: '/amprahan',
+            allowed: true,
         },
         {
             id: 'petty-cash',
