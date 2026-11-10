@@ -42,8 +42,16 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         catatan = data.get('catatan', '')
         auto_submit = bool(data.get('auto_submit', True))
 
+        # Jika ruang_id belum ada, otomatis ambil dari unit kerja akun di Manajemen User
+        if not ruang_id and getattr(request.user, 'unit', None):
+            matched_ruang = Ruang.objects.filter(unit=request.user.unit).first()
+            if not matched_ruang:
+                matched_ruang = Ruang.objects.filter(nama__icontains=request.user.unit.nama).first()
+            if matched_ruang:
+                ruang_id = matched_ruang.id
+
         if not ruang_id:
-            return Response({'error': 'Unit / Ruangan pemohon wajib dipilih.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Unit / Ruangan pemohon tidak ditemukan. Pastikan akun Anda memiliki unit di Manajemen User.'}, status=status.HTTP_400_BAD_REQUEST)
         if not items:
             return Response({'error': 'Minimal 1 item barang harus dimasukkan.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -349,5 +357,5 @@ class RuangViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
     def list(self, request, *args, **kwargs):
-        ruangan = Ruang.objects.filter(is_active=True).values('id', 'kode', 'nama', 'legacy_id_ruang').order_by('nama')
+        ruangan = Ruang.objects.filter(is_active=True).values('id', 'kode', 'nama', 'legacy_id_ruang', 'unit_id').order_by('nama')
         return Response(list(ruangan))

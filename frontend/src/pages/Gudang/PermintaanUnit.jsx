@@ -22,12 +22,14 @@ import {
     FileText,
     Boxes,
     ChevronRight,
+    Lock,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
+import SearchableSelect from '../../components/SearchableSelect';
 import './PermintaanUnit.css';
 
 export default function PermintaanUnit() {
@@ -91,27 +93,55 @@ export default function PermintaanUnit() {
 
                 const barangs = resBarang.data?.results || resBarang.data || [];
                 setBarangList(barangs);
-
-                // Auto-detect user unit/ruangan
-                if (user?.unit?.nama && ruangs.length > 0) {
-                    const matched = ruangs.find(r =>
-                        r.nama.toLowerCase().includes(user.unit.nama.toLowerCase()) ||
-                        user.unit.nama.toLowerCase().includes(r.nama.toLowerCase())
-                    );
-                    if (matched) {
-                        setFormRuangId(String(matched.id));
-                    } else {
-                        setFormRuangId(String(ruangs[0].id));
-                    }
-                } else if (ruangs.length > 0) {
-                    setFormRuangId(String(ruangs[0].id));
-                }
             } catch (err) {
                 console.error('Failed to load master data', err);
             }
         };
         fetchMaster();
-    }, [user]);
+    }, []);
+
+    // ── User Unit & Ruangan Mapping (Read-Only) ──
+    const userUnitId = typeof user?.unit === 'object' ? user?.unit?.id : user?.unit;
+    const userUnitNama = user?.unit_nama || (typeof user?.unit === 'object' ? user?.unit?.nama : null);
+
+    const userRuang = useMemo(() => {
+        if (!ruangList.length) return null;
+        if (userUnitId) {
+            const byUnitId = ruangList.find(r => String(r.unit_id) === String(userUnitId));
+            if (byUnitId) return byUnitId;
+        }
+        if (userUnitNama) {
+            const needle = userUnitNama.toLowerCase().trim();
+            const byExact = ruangList.find(r => r.nama.toLowerCase().trim() === needle);
+            if (byExact) return byExact;
+            const byPartial = ruangList.find(r =>
+                r.nama.toLowerCase().includes(needle) || needle.includes(r.nama.toLowerCase())
+            );
+            if (byPartial) return byPartial;
+        }
+        return null;
+    }, [ruangList, userUnitId, userUnitNama]);
+
+    // Options for SearchableSelect
+    const barangOptions = useMemo(() => {
+        return (barangList || []).map((b) => ({
+            value: String(b.id),
+            label: b.kode ? `[${b.kode}] ${b.nama}` : b.nama,
+            subtext: [
+                b.kode,
+                b.golongan?.nama ? `Gol: ${b.golongan.nama}` : '',
+                b.satuan_dasar?.kode ? `Satuan: ${b.satuan_dasar.kode}` : '',
+                b.stok_saat_ini !== undefined ? `Stok: ${Number(b.stok_saat_ini).toLocaleString('id-ID')}` : ''
+            ].filter(Boolean).join(' • '),
+            tag: b.satuan_dasar?.kode || undefined,
+        }));
+    }, [barangList]);
+
+    useEffect(() => {
+        if (userRuang?.id) {
+            setFormRuangId(String(userRuang.id));
+        }
+    }, [userRuang]);
 
     // ── Fetch Daftar Permintaan ──
     const fetchRequests = async () => {
@@ -179,6 +209,9 @@ export default function PermintaanUnit() {
 
     // ── Form Permintaan Handlers ──
     const handleOpenCreateModal = () => {
+        if (userRuang?.id) {
+            setFormRuangId(String(userRuang.id));
+        }
         setFormTanggal(new Date().toISOString().slice(0, 10));
         setFormCatatan('');
         setFormItems([
@@ -214,6 +247,19 @@ export default function PermintaanUnit() {
 
     const handleSubmitCreate = async (e) => {
         e.preventDefault();
+
+        const effectiveRuangId = formRuangId || userRuang?.id;
+        if (!effectiveRuangId && !userUnitNama) {
+            toast.error('Unit pemohon tidak terdeteksi pada profil akun Anda. Hubungi administrator.');
+            return;
+        }
+
+        const unselectedItem = formItems.find(it => !it.barang_id);
+        if (unselectedItem) {
+            toast.error('Pastikan semua baris barang telah dipilih.');
+            return;
+        }
+
         const validItems = formItems.filter(it => it.barang_id && Number(it.qty) > 0);
         if (!validItems.length) {
             toast.error('Pilih minimal satu barang dengan kuantitas > 0.');
@@ -223,7 +269,7 @@ export default function PermintaanUnit() {
         setSaving(true);
         try {
             await api.post('/gudang/permintaan/', {
-                ruang: formRuangId,
+                ruang: effectiveRuangId || undefined,
                 tanggal: formTanggal,
                 catatan: formCatatan,
                 auto_submit: true, // Status otomatis MENUNGGU siap diverifikasi Koordinator
@@ -716,7 +762,7 @@ export default function PermintaanUnit() {
             {/* ══════════════════════════════════════════════════════════════════════ */}
             {showCreateModal && createPortal(
                 <div className="pu-modal-overlay" onClick={() => !saving && setShowCreateModal(false)}>
-                    <div className="pu-modal" style={{ maxWidth: '780px' }} onClick={e => e.stopPropagation()}>
+                    <div className="pu-modal" style={{ maxWidth: '860px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div style={{
@@ -742,20 +788,53 @@ export default function PermintaanUnit() {
                             <div className="pu-modal-body">
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
-                                            Unit / Ruangan Pemohon *
+                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                            <span>Unit / Ruangan Pemohon *</span>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                color: '#a78bfa',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                background: 'rgba(124, 58, 237, 0.12)',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(139, 92, 246, 0.25)'
+                                            }}>
+                                                <Lock size={11} /> Sesuai Akun
+                                            </span>
                                         </label>
-                                        <select
-                                            className="pu-select"
-                                            style={{ width: '100%' }}
-                                            value={formRuangId}
-                                            onChange={e => setFormRuangId(e.target.value)}
-                                            required
-                                        >
-                                            {ruangList.map(r => (
-                                                <option key={r.id} value={r.id}>{r.nama}</option>
-                                            ))}
-                                        </select>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            padding: '10px 14px',
+                                            borderRadius: '10px',
+                                            background: 'rgba(15, 23, 42, 0.65)',
+                                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                                            color: '#f8fafc',
+                                            minHeight: '42px',
+                                            boxSizing: 'border-box'
+                                        }}>
+                                            <Building2 size={16} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                <span style={{ fontWeight: 600, fontSize: '13.5px', color: '#f8fafc' }}>
+                                                    {userRuang?.nama || userUnitNama || (formRuangId ? (ruangList.find(r => String(r.id) === String(formRuangId))?.nama) : 'Memuat Unit Akun...')}
+                                                </span>
+                                                {userRuang?.kode && (
+                                                    <span style={{ marginLeft: '6px', fontSize: '11.5px', color: '#94a3b8' }}>
+                                                        ({userRuang.kode})
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <Lock size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                                        </div>
+                                        {!userRuang && !userUnitNama && (
+                                            <span style={{ display: 'block', fontSize: '11px', color: '#f87171', marginTop: '4px' }}>
+                                                * Akun Anda belum memiliki unit di Manajemen User. Hubungi Admin.
+                                            </span>
+                                        )}
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
@@ -801,24 +880,22 @@ export default function PermintaanUnit() {
                                         {formItems.map((item, idx) => (
                                             <div key={idx} style={{
                                                 display: 'grid',
-                                                gridTemplateColumns: '2.5fr 90px 75px 1.5fr 36px',
+                                                gridTemplateColumns: '2.8fr 80px 70px 1.8fr 36px',
                                                 gap: '8px',
                                                 alignItems: 'center'
                                             }}>
-                                                <select
-                                                    className="pu-select"
-                                                    style={{ width: '100%', fontSize: '12.5px' }}
-                                                    value={item.barang_id}
-                                                    onChange={e => handleItemChange(idx, 'barang_id', e.target.value)}
-                                                    required
-                                                >
-                                                    <option value="">-- Pilih Barang --</option>
-                                                    {barangList.map(b => (
-                                                        <option key={b.id} value={b.id}>
-                                                            [{b.kode}] {b.nama}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <SearchableSelect
+                                                        options={barangOptions}
+                                                        value={item.barang_id ? String(item.barang_id) : ''}
+                                                        onChange={(val) => handleItemChange(idx, 'barang_id', val)}
+                                                        placeholder="-- Cari / Pilih Barang --"
+                                                        searchPlaceholder="Ketik nama atau kode barang..."
+                                                        emptyMessage="Barang tidak ditemukan"
+                                                        minDropdownWidth={360}
+                                                        maxDropdownWidth={600}
+                                                    />
+                                                </div>
 
                                                 <input
                                                     type="number"
