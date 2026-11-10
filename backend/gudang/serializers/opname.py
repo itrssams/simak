@@ -36,5 +36,14 @@ class StockOpnameSerializer(serializers.ModelSerializer):
         ]
 
     def get_can_approve(self, obj):
-        return obj.status == StockOpname.STATUS_DRAFT
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        if obj.status != StockOpname.STATUS_DRAFT:
+            return False
+        user = request.user
+        if user.is_superuser or user.username == 'super':
+            return True
+        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'}
+        return getattr(user, 'role', '') in approver_roles
 

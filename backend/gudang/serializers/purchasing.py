@@ -84,7 +84,7 @@ class SuratPesananSerializer(serializers.ModelSerializer):
         if obj.created_by_id == request.user.id:
             return False
         role = getattr(request.user, 'role', None)
-        return role in ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        return role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
 
     def get_can_submit(self, obj):
         return obj.status == SuratPesanan.STATUS_DRAFT
@@ -153,5 +153,5 @@ class PenerimaanSerializer(serializers.ModelSerializer):
         if obj.created_by_id == request.user.id:
             return False
         role = getattr(request.user, 'role', None)
-        return role in ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        return role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
 

@@ -62,6 +62,13 @@ class StockOpnameViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         opname = self.get_object()
+        user = request.user
+        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'}
+        if not (user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in approver_roles):
+            return Response(
+                {'error': 'Anda tidak memiliki wewenang otorisasi untuk menyetujui Stock Opname.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             opname = OpnameService.approve_opname(opname, user=request.user)
             return Response(self.get_serializer(opname).data)

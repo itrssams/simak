@@ -26,9 +26,9 @@ class PurchasingService:
             return True
 
         role = getattr(user, 'role', None)
-        valid_roles = ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        valid_roles = ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
         if role not in valid_roles:
-            raise ValidationError("Hanya Kepala Seksi, Manajer, Wadir, atau Direktur yang dapat memberikan persetujuan.")
+            raise ValidationError("Hanya Koordinator, Kepala Seksi, Manajer, Wadir, atau Direktur yang dapat memberikan persetujuan.")
 
         if creator and creator.id == user.id:
             raise ValidationError("Pembuat dokumen tidak boleh menyetujui dokumen buatannya sendiri.")

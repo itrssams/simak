@@ -60,7 +60,7 @@ class PermintaanSerializer(serializers.ModelSerializer):
         user = request.user
         if user.is_superuser or user.username == 'super':
             return True
-        kasi_roles = {'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
+        kasi_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
         return getattr(user, 'role', '') in kasi_roles or getattr(user, 'is_staff', False)
 
     def get_can_issue(self, obj):

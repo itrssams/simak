@@ -30,6 +30,7 @@ import './ManajemenUser.css';
 
 const ROLE_CHOICES = [
     { value: 'karyawan', label: 'Karyawan' },
+    { value: 'koordinator', label: 'Koordinator' },
     { value: 'kepala_seksi', label: 'Kepala Seksi' },
     { value: 'manajer', label: 'Manajer' },
     { value: 'wakil_direktur', label: 'Wakil Direktur' },
@@ -38,9 +39,10 @@ const ROLE_CHOICES = [
 
 const ROLE_META = {
     karyawan: { label: 'Karyawan', bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' },
+    koordinator: { label: 'Koordinator', bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
     kepala_seksi: { label: 'Kepala Seksi', bg: '#e0f2fe', color: '#075985', border: '#bae6fd' },
     manajer: { label: 'Manajer', bg: '#dcfce7', color: '#166534', border: '#bbf7d0' },
-    wakil_direktur: { label: 'Wakil Direktur', bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+    wakil_direktur: { label: 'Wakil Direktur', bg: '#ede9fe', color: '#5b21b6', border: '#ddd6fe' },
     direktur: { label: 'Direktur', bg: '#f3e8ff', color: '#6b21a8', border: '#e9d5ff' },
 };
 
@@ -226,7 +228,7 @@ export default function ManajemenUser() {
         setError('');
         if (!form.username.trim()) return setError('Username wajib diisi.');
         if (!form.password || form.password.length < 6) return setError('Password wajib diisi minimal 6 karakter.');
-        if (['karyawan', 'kepala_seksi'].includes(form.role) && !form.unit) return setError('Unit wajib dipilih untuk role Karyawan/Kepala Seksi.');
+        if (['karyawan', 'koordinator', 'kepala_seksi'].includes(form.role) && !form.unit) return setError('Unit wajib dipilih untuk role Karyawan/Koordinator/Kepala Seksi.');
         setSaving(true);
         try {
             await api.post('/users/', { ...form, username: form.username.trim(), unit: form.unit || null });
@@ -243,7 +245,7 @@ export default function ManajemenUser() {
 
     const handleEdit = async () => {
         setError('');
-        if (['karyawan', 'kepala_seksi'].includes(form.role) && !form.unit) return setError('Unit wajib dipilih untuk role Karyawan/Kepala Seksi.');
+        if (['karyawan', 'koordinator', 'kepala_seksi'].includes(form.role) && !form.unit) return setError('Unit wajib dipilih untuk role Karyawan/Koordinator/Kepala Seksi.');
         setSaving(true);
         try {
             await api.patch(`/users/${modalEdit.id}/`, {
@@ -916,8 +918,8 @@ function UserFormModal({ title, subtitle, form, setForm, units, error, saving, o
                                         </select>
                                     </div>
                                     <div className="mu-field">
-                                        <label>Unit {['karyawan', 'kepala_seksi'].includes(form.role) ? '*' : ''}</label>
-                                        <select className="mu-select" value={form.unit} disabled={!['karyawan', 'kepala_seksi', 'manajer', 'wakil_direktur'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+                                        <label>Unit {['karyawan', 'koordinator', 'kepala_seksi'].includes(form.role) ? '*' : ''}</label>
+                                        <select className="mu-select" value={form.unit} disabled={!['karyawan', 'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur'].includes(form.role)} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
                                             <option value="">Tidak ada unit</option>
                                             {units.map((u) => <option key={u.id} value={u.id}>{u.nama}</option>)}
                                         </select>

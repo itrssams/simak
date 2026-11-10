@@ -42,6 +42,7 @@ class Unit(models.Model):
 class User(AbstractUser):
     ROLE_CHOICES = [
         ('karyawan',        'Karyawan'),
+        ('koordinator',     'Koordinator'),
         ('kepala_seksi',    'Kepala Seksi'),
         ('manajer',         'Manajer'),
         ('wakil_direktur',  'Wakil Direktur'),

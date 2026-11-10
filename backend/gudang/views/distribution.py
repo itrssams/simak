@@ -76,9 +76,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         permintaan = self.get_object()
         user = request.user
-        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
         if not is_kasi_or_above:
-            return Response({'error': 'Hanya Kepala Seksi (Kasi) ke atas atau Administrator yang berwenang memverifikasi/menyetujui permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Hanya Koordinator/Kepala Seksi ke atas atau Administrator yang berwenang memverifikasi/menyetujui permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         items_approval = request.data.get('items')
         try:
@@ -95,9 +95,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     def reject(self, request, pk=None):
         permintaan = self.get_object()
         user = request.user
-        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
         if not is_kasi_or_above:
-            return Response({'error': 'Hanya Kepala Seksi (Kasi) ke atas atau Administrator yang berwenang menolak permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Hanya Koordinator/Kepala Seksi ke atas atau Administrator yang berwenang menolak permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         alasan = request.data.get('alasan', '').strip()
         if not alasan:

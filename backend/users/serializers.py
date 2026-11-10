@@ -49,7 +49,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'date_joined']
 
     def get_is_approver(self, obj):
-        if obj.is_superuser or obj.role in ('direktur', 'wakil_direktur', 'manajer', 'kepala_seksi'):
+        if obj.is_superuser or obj.role in ('direktur', 'wakil_direktur', 'manajer', 'kepala_seksi', 'koordinator'):
             return True
         return hasattr(obj, 'unit_yang_dipimpin') and obj.unit_yang_dipimpin.filter(is_active=True).exists()
 
