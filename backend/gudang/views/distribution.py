@@ -239,6 +239,24 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': f"Gagal sinkron dari Siaga: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def destroy(self, request, *args, **kwargs):
+        spb = self.get_object()
+        if spb.status == Permintaan.STATUS_SELESAI or spb.pengeluaran_list.filter(status=Pengeluaran.STATUS_DISETUJUI).exists():
+            return Response({'error': 'SPB tidak dapat dihapus karena sudah memiliki transaksi pengeluaran (BPPB) yang disetujui.'}, status=status.HTTP_400_BAD_REQUEST)
+        if spb.pengeluaran_list.exists():
+            return Response({'error': 'SPB tidak dapat dihapus karena masih memiliki dokumen pengeluaran (BPPB) terkait.'}, status=status.HTTP_400_BAD_REQUEST)
+        user_role = getattr(request.user, 'role', '')
+        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_creator = spb.created_by_id == request.user.id
+        if not (is_super or is_approver or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus SPB ini.'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db import transaction
+        with transaction.atomic():
+            spb.items.all().delete()
+            spb.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class PengeluaranViewSet(viewsets.ModelViewSet):
     serializer_class = PengeluaranSerializer
@@ -308,6 +326,22 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': f"Gagal menyetujui pengeluaran: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def destroy(self, request, *args, **kwargs):
+        bppb = self.get_object()
+        if bppb.status == Pengeluaran.STATUS_DISETUJUI:
+            return Response({'error': 'Pengeluaran barang (BPPB) yang telah disetujui tidak dapat dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
+        user_role = getattr(request.user, 'role', '')
+        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_creator = bppb.created_by_id == request.user.id
+        if not (is_super or is_approver or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus BPPB ini.'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db import transaction
+        with transaction.atomic():
+            bppb.items.all().delete()
+            bppb.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RuangViewSet(viewsets.ReadOnlyModelViewSet):

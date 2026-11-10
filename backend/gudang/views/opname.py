@@ -87,6 +87,22 @@ class StockOpnameViewSet(viewsets.ModelViewSet):
         except ValidationError as e:
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    def destroy(self, request, *args, **kwargs):
+        opname = self.get_object()
+        if opname.status == StockOpname.STATUS_DISETUJUI:
+            return Response({'error': 'Dokumen Stock Opname yang telah disetujui tidak dapat dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
+        user_role = getattr(request.user, 'role', '')
+        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_creator = opname.created_by_id == request.user.id
+        if not (is_super or is_approver or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus dokumen opname ini.'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db import transaction
+        with transaction.atomic():
+            opname.items.all().delete()
+            opname.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=['get'])
     def current_stock_template(self, request):
         """

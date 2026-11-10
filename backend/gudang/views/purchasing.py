@@ -111,15 +111,26 @@ class SuratPesananViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         po = self.get_object()
-        if po.status == SuratPesanan.STATUS_SELESAI or po.penerimaan_set.filter(status=Penerimaan.STATUS_DISETUJUI).exists():
-            return Response({'error': 'PO tidak dapat dihapus karena sudah memiliki transaksi penerimaan (GRN).'}, status=status.HTTP_400_BAD_REQUEST)
+        if po.status == SuratPesanan.STATUS_SELESAI or po.penerimaan_list.filter(status=Penerimaan.STATUS_DISETUJUI).exists():
+            return Response({'error': 'PO tidak dapat dihapus karena sudah memiliki transaksi penerimaan (GRN) yang disetujui atau sudah berstatus selesai.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if po.penerimaan_list.exists():
+            return Response({'error': 'PO tidak dapat dihapus karena masih memiliki dokumen penerimaan (GRN) terkait.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_role = getattr(request.user, 'role', '')
         is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
-        if not is_super and po.created_by_id != request.user.id and po.status not in [SuratPesanan.STATUS_DRAFT, SuratPesanan.STATUS_DITOLAK]:
-            return Response({'error': 'Hanya pembuat dokumen atau Superuser yang dapat menghapus PO ini.'}, status=status.HTTP_403_FORBIDDEN)
+        is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_creator = po.created_by_id == request.user.id
 
-        po.items.all().delete()
-        po.delete()
+        if not (is_super or is_approver or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus PO ini.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not (is_super or is_approver) and po.status not in [SuratPesanan.STATUS_DRAFT, SuratPesanan.STATUS_DITOLAK]:
+            return Response({'error': 'Hanya PO berstatus Draft atau Ditolak yang dapat dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            po.items.all().delete()
+            po.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'])
@@ -247,6 +258,24 @@ class PenerimaanViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(grn).data)
         except ValidationError as e:
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        grn = self.get_object()
+        if grn.status == Penerimaan.STATUS_DISETUJUI:
+            return Response({'error': 'Penerimaan barang (GRN) yang telah disetujui tidak dapat dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_role = getattr(request.user, 'role', '')
+        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
+        is_creator = grn.created_by_id == request.user.id
+
+        if not (is_super or is_approver or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus GRN ini.'}, status=status.HTTP_403_FORBIDDEN)
+
+        with transaction.atomic():
+            grn.items.all().delete()
+            grn.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class VendorViewSet(viewsets.ModelViewSet):
