@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from gudang.models import Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem, Ruang, Barang
 from gudang.serializers.distribution import (
@@ -21,11 +22,32 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     ordering = ['-tanggal', '-id']
 
     def get_queryset(self):
+        user = self.request.user
         qs = Permintaan.objects.select_related('ruang', 'created_by', 'approved_by').prefetch_related(
             'items__barang__satuan_dasar',
             'items__barang__saldo_stok',
             'pengeluaran_list'
         ).all()
+
+        is_logistik_staff = (
+            user.is_superuser or
+            getattr(user, 'username', '') == 'super' or
+            getattr(user, 'is_logistik', False) or
+            getattr(user, 'view_logistik', False) or
+            getattr(user, 'role', '') in ['direktur', 'wakil_direktur']
+        )
+
+        # Jika user biasa / staf unit: hanya tampilkan permintaan dari unitnya sendiri (atau yang diajukan sendiri)
+        if not is_logistik_staff and user.is_authenticated:
+            if getattr(user, 'unit', None):
+                qs = qs.filter(
+                    Q(ruang__unit=user.unit) |
+                    Q(ruang_nama__iexact=user.unit.nama) |
+                    Q(created_by=user)
+                )
+            else:
+                qs = qs.filter(created_by=user)
+
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)
@@ -44,9 +66,11 @@ class PermintaanViewSet(viewsets.ModelViewSet):
 
         # Jika ruang_id belum ada, otomatis ambil dari unit kerja akun di Manajemen User
         if not ruang_id and getattr(request.user, 'unit', None):
-            matched_ruang = Ruang.objects.filter(unit=request.user.unit).first()
+            matched_ruang = Ruang.objects.filter(nama__iexact=request.user.unit.nama).first()
             if not matched_ruang:
-                matched_ruang = Ruang.objects.filter(nama__icontains=request.user.unit.nama).first()
+                matched_ruang = Ruang.objects.filter(unit=request.user.unit).first()
+            if not matched_ruang and len(request.user.unit.nama.strip()) > 2:
+                matched_ruang = Ruang.objects.filter(nama__icontains=request.user.unit.nama.strip()).first()
             if matched_ruang:
                 ruang_id = matched_ruang.id
 

@@ -1,12 +1,14 @@
 from decimal import Decimal
 from typing import List, Dict, Any, Optional
 from django.db import transaction
+from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from gudang.models.master import Gudang, Barang, Ruang
 from gudang.models.numbering import NumberingSequence
 from gudang.models.distribution import Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem
+from gudang.models.ledger import StokSaldo
 from gudang.services.stock import StockService
 
 
@@ -57,7 +59,13 @@ class DistributionService:
             if qty_minta <= Decimal('0'):
                 raise ValidationError(f"Jumlah minta untuk '{barang.nama}' harus lebih dari 0.")
 
-            satuan = item.get('satuan') or barang.satuan_dasar.kode
+            # Validasi ketersediaan stok: tidak bisa meminta jika stok gudang habis (<= 0)
+            total_stok = StokSaldo.objects.filter(barang=barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
+            if total_stok <= Decimal('0'):
+                satuan_txt = barang.satuan_dasar.kode if barang.satuan_dasar else 'item'
+                raise ValidationError(f"Stok barang '{barang.nama}' di gudang sedang habis (0 {satuan_txt}). Permintaan tidak dapat diajukan.")
+
+            satuan = item.get('satuan') or (barang.satuan_dasar.kode if barang.satuan_dasar else 'PCS')
             qty_disetujui = Decimal(str(item.get('qty_disetujui', qty_minta)))
 
             PermintaanItem.objects.create(
@@ -102,14 +110,43 @@ class DistributionService:
             for item in items_approval:
                 if 'id' in item and item.get('qty_disetujui') is not None:
                     try:
-                        approval_map[int(item['id'])] = max(Decimal('0'), Decimal(str(item['qty_disetujui'])))
+                        approval_map[int(item['id'])] = Decimal(str(item['qty_disetujui']))
                     except (ValueError, TypeError):
                         pass
 
             for pi in permintaan.items.all():
                 if pi.id in approval_map:
-                    pi.qty_disetujui = approval_map[pi.id]
+                    qty_app = approval_map[pi.id]
+                    satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
+                    # Validasi: Qty disetujui tidak boleh 0 atau minus
+                    if qty_app <= Decimal('0'):
+                        raise ValidationError(
+                            f"Qty disetujui untuk '{pi.barang.nama}' tidak boleh 0. Gunakan tombol Tolak jika permintaan tidak dapat disetujui."
+                        )
+                    # Validasi: Tidak bisa meng-approve melebihi stok yang tersedia di gudang
+                    total_stok = StokSaldo.objects.filter(barang=pi.barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
+                    if qty_app > total_stok:
+                        raise ValidationError(
+                            f"Qty disetujui untuk '{pi.barang.nama}' ({qty_app} {satuan_txt}) melebihi stok gudang yang tersedia ({total_stok} {satuan_txt})."
+                        )
+                    pi.qty_disetujui = qty_app
                     pi.save(update_fields=['qty_disetujui'])
+        else:
+            for pi in permintaan.items.all():
+                satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
+                if pi.qty_minta <= Decimal('0'):
+                    raise ValidationError(f"Qty minta untuk '{pi.barang.nama}' tidak boleh 0.")
+                total_stok = StokSaldo.objects.filter(barang=pi.barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
+                if total_stok <= Decimal('0'):
+                    raise ValidationError(
+                        f"Stok gudang untuk '{pi.barang.nama}' kosong (0 {satuan_txt}). Permintaan tidak dapat disetujui, silakan gunakan tombol Tolak."
+                    )
+                if pi.qty_minta > total_stok:
+                    raise ValidationError(
+                        f"Qty minta untuk '{pi.barang.nama}' ({pi.qty_minta} {satuan_txt}) melebihi stok gudang yang tersedia ({total_stok} {satuan_txt}). Silakan sesuaikan kuantitas yang disetujui."
+                    )
+                pi.qty_disetujui = pi.qty_minta
+                pi.save(update_fields=['qty_disetujui'])
 
         permintaan.status = Permintaan.STATUS_DISETUJUI
         permintaan.approved_by = user

@@ -1118,14 +1118,15 @@ function Sync-RemoteDatabase {
             $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
             if ($targetDest -eq "1") {
-                Write-Host "Streaming langsung di dalam container Docker shared-mysql-rssams..." -ForegroundColor DarkGray
+                $dockerContainer = if (docker ps --format '{{.Names}}' | Select-String -Pattern '^simak-db$') { "simak-db" } else { "shared-mysql-rssams" }
+                Write-Host "Streaming langsung di dalam container Docker $dockerContainer..." -ForegroundColor DarkGray
                 
                 # Buat database jika belum ada di docker
-                docker exec shared-mysql-rssams mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS \`$db\`;" 2>$null | Out-Null
+                docker exec $dockerContainer mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS \`$db\`;" 2>$null | Out-Null
                 
                 # Stream mysqldump langsung ke mysql di dalam container
                 $dockerCmd = "mysqldump -h $remoteHost -u $remoteUser -p'$remotePass' --single-transaction --quick --skip-column-statistics $db 2>/dev/null | mysql -u root -proot --force $db 2>/dev/null"
-                docker exec shared-mysql-rssams sh -c $dockerCmd
+                docker exec $dockerContainer sh -c $dockerCmd
                 $res = $LASTEXITCODE
             } else {
                 Write-Host "Streaming ke MySQL Local..." -ForegroundColor DarkGray

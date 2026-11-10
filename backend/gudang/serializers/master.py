@@ -171,10 +171,11 @@ class BarangSerializer(serializers.ModelSerializer):
 
 class RuangSerializer(serializers.ModelSerializer):
     unit_nama = serializers.CharField(source='unit.nama', read_only=True)
+    unit_id = serializers.IntegerField(source='unit.id', read_only=True)
 
     class Meta:
         model = Ruang
-        fields = ['id', 'kode', 'nama', 'unit', 'unit_nama', 'legacy_id_ruang', 'is_active']
+        fields = ['id', 'kode', 'nama', 'unit', 'unit_id', 'unit_nama', 'legacy_id_ruang', 'is_active']
 
 
 class LegacyMutasiSerializer(serializers.ModelSerializer):

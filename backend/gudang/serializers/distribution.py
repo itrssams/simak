@@ -20,13 +20,10 @@ class PermintaanItemSerializer(serializers.ModelSerializer):
         ]
 
     def get_stok_tersedia(self, obj):
-        saldo = getattr(obj.barang, 'saldo_stok', None)
-        if saldo and hasattr(saldo, 'first'):
-            first = saldo.first()
-            return float(first.qty) if first else 0
         from gudang.models import StokSaldo
-        s = StokSaldo.objects.filter(barang=obj.barang).first()
-        return float(s.qty) if s else 0
+        from django.db.models import Sum
+        total = StokSaldo.objects.filter(barang=obj.barang).aggregate(total=Sum('qty'))['total']
+        return float(total or 0)
 
 
 class PermintaanSerializer(serializers.ModelSerializer):

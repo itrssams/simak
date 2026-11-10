@@ -106,35 +106,73 @@ export default function PermintaanUnit() {
 
     const userRuang = useMemo(() => {
         if (!ruangList.length) return null;
-        if (userUnitId) {
-            const byUnitId = ruangList.find(r => String(r.unit_id) === String(userUnitId));
-            if (byUnitId) return byUnitId;
-        }
+
+        // 1. Prioritaskan nama yang sama persis (misal 'IT')
         if (userUnitNama) {
             const needle = userUnitNama.toLowerCase().trim();
             const byExact = ruangList.find(r => r.nama.toLowerCase().trim() === needle);
             if (byExact) return byExact;
-            const byPartial = ruangList.find(r =>
-                r.nama.toLowerCase().includes(needle) || needle.includes(r.nama.toLowerCase())
-            );
-            if (byPartial) return byPartial;
+        }
+
+        // 2. Cocokkan berdasarkan relasi unit_id atau unit
+        if (userUnitId) {
+            const byUnitId = ruangList.find(r => {
+                const rUnit = r.unit_id ?? (typeof r.unit === 'object' ? r.unit?.id : r.unit);
+                return String(rUnit) === String(userUnitId);
+            });
+            if (byUnitId) return byUnitId;
+        }
+
+        // 3. Fallback partial matching hanya jika nama unit > 2 huruf untuk cegah salah cocok (seperti 'IT' di 'Kulit')
+        if (userUnitNama) {
+            const needle = userUnitNama.toLowerCase().trim();
+            if (needle.length > 2) {
+                const byPartial = ruangList.find(r =>
+                    r.nama.toLowerCase().includes(needle) || needle.includes(r.nama.toLowerCase())
+                );
+                if (byPartial) return byPartial;
+            }
         }
         return null;
     }, [ruangList, userUnitId, userUnitNama]);
 
+    const isLogistikAdmin = Boolean(
+        user?.is_superuser ||
+        user?.username === 'super' ||
+        user?.is_logistik ||
+        user?.view_logistik ||
+        user?.role === 'direktur' ||
+        user?.role === 'wakil_direktur'
+    );
+
+    const userRuangOptions = useMemo(() => {
+        if (isLogistikAdmin) return ruangList;
+        if (!ruangList.length) return [];
+        return ruangList.filter(r => {
+            const rUnit = r.unit_id ?? (typeof r.unit === 'object' ? r.unit?.id : r.unit);
+            return (userUnitId && String(rUnit) === String(userUnitId)) ||
+                   (userRuang?.id && r.id === userRuang.id) ||
+                   (userUnitNama && r.nama.toLowerCase().trim() === userUnitNama.toLowerCase().trim());
+        });
+    }, [ruangList, isLogistikAdmin, userUnitId, userRuang, userUnitNama]);
+
     // Options for SearchableSelect
     const barangOptions = useMemo(() => {
-        return (barangList || []).map((b) => ({
-            value: String(b.id),
-            label: b.kode ? `[${b.kode}] ${b.nama}` : b.nama,
-            subtext: [
-                b.kode,
-                b.golongan?.nama ? `Gol: ${b.golongan.nama}` : '',
-                b.satuan_dasar?.kode ? `Satuan: ${b.satuan_dasar.kode}` : '',
-                b.stok_saat_ini !== undefined ? `Stok: ${Number(b.stok_saat_ini).toLocaleString('id-ID')}` : ''
-            ].filter(Boolean).join(' • '),
-            tag: b.satuan_dasar?.kode || undefined,
-        }));
+        return (barangList || []).map((b) => {
+            const stokNum = Number(b.stok_saat_ini || 0);
+            const isHabis = stokNum <= 0;
+            return {
+                value: String(b.id),
+                label: b.kode ? `[${b.kode}] ${b.nama}${isHabis ? ' • [STOK HABIS]' : ''}` : b.nama,
+                subtext: [
+                    b.kode,
+                    b.golongan?.nama ? `Gol: ${b.golongan.nama}` : '',
+                    b.satuan_dasar?.kode ? `Satuan: ${b.satuan_dasar.kode}` : '',
+                    `Stok: ${stokNum.toLocaleString('id-ID')}${isHabis ? ' (HABIS)' : ''}`
+                ].filter(Boolean).join(' • '),
+                tag: isHabis ? 'HABIS' : (b.satuan_dasar?.kode || undefined),
+            };
+        });
     }, [barangList]);
 
     useEffect(() => {
@@ -266,6 +304,16 @@ export default function PermintaanUnit() {
             return;
         }
 
+        // Validasi: Barang dengan stok habis tidak dapat diminta
+        for (const it of validItems) {
+            const b = barangList.find(x => String(x.id) === String(it.barang_id));
+            const currentStock = Number(b?.stok_saat_ini || 0);
+            if (currentStock <= 0) {
+                toast.error(`Stok '${b?.nama || 'Barang'}' di gudang sedang habis (0 ${it.satuan}). Permintaan tidak dapat diajukan.`);
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             await api.post('/gudang/permintaan/', {
@@ -295,26 +343,46 @@ export default function PermintaanUnit() {
     const handleOpenApproveModal = (req) => {
         setApproveTarget(req);
         setApproveItems(
-            (req.items || []).map(it => ({
-                id: it.id,
-                barang_nama: it.barang_nama,
-                barang_kode: it.barang_kode,
-                satuan: it.satuan,
-                qty_minta: it.qty_minta,
-                qty_disetujui: it.qty_disetujui || it.qty_minta
-            }))
+            (req.items || []).map(it => {
+                const minta = Number(it.qty_minta || 0);
+                const disetujui = Number(it.qty_disetujui || 0);
+                const stokTersedia = Number(it.stok_tersedia ?? (barangList.find(b => b.id === it.barang)?.stok_saat_ini || 0));
+                return {
+                    id: it.id,
+                    barang_nama: it.barang_nama,
+                    barang_kode: it.barang_kode,
+                    satuan: it.satuan,
+                    qty_minta: minta,
+                    stok_tersedia: stokTersedia,
+                    qty_disetujui: disetujui > 0 ? disetujui : Math.min(minta, stokTersedia)
+                };
+            })
         );
         setShowDetailModal(false);
     };
 
     const handleExecuteApprove = async () => {
         if (!approveTarget) return;
+
+        // Validasi: Qty disetujui tidak boleh 0 atau melebihi stok yang tersedia
+        for (const it of approveItems) {
+            const qtyApp = Number(it.qty_disetujui || 0);
+            if (qtyApp <= 0) {
+                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh 0. Gunakan tombol Tolak jika permohonan tidak dapat dipenuhi.`);
+                return;
+            }
+            if (qtyApp > it.stok_tersedia) {
+                toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
+                return;
+            }
+        }
+
         setApproveSubmitting(true);
         try {
             await api.post(`/gudang/permintaan/${approveTarget.id}/approve/`, {
                 items: approveItems.map(it => ({
                     id: it.id,
-                    qty_disetujui: it.qty_disetujui
+                    qty_disetujui: Number(it.qty_disetujui || 0)
                 }))
             });
             toast.success(`Permintaan ${approveTarget.nomor} telah disetujui.`);
@@ -561,16 +629,46 @@ export default function PermintaanUnit() {
                             style={{ paddingLeft: '44px' }}
                         />
                     </div>
-                    <select
-                        className="pu-select"
-                        value={filterRuang}
-                        onChange={(e) => { setFilterRuang(e.target.value); setPage(1); }}
-                    >
-                        <option value="">Semua Ruangan</option>
-                        {ruangList.map(r => (
-                            <option key={r.id} value={r.id}>{r.nama}</option>
-                        ))}
-                    </select>
+                    {isLogistikAdmin ? (
+                        <select
+                            className="pu-select"
+                            value={filterRuang}
+                            onChange={(e) => { setFilterRuang(e.target.value); setPage(1); }}
+                        >
+                            <option value="">Semua Ruangan</option>
+                            {ruangList.map(r => (
+                                <option key={r.id} value={r.id}>{r.nama}</option>
+                            ))}
+                        </select>
+                    ) : userRuangOptions.length > 1 ? (
+                        <select
+                            className="pu-select"
+                            value={filterRuang}
+                            onChange={(e) => { setFilterRuang(e.target.value); setPage(1); }}
+                        >
+                            <option value="">Semua Ruangan ({userUnitNama || 'Unit'})</option>
+                            {userRuangOptions.map(r => (
+                                <option key={r.id} value={r.id}>{r.nama}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 14px',
+                            borderRadius: '10px',
+                            background: 'rgba(124, 58, 237, 0.12)',
+                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                            color: '#c4b5fd',
+                            fontSize: '12.5px',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
+                        }}>
+                            <Building2 size={14} style={{ color: '#a78bfa' }} />
+                            <span>{userRuang?.nama || userUnitNama || 'Unit Pemohon'}</span>
+                        </div>
+                    )}
                     <select
                         className="pu-select"
                         value={filterStatus}
@@ -837,13 +935,28 @@ export default function PermintaanUnit() {
                                         )}
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
-                                            Tanggal Permintaan *
+                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                            <span>Tanggal Permintaan *</span>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                color: '#94a3b8',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                background: 'rgba(148, 163, 184, 0.12)',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(148, 163, 184, 0.25)'
+                                            }}>
+                                                <Lock size={11} /> Read Only
+                                            </span>
                                         </label>
                                         <DateField
                                             value={formTanggal}
                                             onChange={val => setFormTanggal(val)}
                                             placeholder="Pilih tanggal..."
+                                            disabled={true}
                                         />
                                     </div>
                                 </div>
@@ -1129,57 +1242,119 @@ export default function PermintaanUnit() {
                                     <thead>
                                         <tr>
                                             <th>Barang</th>
+                                            <th style={{ textAlign: 'right' }}>Stok Gudang</th>
                                             <th style={{ textAlign: 'right' }}>Qty Minta</th>
                                             <th style={{ width: '130px', textAlign: 'center' }}>Qty Disetujui</th>
                                             <th>Satuan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {approveItems.map((it, idx) => (
-                                            <tr key={it.id}>
-                                                <td>
-                                                    <strong>{it.barang_nama}</strong>
-                                                    <small style={{ display: 'block', color: '#94a3b8' }}>{it.barang_kode}</small>
-                                                </td>
-                                                <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td align="center">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="any"
-                                                        style={{
-                                                            width: '90px', padding: '6px 8px', borderRadius: '6px',
-                                                            border: '1px solid #7c3aed', background: 'rgba(124, 58, 237, 0.1)',
-                                                            color: '#f8fafc', textAlign: 'center', fontWeight: 700
-                                                        }}
-                                                        value={it.qty_disetujui}
-                                                        onChange={(e) => {
-                                                            const next = [...approveItems];
-                                                            next[idx].qty_disetujui = e.target.value;
-                                                            setApproveItems(next);
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td>{it.satuan}</td>
-                                            </tr>
-                                        ))}
+                                        {approveItems.map((it, idx) => {
+                                            const qtyVal = Number(it.qty_disetujui || 0);
+                                            const stokVal = Number(it.stok_tersedia || 0);
+                                            const isOverStock = qtyVal > stokVal;
+                                            const isZeroOrLess = !it.qty_disetujui || qtyVal <= 0;
+                                            return (
+                                                <tr key={it.id}>
+                                                    <td>
+                                                        <strong>{it.barang_nama}</strong>
+                                                        <small style={{ display: 'block', color: '#94a3b8' }}>{it.barang_kode}</small>
+                                                    </td>
+                                                    <td align="right" style={{ color: it.stok_tersedia <= 0 ? '#f43f5e' : '#38bdf8', fontWeight: 700 }}>
+                                                        {Number(it.stok_tersedia || 0).toLocaleString('id-ID')}
+                                                        {it.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Habis</small>}
+                                                    </td>
+                                                    <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
+                                                    <td align="center">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max={it.stok_tersedia || 0}
+                                                            step="any"
+                                                            style={{
+                                                                width: '90px', padding: '6px 8px', borderRadius: '6px',
+                                                                border: isOverStock ? '1px solid #f43f5e' : isZeroOrLess ? '1px solid #f59e0b' : '1px solid #7c3aed',
+                                                                background: isOverStock ? 'rgba(244, 63, 94, 0.18)' : isZeroOrLess ? 'rgba(245, 158, 11, 0.18)' : 'rgba(124, 58, 237, 0.1)',
+                                                                color: isOverStock ? '#fca5a5' : isZeroOrLess ? '#fde68a' : '#f8fafc',
+                                                                textAlign: 'center', fontWeight: 700
+                                                            }}
+                                                            value={it.qty_disetujui}
+                                                            onChange={(e) => {
+                                                                const next = [...approveItems];
+                                                                next[idx].qty_disetujui = e.target.value;
+                                                                setApproveItems(next);
+                                                            }}
+                                                        />
+                                                        {isOverStock && (
+                                                            <small style={{ display: 'block', color: '#f87171', fontSize: '10.5px', marginTop: '3px' }}>
+                                                                Melebihi stok!
+                                                            </small>
+                                                        )}
+                                                        {isZeroOrLess && !isOverStock && (
+                                                            <small style={{ display: 'block', color: '#fbbf24', fontSize: '10.5px', marginTop: '3px' }}>
+                                                                Qty tidak boleh 0
+                                                            </small>
+                                                        )}
+                                                    </td>
+                                                    <td>{it.satuan}</td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+
+                            {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0 }} />
+                                    <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
+                                </div>
+                            )}
+
+                            {approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fde68a', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
+                                    <span>Kuantitas yang disetujui tidak boleh 0. Karena barang kosong atau permohonan ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="pu-modal-footer">
-                            <button type="button" className="pu-btn soft" onClick={() => setApproveTarget(null)}>
-                                Batal
-                            </button>
+                        <div className="pu-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <button
                                 type="button"
-                                className="pu-btn primary"
-                                onClick={handleExecuteApprove}
-                                disabled={approveSubmitting}
+                                className="pu-btn"
+                                style={{ background: 'rgba(239, 68, 68, 0.18)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                                onClick={() => {
+                                    const target = approveTarget;
+                                    setApproveTarget(null);
+                                    handleOpenRejectModal(target);
+                                }}
                             >
-                                <Check size={15} /> {approveSubmitting ? 'Memproses...' : 'Setujui Permintaan Unit'}
+                                <X size={15} /> Tolak Permintaan
                             </button>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button type="button" className="pu-btn soft" onClick={() => setApproveTarget(null)}>
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    className="pu-btn primary"
+                                    onClick={handleExecuteApprove}
+                                    disabled={
+                                        approveSubmitting ||
+                                        approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
+                                        approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0)
+                                    }
+                                    style={
+                                        (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
+                                         approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0))
+                                            ? { opacity: 0.5, cursor: 'not-allowed' }
+                                            : {}
+                                    }
+                                >
+                                    <Check size={15} /> {approveSubmitting ? 'Memproses...' : 'Setujui Permintaan Unit'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,

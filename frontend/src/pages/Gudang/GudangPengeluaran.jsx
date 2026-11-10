@@ -307,10 +307,16 @@ export default function GudangPengeluaran() {
 
     const handleExecuteApprove = async (e) => {
         e.preventDefault();
-        const hasApproved = approveItems.some(it => Number(it.qty_disetujui) > 0);
-        if (!hasApproved) {
-            toast.error('Minimal satu barang harus disetujui dengan kuantitas > 0. Jika ditolak semua, gunakan tombol Tolak.');
-            return;
+        for (const it of approveItems) {
+            const qtyApp = Number(it.qty_disetujui || 0);
+            if (qtyApp <= 0) {
+                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh 0. Gunakan tombol Tolak jika permohonan tidak dapat dipenuhi.`);
+                return;
+            }
+            if (qtyApp > it.stok_tersedia) {
+                toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
+                return;
+            }
         }
 
         setApproveSubmitting(true);
@@ -318,7 +324,7 @@ export default function GudangPengeluaran() {
             await api.post(`/gudang/permintaan/${approveTargetReq.id}/approve/`, {
                 items: approveItems.map(it => ({
                     id: it.id,
-                    qty_disetujui: Math.max(0, Number(it.qty_disetujui || 0))
+                    qty_disetujui: Number(it.qty_disetujui || 0)
                 }))
             });
             toast.success(`Permintaan ${approveTargetReq.nomor} telah disetujui.`);
@@ -1441,35 +1447,52 @@ export default function GudangPengeluaran() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {approveItems.map((item, idx) => (
-                                                    <tr key={idx}>
-                                                        <td style={{ color: '#0284c7', fontWeight: 600 }}>{item.barang_kode}</td>
-                                                        <td className="gdg-cell-strong">{item.barang_nama}</td>
-                                                        <td style={{ textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
-                                                            {Number(item.qty_minta).toLocaleString('id-ID')}
-                                                        </td>
-                                                        <td style={{
-                                                            textAlign: 'right',
-                                                            color: item.stok_tersedia < item.qty_minta ? '#f43f5e' : '#0284c7',
-                                                            fontWeight: 600
-                                                        }}>
-                                                            {Number(item.stok_tersedia).toLocaleString('id-ID')}
-                                                        </td>
-                                                        <td style={{ textAlign: 'right' }}>
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                step="any"
-                                                                value={item.qty_disetujui}
-                                                                onChange={(e) => handleApproveItemQtyChange(idx, e.target.value)}
-                                                                required
-                                                                className="gdg-inline-input"
-                                                                style={{ width: '100%', textAlign: 'right', fontWeight: 600, color: '#10b981' }}
-                                                            />
-                                                        </td>
-                                                        <td>{item.satuan}</td>
-                                                    </tr>
-                                                ))}
+                                                {approveItems.map((item, idx) => {
+                                                    const qtyVal = Number(item.qty_disetujui || 0);
+                                                    const stokVal = Number(item.stok_tersedia || 0);
+                                                    const isOverStock = qtyVal > stokVal;
+                                                    const isZeroOrLess = !item.qty_disetujui || qtyVal <= 0;
+                                                    return (
+                                                        <tr key={idx}>
+                                                            <td style={{ color: '#0284c7', fontWeight: 600 }}>{item.barang_kode}</td>
+                                                            <td className="gdg-cell-strong">{item.barang_nama}</td>
+                                                            <td style={{ textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                                                                {Number(item.qty_minta).toLocaleString('id-ID')}
+                                                            </td>
+                                                            <td style={{
+                                                                textAlign: 'right',
+                                                                color: item.stok_tersedia <= 0 ? '#f43f5e' : '#0284c7',
+                                                                fontWeight: 600
+                                                            }}>
+                                                                {Number(item.stok_tersedia).toLocaleString('id-ID')}
+                                                                {item.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10px' }}>Habis</small>}
+                                                            </td>
+                                                            <td style={{ textAlign: 'right' }}>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    max={item.stok_tersedia || 0}
+                                                                    step="any"
+                                                                    value={item.qty_disetujui}
+                                                                    onChange={(e) => handleApproveItemQtyChange(idx, e.target.value)}
+                                                                    required
+                                                                    className="gdg-inline-input"
+                                                                    style={{
+                                                                        width: '100%',
+                                                                        textAlign: 'right',
+                                                                        fontWeight: 600,
+                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? '#d97706' : '#10b981',
+                                                                        borderColor: isOverStock ? '#f43f5e' : isZeroOrLess ? '#d97706' : undefined,
+                                                                        background: isOverStock ? '#fff1f2' : isZeroOrLess ? '#fffbeb' : undefined
+                                                                    }}
+                                                                />
+                                                                {isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Melebihi stok!</small>}
+                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: '#d97706', fontSize: '10.5px' }}>Qty tidak boleh 0</small>}
+                                                            </td>
+                                                            <td>{item.satuan}</td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1481,15 +1504,57 @@ export default function GudangPengeluaran() {
                                         Anda dapat menyesuaikan kuantitas yang disetujui jika stok fisik gudang terbatas atau sesuai jatah kuota ruangan.
                                     </span>
                                 </div>
+
+                                {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                    <div className="gdg-banner danger" style={{ marginTop: '10px', background: '#fee2e2', border: '1px solid #fecaca', color: '#991b1b', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                                        <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+                                        <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
+                                    </div>
+                                )}
+
+                                {approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                    <div className="gdg-banner warning" style={{ marginTop: '10px', background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                                        <AlertCircle size={16} color="#d97706" style={{ flexShrink: 0 }} />
+                                        <span>Kuantitas yang disetujui tidak boleh 0. Karena barang kosong atau permohonan ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="gdg-modal-foot" style={{ justifyContent: 'space-between' }}>
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowApproveModal(false)} disabled={approveSubmitting}>
-                                    Batal
+                            <div className="gdg-modal-foot" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                                <button
+                                    type="button"
+                                    className="gdg-btn danger"
+                                    onClick={() => {
+                                        const target = approveTargetReq;
+                                        setShowApproveModal(false);
+                                        handleOpenRejectModal(target);
+                                    }}
+                                    disabled={approveSubmitting}
+                                >
+                                    <X size={15} /> Tolak Permintaan
                                 </button>
-                                <button type="submit" className="gdg-btn success" disabled={approveSubmitting}>
-                                    <Check size={16} /> {approveSubmitting ? 'Menyimpan...' : 'Setujui & Terbitkan Izin Penyerahan'}
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" className="gdg-btn soft" onClick={() => setShowApproveModal(false)} disabled={approveSubmitting}>
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="gdg-btn success"
+                                        disabled={
+                                            approveSubmitting ||
+                                            approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
+                                            approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0)
+                                        }
+                                        style={
+                                            (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
+                                             approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0))
+                                                ? { opacity: 0.5, cursor: 'not-allowed' }
+                                                : {}
+                                        }
+                                    >
+                                        <Check size={16} /> {approveSubmitting ? 'Menyimpan...' : 'Setujui & Terbitkan Izin Penyerahan'}
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
