@@ -512,6 +512,7 @@ export default function PermintaanUnit() {
                             placeholder="Cari nomor SPB, catatan, nama pemohon..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            style={{ paddingLeft: '44px' }}
                         />
                     </div>
                     <select
@@ -774,7 +775,7 @@ export default function PermintaanUnit() {
                                     </label>
                                     <input
                                         type="text"
-                                        className="pu-search-box input"
+                                        className="pu-modal-input"
                                         style={{
                                             width: '100%', padding: '10px 14px', borderRadius: '10px',
                                             border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(15,23,42,0.6)',
