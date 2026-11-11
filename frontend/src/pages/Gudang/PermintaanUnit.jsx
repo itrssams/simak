@@ -880,7 +880,7 @@ export default function PermintaanUnit() {
 
                         <form onSubmit={handleSubmitCreate}>
                             <div className="pu-modal-body">
-                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
+                                <div className="pu-form-grid-2col">
                                     <div>
                                         <label className="pu-form-label">
                                             <span>Unit / Ruangan Pemohon *</span>
@@ -951,7 +951,7 @@ export default function PermintaanUnit() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {formItems.map((item, idx) => (
                                             <div key={idx} className="pu-item-row">
-                                                <div style={{ minWidth: 0 }}>
+                                                <div className="pu-item-select-wrap">
                                                     <SearchableSelect
                                                         options={barangOptions}
                                                         value={item.barang_id ? String(item.barang_id) : ''}
@@ -959,46 +959,48 @@ export default function PermintaanUnit() {
                                                         placeholder="-- Cari / Pilih Barang --"
                                                         searchPlaceholder="Ketik nama atau kode barang..."
                                                         emptyMessage="Barang tidak ditemukan"
-                                                        minDropdownWidth={360}
+                                                        minDropdownWidth={260}
                                                         maxDropdownWidth={600}
                                                     />
                                                 </div>
 
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    step="any"
-                                                    className="pu-input-qty"
-                                                    placeholder="Qty"
-                                                    value={item.qty}
-                                                    onChange={e => handleItemChange(idx, 'qty', e.target.value)}
-                                                    required
-                                                />
+                                                <div className="pu-item-inputs-wrap">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="any"
+                                                        className="pu-input-qty"
+                                                        placeholder="Qty"
+                                                        value={item.qty}
+                                                        onChange={e => handleItemChange(idx, 'qty', e.target.value)}
+                                                        required
+                                                    />
 
-                                                <input
-                                                    type="text"
-                                                    readOnly
-                                                    className="pu-input-satuan"
-                                                    value={item.satuan}
-                                                />
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        className="pu-input-satuan"
+                                                        value={item.satuan}
+                                                    />
 
-                                                <input
-                                                    type="text"
-                                                    className="pu-input-keterangan"
-                                                    placeholder="Ket. spesifikasi (opsional)..."
-                                                    value={item.keterangan}
-                                                    onChange={e => handleItemChange(idx, 'keterangan', e.target.value)}
-                                                />
+                                                    <input
+                                                        type="text"
+                                                        className="pu-input-keterangan"
+                                                        placeholder="Ket. spesifikasi (opsional)..."
+                                                        value={item.keterangan}
+                                                        onChange={e => handleItemChange(idx, 'keterangan', e.target.value)}
+                                                    />
 
-                                                <button
-                                                    type="button"
-                                                    className="pu-btn-del-item"
-                                                    onClick={() => handleRemoveItemRow(idx)}
-                                                    disabled={formItems.length === 1}
-                                                    title="Hapus baris"
-                                                >
-                                                    <X size={14} />
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        className="pu-btn-del-item"
+                                                        onClick={() => handleRemoveItemRow(idx)}
+                                                        disabled={formItems.length === 1}
+                                                        title="Hapus baris"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1252,7 +1254,7 @@ export default function PermintaanUnit() {
                             )}
                         </div>
 
-                        <div className="pu-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="pu-approve-modal-footer">
                             <button
                                 type="button"
                                 className="pu-btn pu-btn-tolak-outline"
@@ -1264,7 +1266,7 @@ export default function PermintaanUnit() {
                             >
                                 <X size={15} /> Tolak Permintaan
                             </button>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div className="pu-approve-modal-footer-right">
                                 <button type="button" className="pu-btn soft" onClick={() => setApproveTarget(null)}>
                                     Batal
                                 </button>
