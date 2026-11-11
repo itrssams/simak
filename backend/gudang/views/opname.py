@@ -63,10 +63,13 @@ class StockOpnameViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         opname = self.get_object()
         user = request.user
+        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
         approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'}
-        if not (user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in approver_roles):
+        is_approver = getattr(user, 'role', '') in approver_roles
+        if not (is_super or (has_logistik and is_approver)):
             return Response(
-                {'error': 'Anda tidak memiliki wewenang otorisasi untuk menyetujui Stock Opname.'},
+                {'error': 'Hanya Koordinator yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang menyetujui Stock Opname.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         try:

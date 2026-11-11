@@ -42,8 +42,9 @@ class StockOpnameSerializer(serializers.ModelSerializer):
         if obj.status != StockOpname.STATUS_DRAFT:
             return False
         user = request.user
-        if user.is_superuser or user.username == 'super':
+        if user.is_superuser or getattr(user, 'username', '') == 'super':
             return True
+        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
         approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur'}
-        return getattr(user, 'role', '') in approver_roles
+        return has_logistik and (getattr(user, 'role', '') in approver_roles)
 

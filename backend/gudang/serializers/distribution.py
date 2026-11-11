@@ -55,10 +55,15 @@ class PermintaanSerializer(serializers.ModelSerializer):
         if obj.status != Permintaan.STATUS_MENUNGGU:
             return False
         user = request.user
-        if user.is_superuser or user.username == 'super':
+        if user.is_superuser or getattr(user, 'username', '') == 'super':
             return True
-        kasi_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
-        return getattr(user, 'role', '') in kasi_roles or getattr(user, 'is_staff', False)
+        
+        # Wajib memiliki hak akses kelola logistik (is_logistik) DAN berstatus Koordinator/Kasi ke atas
+        has_logistik_access = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
+        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
+        is_approver_role = getattr(user, 'role', '') in approver_roles
+
+        return has_logistik_access and is_approver_role
 
     def get_can_issue(self, obj):
         # Tahap penyerahan fisik oleh logistik: HANYA jika sudah berstatus DISETUJUI oleh Kasi
@@ -109,5 +114,13 @@ class PengeluaranSerializer(serializers.ModelSerializer):
         ]
 
     def get_can_approve(self, obj):
-        return obj.status == Pengeluaran.STATUS_DRAFT
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        if obj.status != Pengeluaran.STATUS_DRAFT:
+            return False
+        user = request.user
+        if user.is_superuser or getattr(user, 'username', '') == 'super':
+            return True
+        return bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
 

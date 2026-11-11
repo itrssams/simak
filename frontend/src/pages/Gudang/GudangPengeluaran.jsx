@@ -28,12 +28,11 @@ export default function GudangPengeluaran() {
     const toast = useToast();
     const { user } = useAuth();
     const isSuper = Boolean(user?.is_superuser || user?.username === 'super' || user?.role === 'superadmin' || user?.role === 'direktur');
-    const isKasiOrAbove = Boolean(
+    const hasLogistikAccess = Boolean(user?.is_superuser || user?.username === 'super' || user?.is_logistik || ['direktur', 'wakil_direktur'].includes(user?.role));
+    const isLogistikApprover = Boolean(
         user?.is_superuser ||
         user?.username === 'super' ||
-        user?.role === 'superadmin' ||
-        user?.role === 'direktur' ||
-        ['kepala_seksi', 'manajer', 'wakil_direktur'].includes(user?.role)
+        (hasLogistikAccess && ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'].includes(user?.role))
     );
 
     const [subTab, setSubTab] = useState('permintaan'); // 'permintaan' | 'pengeluaran'
@@ -717,8 +716,8 @@ export default function GudangPengeluaran() {
                                                         <Eye size={15} />
                                                     </button>
 
-                                                    {/* 2. JIKA STATUS MENUNGGU: MUNCUL VERIFIKASI & TOLAK UNTUK APPROVER */}
-                                                    {req.status === 'MENUNGGU' && (req.can_approve || isKasiOrAbove) && (
+                                                    {/* 2. JIKA STATUS MENUNGGU: MUNCUL VERIFIKASI & TOLAK UNTUK APPROVER LOGISTIK */}
+                                                    {req.status === 'MENUNGGU' && req.can_approve && (
                                                         <>
                                                             <button
                                                                 type="button"
@@ -1262,7 +1261,7 @@ export default function GudangPengeluaran() {
                         </div>
                         <div className="gdg-modal-foot">
                             <button className="gdg-btn soft" onClick={() => setShowDetailReqModal(false)}>Tutup</button>
-                            {selectedReq.status === 'MENUNGGU' && (selectedReq.can_approve || isKasiOrAbove) && (
+                            {selectedReq.status === 'MENUNGGU' && selectedReq.can_approve && (
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <button className="gdg-btn danger" onClick={() => handleOpenRejectModal(selectedReq)}>
                                         <X size={15} /> Tolak Permintaan

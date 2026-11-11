@@ -108,9 +108,13 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         permintaan = self.get_object()
         user = request.user
-        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
-        if not is_kasi_or_above:
-            return Response({'error': 'Hanya Koordinator/Kepala Seksi ke atas atau Administrator yang berwenang memverifikasi/menyetujui permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
+        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
+        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
+        is_approver = getattr(user, 'role', '') in approver_roles
+
+        if not (is_super or (has_logistik and is_approver)):
+            return Response({'error': 'Hanya Koordinator/Kepala Seksi yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang memverifikasi/menyetujui permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         items_approval = request.data.get('items')
         try:
@@ -127,9 +131,13 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     def reject(self, request, pk=None):
         permintaan = self.get_object()
         user = request.user
-        is_kasi_or_above = user.is_superuser or user.username == 'super' or getattr(user, 'role', '') in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
-        if not is_kasi_or_above:
-            return Response({'error': 'Hanya Koordinator/Kepala Seksi ke atas atau Administrator yang berwenang menolak permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
+        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
+        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
+        is_approver = getattr(user, 'role', '') in approver_roles
+
+        if not (is_super or (has_logistik and is_approver)):
+            return Response({'error': 'Hanya Koordinator/Kepala Seksi yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang menolak permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         alasan = request.data.get('alasan', '').strip()
         if not alasan:
@@ -277,12 +285,14 @@ class PermintaanViewSet(viewsets.ModelViewSet):
             return Response({'error': 'SPB tidak dapat dihapus karena sudah memiliki transaksi pengeluaran (BPPB) yang disetujui.'}, status=status.HTTP_400_BAD_REQUEST)
         if spb.pengeluaran_list.exists():
             return Response({'error': 'SPB tidak dapat dihapus karena masih memiliki dokumen pengeluaran (BPPB) terkait.'}, status=status.HTTP_400_BAD_REQUEST)
-        user_role = getattr(request.user, 'role', '')
-        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        user = request.user
+        user_role = getattr(user, 'role', '')
+        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+        has_logistik = bool(getattr(user, 'is_logistik', False) or user_role in ['direktur', 'wakil_direktur'])
         is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
-        is_creator = spb.created_by_id == request.user.id
-        if not (is_super or is_approver or is_creator):
-            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus SPB ini.'}, status=status.HTTP_403_FORBIDDEN)
+        is_creator = spb.created_by_id == user.id
+        if not (is_super or (has_logistik and is_approver) or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator Logistik, atau Superuser yang dapat menghapus SPB ini.'}, status=status.HTTP_403_FORBIDDEN)
         from django.db import transaction
         with transaction.atomic():
             spb.items.all().delete()
@@ -350,6 +360,10 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
+        user = request.user
+        is_logistik_staff = user.is_superuser or getattr(user, 'username', '') == 'super' or getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur']
+        if not is_logistik_staff:
+            return Response({'error': 'Hanya petugas Logistik atau Administrator yang berwenang menyetujui pengeluaran barang.'}, status=status.HTTP_403_FORBIDDEN)
         pengeluaran = self.get_object()
         try:
             pengeluaran = DistributionService.approve_pengeluaran(pengeluaran, user=request.user)
@@ -363,12 +377,14 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
         bppb = self.get_object()
         if bppb.status == Pengeluaran.STATUS_DISETUJUI:
             return Response({'error': 'Pengeluaran barang (BPPB) yang telah disetujui tidak dapat dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
-        user_role = getattr(request.user, 'role', '')
-        is_super = request.user.is_superuser or getattr(request.user, 'username', '') == 'super'
+        user = request.user
+        user_role = getattr(user, 'role', '')
+        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+        has_logistik = bool(getattr(user, 'is_logistik', False) or user_role in ['direktur', 'wakil_direktur'])
         is_approver = user_role in ['koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur']
-        is_creator = bppb.created_by_id == request.user.id
-        if not (is_super or is_approver or is_creator):
-            return Response({'error': 'Hanya pembuat dokumen, Koordinator, atau Superuser yang dapat menghapus BPPB ini.'}, status=status.HTTP_403_FORBIDDEN)
+        is_creator = bppb.created_by_id == user.id
+        if not (is_super or (has_logistik and is_approver) or is_creator):
+            return Response({'error': 'Hanya pembuat dokumen, Koordinator Logistik, atau Superuser yang dapat menghapus BPPB ini.'}, status=status.HTTP_403_FORBIDDEN)
         from django.db import transaction
         with transaction.atomic():
             bppb.items.all().delete()
