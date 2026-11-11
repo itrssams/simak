@@ -863,16 +863,12 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '860px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{
-                                    width: '38px', height: '38px', borderRadius: '10px',
-                                    background: 'rgba(124, 58, 237, 0.15)', color: '#a78bfa',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>
+                                <div className="pu-modal-icon-wrap">
                                     <PackagePlus size={20} />
                                 </div>
                                 <div>
-                                    <h3 style={{ margin: 0, fontSize: '17px', color: '#f8fafc' }}>Buat Permintaan Barang Baru</h3>
-                                    <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
+                                    <h3 className="pu-modal-title">Buat Permintaan Barang Baru</h3>
+                                    <p className="pu-modal-subtitle">
                                         Ajukan barang operasional ruangan ke gudang logistik RS Siaga
                                     </p>
                                 </div>
@@ -886,42 +882,20 @@ export default function PermintaanUnit() {
                             <div className="pu-modal-body">
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
                                     <div>
-                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                        <label className="pu-form-label">
                                             <span>Unit / Ruangan Pemohon *</span>
-                                            <span style={{
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                color: '#a78bfa',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                background: 'rgba(124, 58, 237, 0.12)',
-                                                padding: '2px 8px',
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(139, 92, 246, 0.25)'
-                                            }}>
+                                            <span className="pu-badge-pill">
                                                 <Lock size={11} /> Sesuai Akun
                                             </span>
                                         </label>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '10px',
-                                            padding: '10px 14px',
-                                            borderRadius: '10px',
-                                            background: 'rgba(15, 23, 42, 0.65)',
-                                            border: '1px solid rgba(255, 255, 255, 0.12)',
-                                            color: '#f8fafc',
-                                            minHeight: '42px',
-                                            boxSizing: 'border-box'
-                                        }}>
+                                        <div className="pu-locked-box">
                                             <Building2 size={16} style={{ color: '#a78bfa', flexShrink: 0 }} />
                                             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                <span style={{ fontWeight: 600, fontSize: '13.5px', color: '#f8fafc' }}>
+                                                <span className="pu-locked-box-text">
                                                     {userRuang?.nama || userUnitNama || (formRuangId ? (ruangList.find(r => String(r.id) === String(formRuangId))?.nama) : 'Memuat Unit Akun...')}
                                                 </span>
                                                 {userRuang?.kode && (
-                                                    <span style={{ marginLeft: '6px', fontSize: '11.5px', color: '#94a3b8' }}>
+                                                    <span className="pu-locked-box-code">
                                                         ({userRuang.kode})
                                                     </span>
                                                 )}
@@ -935,20 +909,9 @@ export default function PermintaanUnit() {
                                         )}
                                     </div>
                                     <div>
-                                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                        <label className="pu-form-label">
                                             <span>Tanggal Permintaan *</span>
-                                            <span style={{
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                color: '#94a3b8',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                background: 'rgba(148, 163, 184, 0.12)',
-                                                padding: '2px 8px',
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(148, 163, 184, 0.25)'
-                                            }}>
+                                            <span className="pu-badge-pill muted">
                                                 <Lock size={11} /> Read Only
                                             </span>
                                         </label>
@@ -962,17 +925,13 @@ export default function PermintaanUnit() {
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                    <label className="pu-form-label" style={{ display: 'block' }}>
                                         Catatan / Keperluan Permintaan
                                     </label>
                                     <input
                                         type="text"
-                                        className="pu-modal-input"
-                                        style={{
-                                            width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                            border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(15,23,42,0.6)',
-                                            color: '#f8fafc', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box'
-                                        }}
+                                        className="pu-form-textarea"
+                                        style={{ height: '42px', minHeight: '42px' }}
                                         placeholder="Contoh: Kebutuhan operasional mingguan, perbaikan arsip..."
                                         value={formCatatan}
                                         onChange={e => setFormCatatan(e.target.value)}
@@ -980,23 +939,18 @@ export default function PermintaanUnit() {
                                 </div>
 
                                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#a78bfa' }}>
+                                    <div className="pu-items-header">
+                                        <span className="pu-section-title">
                                             Daftar Barang yang Diminta
                                         </span>
-                                        <button type="button" className="pu-btn soft" onClick={handleAddItemRow} style={{ padding: '6px 12px', fontSize: '12px' }}>
+                                        <button type="button" className="pu-btn-add-item" onClick={handleAddItemRow}>
                                             <Plus size={14} /> Tambah Baris
                                         </button>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {formItems.map((item, idx) => (
-                                            <div key={idx} style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '2.8fr 80px 70px 1.8fr 36px',
-                                                gap: '8px',
-                                                alignItems: 'center'
-                                            }}>
+                                            <div key={idx} className="pu-item-row">
                                                 <div style={{ minWidth: 0 }}>
                                                     <SearchableSelect
                                                         options={barangOptions}
@@ -1014,11 +968,7 @@ export default function PermintaanUnit() {
                                                     type="number"
                                                     min="1"
                                                     step="any"
-                                                    style={{
-                                                        padding: '10px 10px', borderRadius: '8px',
-                                                        border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(15,23,42,0.6)',
-                                                        color: '#f8fafc', fontSize: '13px', textAlign: 'center', outline: 'none'
-                                                    }}
+                                                    className="pu-input-qty"
                                                     placeholder="Qty"
                                                     value={item.qty}
                                                     onChange={e => handleItemChange(idx, 'qty', e.target.value)}
@@ -1028,21 +978,13 @@ export default function PermintaanUnit() {
                                                 <input
                                                     type="text"
                                                     readOnly
-                                                    style={{
-                                                        padding: '10px 6px', borderRadius: '8px',
-                                                        border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)',
-                                                        color: '#cbd5e1', fontSize: '12px', textAlign: 'center'
-                                                    }}
+                                                    className="pu-input-satuan"
                                                     value={item.satuan}
                                                 />
 
                                                 <input
                                                     type="text"
-                                                    style={{
-                                                        padding: '10px 12px', borderRadius: '8px',
-                                                        border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(15,23,42,0.6)',
-                                                        color: '#f8fafc', fontSize: '12px', outline: 'none'
-                                                    }}
+                                                    className="pu-input-keterangan"
                                                     placeholder="Ket. spesifikasi (opsional)..."
                                                     value={item.keterangan}
                                                     onChange={e => handleItemChange(idx, 'keterangan', e.target.value)}
@@ -1050,7 +992,7 @@ export default function PermintaanUnit() {
 
                                                 <button
                                                     type="button"
-                                                    className="pu-action-btn delete"
+                                                    className="pu-btn-del-item"
                                                     onClick={() => handleRemoveItemRow(idx)}
                                                     disabled={formItems.length === 1}
                                                     title="Hapus baris"
@@ -1085,10 +1027,10 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '820px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>
+                                <h3 className="pu-modal-title" style={{ fontSize: '18px' }}>
                                     Detail Permintaan: {selectedReq.nomor}
                                 </h3>
-                                <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#94a3b8' }}>
+                                <p className="pu-modal-subtitle">
                                     Ruangan: <strong>{selectedReq.ruang_nama}</strong> &bull; Diajukan: {selectedReq.tanggal}
                                 </p>
                             </div>
@@ -1123,20 +1065,17 @@ export default function PermintaanUnit() {
 
                             {/* Alasan Ditolak Alert */}
                             {selectedReq.status === 'DITOLAK' && selectedReq.alasan_tolak && (
-                                <div style={{
-                                    background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.3)',
-                                    borderRadius: '10px', padding: '12px 16px', display: 'flex', gap: '10px', alignItems: 'center'
-                                }}>
+                                <div className="pu-alert-banner danger">
                                     <AlertCircle size={18} style={{ color: '#fb7185', flexShrink: 0 }} />
                                     <div>
-                                        <strong style={{ color: '#fb7185', fontSize: '13px' }}>Permintaan Ditolak:</strong>
-                                        <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#fecdd3' }}>{selectedReq.alasan_tolak}</p>
+                                        <strong style={{ fontSize: '13px' }}>Permintaan Ditolak:</strong>
+                                        <p style={{ margin: '2px 0 0', fontSize: '12.5px' }}>{selectedReq.alasan_tolak}</p>
                                     </div>
                                 </div>
                             )}
 
                             {selectedReq.catatan && (
-                                <p style={{ fontSize: '13px', margin: 0, color: '#cbd5e1' }}>
+                                <p className="pu-detail-note">
                                     <strong>Catatan:</strong> {selectedReq.catatan}
                                 </p>
                             )}
@@ -1159,10 +1098,10 @@ export default function PermintaanUnit() {
                                         {(selectedReq.items || []).map((it, idx) => (
                                             <tr key={it.id}>
                                                 <td>{idx + 1}</td>
-                                                <td><span style={{ color: '#a78bfa' }}>{it.barang_kode}</span></td>
+                                                <td><span className="pu-code-badge">{it.barang_kode}</span></td>
                                                 <td><strong>{it.barang_nama}</strong></td>
                                                 <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td align="right" style={{ color: it.qty_disetujui ? '#34d399' : '#94a3b8', fontWeight: 700 }}>
+                                                <td align="right" style={{ color: it.qty_disetujui ? '#10b981' : '#94a3b8', fontWeight: 700 }}>
                                                     {it.qty_disetujui ? Number(it.qty_disetujui).toLocaleString('id-ID') : '-'}
                                                 </td>
                                                 <td>{it.satuan}</td>
@@ -1220,10 +1159,10 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '680px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: '17px', color: '#f8fafc' }}>
+                                <h3 className="pu-modal-title">
                                     Verifikasi & Setujui Permintaan
                                 </h3>
-                                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                                <p className="pu-modal-subtitle">
                                     {approveTarget.nomor} &bull; Ruang: <strong>{approveTarget.ruang_nama}</strong>
                                 </p>
                             </div>
@@ -1233,7 +1172,7 @@ export default function PermintaanUnit() {
                         </div>
 
                         <div className="pu-modal-body">
-                            <p style={{ fontSize: '13px', color: '#cbd5e1', margin: 0 }}>
+                            <p className="pu-modal-desc">
                                 Anda dapat menyesuaikan kuantitas yang disetujui jika stok gudang terbatas atau sesuai jatah kuota unit:
                             </p>
 
@@ -1260,7 +1199,7 @@ export default function PermintaanUnit() {
                                                         <strong>{it.barang_nama}</strong>
                                                         <small style={{ display: 'block', color: '#94a3b8' }}>{it.barang_kode}</small>
                                                     </td>
-                                                    <td align="right" style={{ color: it.stok_tersedia <= 0 ? '#f43f5e' : '#38bdf8', fontWeight: 700 }}>
+                                                    <td align="right" style={{ color: it.stok_tersedia <= 0 ? '#f43f5e' : '#0284c7', fontWeight: 700 }}>
                                                         {Number(it.stok_tersedia || 0).toLocaleString('id-ID')}
                                                         {it.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Habis</small>}
                                                     </td>
@@ -1271,13 +1210,7 @@ export default function PermintaanUnit() {
                                                             min="1"
                                                             max={it.stok_tersedia || 0}
                                                             step="any"
-                                                            style={{
-                                                                width: '90px', padding: '6px 8px', borderRadius: '6px',
-                                                                border: isOverStock ? '1px solid #f43f5e' : isZeroOrLess ? '1px solid #f59e0b' : '1px solid #7c3aed',
-                                                                background: isOverStock ? 'rgba(244, 63, 94, 0.18)' : isZeroOrLess ? 'rgba(245, 158, 11, 0.18)' : 'rgba(124, 58, 237, 0.1)',
-                                                                color: isOverStock ? '#fca5a5' : isZeroOrLess ? '#fde68a' : '#f8fafc',
-                                                                textAlign: 'center', fontWeight: 700
-                                                            }}
+                                                            className={`pu-approve-qty-input ${isOverStock ? 'overstock' : isZeroOrLess ? 'zero' : 'normal'}`}
                                                             value={it.qty_disetujui}
                                                             onChange={(e) => {
                                                                 const next = [...approveItems];
@@ -1291,7 +1224,7 @@ export default function PermintaanUnit() {
                                                             </small>
                                                         )}
                                                         {isZeroOrLess && !isOverStock && (
-                                                            <small style={{ display: 'block', color: '#fbbf24', fontSize: '10.5px', marginTop: '3px' }}>
+                                                            <small style={{ display: 'block', color: '#f59e0b', fontSize: '10.5px', marginTop: '3px' }}>
                                                                 Qty tidak boleh 0
                                                             </small>
                                                         )}
@@ -1305,14 +1238,14 @@ export default function PermintaanUnit() {
                             </div>
 
                             {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className="pu-alert-banner danger">
                                     <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0 }} />
                                     <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
                                 </div>
                             )}
 
                             {approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#fde68a', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className="pu-alert-banner warning">
                                     <AlertCircle size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
                                     <span>Kuantitas yang disetujui tidak boleh 0. Karena barang kosong atau permohonan ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
                                 </div>
@@ -1322,8 +1255,7 @@ export default function PermintaanUnit() {
                         <div className="pu-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <button
                                 type="button"
-                                className="pu-btn"
-                                style={{ background: 'rgba(239, 68, 68, 0.18)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                                className="pu-btn pu-btn-tolak-outline"
                                 onClick={() => {
                                     const target = approveTarget;
                                     setApproveTarget(null);
@@ -1369,10 +1301,10 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: '17px', color: '#fb7185' }}>
+                                <h3 className="pu-modal-title" style={{ color: '#fb7185' }}>
                                     Tolak Permintaan Barang
                                 </h3>
-                                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                                <p className="pu-modal-subtitle">
                                     {rejectTarget.nomor} — {rejectTarget.ruang_nama}
                                 </p>
                             </div>
@@ -1383,17 +1315,12 @@ export default function PermintaanUnit() {
 
                         <form onSubmit={handleExecuteReject}>
                             <div className="pu-modal-body">
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#cbd5e1', marginBottom: '6px' }}>
+                                <label className="pu-form-label" style={{ display: 'block' }}>
                                     Alasan Penolakan *
                                 </label>
                                 <textarea
                                     rows="3"
-                                    style={{
-                                        width: '100%', padding: '10px 14px', borderRadius: '10px',
-                                        border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(15,23,42,0.6)',
-                                        color: '#f8fafc', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
-                                        resize: 'vertical'
-                                    }}
+                                    className="pu-form-textarea"
                                     placeholder="Masukkan alasan penolakan untuk unit pemohon..."
                                     value={rejectAlasan}
                                     onChange={e => setRejectAlasan(e.target.value)}
@@ -1428,10 +1355,10 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: '17px', color: '#f43f5e' }}>
+                                <h3 className="pu-modal-title" style={{ color: '#f43f5e' }}>
                                     Hapus Permintaan Barang
                                 </h3>
-                                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                                <p className="pu-modal-subtitle">
                                     Tindakan ini tidak dapat dibatalkan
                                 </p>
                             </div>
@@ -1441,7 +1368,7 @@ export default function PermintaanUnit() {
                         </div>
 
                         <div className="pu-modal-body">
-                            <p style={{ fontSize: '13.5px', color: '#cbd5e1', margin: 0, lineHeight: 1.6 }}>
+                            <p className="pu-modal-desc" style={{ fontSize: '13.5px', lineHeight: 1.6 }}>
                                 Apakah Anda yakin ingin menghapus permohonan <strong>{deleteTarget.nomor}</strong> ({deleteTarget.ruang_nama})?
                             </p>
                         </div>
