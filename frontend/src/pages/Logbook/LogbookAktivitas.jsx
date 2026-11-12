@@ -159,7 +159,7 @@ export default function LogbookAktivitas() {
 
     // Lock scroll background saat ada modal yang terbuka
     useEffect(() => {
-        const isAnyModalOpen = Boolean(isModalOpen || detailItem || deleteItem || verifikasiItem);
+        const isAnyModalOpen = Boolean(isModalOpen || detailItem || deleteItem);
         if (!isAnyModalOpen) return;
 
         const originalBodyOverflow = document.body.style.overflow;
@@ -448,14 +448,13 @@ export default function LogbookAktivitas() {
                         </select>
                     </div>
 
-                    {isApprover && (
-                    <div className="logbook-filter-item flex-1" style={{ minWidth: '240px' }}>
-                        <label>Cari Nama Karyawan</label>
+                    <div className="logbook-filter-item flex-1" style={{ minWidth: '220px' }}>
+                        <label>Cari Aktivitas</label>
                         <div className="logbook-search-wrap" style={{ maxWidth: '100%' }}>
                             <Search size={16} className="logbook-search-icon" />
                             <input
                                 type="text"
-                                placeholder="Cari nama karyawan..."
+                                placeholder="Cari aktivitas, uraian tugas..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="logbook-search-input"
@@ -472,7 +471,6 @@ export default function LogbookAktivitas() {
                             )}
                         </div>
                     </div>
-                    )}
 
                     {isFilterActive && (
                         <div className="logbook-filter-item" style={{ justifyContent: 'flex-end' }}>

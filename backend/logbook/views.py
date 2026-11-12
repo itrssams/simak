@@ -115,7 +115,7 @@ class LogbookViewSet(viewsets.ModelViewSet):
             if statuses:
                 qs = qs.filter(status__in=statuses)
 
-        # Pencarian khusus nama karyawan / username
+        # Pencarian (nama aktivitas, uraian tugas, deskripsi, atau nama karyawan)
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
         if search:
             q = search.strip()
@@ -123,6 +123,9 @@ class LogbookViewSet(viewsets.ModelViewSet):
                 user_full_name=Concat('user__first_name', Value(' '), 'user__last_name')
             )
             name_q = (
+                Q(nama_aktivitas__icontains=q) |
+                Q(deskripsi__icontains=q) |
+                Q(uraian_tugas__nama__icontains=q) |
                 Q(user_full_name__icontains=q) |
                 Q(user__username__icontains=q) |
                 Q(user__first_name__icontains=q) |
@@ -133,6 +136,9 @@ class LogbookViewSet(viewsets.ModelViewSet):
                 sub_q = Q()
                 for term in terms:
                     sub_q &= (
+                        Q(nama_aktivitas__icontains=term) |
+                        Q(deskripsi__icontains=term) |
+                        Q(uraian_tugas__nama__icontains=term) |
                         Q(user_full_name__icontains=term) |
                         Q(user__first_name__icontains=term) |
                         Q(user__last_name__icontains=term) |
