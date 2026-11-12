@@ -687,14 +687,15 @@ export default function GudangPengeluaran() {
                                     <th>JUMLAH ITEM</th>
                                     <th>STATUS</th>
                                     <th>PEMOHON</th>
+                                    <th>PENERIMA</th>
                                     <th style={{ textAlign: 'right' }}>AKSI</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>Memuat permohonan...</td></tr>
+                                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '30px' }}>Memuat permohonan...</td></tr>
                                 ) : permintaanList.length === 0 ? (
-                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data permohonan.</td></tr>
+                                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data permohonan.</td></tr>
                                 ) : (
                                     permintaanList.map(req => (
                                         <tr key={req.id}>
@@ -723,6 +724,13 @@ export default function GudangPengeluaran() {
                                                 </span>
                                             </td>
                                             <td style={{ fontSize: '0.85rem' }}>{req.created_by_nama || 'Unit Ruangan'}</td>
+                                            <td style={{ fontSize: '0.85rem' }}>
+                                                {req.penerima_nama ? (
+                                                    <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{req.penerima_nama}</span>
+                                                ) : (
+                                                    <span style={{ color: '#94a3b8' }}>-</span>
+                                                )}
+                                            </td>
                                             <td style={{ textAlign: 'right' }}>
                                                 <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                                                     {/* 1. LIHAT DETAIL - SELALU MUNCUL */}
@@ -1229,6 +1237,7 @@ export default function GudangPengeluaran() {
                                     <p>
                                         Ruangan: <strong style={{ color: '#0284c7' }}>{selectedReq.ruang_nama}</strong> | Tanggal Pengajuan: {selectedReq.tanggal}
                                         {selectedReq.tanggal_penyerahan && ` | Diserahkan: ${selectedReq.tanggal_penyerahan}`}
+                                        {selectedReq.penerima_nama && ` (Penerima: ${selectedReq.penerima_nama})`}
                                         {selectedReq.approved_by_nama && ` | Diverifikasi: ${selectedReq.approved_by_nama}`}
                                     </p>
                                 </div>

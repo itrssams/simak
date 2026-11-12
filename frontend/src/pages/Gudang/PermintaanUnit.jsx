@@ -1043,6 +1043,8 @@ export default function PermintaanUnit() {
                                 </h3>
                                 <p className="pu-modal-subtitle">
                                     Ruangan: <strong>{selectedReq.ruang_nama}</strong> &bull; Diajukan: {selectedReq.tanggal}
+                                    {selectedReq.tanggal_penyerahan && ` • Diserahkan: ${selectedReq.tanggal_penyerahan}`}
+                                    {selectedReq.penerima_nama && ` (Penerima: ${selectedReq.penerima_nama})`}
                                 </p>
                             </div>
                             <button type="button" className="pu-action-btn" onClick={() => setShowDetailModal(false)}>

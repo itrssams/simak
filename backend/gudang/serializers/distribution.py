@@ -36,11 +36,12 @@ class PermintaanSerializer(serializers.ModelSerializer):
     bon_pengeluaran_id = serializers.SerializerMethodField()
     bon_pengeluaran_nomor = serializers.SerializerMethodField()
     tanggal_penyerahan = serializers.SerializerMethodField()
+    penerima_nama = serializers.SerializerMethodField()
 
     class Meta:
         model = Permintaan
         fields = [
-            'id', 'nomor', 'tanggal', 'tanggal_penyerahan', 'ruang', 'ruang_nama',
+            'id', 'nomor', 'tanggal', 'tanggal_penyerahan', 'penerima_nama', 'ruang', 'ruang_nama',
             'catatan', 'status', 'alasan_tolak', 'legacy_out_id',
             'items', 'created_by', 'created_by_nama',
             'approved_by', 'approved_by_nama', 'approved_at',
@@ -87,6 +88,10 @@ class PermintaanSerializer(serializers.ModelSerializer):
     def get_tanggal_penyerahan(self, obj):
         out = self._get_active_pengeluaran(obj)
         return str(out.tanggal) if out and out.tanggal else None
+
+    def get_penerima_nama(self, obj):
+        out = self._get_active_pengeluaran(obj)
+        return out.penerima_nama if out and out.penerima_nama else None
 
 
 class PengeluaranItemSerializer(serializers.ModelSerializer):
