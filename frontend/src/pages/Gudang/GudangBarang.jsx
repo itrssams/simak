@@ -15,17 +15,26 @@ import {
     FileSpreadsheet,
     Boxes,
     Download,
-    Upload
+    Upload,
+    Trash2,
+    AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import './Gudang.css';
 
 export default function GudangBarang() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const toast = useToast();
+
+    const canDeleteBarang = Boolean(
+        user?.is_superuser ||
+        (['wakil_direktur', 'direktur'].includes(user?.role) && (user?.is_logistik || user?.view_logistik))
+    );
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -50,6 +59,9 @@ export default function GudangBarang() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedBarang, setSelectedBarang] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [barangToDelete, setBarangToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -165,6 +177,30 @@ export default function GudangBarang() {
     const handleOpenDetail = (barang) => {
         setSelectedBarang(barang);
         setShowDetailModal(true);
+    };
+
+    const handleOpenDelete = (barang) => {
+        setBarangToDelete(barang);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!barangToDelete) return;
+        setDeleting(true);
+        try {
+            await api.delete(`/gudang/barang/${barangToDelete.id}/`);
+            toast.success(`Barang [${barangToDelete.kode}] "${barangToDelete.nama}" berhasil dihapus.`);
+            setShowDeleteModal(false);
+            setBarangToDelete(null);
+            fetchBarang();
+            fetchGolongan();
+        } catch (err) {
+            console.error('Delete barang error', err);
+            const msg = err.response?.data?.detail || err.response?.data?.error || 'Gagal menghapus barang.';
+            toast.error(String(msg));
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const handleAddKemasanRow = () => {
@@ -506,6 +542,15 @@ export default function GudangBarang() {
                                                 >
                                                     <Pencil size={15} />
                                                 </button>
+                                                {canDeleteBarang && (
+                                                    <button
+                                                        className="gdg-action-btn delete"
+                                                        onClick={() => handleOpenDelete(b)}
+                                                        title="Hapus Barang"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -866,6 +911,100 @@ export default function GudangBarang() {
                                 }}
                             >
                                 Buka Kartu Stok & Riwayat →
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* MODAL KONFIRMASI HAPUS BARANG */}
+            {showDeleteModal && barangToDelete && createPortal(
+                <div className="gdg-modal-backdrop" onClick={() => !deleting && setShowDeleteModal(false)}>
+                    <div className="gdg-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="gdg-modal-head">
+                            <div className="gdg-modal-header-content">
+                                <div
+                                    className="gdg-modal-header-icon"
+                                    style={{
+                                        background: 'rgba(244, 63, 94, 0.15)',
+                                        color: '#e11d48'
+                                    }}
+                                >
+                                    <AlertTriangle size={20} />
+                                </div>
+                                <div className="gdg-modal-header-text">
+                                    <h3>Hapus Master Barang?</h3>
+                                    <p>Kode: {barangToDelete.kode}</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="gdg-btn soft"
+                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                onClick={() => !deleting && setShowDeleteModal(false)}
+                                disabled={deleting}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="gdg-modal-body" style={{ padding: '20px 24px' }}>
+                            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.6' }}>
+                                Apakah Anda yakin ingin menghapus barang{' '}
+                                <strong>[{barangToDelete.kode}] {barangToDelete.nama}</strong> dari katalog master?
+                            </p>
+
+                            {Number(barangToDelete.stok_saat_ini || 0) > 0 && (
+                                <div
+                                    style={{
+                                        marginTop: '12px',
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(244, 63, 94, 0.08)',
+                                        border: '1px solid rgba(244, 63, 94, 0.3)',
+                                        fontSize: '0.84rem',
+                                        color: '#e11d48'
+                                    }}
+                                >
+                                    <strong>Perhatian:</strong> Barang ini masih memiliki stok tercatat sebesar{' '}
+                                    <strong>{Number(barangToDelete.stok_saat_ini || 0).toLocaleString('id-ID')} {barangToDelete.satuan_dasar?.kode}</strong>.{' '}
+                                    Menghapus barang ini akan ikut menghapus saldo stok awal tersebut.
+                                </div>
+                            )}
+
+                            <div
+                                style={{
+                                    marginTop: '12px',
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(245, 158, 11, 0.08)',
+                                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                                    fontSize: '0.84rem',
+                                    color: '#b45309'
+                                }}
+                            >
+                                Catatan: Barang yang sudah tercatat pada transaksi operasional (PO, Penerimaan, Permintaan, atau Pengeluaran Unit) otomatis dilindungi dan tidak dapat dihapus.
+                            </div>
+                        </div>
+
+                        <div className="gdg-modal-foot">
+                            <button
+                                type="button"
+                                className="gdg-btn soft"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deleting}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                className="gdg-btn danger"
+                                onClick={handleConfirmDelete}
+                                disabled={deleting}
+                            >
+                                <Trash2 size={15} />
+                                {deleting ? 'Menghapus...' : 'Ya, Hapus Barang'}
                             </button>
                         </div>
                     </div>

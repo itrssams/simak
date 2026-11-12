@@ -2,12 +2,13 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.db import transaction
 from decimal import Decimal
 
 from gudang.models import (
-    Gudang, GolonganBarang, Satuan, Barang, BarangKemasan, Ruang, StokSaldo, LegacyMutasi, StokLedger
+    Gudang, GolonganBarang, Satuan, Barang, BarangKemasan, Ruang, StokSaldo, LegacyMutasi, StokLedger,
+    StockOpname, StockOpnameItem
 )
 from gudang.serializers.master import (
     GudangSerializer, GolonganBarangSerializer, SatuanSerializer,
@@ -104,6 +105,77 @@ class BarangViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        can_delete = bool(
+            getattr(user, 'is_superuser', False)
+            or (
+                getattr(user, 'role', '') in ('wakil_direktur', 'direktur')
+                and (getattr(user, 'is_logistik', False) or getattr(user, 'view_logistik', False))
+            )
+        )
+        if not can_delete:
+            return Response(
+                {'detail': 'Hanya Superuser, Wakil Direktur, atau Direktur dengan akses Logistik yang dapat menghapus master barang.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        instance = self.get_object()
+
+        po_count = instance.po_items.count()
+        grn_count = instance.grn_items.count()
+        req_count = instance.permintaan_items.count()
+        out_count = instance.pengeluaran_items.count()
+
+        relasi_aktif = []
+        if po_count > 0:
+            relasi_aktif.append(f"{po_count} Surat Pesanan (PO)")
+        if grn_count > 0:
+            relasi_aktif.append(f"{grn_count} Penerimaan Barang (GRN)")
+        if req_count > 0:
+            relasi_aktif.append(f"{req_count} Permintaan Unit")
+        if out_count > 0:
+            relasi_aktif.append(f"{out_count} Pengeluaran Unit")
+
+        if relasi_aktif:
+            return Response(
+                {
+                    'detail': (
+                        f'Barang [{instance.kode}] "{instance.nama}" tidak dapat dihapus permanen karena sudah '
+                        f'tercatat pada transaksi operasional: {", ".join(relasi_aktif)}.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        kode_brg = instance.kode
+        nama_brg = instance.nama
+
+        with transaction.atomic():
+            affected_opname_ids = list(
+                StockOpnameItem.objects.filter(barang=instance).values_list('opname_id', flat=True).distinct()
+            )
+            StockOpnameItem.objects.filter(barang=instance).delete()
+
+            for opn_id in affected_opname_ids:
+                agg = StockOpnameItem.objects.filter(opname_id=opn_id).aggregate(
+                    tot_selisih=Sum('selisih'),
+                    tot_nilai=Sum('subtotal_fisik'),
+                )
+                StockOpname.objects.filter(pk=opn_id).update(
+                    total_selisih_qty=agg['tot_selisih'] or Decimal('0.000'),
+                    total_nilai_fisik=agg['tot_nilai'] or Decimal('0.00'),
+                )
+
+            StokLedger.objects.filter(barang=instance).delete()
+            StokSaldo.objects.filter(barang=instance).delete()
+            instance.delete()
+
+        return Response(
+            {'message': f'Barang [{kode_brg}] "{nama_brg}" berhasil dihapus.'},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=['get'])
     def ringkasan_stok(self, request):
