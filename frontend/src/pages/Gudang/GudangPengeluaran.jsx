@@ -190,20 +190,22 @@ export default function GudangPengeluaran() {
         setSerahPenerima('');
         setSerahTanggal(new Date().toISOString().slice(0, 10));
         setSerahCatatan(`Realisasi Permintaan ${req.nomor}`);
-        const items = (req.items || []).map(it => {
-            const targetQty = Number(it.qty_disetujui) > 0 ? Number(it.qty_disetujui) : Number(it.qty_minta);
-            const remaining = Math.max(0, targetQty - Number(it.qty_dikeluarkan || 0));
-            return {
-                permintaan_item: it.id,
-                barang_id: it.barang,
-                barang_nama: it.barang_nama,
-                barang_kode: it.barang_kode,
-                satuan: it.satuan || it.satuan_dasar_kode || 'PCS',
-                qty_disetujui: targetQty,
-                qty_serah: remaining,
-                keterangan: it.keterangan || ''
-            };
-        });
+        const items = (req.items || [])
+            .filter(it => Number(it.qty_disetujui) > 0)
+            .map(it => {
+                const targetQty = Number(it.qty_disetujui);
+                const remaining = Math.max(0, targetQty - Number(it.qty_dikeluarkan || 0));
+                return {
+                    permintaan_item: it.id,
+                    barang_id: it.barang,
+                    barang_nama: it.barang_nama,
+                    barang_kode: it.barang_kode,
+                    satuan: it.satuan || it.satuan_dasar_kode || 'PCS',
+                    qty_disetujui: targetQty,
+                    qty_serah: remaining,
+                    keterangan: it.keterangan || ''
+                };
+            });
         setSerahItems(items);
         setShowDetailReqModal(false);
         setShowSerahkanModal(true);
@@ -306,16 +308,25 @@ export default function GudangPengeluaran() {
 
     const handleExecuteApprove = async (e) => {
         e.preventDefault();
+        let hasApproved = false;
         for (const it of approveItems) {
             const qtyApp = Number(it.qty_disetujui || 0);
-            if (qtyApp <= 0) {
-                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh 0. Gunakan tombol Tolak jika permohonan tidak dapat dipenuhi.`);
+            if (qtyApp < 0) {
+                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh bernilai negatif.`);
                 return;
             }
-            if (qtyApp > it.stok_tersedia) {
-                toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
-                return;
+            if (qtyApp > 0) {
+                hasApproved = true;
+                if (qtyApp > it.stok_tersedia) {
+                    toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
+                    return;
+                }
             }
+        }
+
+        if (!hasApproved) {
+            toast.error('Minimal satu barang harus disetujui dengan kuantitas > 0. Jika seluruh barang ditolak, gunakan tombol Tolak Permintaan.');
+            return;
         }
 
         setApproveSubmitting(true);
@@ -1248,7 +1259,13 @@ export default function GudangPengeluaran() {
                                                 <td style={{ color: '#0284c7', fontWeight: 600 }}>{it.barang_kode}</td>
                                                 <td className="gdg-cell-strong">{it.barang_nama}</td>
                                                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{Number(it.qty_disetujui).toLocaleString('id-ID')}</td>
+                                                <td style={{ textAlign: 'right', color: Number(it.qty_disetujui) > 0 ? '#10b981' : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : '#94a3b8'), fontWeight: 600 }}>
+                                                    {selectedReq.status === 'MENUNGGU' || selectedReq.status === 'DRAFT'
+                                                        ? '-'
+                                                        : Number(it.qty_disetujui) > 0
+                                                            ? Number(it.qty_disetujui).toLocaleString('id-ID')
+                                                            : '0 (Ditolak)'}
+                                                </td>
                                                 <td style={{ textAlign: 'right', color: it.stok_tersedia < it.qty_minta ? '#f43f5e' : '#0284c7', fontWeight: 600 }}>
                                                     {Number(it.stok_tersedia).toLocaleString('id-ID')}
                                                 </td>
@@ -1469,7 +1486,7 @@ export default function GudangPengeluaran() {
                                                             <td style={{ textAlign: 'right' }}>
                                                                 <input
                                                                     type="number"
-                                                                    min="1"
+                                                                    min="0"
                                                                     max={item.stok_tersedia || 0}
                                                                     step="any"
                                                                     value={item.qty_disetujui}
@@ -1480,13 +1497,13 @@ export default function GudangPengeluaran() {
                                                                         width: '100%',
                                                                         textAlign: 'right',
                                                                         fontWeight: 600,
-                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? '#d97706' : '#10b981',
-                                                                        borderColor: isOverStock ? '#f43f5e' : isZeroOrLess ? '#d97706' : undefined,
-                                                                        background: isOverStock ? '#fff1f2' : isZeroOrLess ? '#fffbeb' : undefined
+                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? '#64748b' : '#10b981',
+                                                                        borderColor: isOverStock ? '#f43f5e' : isZeroOrLess ? '#cbd5e1' : undefined,
+                                                                        background: isOverStock ? '#fff1f2' : isZeroOrLess ? '#f8fafc' : undefined
                                                                     }}
                                                                 />
                                                                 {isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Melebihi stok!</small>}
-                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: '#d97706', fontSize: '10.5px' }}>Qty tidak boleh 0</small>}
+                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: '#64748b', fontSize: '10.5px' }}>Tidak disetujui (0)</small>}
                                                             </td>
                                                             <td>{item.satuan}</td>
                                                         </tr>
@@ -1500,7 +1517,7 @@ export default function GudangPengeluaran() {
                                 <div className="gdg-banner info">
                                     <AlertCircle size={16} color="#0284c7" style={{ flexShrink: 0 }} />
                                     <span>
-                                        Anda dapat menyesuaikan kuantitas yang disetujui jika stok fisik gudang terbatas atau sesuai jatah kuota ruangan.
+                                        Anda dapat menyesuaikan kuantitas yang disetujui jika stok fisik gudang terbatas atau sesuai jatah kuota ruangan. Barang yang diisi 0 berarti tidak disetujui.
                                     </span>
                                 </div>
 
@@ -1511,10 +1528,10 @@ export default function GudangPengeluaran() {
                                     </div>
                                 )}
 
-                                {approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                {approveItems.every(it => Number(it.qty_disetujui || 0) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
                                     <div className="gdg-banner warning" style={{ marginTop: '10px', background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                                         <AlertCircle size={16} color="#d97706" style={{ flexShrink: 0 }} />
-                                        <span>Kuantitas yang disetujui tidak boleh 0. Karena barang kosong atau permohonan ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                                        <span>Seluruh kuantitas bernilai 0. Minimal harus ada 1 barang yang disetujui (&gt; 0). Jika seluruh barang ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
                                     </div>
                                 )}
                             </div>
@@ -1542,11 +1559,11 @@ export default function GudangPengeluaran() {
                                         disabled={
                                             approveSubmitting ||
                                             approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                            approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0)
+                                            approveItems.every(it => Number(it.qty_disetujui || 0) <= 0)
                                         }
                                         style={
                                             (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                             approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0))
+                                             approveItems.every(it => Number(it.qty_disetujui || 0) <= 0))
                                                 ? { opacity: 0.5, cursor: 'not-allowed' }
                                                 : {}
                                         }

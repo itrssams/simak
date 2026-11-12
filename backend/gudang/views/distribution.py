@@ -203,7 +203,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                         if not pi:
                             continue
 
-                        target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
+                        target_qty = pi.qty_disetujui
+                        if target_qty <= Decimal('0'):
+                            continue  # Item ini disetujui 0 (tidak disetujui/ditolak), lewati
                         sisa = max(Decimal('0'), target_qty - pi.qty_dikeluarkan)
                         if sisa <= Decimal('0'):
                             continue  # Item ini sudah terpenuhi penuh
@@ -226,7 +228,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                         })
                 else:
                     for pi in pi_map.values():
-                        target_qty = pi.qty_disetujui if pi.qty_disetujui > Decimal('0') else pi.qty_minta
+                        target_qty = pi.qty_disetujui
+                        if target_qty <= Decimal('0'):
+                            continue
                         remaining = max(Decimal('0'), target_qty - pi.qty_dikeluarkan)
                         if remaining > Decimal('0'):
                             items_data.append({

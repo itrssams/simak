@@ -364,17 +364,26 @@ export default function PermintaanUnit() {
     const handleExecuteApprove = async () => {
         if (!approveTarget) return;
 
-        // Validasi: Qty disetujui tidak boleh 0 atau melebihi stok yang tersedia
+        // Validasi: Qty disetujui tidak boleh negatif, tidak boleh melebihi stok, dan minimal ada 1 item > 0
+        let hasApproved = false;
         for (const it of approveItems) {
             const qtyApp = Number(it.qty_disetujui || 0);
-            if (qtyApp <= 0) {
-                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh 0. Gunakan tombol Tolak jika permohonan tidak dapat dipenuhi.`);
+            if (qtyApp < 0) {
+                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh bernilai negatif.`);
                 return;
             }
-            if (qtyApp > it.stok_tersedia) {
-                toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
-                return;
+            if (qtyApp > 0) {
+                hasApproved = true;
+                if (qtyApp > it.stok_tersedia) {
+                    toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
+                    return;
+                }
             }
+        }
+
+        if (!hasApproved) {
+            toast.error('Minimal satu barang harus disetujui dengan kuantitas > 0. Jika seluruh barang ditolak, gunakan tombol Tolak Permintaan.');
+            return;
         }
 
         setApproveSubmitting(true);
@@ -1103,8 +1112,12 @@ export default function PermintaanUnit() {
                                                 <td><span className="pu-code-badge">{it.barang_kode}</span></td>
                                                 <td><strong>{it.barang_nama}</strong></td>
                                                 <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td align="right" style={{ color: it.qty_disetujui ? '#10b981' : '#94a3b8', fontWeight: 700 }}>
-                                                    {it.qty_disetujui ? Number(it.qty_disetujui).toLocaleString('id-ID') : '-'}
+                                                <td align="right" style={{ color: Number(it.qty_disetujui) > 0 ? '#10b981' : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : '#94a3b8'), fontWeight: 700 }}>
+                                                    {selectedReq.status === 'MENUNGGU' || selectedReq.status === 'DRAFT'
+                                                        ? '-'
+                                                        : Number(it.qty_disetujui) > 0
+                                                            ? Number(it.qty_disetujui).toLocaleString('id-ID')
+                                                            : '0 (Ditolak)'}
                                                 </td>
                                                 <td>{it.satuan}</td>
                                                 <td><small style={{ color: '#94a3b8' }}>{it.keterangan || '-'}</small></td>
@@ -1209,7 +1222,7 @@ export default function PermintaanUnit() {
                                                     <td align="center">
                                                         <input
                                                             type="number"
-                                                            min="1"
+                                                            min="0"
                                                             max={it.stok_tersedia || 0}
                                                             step="any"
                                                             className={`pu-approve-qty-input ${isOverStock ? 'overstock' : isZeroOrLess ? 'zero' : 'normal'}`}
@@ -1226,8 +1239,8 @@ export default function PermintaanUnit() {
                                                             </small>
                                                         )}
                                                         {isZeroOrLess && !isOverStock && (
-                                                            <small style={{ display: 'block', color: '#f59e0b', fontSize: '10.5px', marginTop: '3px' }}>
-                                                                Qty tidak boleh 0
+                                                            <small style={{ display: 'block', color: '#94a3b8', fontSize: '10.5px', marginTop: '3px' }}>
+                                                                Tidak disetujui (0)
                                                             </small>
                                                         )}
                                                     </td>
@@ -1246,10 +1259,10 @@ export default function PermintaanUnit() {
                                 </div>
                             )}
 
-                            {approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                            {approveItems.every(it => Number(it.qty_disetujui || 0) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
                                 <div className="pu-alert-banner warning">
                                     <AlertCircle size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
-                                    <span>Kuantitas yang disetujui tidak boleh 0. Karena barang kosong atau permohonan ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                                    <span>Seluruh kuantitas bernilai 0. Minimal harus ada 1 barang yang disetujui (&gt; 0). Jika seluruh barang ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
                                 </div>
                             )}
                         </div>
@@ -1277,11 +1290,11 @@ export default function PermintaanUnit() {
                                     disabled={
                                         approveSubmitting ||
                                         approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                        approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0)
+                                        approveItems.every(it => Number(it.qty_disetujui || 0) <= 0)
                                     }
                                     style={
                                         (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                         approveItems.some(it => !it.qty_disetujui || Number(it.qty_disetujui) <= 0))
+                                         approveItems.every(it => Number(it.qty_disetujui || 0) <= 0))
                                             ? { opacity: 0.5, cursor: 'not-allowed' }
                                             : {}
                                     }
