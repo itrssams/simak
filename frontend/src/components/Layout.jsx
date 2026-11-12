@@ -94,7 +94,6 @@ const MENU_MANAJER_DIREKTUR = [
     {
         label: 'Laporan', icon: 'laporan', children: [
             { label: 'Laporan Petty Cash', path: '/laporan/petty-cash' },
-            { label: 'Laporan Logistik', path: '/logistik/laporan' },
         ],
     },
 ];

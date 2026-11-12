@@ -93,7 +93,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             glowColor: 'rgba(245, 158, 11, 0.45)',
             glassGlow: 'rgba(245, 158, 11, 0.22)',
             path: '/gudang',
-            allowed: Boolean(isLogistik || canCatatanUtang || isManajerUp),
+            allowed: Boolean(isLogistik),
         },
         {
             id: 'amprahan-unit',

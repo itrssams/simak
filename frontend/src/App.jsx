@@ -200,8 +200,8 @@ const AppRoutes = () => {
             <Route path="/logistik/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><Logistik /></ProtectedRoute>} />
 
             {/* Modul Gudang Logistik v.2 */}
-            <Route path="/gudang" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
-            <Route path="/gudang/:section" element={<ProtectedRoute allow={(u) => isLogistik(u) || canCatatanUtang(u) || isManajerUp(u)}><GudangIndex /></ProtectedRoute>} />
+            <Route path="/gudang" element={<ProtectedRoute allow={isLogistik}><GudangIndex /></ProtectedRoute>} />
+            <Route path="/gudang/:section" element={<ProtectedRoute allow={isLogistik}><GudangIndex /></ProtectedRoute>} />
 
             {/* Portal Mandiri Permintaan Barang Unit (Amprahan) - Terbuka untuk Semua Karyawan */}
             <Route path="/amprahan" element={<ProtectedRoute><PermintaanUnit /></ProtectedRoute>} />

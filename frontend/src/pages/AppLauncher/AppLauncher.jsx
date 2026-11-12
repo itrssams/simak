@@ -181,7 +181,7 @@ export default function AppLauncher() {
             glassGlow: 'rgba(245, 158, 11, 0.22)',
             glassGlowLight: 'rgba(245, 158, 11, 0.15)',
             path: '/gudang',
-            allowed: Boolean(isLogistik || canCatatanUtang || isManajerUp),
+            allowed: Boolean(isLogistik),
             submenus: [
                 { label: 'Dashboard & Stok', path: '/gudang' },
                 { label: 'Master Barang', path: '/gudang/barang' },
