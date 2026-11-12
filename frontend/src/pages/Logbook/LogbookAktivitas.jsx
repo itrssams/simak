@@ -48,12 +48,6 @@ const StatusBadge = ({ status, statusLabel }) => {
 
 export default function LogbookAktivitas() {
     const { user } = useAuth();
-    const isApprover = Boolean(
-        user?.is_superuser ||
-        user?.is_approver ||
-        ['direktur', 'wakil_direktur', 'manajer', 'kepala_seksi'].includes(user?.role)
-    );
-    const isAtasan = isApprover;
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const [aktivitas, setAktivitas] = useState([]);
@@ -65,10 +59,8 @@ export default function LogbookAktivitas() {
     const debouncedSearch = useDebounce(search, 400);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const defaultStatus = isAtasan ? 'perlu_verifikasi' : 'all';
-    const [statusFilter, setStatusFilter] = useState(() => (isAtasan ? 'perlu_verifikasi' : 'all'));
+    const [statusFilter, setStatusFilter] = useState('all');
     const [activePreset, setActivePreset] = useState('all'); // 'all' | 'this_month' | 'today' | 'custom'
-    const [scopeFilter, setScopeFilter] = useState('all'); // 'all' | 'my'
 
     // Pagination State
     const [page, setPage] = useState(1);
@@ -77,7 +69,7 @@ export default function LogbookAktivitas() {
     // Reset pagination to page 1 on filter/search change
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, startDate, endDate, statusFilter, scopeFilter]);
+    }, [debouncedSearch, startDate, endDate, statusFilter]);
 
     const totalItems = aktivitas.length;
     const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : Number(pageSize);
@@ -107,23 +99,6 @@ export default function LogbookAktivitas() {
         }
         return [1, '...', page - 1, page, page + 1, '...', totalPages];
     }, [page, totalPages]);
-
-    // Sinkronisasi status filter saat user auth pertama kali termuat
-    const initialStatusSetRef = useRef(false);
-    useEffect(() => {
-        if (user && !initialStatusSetRef.current) {
-            initialStatusSetRef.current = true;
-            if (isAtasan) {
-                setStatusFilter('perlu_verifikasi');
-            }
-        }
-    }, [user, isAtasan]);
-
-    // Verifikasi state (untuk Atasan / Wadir / Direktur)
-    const [verifikasiItem, setVerifikasiItem] = useState(null);
-    const [verifikasiAksi, setVerifikasiAksi] = useState(null); // 'setuju' | 'tolak'
-    const [catatan, setCatatan] = useState('');
-    const [verifying, setVerifying] = useState(false);
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -203,11 +178,11 @@ export default function LogbookAktivitas() {
             document.documentElement.style.overflow = originalHtmlOverflow;
             document.body.style.paddingRight = originalPaddingRight;
         };
-    }, [isModalOpen, detailItem, deleteItem, verifikasiItem]);
+    }, [isModalOpen, detailItem, deleteItem]);
 
     const isFilterActive = useMemo(() => {
-        return Boolean(search.trim() || startDate || endDate || statusFilter !== defaultStatus || activePreset !== 'all' || (isAtasan && scopeFilter !== 'all'));
-    }, [search, startDate, endDate, statusFilter, defaultStatus, activePreset, isAtasan, scopeFilter]);
+        return Boolean(search.trim() || startDate || endDate || statusFilter !== 'all' || activePreset !== 'all');
+    }, [search, startDate, endDate, statusFilter, activePreset]);
 
     const handlePresetChange = (preset) => {
         setActivePreset(preset);
@@ -242,22 +217,20 @@ export default function LogbookAktivitas() {
         setSearch('');
         setStartDate('');
         setEndDate('');
-        setStatusFilter(isAtasan ? 'perlu_verifikasi' : 'all');
+        setStatusFilter('all');
         setActivePreset('all');
-        setScopeFilter('all');
     };
 
     const fetchAktivitas = useCallback(async () => {
         setLoading(true);
         try {
-            const params = {};
+            const params = {
+                mine: 'true'
+            };
             if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
             if (startDate) params.start_date = startDate;
             if (endDate) params.end_date = endDate;
             if (statusFilter !== 'all') params.status = statusFilter;
-            if (isAtasan && scopeFilter === 'my' && user?.id) {
-                params.user_id = user.id;
-            }
 
             const res = await api.get('/logbook/', { params });
             setAktivitas(Array.isArray(res.data) ? res.data : (res.data?.results || []));
@@ -267,7 +240,7 @@ export default function LogbookAktivitas() {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, startDate, endDate, statusFilter, isAtasan, scopeFilter, user?.id, toast]);
+    }, [debouncedSearch, startDate, endDate, statusFilter, toast]);
 
     const fetchUraianTugasOpts = useCallback(async () => {
         try {
@@ -399,41 +372,6 @@ export default function LogbookAktivitas() {
         }
     };
 
-    const handleAksiVerifikasi = (item, aksi) => {
-        setVerifikasiItem(item);
-        setVerifikasiAksi(aksi);
-        setCatatan('');
-    };
-
-    const closeVerifikasiModal = () => {
-        setVerifikasiItem(null);
-        setVerifikasiAksi(null);
-        setCatatan('');
-    };
-
-    const submitVerifikasi = async () => {
-        if (verifikasiAksi === 'tolak' && !catatan.trim()) {
-            toast.error('Catatan penolakan wajib diisi agar pegawai dapat merevisinya.');
-            return;
-        }
-
-        setVerifying(true);
-        try {
-            await api.post(`/logbook/${verifikasiItem.id}/verifikasi/`, {
-                aksi: verifikasiAksi,
-                catatan: catatan
-            });
-            toast.success(`Aktivitas berhasil di${verifikasiAksi === 'setuju' ? 'setujui' : 'tolak'}.`);
-            closeVerifikasiModal();
-            fetchAktivitas();
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.error || err.response?.data?.detail || 'Gagal memverifikasi aktivitas.');
-        } finally {
-            setVerifying(false);
-        }
-    };
-
     return (
         <div className="logbook-page">
             <div className="logbook-hero">
@@ -453,37 +391,12 @@ export default function LogbookAktivitas() {
                 <div className="logbook-card-head">
                     <div className="logbook-card-title">
                         <h2>Riwayat Aktivitas Logbook</h2>
-                        <p>Daftar lengkap aktivitas kerja yang telah Anda catat atau perlu diverifikasi.</p>
+                        <p>Daftar lengkap aktivitas kerja harian yang telah Anda catat.</p>
                     </div>
                 </div>
 
-
-
                 {/* Filter Bar with SIMAK Standards */}
                 <div className="logbook-filter-bar">
-                    {isAtasan && (
-                        <div className="logbook-filter-item">
-                            <label>Cakupan Data</label>
-                            <div className="logbook-preset-pills">
-                                <button
-                                    type="button"
-                                    className={`logbook-preset-pill-btn ${scopeFilter === 'all' ? 'active' : ''}`}
-                                    onClick={() => setScopeFilter('all')}
-                                >
-                                    <Users size={13} />
-                                    <span>Semua Pegawai</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`logbook-preset-pill-btn ${scopeFilter === 'my' ? 'active' : ''}`}
-                                    onClick={() => setScopeFilter('my')}
-                                >
-                                    <span>Aktivitas Saya</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="logbook-filter-item">
                         <label>Preset Periode</label>
                         <div className="logbook-preset-pills">
@@ -605,9 +518,6 @@ export default function LogbookAktivitas() {
                             <thead>
                                 <tr>
                                     <th style={{ width: '56px', textAlign: 'center' }}>No</th>
-                                    {isAtasan && scopeFilter === 'all' && (
-                                        <th style={{ width: '220px' }}>Pegawai</th>
-                                    )}
                                     <th style={{ width: '120px' }}>Tanggal</th>
                                     <th>Aktivitas & Uraian</th>
                                     <th style={{ width: '170px' }}>Waktu / Durasi</th>
@@ -619,34 +529,13 @@ export default function LogbookAktivitas() {
                             <tbody>
                                 {paginatedAktivitas.map((item, idx) => {
                                     const rowIdx = pageSize === 'all' ? idx + 1 : (page - 1) * effectivePageSize + idx + 1;
-                                    const isOwnActivity = item.user_id === user?.id;
-                                    const canVerify = isAtasan && !isOwnActivity && item.status === 'perlu_verifikasi';
-                                    const canEditDelete = isOwnActivity && item.status === 'perlu_verifikasi';
+                                    const canEditDelete = item.status === 'perlu_verifikasi';
 
                                     return (
                                         <tr key={item.id}>
                                             <td style={{ textAlign: 'center' }}>
                                                 <span className="logbook-row-idx">{rowIdx}</span>
                                             </td>
-                                            {isAtasan && scopeFilter === 'all' && (
-                                                <td>
-                                                    <div className="logbook-emp-cell">
-                                                        <div className="logbook-emp-avatar">
-                                                            {(item.user_nama || item.user_username || 'P').charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div style={{ minWidth: 0 }}>
-                                                            <div className="logbook-emp-name" title={item.user_nama || item.user_username}>
-                                                                {item.user_nama || item.user_username}
-                                                                {isOwnActivity && <span className="logbook-you-tag">Anda</span>}
-                                                            </div>
-                                                            <div className="logbook-emp-role">
-                                                                {item.user_role_label || item.user_role || '-'}
-                                                                {item.unit_nama && ` • ${item.unit_nama}`}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            )}
                                             <td>
                                                 <span className="logbook-table-date">
                                                     {formatDate(item.tanggal)}
@@ -722,24 +611,6 @@ export default function LogbookAktivitas() {
                                                     >
                                                         <Eye size={15} />
                                                     </button>
-                                                    {canVerify && (
-                                                        <>
-                                                            <button 
-                                                                className="logbook-btn-icon logbook-text-green" 
-                                                                onClick={() => handleAksiVerifikasi(item, 'setuju')}
-                                                                title="Setujui Aktivitas"
-                                                            >
-                                                                <Check size={15} />
-                                                            </button>
-                                                            <button 
-                                                                className="logbook-btn-icon logbook-text-red" 
-                                                                onClick={() => handleAksiVerifikasi(item, 'tolak')}
-                                                                title="Tolak Aktivitas"
-                                                            >
-                                                                <X size={15} />
-                                                            </button>
-                                                        </>
-                                                    )}
                                                     {canEditDelete && (
                                                         <>
                                                             <button 
@@ -1129,38 +1000,10 @@ export default function LogbookAktivitas() {
                                 )}
                             </div>
                         </div>
-                        <div className="logbook-modal-footer" style={{ justifyContent: 'space-between' }}>
+                        <div className="logbook-modal-footer">
                             <button type="button" className="logbook-btn-cancel" onClick={() => setDetailItem(null)}>
                                 Tutup
                             </button>
-                            {isAtasan && detailItem.user_id !== user?.id && detailItem.status === 'perlu_verifikasi' && (
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button 
-                                        type="button" 
-                                        className="logbook-btn-danger" 
-                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
-                                        onClick={() => {
-                                            const item = detailItem;
-                                            setDetailItem(null);
-                                            handleAksiVerifikasi(item, 'tolak');
-                                        }}
-                                    >
-                                        <X size={15} /> Tolak
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        className="logbook-btn-primary" 
-                                        style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
-                                        onClick={() => {
-                                            const item = detailItem;
-                                            setDetailItem(null);
-                                            handleAksiVerifikasi(item, 'setuju');
-                                        }}
-                                    >
-                                        <Check size={15} /> Setujui
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>,
@@ -1190,66 +1033,6 @@ export default function LogbookAktivitas() {
                             </button>
                             <button type="button" className="logbook-btn-danger" onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            {/* Modal Konfirmasi Verifikasi (Setuju / Tolak) */}
-            {verifikasiItem && createPortal(
-                <div className="logbook-modal-overlay">
-                    <div className="logbook-modal-card sm">
-                        <div className="logbook-modal-header">
-                            <h3>{verifikasiAksi === 'setuju' ? 'Setujui Aktivitas' : 'Tolak Aktivitas'}</h3>
-                            <button className="logbook-modal-close-btn" onClick={closeVerifikasiModal}>
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <div className="logbook-modal-body">
-                            <div style={{ marginBottom: '14px', fontSize: '0.88rem', color: '#475569' }}>
-                                {verifikasiAksi === 'setuju' ? (
-                                    <p>Apakah Anda yakin ingin <strong>menyetujui</strong> aktivitas logbook pegawai berikut?</p>
-                                ) : (
-                                    <p>Apakah Anda yakin ingin <strong>menolak</strong> aktivitas logbook pegawai berikut? Mohon cantumkan catatan agar pegawai dapat merevisinya.</p>
-                                )}
-                            </div>
-
-                            <div className="logbook-delete-item-preview" style={{ marginBottom: '16px' }}>
-                                <div style={{ fontWeight: 700, color: '#0284c7', marginBottom: '2px', fontSize: '13px' }}>
-                                    {verifikasiItem.user_nama || verifikasiItem.user_username}
-                                </div>
-                                <small>{formatDate(verifikasiItem.tanggal)} &bull; {verifikasiItem.durasi_format}</small>
-                                <div style={{ marginTop: '2px' }}>"{verifikasiItem.uraian_tugas_text || verifikasiItem.nama_aktivitas || verifikasiItem.deskripsi}"</div>
-                            </div>
-
-                            <div className="logbook-field-group">
-                                <label>
-                                    Catatan / Alasan {verifikasiAksi === 'tolak' ? <span style={{ color: '#ef4444' }}>*</span> : <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 400 }}>(Opsional)</span>}
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    className="logbook-textarea"
-                                    placeholder={verifikasiAksi === 'tolak' ? "Wajib diisi: Berikan instruksi revisi atau alasan penolakan..." : "Catatan atau apresiasi untuk pegawai (opsional)..."}
-                                    value={catatan}
-                                    onChange={(e) => setCatatan(e.target.value)}
-                                    required={verifikasiAksi === 'tolak'}
-                                />
-                            </div>
-                        </div>
-                        <div className="logbook-modal-footer">
-                            <button type="button" className="logbook-btn-cancel" onClick={closeVerifikasiModal} disabled={verifying}>
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                className={verifikasiAksi === 'setuju' ? 'logbook-btn-primary' : 'logbook-btn-danger'}
-                                style={verifikasiAksi === 'setuju' ? { background: '#10b981', borderColor: '#10b981' } : {}}
-                                onClick={submitVerifikasi}
-                                disabled={verifying}
-                            >
-                                {verifying ? 'Memproses...' : verifikasiAksi === 'setuju' ? 'Ya, Setujui' : 'Ya, Tolak'}
                             </button>
                         </div>
                     </div>

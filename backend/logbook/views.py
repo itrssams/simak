@@ -61,24 +61,40 @@ class LogbookViewSet(viewsets.ModelViewSet):
         qs = Logbook.objects.select_related('user', 'user__unit', 'uraian_tugas', 'verified_by')
         monitoring_level = get_monitoring_level(user)
 
-        # Filter akses data
-        is_mine = self.request.query_params.get('mine') == 'true'
-        
-        if is_mine or monitoring_level is None:
-            # Karyawan biasa (atau request khusus MyLogbook) hanya melihat logbook miliknya sendiri
-            qs = qs.filter(user=user)
-        elif monitoring_level == 'unit':
-            # Manajer/Kepala Seksi hanya melihat unitnya sendiri
-            qs = qs.filter(user__unit=user.unit)
-        else:
-            # Pimpinan (Direktur & Wadir) dapat memfilter berdasarkan user dan unit
-            user_id = self.request.query_params.get('user_id')
-            if user_id and user_id.isdigit():
-                qs = qs.filter(user_id=int(user_id))
+        # Aksi verifikasi atasan: izinkan atasan mengakses logbook bawahan untuk disetujui/ditolak
+        if self.action == 'verifikasi':
+            if monitoring_level == 'unit':
+                return qs.filter(user__unit=user.unit)
+            elif monitoring_level == 'all':
+                return qs
+            return qs.none()
 
-            unit_id = self.request.query_params.get('unit_id')
-            if unit_id and unit_id.isdigit():
-                qs = qs.filter(user__unit_id=int(unit_id))
+        # Scope monitoring/laporan: hanya aktif jika diminta secara eksplisit atau saat export rekap
+        is_monitoring = (
+            self.action == 'export_excel' or
+            self.request.query_params.get('monitoring') == 'true' or
+            self.request.query_params.get('mode') == 'monitoring'
+        )
+
+        if is_monitoring and monitoring_level:
+            if monitoring_level == 'unit':
+                user_id = self.request.query_params.get('user_id')
+                if user_id and user_id.isdigit():
+                    qs = qs.filter(user_id=int(user_id), user__unit=user.unit)
+                else:
+                    qs = qs.filter(user__unit=user.unit)
+            else:  # monitoring_level == 'all'
+                user_id = self.request.query_params.get('user_id')
+                if user_id and user_id.isdigit():
+                    qs = qs.filter(user_id=int(user_id))
+
+                unit_id = self.request.query_params.get('unit_id')
+                if unit_id and unit_id.isdigit():
+                    qs = qs.filter(user__unit_id=int(unit_id))
+        else:
+            # DEFAULT: Halaman Aktivitas Logbook harian selalu HANYA menampilkan logbook milik diri sendiri!
+            # Berlaku untuk seluruh pegawai, koordinator unit, kasi, manajer, wadir, hingga direktur.
+            qs = qs.filter(user=user)
 
         # Filter tanggal
         tanggal = self.request.query_params.get('tanggal')
@@ -94,9 +110,10 @@ class LogbookViewSet(viewsets.ModelViewSet):
             qs = qs.filter(tanggal__lte=end_date)
             
         status_param = self.request.query_params.get('status')
-        if status_param:
-            statuses = status_param.split(',')
-            qs = qs.filter(status__in=statuses)
+        if status_param and status_param != 'all':
+            statuses = [s for s in status_param.split(',') if s and s != 'all']
+            if statuses:
+                qs = qs.filter(status__in=statuses)
 
         # Pencarian khusus nama karyawan / username
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
@@ -692,9 +709,10 @@ class TaskViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(user__unit_id=int(unit_id))
 
         status_param = self.request.query_params.get('status')
-        if status_param:
-            statuses = status_param.split(',')
-            qs = qs.filter(status__in=statuses)
+        if status_param and status_param != 'all':
+            statuses = [s for s in status_param.split(',') if s and s != 'all']
+            if statuses:
+                qs = qs.filter(status__in=statuses)
             
         search = self.request.query_params.get('search') or self.request.query_params.get('q')
         if search:

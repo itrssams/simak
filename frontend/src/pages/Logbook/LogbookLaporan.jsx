@@ -116,7 +116,9 @@ export default function LogbookLaporan() {
         if (monitoringLevel === null) return;
         setLoadingMonitor(true);
         try {
-            const params = {};
+            const params = {
+                monitoring: 'true',
+            };
             if (monStartDate) params.start_date = monStartDate;
             if (monEndDate) params.end_date = monEndDate;
             if (monUnitId) params.unit_id = monUnitId;
@@ -190,7 +192,9 @@ export default function LogbookLaporan() {
     const handleExportExcel = async () => {
         try {
             toast.info('Menyiapkan file Excel...');
-            const params = {};
+            const params = {
+                monitoring: 'true',
+            };
             if (monStartDate) params.start_date = monStartDate;
             if (monEndDate) params.end_date = monEndDate;
             if (monUnitId) params.unit_id = monUnitId;
