@@ -8716,7 +8716,7 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             else:
                 ket_mutasi = f'Realisasi petty cash {instance.no_pengajuan} - {instance.keperluan[:50]}'
  
-            RiwayatSaldoPettyCash.objects.create(
+            riwayat_mutasi = RiwayatSaldoPettyCash.objects.create(
                 jenis='pengurangan',
                 jumlah=nominal_pakai,
                 saldo_sebelum=saldo_sebelum,
@@ -8726,6 +8726,13 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 nama_pengaju=user_display_name(instance.created_by),
                 unit_pengaju=laporan_unit_label(instance.created_by),
             )
+            try:
+                from keuangan.management.commands.topup_manual_petty_cash import get_historical_batch_datetime
+                hist_dt = get_historical_batch_datetime(instance.no_pengajuan)
+                if hist_dt:
+                    RiwayatSaldoPettyCash.objects.filter(pk=riwayat_mutasi.pk).update(created_at=hist_dt)
+            except Exception:
+                pass
  
             laporan.pengembalian_selesai = True
             laporan.dikonfirmasi_oleh    = request.user
