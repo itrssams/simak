@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
     ClipboardCheck,
@@ -20,6 +20,7 @@ import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
+import SearchableSelect from '../../components/SearchableSelect';
 
 export default function GudangOpname() {
     const toast = useToast();
@@ -36,6 +37,24 @@ export default function GudangOpname() {
 
     // Master Barang for dropdown
     const [barangList, setBarangList] = useState([]);
+
+    // Options for SearchableSelect
+    const barangOptions = useMemo(() => {
+        return (barangList || []).map((b) => {
+            const stokNum = Number(b.stok_saat_ini || 0);
+            return {
+                value: String(b.id),
+                label: b.kode ? `[${b.kode}] ${b.nama}` : b.nama,
+                subtext: [
+                    b.kode,
+                    b.kategori || '',
+                    b.satuan_dasar?.kode ? `Satuan: ${b.satuan_dasar.kode}` : '',
+                    `Stok Sistem: ${stokNum.toLocaleString('id-ID')}`
+                ].filter(Boolean).join(' • '),
+                tag: b.satuan_dasar?.kode || undefined,
+            };
+        });
+    }, [barangList]);
 
     // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -164,6 +183,13 @@ export default function GudangOpname() {
                 next[idx].harga_unit = Number(b.nilai_rata_rata) || 0;
                 next[idx].qty_sistem = Number(b.stok_saat_ini) || 0;
                 next[idx].qty_fisik = formJenis === 'SALDO_AWAL' ? 0 : next[idx].qty_sistem;
+            } else {
+                next[idx].barang_kode = '';
+                next[idx].barang_nama = '';
+                next[idx].satuan = 'PCS';
+                next[idx].harga_unit = 0;
+                next[idx].qty_sistem = 0;
+                next[idx].qty_fisik = 0;
             }
         }
 
@@ -600,19 +626,17 @@ export default function GudangOpname() {
                                             alignItems: 'center',
                                             padding: '8px 10px'
                                         }}>
-                                            <div>
-                                                <select
-                                                    value={item.barang_id}
-                                                    onChange={(e) => handleItemChange(idx, 'barang_id', e.target.value)}
-                                                    required
-                                                    className="gdg-inline-input"
-                                                    style={{ width: '100%', fontSize: '0.82rem', height: '36px' }}
-                                                >
-                                                    <option value="">-- Pilih Barang --</option>
-                                                    {barangList.map(b => (
-                                                        <option key={b.id} value={b.id}>[{b.kode}] {b.nama}</option>
-                                                    ))}
-                                                </select>
+                                            <div style={{ minWidth: 0 }}>
+                                                <SearchableSelect
+                                                    options={barangOptions}
+                                                    value={item.barang_id ? String(item.barang_id) : ''}
+                                                    onChange={(val) => handleItemChange(idx, 'barang_id', val)}
+                                                    placeholder="-- Cari / Pilih Barang --"
+                                                    searchPlaceholder="Ketik nama atau kode barang..."
+                                                    emptyMessage="Barang tidak ditemukan"
+                                                    minDropdownWidth={340}
+                                                    maxDropdownWidth={600}
+                                                />
                                             </div>
                                             <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: 'var(--gdg-text-secondary, #64748b)' }}>
                                                 {item.satuan}

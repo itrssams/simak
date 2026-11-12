@@ -681,7 +681,8 @@ export default function GudangPengeluaran() {
                             <thead>
                                 <tr>
                                     <th>NO PERMINTAAN</th>
-                                    <th>TANGGAL</th>
+                                    <th>TGL MINTA</th>
+                                    <th>TGL PENYERAHAN</th>
                                     <th>UNIT / RUANGAN</th>
                                     <th>JUMLAH ITEM</th>
                                     <th>STATUS</th>
@@ -691,14 +692,21 @@ export default function GudangPengeluaran() {
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '30px' }}>Memuat permohonan...</td></tr>
+                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>Memuat permohonan...</td></tr>
                                 ) : permintaanList.length === 0 ? (
-                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data permohonan.</td></tr>
+                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data permohonan.</td></tr>
                                 ) : (
                                     permintaanList.map(req => (
                                         <tr key={req.id}>
                                             <td style={{ fontWeight: 600, color: '#38bdf8' }}>{req.nomor}</td>
                                             <td>{req.tanggal}</td>
+                                            <td>
+                                                {req.tanggal_penyerahan ? (
+                                                    <span style={{ color: '#10b981', fontWeight: 600 }}>{req.tanggal_penyerahan}</span>
+                                                ) : (
+                                                    <span style={{ color: '#94a3b8' }}>-</span>
+                                                )}
+                                            </td>
                                             <td className="gdg-cell-strong">{req.ruang_nama}</td>
                                             <td>{(req.items || []).length} item</td>
                                             <td>
@@ -849,7 +857,7 @@ export default function GudangPengeluaran() {
                             <thead>
                                 <tr>
                                     <th>NO BON OUT</th>
-                                    <th>TANGGAL</th>
+                                    <th>TGL PENYERAHAN</th>
                                     <th>UNIT / RUANGAN</th>
                                     <th>PENERIMA FISIK</th>
                                     <th>REF PERMINTAAN</th>
@@ -867,7 +875,7 @@ export default function GudangPengeluaran() {
                                     pengeluaranList.map(out => (
                                         <tr key={out.id}>
                                             <td style={{ fontWeight: 600, color: '#f59e0b' }}>{out.nomor}</td>
-                                            <td>{out.tanggal}</td>
+                                            <td style={{ fontWeight: 600, color: '#10b981' }}>{out.tanggal}</td>
                                             <td className="gdg-cell-strong">{out.ruang_nama}</td>
                                             <td>{out.penerima_nama || '-'}</td>
                                             <td>{out.permintaan_nomor ? <span style={{ color: '#38bdf8' }}>{out.permintaan_nomor}</span> : <span style={{ color: '#64748b' }}>Langsung</span>}</td>
@@ -1219,7 +1227,8 @@ export default function GudangPengeluaran() {
                                 <div className="gdg-modal-header-text">
                                     <h3>Detail Permintaan: {selectedReq.nomor}</h3>
                                     <p>
-                                        Ruangan: <strong style={{ color: '#0284c7' }}>{selectedReq.ruang_nama}</strong> | Tanggal: {selectedReq.tanggal}
+                                        Ruangan: <strong style={{ color: '#0284c7' }}>{selectedReq.ruang_nama}</strong> | Tanggal Pengajuan: {selectedReq.tanggal}
+                                        {selectedReq.tanggal_penyerahan && ` | Diserahkan: ${selectedReq.tanggal_penyerahan}`}
                                         {selectedReq.approved_by_nama && ` | Diverifikasi: ${selectedReq.approved_by_nama}`}
                                     </p>
                                 </div>

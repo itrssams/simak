@@ -35,11 +35,12 @@ class PermintaanSerializer(serializers.ModelSerializer):
     can_issue = serializers.SerializerMethodField()
     bon_pengeluaran_id = serializers.SerializerMethodField()
     bon_pengeluaran_nomor = serializers.SerializerMethodField()
+    tanggal_penyerahan = serializers.SerializerMethodField()
 
     class Meta:
         model = Permintaan
         fields = [
-            'id', 'nomor', 'tanggal', 'ruang', 'ruang_nama',
+            'id', 'nomor', 'tanggal', 'tanggal_penyerahan', 'ruang', 'ruang_nama',
             'catatan', 'status', 'alasan_tolak', 'legacy_out_id',
             'items', 'created_by', 'created_by_nama',
             'approved_by', 'approved_by_nama', 'approved_at',
@@ -69,13 +70,23 @@ class PermintaanSerializer(serializers.ModelSerializer):
         # Tahap penyerahan fisik oleh logistik: HANYA jika sudah berstatus DISETUJUI oleh Kasi
         return obj.status == Permintaan.STATUS_DISETUJUI
 
+    def _get_active_pengeluaran(self, obj):
+        outs = [p for p in obj.pengeluaran_list.all() if p.status != Pengeluaran.STATUS_BATAL]
+        if not outs:
+            outs = list(obj.pengeluaran_list.all())
+        return outs[0] if outs else None
+
     def get_bon_pengeluaran_id(self, obj):
-        out = obj.pengeluaran_list.order_by('-id').first()
+        out = self._get_active_pengeluaran(obj)
         return out.id if out else None
 
     def get_bon_pengeluaran_nomor(self, obj):
-        out = obj.pengeluaran_list.order_by('-id').first()
+        out = self._get_active_pengeluaran(obj)
         return out.nomor if out else None
+
+    def get_tanggal_penyerahan(self, obj):
+        out = self._get_active_pengeluaran(obj)
+        return str(out.tanggal) if out and out.tanggal else None
 
 
 class PengeluaranItemSerializer(serializers.ModelSerializer):
