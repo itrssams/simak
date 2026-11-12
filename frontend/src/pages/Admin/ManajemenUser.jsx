@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useToastState } from '../../context/ToastContext';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
     AlertTriangle,
     Building2,
@@ -86,6 +87,7 @@ export default function ManajemenUser() {
     const [success, setSuccess] = useToastState('success');
     const [error, setError] = useToastState('error');
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search, 350);
     const [filterRole, setFilterRole] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [userPage, setUserPage] = useState(1);
@@ -106,61 +108,70 @@ export default function ManajemenUser() {
     const [modalHapusUnit, setModalHapusUnit] = useState(null);
     const [unitForm, setUnitForm] = useState({ nama: '', kategori: 'unit', parent: '', kepala_unit: '', is_active: true });
 
-    useEffect(() => {
-        fetchAll();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userPage, userPageSize, filterRole]);
-
-    const fetchAll = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const [userRes, unitRes, allUsersRes] = await Promise.all([
-                api.get('/users/', { params: pageParams(userPage, userPageSize, { role: filterRole || undefined }) }),
-                api.get('/users/units/'),
-                api.get('/users/?page_size=100'),
-            ]);
+            const params = pageParams(userPage, userPageSize, {
+                role: filterRole || undefined,
+                is_active: filterStatus === '' ? undefined : filterStatus === 'aktif',
+                q: debouncedSearch.trim() || undefined,
+            });
+            const userRes = await api.get('/users/', { params });
             setUsers(getResults(userRes.data));
             setUserTotal(getCount(userRes.data));
-            setUnits(getResults(unitRes.data));
-            setAllUsers(getResults(allUsersRes.data));
         } catch (e) {
             console.error(e);
             setError('Gagal memuat data user.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [userPage, userPageSize, filterRole, filterStatus, debouncedSearch, setError]);
+
+    const fetchStaticData = useCallback(async () => {
+        try {
+            const [unitRes, allUsersRes] = await Promise.all([
+                api.get('/users/units/'),
+                api.get('/users/'),
+            ]);
+            setUnits(getResults(unitRes.data));
+            setAllUsers(getResults(allUsersRes.data));
+        } catch (e) {
+            console.error(e);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchStaticData();
+    }, [fetchStaticData]);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    const fetchAll = useCallback(async () => {
+        await Promise.all([fetchUsers(), fetchStaticData()]);
+    }, [fetchUsers, fetchStaticData]);
 
     const showSuccess = (msg) => {
         setSuccess(msg);
         setTimeout(() => setSuccess(''), 3500);
     };
 
-    const filteredUsers = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return users.filter((u) => {
-            const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim().toLowerCase();
-            const matchSearch = !q || [u.username, u.email, fullName, u.unit_nama].some((v) => String(v || '').toLowerCase().includes(q));
-            const matchRole = filterRole ? u.role === filterRole : true;
-            const matchStatus = filterStatus === '' ? true : filterStatus === 'aktif' ? u.is_active : !u.is_active;
-            return matchSearch && matchRole && matchStatus;
-        });
-    }, [users, search, filterRole, filterStatus]);
-
     const activeUnits = useMemo(() => units.filter((u) => u.is_active), [units]);
 
     const stats = useMemo(() => {
-        const active = users.filter((u) => u.is_active).length;
-        const inactive = users.length - active;
-        const approvers = users.filter((u) => ['direktur', 'wakil_direktur'].includes(u.role) || u.is_superuser).length;
+        const source = allUsers.length > 0 ? allUsers : users;
+        const active = source.filter((u) => u.is_active).length;
+        const inactive = source.length - active;
+        const approvers = source.filter((u) => ['direktur', 'wakil_direktur'].includes(u.role) || u.is_superuser).length;
         return {
-            total: users.length,
+            total: source.length,
             active,
             inactive,
             approvers,
             units: units.length,
         };
-    }, [users, units]);
+    }, [allUsers, users, units]);
 
     const closeUserModals = () => {
         setModalBuat(false);
@@ -452,13 +463,21 @@ export default function ManajemenUser() {
                         <div className="mu-toolbar">
                             <div className="mu-searchbox">
                                 <Search size={16} />
-                                <input className="mu-input" placeholder="Cari nama, username, email, atau unit..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                                <input
+                                    className="mu-input"
+                                    placeholder="Cari nama, username, email, role, atau unit..."
+                                    value={search}
+                                    onChange={(e) => {
+                                        setSearch(e.target.value);
+                                        setUserPage(1);
+                                    }}
+                                />
                             </div>
                             <select className="mu-select" value={filterRole} onChange={(e) => { setUserPage(1); setFilterRole(e.target.value); }}>
                                 <option value="">Semua Role</option>
                                 {ROLE_CHOICES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                             </select>
-                            <select className="mu-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                            <select className="mu-select" value={filterStatus} onChange={(e) => { setUserPage(1); setFilterStatus(e.target.value); }}>
                                 <option value="">Semua Status</option>
                                 <option value="aktif">Aktif</option>
                                 <option value="nonaktif">Nonaktif</option>
@@ -469,7 +488,7 @@ export default function ManajemenUser() {
                         </div>
                         <UsersTable
                             loading={loading}
-                            users={filteredUsers}
+                            users={users}
                             currentUser={currentUser}
                             onEdit={openEditUser}
                             onPassword={(u) => { setPwdForm({ password: '', confirm: '' }); setError(''); setShowPwd(false); setModalPwd(u); }}
@@ -477,11 +496,11 @@ export default function ManajemenUser() {
                             onDelete={(u) => { setError(''); setModalHapus(u); }}
                         />
                         <div className="mu-pagination">
-                            <span className="mu-pagination-info">Hal {userPage} dari {pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} - {search || filterStatus ? filteredUsers.length : userTotal} user</span>
+                            <span className="mu-pagination-info">Hal {userPage} dari {pageCount(userTotal, userPageSize)} — {userTotal} user</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <RowSizeSelect className="mu-select" value={userPageSize} onChange={(size) => { setUserPageSize(size); setUserPage(1); }} />
                                 <button className="mu-btn soft" disabled={userPage === 1} onClick={() => setUserPage((p) => Math.max(1, p - 1))}>{'<'}</button>
-                                <button className="mu-btn soft" disabled={userPage >= pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize)} onClick={() => setUserPage((p) => Math.min(pageCount(search || filterStatus ? filteredUsers.length : userTotal, userPageSize), p + 1))}>{'>'}</button>
+                                <button className="mu-btn soft" disabled={userPage >= pageCount(userTotal, userPageSize)} onClick={() => setUserPage((p) => Math.min(pageCount(userTotal, userPageSize), p + 1))}>{'>'}</button>
                             </div>
                         </div>
                     </>
@@ -669,11 +688,11 @@ function Alert({ type, message }) {
 }
 
 function UsersTable({ loading, users, currentUser, onEdit, onPassword, onToggle, onDelete }) {
-    if (loading) return <EmptyState icon={<RefreshCw size={28} />} title="Memuat data user..." />;
-    if (users.length === 0) return <EmptyState icon={<Users size={28} />} title="Tidak ada user ditemukan." />;
+    if (loading && users.length === 0) return <EmptyState icon={<RefreshCw size={28} />} title="Memuat data user..." />;
+    if (!loading && users.length === 0) return <EmptyState icon={<Users size={28} />} title="Tidak ada user ditemukan." />;
 
     return (
-        <div className="mu-table-wrap">
+        <div className="mu-table-wrap" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
             <table className="mu-table">
                 <thead>
                     <tr>

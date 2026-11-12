@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
 from .models import Unit
 
 User = get_user_model()
@@ -78,14 +80,52 @@ class UserViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs   = User.objects.select_related('unit').all().order_by('username')
-        if is_it(self.request.user):
-            return qs
-        if not is_direktur(self.request.user):
-            return qs.filter(pk=self.request.user.pk)
+        user = self.request.user
+        qs = User.objects.select_related('unit').all().order_by('username')
+
+        can_view_all = (
+            is_direktur(user) or
+            is_it(user) or
+            getattr(user, 'is_sdm', False) or
+            user.is_superuser
+        )
+        if not can_view_all:
+            return qs.filter(pk=user.pk)
+
+        # Filter: role
         role = self.request.query_params.get('role')
         if role:
             qs = qs.filter(role=role)
+
+        # Filter: status aktif
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None and is_active != '':
+            if str(is_active).lower() in ('true', '1', 'aktif'):
+                qs = qs.filter(is_active=True)
+            elif str(is_active).lower() in ('false', '0', 'nonaktif'):
+                qs = qs.filter(is_active=False)
+
+        # Filter: unit
+        unit_id = self.request.query_params.get('unit') or self.request.query_params.get('unit_id')
+        if unit_id:
+            qs = qs.filter(unit_id=unit_id)
+
+        # Filter: pencarian lintas field (username, nama depan/belakang, nama lengkap, email, role, unit)
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+        if search:
+            q = search.strip()
+            qs = qs.annotate(
+                full_name=Concat('first_name', Value(' '), 'last_name')
+            ).filter(
+                Q(username__icontains=q) |
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) |
+                Q(full_name__icontains=q) |
+                Q(email__icontains=q) |
+                Q(role__icontains=q) |
+                Q(unit__nama__icontains=q)
+            )
+
         return qs
 
     def get_serializer_class(self):
