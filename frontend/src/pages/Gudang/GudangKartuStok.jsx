@@ -279,13 +279,32 @@ export default function GudangKartuStok() {
                                 )}
                             </div>
                             <div className="gdg-ks-item-meta">
-                                <span>Golongan: <strong>{selectedBarang.golongan?.nama || 'Umum'}</strong></span>
+                                <span className="gdg-ks-meta-item">
+                                    <span className="gdg-ks-meta-label">Golongan:</span>{' '}
+                                    <span className="gdg-ks-meta-val">{selectedBarang.golongan?.nama || 'Umum'}</span>
+                                </span>
                                 {selectedBarang.merk && (
-                                    <span>Merk: <strong>{selectedBarang.merk}</strong></span>
+                                    <>
+                                        <span className="gdg-ks-meta-sep" aria-hidden="true">•</span>
+                                        <span className="gdg-ks-meta-item">
+                                            <span className="gdg-ks-meta-label">Merk:</span>{' '}
+                                            <span className="gdg-ks-meta-val">{selectedBarang.merk}</span>
+                                        </span>
+                                    </>
                                 )}
-                                <span>Satuan Dasar: <strong>{selectedBarang.satuan_dasar?.kode || selectedBarang.satuan_dasar?.nama}</strong></span>
+                                <span className="gdg-ks-meta-sep" aria-hidden="true">•</span>
+                                <span className="gdg-ks-meta-item">
+                                    <span className="gdg-ks-meta-label">Satuan Dasar:</span>{' '}
+                                    <span className="gdg-ks-meta-val">{selectedBarang.satuan_dasar?.kode || selectedBarang.satuan_dasar?.nama}</span>
+                                </span>
                                 {selectedBarang.kemasan_list && selectedBarang.kemasan_list.length > 0 && (
-                                    <span>Konversi: <strong>{selectedBarang.kemasan_list.map((k) => `1 ${k.nama_kemasan} = ${Number(k.isi_per_kemasan)} ${selectedBarang.satuan_dasar?.kode}`).join(', ')}</strong></span>
+                                    <>
+                                        <span className="gdg-ks-meta-sep" aria-hidden="true">•</span>
+                                        <span className="gdg-ks-meta-item">
+                                            <span className="gdg-ks-meta-label">Konversi:</span>{' '}
+                                            <span className="gdg-ks-meta-val">{selectedBarang.kemasan_list.map((k) => `1 ${k.nama_kemasan} = ${Number(k.isi_per_kemasan)} ${selectedBarang.satuan_dasar?.kode}`).join(', ')}</span>
+                                        </span>
+                                    </>
                                 )}
                             </div>
                         </div>
