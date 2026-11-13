@@ -276,65 +276,64 @@ export default function GudangDashboard() {
                     </div>
                 </div>
 
-                {/* Underline Status Tabs */}
-                <div className="gdg-dash-tabs" role="tablist">
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={statusFilter === ''}
-                        className={`gdg-dash-tab ${statusFilter === '' ? 'active' : ''}`}
-                        onClick={() => {
-                            setStatusFilter('');
-                            setPage(1);
-                        }}
-                    >
-                        Semua Status
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={statusFilter === 'MENUNGGU'}
-                        className={`gdg-dash-tab ${statusFilter === 'MENUNGGU' ? 'active' : ''}`}
-                        onClick={() => {
-                            setStatusFilter('MENUNGGU');
-                            setPage(1);
-                        }}
-                    >
-                        Menunggu Verifikasi{pendingCount > 0 ? ` (${pendingCount})` : ''}
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={statusFilter === 'DISETUJUI'}
-                        className={`gdg-dash-tab ${statusFilter === 'DISETUJUI' ? 'active' : ''}`}
-                        onClick={() => {
-                            setStatusFilter('DISETUJUI');
-                            setPage(1);
-                        }}
-                    >
-                        Disetujui (Siap Bon)
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={statusFilter === 'SELESAI'}
-                        className={`gdg-dash-tab ${statusFilter === 'SELESAI' ? 'active' : ''}`}
-                        onClick={() => {
-                            setStatusFilter('SELESAI');
-                            setPage(1);
-                        }}
-                    >
-                        Selesai Diserahkan
-                    </button>
-                </div>
-
-                {/* Search Toolbar */}
+                {/* Combined Filter Tabs & Search Toolbar */}
                 <div className="gdg-dash-toolbar">
+                    <div className="gdg-dash-tabs" role="tablist">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === ''}
+                            className={`gdg-dash-tab ${statusFilter === '' ? 'active' : ''}`}
+                            onClick={() => {
+                                setStatusFilter('');
+                                setPage(1);
+                            }}
+                        >
+                            Semua Status
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === 'MENUNGGU'}
+                            className={`gdg-dash-tab ${statusFilter === 'MENUNGGU' ? 'active' : ''}`}
+                            onClick={() => {
+                                setStatusFilter('MENUNGGU');
+                                setPage(1);
+                            }}
+                        >
+                            Menunggu Verifikasi{pendingCount > 0 ? ` (${pendingCount})` : ''}
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === 'DISETUJUI'}
+                            className={`gdg-dash-tab ${statusFilter === 'DISETUJUI' ? 'active' : ''}`}
+                            onClick={() => {
+                                setStatusFilter('DISETUJUI');
+                                setPage(1);
+                            }}
+                        >
+                            Disetujui (Siap Bon)
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === 'SELESAI'}
+                            className={`gdg-dash-tab ${statusFilter === 'SELESAI' ? 'active' : ''}`}
+                            onClick={() => {
+                                setStatusFilter('SELESAI');
+                                setPage(1);
+                            }}
+                        >
+                            Selesai Diserahkan
+                        </button>
+                    </div>
+
                     <div className="gdg-dash-search">
-                        <Search size={15} />
+                        <Search size={15} className="gdg-dash-search-icon" />
                         <input
                             type="text"
-                            placeholder="Cari nomor permintaan, nama ruangan, atau catatan..."
+                            placeholder="Cari nomor permintaan, ruangan, catatan..."
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
