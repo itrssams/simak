@@ -1385,28 +1385,88 @@ input.pu-form-textarea {
     color: #e11d48;
 }
 
+/* ── Modal Table Overrides (Portal outside .pu-page) ── */
+.pu-modal .pu-table-wrap {
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="light"] .pu-modal .pu-table-wrap {
+    border-top-color: #e3e8ee !important;
+}
+
+.pu-modal .pu-table th {
+    color: #94a3b8;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .pu-modal .pu-table th {
+    color: #697386;
+    border-bottom-color: #e3e8ee;
+}
+
+.pu-modal .pu-table td {
+    color: #f8fafc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .pu-modal .pu-table td {
+    color: #1a1f36;
+    border-bottom-color: #e3e8ee;
+}
+
+.pu-num-cell {
+    font-variant-numeric: tabular-nums;
+}
+
+.pu-stock-cell {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #f8fafc;
+}
+
+[data-theme="light"] .pu-stock-cell {
+    color: #1a1f36;
+}
+
+.pu-stock-cell.empty {
+    color: #f87171;
+}
+
+[data-theme="light"] .pu-stock-cell.empty {
+    color: #dc2626;
+}
+
 /* ── Approve Modal Qty Input ── */
 .pu-approve-qty-input {
     width: 90px;
-    padding: 6px 8px;
-    border-radius: 6px;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 8px !important;
+    border-radius: 6px !important;
     text-align: center;
-    font-weight: 700;
-    font-size: 13px;
+    font-weight: 600;
+    font-size: 13px !important;
+    font-variant-numeric: tabular-nums;
     outline: none;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .pu-approve-qty-input.normal {
-    border: 1px solid #7c3aed;
-    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #090c12;
     color: #f8fafc;
 }
 
 [data-theme="light"] .pu-approve-qty-input.normal {
-    border-color: #7c3aed;
-    background: #f5f3ff;
-    color: #4c1d95;
+    border-color: #d8dee4;
+    background: #ffffff;
+    color: #1a1f36;
+}
+
+.pu-approve-qty-input.normal:focus {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.16);
 }
 
 .pu-approve-qty-input.overstock {
@@ -1470,20 +1530,27 @@ input.pu-form-textarea {
 
 /* ── Approve Modal Tolak Button ── */
 .pu-btn-tolak-outline {
-    background: rgba(239, 68, 68, 0.18);
+    background: transparent;
     color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pu-btn-tolak-outline:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #f87171;
 }
 
 [data-theme="light"] .pu-btn-tolak-outline {
-    background: #fef2f2;
+    background: transparent;
     color: #dc2626;
-    border-color: #fecdd3;
+    border-color: #e3e8ee;
 }
 
 [data-theme="light"] .pu-btn-tolak-outline:hover {
-    background: #fee2e2;
-    border-color: #fca5a5;
+    background: #fef2f2;
+    border-color: #fecdd3;
+    color: #dc2626;
 }
 
 /* ── Detail Modal Specifics ── */
@@ -1508,8 +1575,9 @@ input.pu-form-textarea {
 
 /* ── Approve Modal Footer (Desktop) ── */
 .pu-approve-modal-footer {
-    padding: 16px 24px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 24px;
+    background: #0d1017;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1517,7 +1585,8 @@ input.pu-form-textarea {
 }
 
 [data-theme="light"] .pu-approve-modal-footer {
-    border-color: #e2e8f0;
+    background: #f7f9fc;
+    border-top-color: #e3e8ee;
 }
 
 .pu-approve-modal-footer-right {

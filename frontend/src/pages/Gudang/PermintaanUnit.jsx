@@ -1309,11 +1309,11 @@ export default function PermintaanUnit() {
                                                         <strong>{it.barang_nama}</strong>
                                                         <small style={{ display: 'block', color: '#94a3b8' }}>{it.barang_kode}</small>
                                                     </td>
-                                                    <td align="right" style={{ color: it.stok_tersedia <= 0 ? '#f43f5e' : '#0284c7', fontWeight: 700 }}>
+                                                    <td align="right" className={`pu-stock-cell ${it.stok_tersedia <= 0 ? 'empty' : ''}`}>
                                                         {Number(it.stok_tersedia || 0).toLocaleString('id-ID')}
-                                                        {it.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Habis</small>}
+                                                        {it.stok_tersedia <= 0 && <small style={{ display: 'block', fontSize: '10.5px', fontWeight: 500 }}>Habis</small>}
                                                     </td>
-                                                    <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
+                                                    <td align="right" className="pu-num-cell">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
                                                     <td align="center">
                                                         <input
                                                             type="number"
