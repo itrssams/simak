@@ -200,9 +200,13 @@ input[type="number"] {
 }
 
 [data-theme="dark"] .profile-wrap {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: transparent !important;
+  border-color: transparent !important;
   box-shadow: none !important;
+}
+
+[data-theme="dark"] .profile-wrap:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
 }
 
 [data-theme="dark"] .topbar-btn,
@@ -240,32 +244,37 @@ input[type="number"] {
 }
 
 [data-theme="dark"] .profile-menu {
-  background: #151c2c !important;
-  border-color: #334155 !important;
+  background: #111827 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
   color: #f8fafc !important;
 }
 
 [data-theme="dark"] .profile-menu-head {
-  background: rgba(30, 41, 59, 0.8) !important;
-  border-bottom-color: #334155 !important;
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-theme="dark"] .profile-item-btn {
   color: #f8fafc !important;
-  border-bottom-color: #334155 !important;
+  border-bottom-color: transparent !important;
 }
 
 [data-theme="dark"] .profile-item-btn svg {
-  color: #818cf8 !important;
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .profile-item-btn:hover {
-  background: rgba(99, 102, 241, 0.22) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
   color: #ffffff !important;
 }
 
+[data-theme="dark"] .profile-logout {
+  color: #f87171 !important;
+}
+
 [data-theme="dark"] .profile-logout:hover {
-  background: rgba(239, 68, 68, 0.15) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
 }
 
 [data-theme="dark"] .sidebar {

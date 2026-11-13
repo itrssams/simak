@@ -719,6 +719,7 @@ export default function Layout({ children }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [avatarError, setAvatarError] = useState(false);
     const [announcementOpen, setAnnouncementOpen] = useState(false);
     const [announcements, setAnnouncements] = useState([]);
     const [announcementUnread, setAnnouncementUnread] = useState(0);
@@ -798,7 +799,16 @@ export default function Layout({ children }) {
     const baseRoleLabel = ROLE_LABEL[user?.role] || (user?.is_superuser ? 'Superuser' : user?.role || '');
     const roleLabel = featureLabels.length ? `${baseRoleLabel} + ${featureLabels.join(' + ')}` : baseRoleLabel;
     const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user?.username;
-    const userInitial = (user?.first_name?.[0] || user?.username?.[0] || '?').toUpperCase();
+    const userInitial = useMemo(() => {
+        const parts = String(displayName || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return '?';
+    }, [displayName]);
+
+    useEffect(() => {
+        setAvatarError(false);
+    }, [user?.foto]);
     const canManageAnnouncements = isManajerUp(user);
     const collapsed = !isMobile && !sidebarOpen;
     const sidebarWidth = collapsed ? SIDEBAR_CLOSED_W : SIDEBAR_OPEN_W;
@@ -1285,15 +1295,19 @@ export default function Layout({ children }) {
                     position: relative;
                     display: flex;
                     align-items: center;
-                    gap: 7px;
+                    gap: 10px;
                     flex-shrink: 0;
-                    height: 34px;
+                    height: 36px;
                     box-sizing: border-box;
-                    border: 1px solid #e3e8ee;
-                    border-radius: 999px;
-                    background: #f7f9fc;
-                    padding: 2px 3px 2px 10px;
+                    border: 1px solid transparent;
+                    border-radius: 6px;
+                    background: transparent;
+                    padding: 3px 6px 3px 8px;
                     box-shadow: none;
+                    transition: background .15s ease;
+                }
+                .profile-wrap:hover {
+                    background: #f1f5f9;
                 }
                 .notify-wrap {
                     position: relative;
@@ -1423,38 +1437,39 @@ export default function Layout({ children }) {
                 .profile-name { font-size: 13px; font-weight: 800; color: var(--inv-text); }
                 .profile-role { font-size: 11px; color: var(--inv-muted); margin-top: 1px; }
                 .profile-avatar {
-                    width: 34px;
-                    height: 34px;
+                    width: 30px;
+                    height: 30px;
                     padding: 0;
                     border-radius: 999px;
-                    background: linear-gradient(135deg, var(--inv-primary), #3b82f6, var(--inv-secondary));
-                    color: #fff;
-                    font-weight: 800;
-                    font-size: 13px;
+                    background: #635bff;
+                    color: #ffffff;
+                    font-weight: 700;
+                    font-size: 11.5px;
+                    letter-spacing: 0.02em;
                     border: none;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    flex-shrink: 0;
                     box-shadow: none;
                     transition: background .12s ease;
                 }
                 .profile-avatar:hover {
-                    background: linear-gradient(135deg, var(--inv-primary-dark), #2563eb, var(--inv-secondary));
+                    background: #544dc9;
                 }
                 .profile-menu {
                     position: absolute;
                     top: 100%;
                     right: 0;
-                    margin-top: 10px;
-                    background: rgba(255,255,255,.92);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
-                    border-radius: 14px;
-                    min-width: 190px;
-                    box-shadow: 0 18px 45px rgba(15,23,42,.16);
-                    border: 1px solid rgba(255,255,255,.68);
-                    animation: fadeInDown .16s ease both;
+                    margin-top: 8px;
+                    background: #ffffff;
+                    border-radius: 8px;
+                    min-width: 204px;
+                    padding: 4px;
+                    box-shadow: 0 6px 20px rgba(26, 31, 54, 0.1);
+                    border: 1px solid #e3e8ee;
+                    animation: fadeInDown .14s ease both;
                     z-index: 320;
                     overflow: hidden;
                 }
@@ -1463,63 +1478,56 @@ export default function Layout({ children }) {
                     height: 100%;
                     border-radius: 999px;
                     object-fit: cover;
+                    display: block;
                 }
                 .profile-item-btn {
                     width: 100%;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
-                    padding: 11px 14px;
+                    gap: 8px;
+                    padding: 7px 10px;
                     border: none;
+                    border-radius: 5px;
                     cursor: pointer;
-                    color: var(--inv-text, #1e293b);
+                    color: #1a1f36;
                     background: transparent;
                     font-size: 13px;
-                    font-weight: 700;
+                    font-weight: 500;
                     text-align: left;
-                    transition: background .16s ease, color .16s ease;
-                    border-bottom: 1px solid rgba(226,232,240,.4);
+                    transition: background .12s ease, color .12s ease;
+                    border-bottom: none;
                 }
                 .profile-item-btn svg {
-                    color: var(--inv-primary, #6366f1);
+                    color: #697386;
                     flex-shrink: 0;
                 }
                 .profile-item-btn:hover {
-                    background: rgba(99,102,241,.08);
-                    color: var(--inv-primary, #6366f1);
-                }
-                [data-theme="dark"] .profile-item-btn {
-                    color: #f8fafc !important;
-                    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-                }
-                [data-theme="dark"] .profile-item-btn svg {
-                    color: #818cf8 !important;
-                }
-                [data-theme="dark"] .profile-item-btn:hover {
-                    background: rgba(99, 102, 241, 0.22) !important;
-                    color: #ffffff !important;
+                    background: #f1f5f9;
+                    color: #1a1f36;
                 }
                 .profile-menu-head {
-                    padding: 13px 14px;
-                    background: linear-gradient(135deg, rgba(238,242,255,.82), rgba(236,254,255,.52));
-                    border-bottom: 1px solid rgba(226,232,240,.72);
+                    padding: 8px 10px 9px;
+                    margin-bottom: 4px;
+                    background: transparent;
+                    border-bottom: 1px solid #e3e8ee;
                 }
                 .profile-logout {
                     width: 100%;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
-                    padding: 12px 14px;
+                    gap: 8px;
+                    padding: 7px 10px;
                     border: none;
+                    border-radius: 5px;
                     cursor: pointer;
                     color: #dc2626;
                     background: transparent;
                     font-size: 13px;
-                    font-weight: 800;
+                    font-weight: 500;
                     text-align: left;
-                    transition: background .16s ease;
+                    transition: background .12s ease;
                 }
-                .profile-logout:hover { background: #fff1f1; }
+                .profile-logout:hover { background: #fef2f2; }
 
                 .body-shell {
                     flex: 1;
@@ -1958,10 +1966,15 @@ export default function Layout({ children }) {
                             <div className="profile-role">{baseRoleLabel}</div>
                         </div>
                         <button className="profile-avatar" onClick={() => setProfileOpen(o => !o)} title={displayName}>
-                            {user?.foto ? (
-                                <img src={resolveMediaUrl(user.foto)} alt={displayName} className="profile-avatar-img" />
+                            {user?.foto && !avatarError ? (
+                                <img
+                                    src={resolveMediaUrl(user.foto)}
+                                    alt={displayName}
+                                    className="profile-avatar-img"
+                                    onError={() => setAvatarError(true)}
+                                />
                             ) : (
-                                userInitial
+                                <span>{userInitial}</span>
                             )}
                         </button>
 
