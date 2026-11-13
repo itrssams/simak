@@ -936,6 +936,36 @@
     color: #697386;
 }
 
+.pu-modal-meta-row {
+    margin: 5px 0 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+[data-theme="light"] .pu-modal-meta-row {
+    color: #697386;
+}
+
+.pu-modal-meta-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+[data-theme="light"] .pu-modal-meta-code {
+    color: #1a1f36;
+}
+
+.pu-modal-meta-sep {
+    opacity: 0.55;
+}
+
 .pu-modal-desc {
     font-size: 13px;
     color: #cbd5e1;

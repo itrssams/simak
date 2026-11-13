@@ -1272,9 +1272,11 @@ export default function PermintaanUnit() {
                                 <h3 className="pu-modal-title">
                                     Verifikasi & Setujui Permintaan
                                 </h3>
-                                <p className="pu-modal-subtitle">
-                                    {approveTarget.nomor} &bull; Ruang: <strong>{approveTarget.ruang_nama}</strong>
-                                </p>
+                                <div className="pu-modal-meta-row">
+                                    <span className="pu-modal-meta-code">{approveTarget.nomor}</span>
+                                    <span className="pu-modal-meta-sep" aria-hidden="true">&bull;</span>
+                                    <span>Ruang: <strong>{approveTarget.ruang_nama}</strong></span>
+                                </div>
                             </div>
                             <button type="button" className="pu-action-btn" onClick={() => setApproveTarget(null)}>
                                 <X size={16} />
