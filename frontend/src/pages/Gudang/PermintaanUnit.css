@@ -957,8 +957,16 @@
 
 [data-theme="light"] .pu-form-textarea {
     background: #ffffff;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    border-color: #d8dee4;
+    color: #1a1f36;
+}
+
+input.pu-form-textarea {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
 }
 
 [data-theme="light"] .pu-form-textarea::placeholder {
@@ -1091,8 +1099,10 @@
 .pu-item-select-wrap .searchable-select-trigger {
     height: 40px !important;
     min-height: 40px !important;
-    box-sizing: border-box;
-    border-radius: 6px;
+    padding: 0 12px !important;
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
 }
 
 .pu-item-inputs-wrap {
@@ -1104,69 +1114,69 @@
 }
 
 .pu-input-qty {
-    height: 40px;
-    min-height: 40px;
-    padding: 0 8px;
-    border-radius: 6px;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 8px !important;
+    border-radius: 6px !important;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(15, 23, 42, 0.6);
     color: #f8fafc;
-    font-size: 13px;
+    font-size: 13px !important;
     font-weight: 700;
     text-align: center;
     outline: none;
     width: 76px;
     flex-shrink: 0;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: border-color 0.15s;
 }
 
 [data-theme="light"] .pu-input-qty {
     background: #ffffff;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    border-color: #d8dee4;
+    color: #1a1f36;
 }
 
 .pu-input-qty:focus {
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+    border-color: #635bff;
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.14);
 }
 
 .pu-input-satuan {
-    height: 40px;
-    min-height: 40px;
-    padding: 0 6px;
-    border-radius: 6px;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 6px !important;
+    border-radius: 6px !important;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
     color: #cbd5e1;
-    font-size: 12px;
+    font-size: 12.5px !important;
     font-weight: 600;
     text-align: center;
     width: 65px;
     flex-shrink: 0;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
 [data-theme="light"] .pu-input-satuan {
-    background: #f1f5f9;
-    border-color: #e2e8f0;
-    color: #64748b;
+    background: #f7f9fc;
+    border-color: #e3e8ee;
+    color: #697386;
 }
 
 .pu-input-keterangan {
-    height: 40px;
-    min-height: 40px;
-    padding: 0 12px;
-    border-radius: 6px;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    border-radius: 6px !important;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(15, 23, 42, 0.6);
     color: #f8fafc;
-    font-size: 12.5px;
+    font-size: 13px !important;
     outline: none;
     flex: 1;
     min-width: 0;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: border-color 0.15s;
 }
 
@@ -1176,24 +1186,24 @@
 
 [data-theme="light"] .pu-input-keterangan {
     background: #ffffff;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    border-color: #d8dee4;
+    color: #1a1f36;
 }
 
 [data-theme="light"] .pu-input-keterangan::placeholder {
-    color: #94a3b8;
+    color: #8792a2;
 }
 
 .pu-input-keterangan:focus {
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+    border-color: #635bff;
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.14);
 }
 
 .pu-btn-del-item {
-    width: 34px;
-    height: 40px;
-    min-height: 40px;
-    border-radius: 6px;
+    width: 34px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 6px !important;
     border: 1px solid transparent;
     background: transparent;
     color: #71717a;
@@ -1202,7 +1212,7 @@
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: background 0.15s, color 0.15s;
 }
 
