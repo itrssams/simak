@@ -6,17 +6,16 @@ import {
     Search,
     RefreshCw,
     CheckCircle2,
-    Clock,
     XCircle,
     Eye,
     Check,
     X,
     FileText,
-    ArrowRight,
     Printer,
     DownloadCloud,
     AlertCircle,
-    PackageCheck
+    PackageCheck,
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -24,7 +23,7 @@ import { SimplePagination } from '../../utils/pagination.jsx';
 import { useAuth } from '../../context/AuthContext';
 import DateField from '../../components/DateField';
 
-export default function GudangPengeluaran() {
+export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const toast = useToast();
     const { user } = useAuth();
     const isSuper = Boolean(user?.is_superuser || user?.username === 'super' || user?.role === 'superadmin' || user?.role === 'direktur');
@@ -587,8 +586,34 @@ export default function GudangPengeluaran() {
         setTimeout(() => printWindow.print(), 300);
     };
 
+    const heroActions = subTab === 'permintaan' ? (
+        <>
+            <button type="button" className="gdg-btn-stripe secondary" onClick={handleSyncSiaga} disabled={syncing}>
+                <DownloadCloud size={14} />
+                <span>{syncing ? 'Menarik data...' : 'Sinkron dari Siaga RS'}</span>
+            </button>
+            <button type="button" className="gdg-btn-stripe secondary" onClick={fetchPermintaan} disabled={loading}>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
+            </button>
+            <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreateReq}>
+                <Plus size={14} />
+                <span>Buat Permintaan Unit</span>
+            </button>
+        </>
+    ) : (
+        <button type="button" className="gdg-btn-stripe secondary" onClick={fetchPengeluaran} disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+        </button>
+    );
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(heroActions, heroActionsTarget)
+                : <div className="gdg-brg-fallback-actions">{heroActions}</div>}
+
             {/* SUB-TAB TOGGLE */}
             <div>
                 <div className="gdg-segmented-tabs">
@@ -597,7 +622,7 @@ export default function GudangPengeluaran() {
                         className={`gdg-segmented-tab ${subTab === 'permintaan' ? 'active' : ''}`}
                         onClick={() => { setSubTab('permintaan'); setPage(1); setStatusFilter(''); }}
                     >
-                        <span className="tab-icon"><Send size={16} /></span>
+                        <span className="tab-icon"><Send size={15} /></span>
                         <span>Permintaan Ruangan (Amprahan)</span>
                     </button>
                     <button
@@ -605,7 +630,7 @@ export default function GudangPengeluaran() {
                         className={`gdg-segmented-tab ${subTab === 'pengeluaran' ? 'active' : ''}`}
                         onClick={() => { setSubTab('pengeluaran'); setPage(1); setStatusFilter(''); }}
                     >
-                        <span className="tab-icon"><FileText size={16} /></span>
+                        <span className="tab-icon"><FileText size={15} /></span>
                         <span>Bon Pengeluaran / Serah Terima Fisik</span>
                     </button>
                 </div>
@@ -613,312 +638,335 @@ export default function GudangPengeluaran() {
 
             {/* TAB CONTENT: PERMINTAAN */}
             {subTab === 'permintaan' && (
-                <div className="gdg-card">
-                    <div className="gdg-card-head">
-                        <div className="gdg-card-title">
-                            <h2>Permintaan Barang Unit Ruangan</h2>
-                            <p>Daftar permohonan amprahan dari 48 unit ruangan RS Siaga Al Munawwarah</p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="gdg-btn soft" onClick={handleSyncSiaga} disabled={syncing}>
-                                <DownloadCloud size={15} />
-                                {syncing ? 'Menarik data...' : 'Sinkron dari Siaga RS'}
-                            </button>
-                            <button className="gdg-btn soft" onClick={fetchPermintaan} disabled={loading}>
-                                <RefreshCw size={15} /> Refresh
-                            </button>
-                            <button className="gdg-btn primary" onClick={handleOpenCreateReq}>
-                                <Plus size={16} /> Buat Permintaan Unit
-                            </button>
-                        </div>
-                    </div>
-
+                <section className="gdg-dash-section">
                     {/* TOOLBAR */}
-                    <div className="gdg-toolbar">
-                        <div className="gdg-search">
-                            <Search size={16} />
-                            <input
-                                type="text"
-                                placeholder="Cari nomor permintaan, nama ruangan..."
-                                value={searchQuery}
-                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                            />
+                    <div className="gdg-brg-toolbar">
+                        <div className="gdg-brg-toolbar-left">
+                            <div className="gdg-dash-search">
+                                <Search size={14} className="gdg-dash-search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Cari nomor permintaan, nama ruangan..."
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                                />
+                            </div>
+                            <div className="gdg-ks-select-wrap">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => {
+                                        setStatusFilter(e.target.value);
+                                        setPage(1);
+                                    }}
+                                    className="gdg-ks-select gdg-brg-select"
+                                >
+                                    <option value="">Semua Status Permintaan</option>
+                                    <option value="MENUNGGU">Menunggu Persetujuan</option>
+                                    <option value="DISETUJUI">Disetujui (Siap Serah Fisik)</option>
+                                    <option value="SELESAI">Selesai (Sudah Diserahkan)</option>
+                                    <option value="DITOLAK">Ditolak</option>
+                                </select>
+                                <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                            </div>
+                            {(searchQuery || statusFilter) && (
+                                <button
+                                    type="button"
+                                    className="gdg-btn-stripe secondary"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setStatusFilter('');
+                                        setPage(1);
+                                    }}
+                                    title="Reset filter"
+                                >
+                                    <X size={14} />
+                                    <span>Reset</span>
+                                </button>
+                            )}
                         </div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setPage(1);
-                            }}
-                            className="gdg-select-control"
-                            style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                        >
-                            <option value="">Semua Status Permintaan</option>
-                            <option value="MENUNGGU">Menunggu Persetujuan</option>
-                            <option value="DISETUJUI">Disetujui (Siap Serah Fisik)</option>
-                            <option value="SELESAI">Selesai (Sudah Diserahkan)</option>
-                            <option value="DITOLAK">Ditolak</option>
-                        </select>
-                        {(searchQuery || statusFilter) && (
-                            <button
-                                type="button"
-                                className="gdg-btn soft"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    setStatusFilter('');
-                                    setPage(1);
-                                }}
-                                title="Reset filter"
-                            >
-                                <X size={14} /> Reset
-                            </button>
-                        )}
+                        <div className="gdg-brg-total-hint">
+                            Menampilkan {permintaanList.length} dari {totalCount} permohonan
+                        </div>
                     </div>
 
                     {/* TABLE */}
-                    <div className="gdg-table-wrap">
-                        <table className="gdg-table">
+                    <div className="gdg-table-wrap gdg-table-borderless">
+                        <table className="gdg-table gdg-table-stripe">
                             <thead>
                                 <tr>
-                                    <th>NO PERMINTAAN</th>
-                                    <th>TGL MINTA</th>
-                                    <th>TGL PENYERAHAN</th>
-                                    <th>UNIT / RUANGAN</th>
-                                    <th>JUMLAH ITEM</th>
-                                    <th>STATUS</th>
-                                    <th>PEMOHON</th>
-                                    <th>PENERIMA</th>
-                                    <th style={{ textAlign: 'right' }}>AKSI</th>
+                                    <th>No. Permintaan</th>
+                                    <th>Tgl Minta</th>
+                                    <th>Tgl Penyerahan</th>
+                                    <th>Unit / Ruangan</th>
+                                    <th>Jumlah Item</th>
+                                    <th>Status</th>
+                                    <th>Pemohon</th>
+                                    <th>Penerima</th>
+                                    <th style={{ textAlign: 'right' }}>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '30px' }}>Memuat permohonan...</td></tr>
+                                    <tr>
+                                        <td colSpan="9" className="gdg-table-empty">
+                                            Memuat permohonan...
+                                        </td>
+                                    </tr>
                                 ) : permintaanList.length === 0 ? (
-                                    <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data permohonan.</td></tr>
+                                    <tr>
+                                        <td colSpan="9" className="gdg-table-empty gdg-po-empty-cell">
+                                            <div className="gdg-po-empty-box">
+                                                <Send size={28} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                                <div className="gdg-po-empty-title">Tidak ada data permohonan</div>
+                                                <p className="gdg-po-empty-desc">
+                                                    Belum ada permohonan amprahan unit ruangan yang sesuai dengan filter saat ini.
+                                                </p>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 ) : (
-                                    permintaanList.map(req => (
-                                        <tr key={req.id}>
-                                            <td style={{ fontWeight: 600, color: '#38bdf8' }}>{req.nomor}</td>
-                                            <td>{req.tanggal}</td>
-                                            <td>
-                                                {req.tanggal_penyerahan ? (
-                                                    <span style={{ color: '#10b981', fontWeight: 600 }}>{req.tanggal_penyerahan}</span>
-                                                ) : (
-                                                    <span style={{ color: '#94a3b8' }}>-</span>
-                                                )}
-                                            </td>
-                                            <td className="gdg-cell-strong">{req.ruang_nama}</td>
-                                            <td>{(req.items || []).length} item</td>
-                                            <td>
-                                                <span className={`gdg-badge ${
-                                                    req.status === 'SELESAI' ? 'success' :
-                                                    req.status === 'DISETUJUI' ? 'info' :
-                                                    req.status === 'MENUNGGU' ? 'warning' :
-                                                    req.status === 'DITOLAK' ? 'danger' : 'neutral'
-                                                }`}>
-                                                    {req.status === 'MENUNGGU' ? 'Menunggu Persetujuan' :
-                                                     req.status === 'DISETUJUI' ? 'Disetujui (Siap Serah)' :
-                                                     req.status === 'SELESAI' ? 'Selesai (Diserahkan)' :
-                                                     req.status === 'DITOLAK' ? 'Ditolak' : req.status}
-                                                </span>
-                                            </td>
-                                            <td style={{ fontSize: '0.85rem' }}>{req.created_by_nama || 'Unit Ruangan'}</td>
-                                            <td style={{ fontSize: '0.85rem' }}>
-                                                {req.penerima_nama ? (
-                                                    <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{req.penerima_nama}</span>
-                                                ) : (
-                                                    <span style={{ color: '#94a3b8' }}>-</span>
-                                                )}
-                                            </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                    {/* 1. LIHAT DETAIL - SELALU MUNCUL */}
-                                                    <button
-                                                        type="button"
-                                                        className="gdg-action-btn view"
-                                                        title="Lihat Detail Permintaan"
-                                                        onClick={() => { setSelectedReq(req); setShowDetailReqModal(true); }}
-                                                    >
-                                                        <Eye size={15} />
-                                                    </button>
+                                    permintaanList.map(req => {
+                                        const statusTone =
+                                            req.status === 'SELESAI' ? 'emerald' :
+                                            req.status === 'DISETUJUI' ? 'indigo' :
+                                            req.status === 'MENUNGGU' ? 'amber' :
+                                            req.status === 'DITOLAK' ? 'rose' : 'slate';
+                                        const statusLabel =
+                                            req.status === 'MENUNGGU' ? 'Menunggu Persetujuan' :
+                                            req.status === 'DISETUJUI' ? 'Disetujui (Siap Serah)' :
+                                            req.status === 'SELESAI' ? 'Selesai (Diserahkan)' :
+                                            req.status === 'DITOLAK' ? 'Ditolak' : req.status;
 
-                                                    {/* 2. JIKA STATUS MENUNGGU: MUNCUL VERIFIKASI & TOLAK UNTUK APPROVER LOGISTIK */}
-                                                    {req.status === 'MENUNGGU' && req.can_approve && (
-                                                        <>
-                                                            <button
-                                                                type="button"
-                                                                className="gdg-action-btn success"
-                                                                title="Verifikasi & Tentukan Kuantitas yang Disetujui"
-                                                                onClick={() => handleOpenApproveModal(req)}
-                                                            >
-                                                                <Check size={15} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="gdg-action-btn delete"
-                                                                title="Tolak Permintaan"
-                                                                onClick={() => handleOpenRejectModal(req)}
-                                                            >
-                                                                <X size={15} />
-                                                            </button>
-                                                        </>
+                                        return (
+                                            <tr key={req.id}>
+                                                <td className="gdg-code-cell">{req.nomor}</td>
+                                                <td className="gdg-num-cell">{req.tanggal}</td>
+                                                <td className="gdg-num-cell">
+                                                    {req.tanggal_penyerahan ? (
+                                                        <span style={{ color: '#10b981', fontWeight: 500 }}>{req.tanggal_penyerahan}</span>
+                                                    ) : (
+                                                        <span className="gdg-po-meta-cell">-</span>
                                                     )}
-
-                                                    {/* 3. JIKA STATUS DISETUJUI: MUNCUL TOMBOL PENYERAHAN BARANG (DONE) UNTUK LOGISTIK */}
-                                                    {req.status === 'DISETUJUI' && (
+                                                </td>
+                                                <td className="gdg-po-vendor-name">{req.ruang_nama}</td>
+                                                <td className="gdg-num-cell">{(req.items || []).length} item</td>
+                                                <td>
+                                                    <span className={`gdg-status-text ${statusTone}`}>
+                                                        <span className="gdg-status-dot" />
+                                                        <span>{statusLabel}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="gdg-po-meta-cell">{req.created_by_nama || 'Unit Ruangan'}</td>
+                                                <td className="gdg-po-meta-cell">
+                                                    {req.penerima_nama ? (
+                                                        <span className="gdg-po-vendor-name" style={{ fontWeight: 500 }}>{req.penerima_nama}</span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <div className="gdg-brg-row-actions">
                                                         <button
                                                             type="button"
-                                                            className="gdg-action-btn primary"
-                                                            title="Serahkan Fisik Barang & Selesaikan (Done)"
-                                                            onClick={() => handleOpenSerahkanModal(req)}
+                                                            className="gdg-brg-icon-btn"
+                                                            title="Lihat Detail Permintaan"
+                                                            onClick={() => { setSelectedReq(req); setShowDetailReqModal(true); }}
                                                         >
-                                                            <PackageCheck size={16} />
+                                                            <Eye size={14} />
                                                         </button>
-                                                    )}
 
-                                                    {/* 4. JIKA STATUS SELESAI: MUNCUL TOMBOL CETAK BUKTI SERAH TERIMA FISIK */}
-                                                    {req.status === 'SELESAI' && (
-                                                        <button
-                                                            type="button"
-                                                            className="gdg-action-btn print"
-                                                            title="Cetak Bukti Serah Terima Fisik (PDF)"
-                                                            onClick={() => handlePrintFromReq(req)}
-                                                        >
-                                                            <Printer size={15} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                        {req.status === 'MENUNGGU' && req.can_approve && (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    className="gdg-brg-icon-btn success"
+                                                                    title="Verifikasi & Tentukan Kuantitas yang Disetujui"
+                                                                    onClick={() => handleOpenApproveModal(req)}
+                                                                >
+                                                                    <Check size={14} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="gdg-brg-icon-btn danger"
+                                                                    title="Tolak Permintaan"
+                                                                    onClick={() => handleOpenRejectModal(req)}
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        {req.status === 'DISETUJUI' && (
+                                                            <button
+                                                                type="button"
+                                                                className="gdg-brg-icon-btn success"
+                                                                title="Serahkan Fisik Barang & Selesaikan (Done)"
+                                                                onClick={() => handleOpenSerahkanModal(req)}
+                                                            >
+                                                                <PackageCheck size={14} />
+                                                            </button>
+                                                        )}
+
+                                                        {req.status === 'SELESAI' && (
+                                                            <button
+                                                                type="button"
+                                                                className="gdg-brg-icon-btn"
+                                                                title="Cetak Bukti Serah Terima Fisik (PDF)"
+                                                                onClick={() => handlePrintFromReq(req)}
+                                                            >
+                                                                <Printer size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
                     </div>
-                    {totalCount > 10 && (
-                        <div style={{ marginTop: '16px' }}>
-                            <SimplePagination page={page} totalPages={Math.ceil(totalCount / 10)} onPageChange={setPage} totalCount={totalCount} pageSize={10} />
-                        </div>
-                    )}
-                </div>
+
+                    <SimplePagination
+                        className="gdg-dash-pagination"
+                        page={page}
+                        totalPages={Math.ceil(totalCount / 10)}
+                        onPageChange={setPage}
+                        total={totalCount}
+                        totalCount={totalCount}
+                        pageSize={10}
+                    />
+                </section>
             )}
 
             {/* TAB CONTENT: PENGELUARAN */}
             {subTab === 'pengeluaran' && (
-                <div className="gdg-card">
-                    <div className="gdg-card-head">
-                        <div className="gdg-card-title">
-                            <h2>Bon Pengeluaran Barang (Serah Terima Fisik)</h2>
-                            <p>Pencatatan serah terima fisik barang keluar ke unit ruangan yang memotong buku besar stok</p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="gdg-btn soft" onClick={fetchPengeluaran} disabled={loading}>
-                                <RefreshCw size={15} /> Refresh
-                            </button>
-                        </div>
-                    </div>
-
+                <section className="gdg-dash-section">
                     {/* TOOLBAR */}
-                    <div className="gdg-toolbar">
-                        <div className="gdg-search">
-                            <Search size={16} />
-                            <input
-                                type="text"
-                                placeholder="Cari nomor bon keluar, penerima, ruangan..."
-                                value={searchQuery}
-                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                            />
+                    <div className="gdg-brg-toolbar">
+                        <div className="gdg-brg-toolbar-left">
+                            <div className="gdg-dash-search">
+                                <Search size={14} className="gdg-dash-search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Cari nomor bon keluar, penerima, ruangan..."
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                                />
+                            </div>
+                            <div className="gdg-ks-select-wrap">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => {
+                                        setStatusFilter(e.target.value);
+                                        setPage(1);
+                                    }}
+                                    className="gdg-ks-select gdg-brg-select"
+                                >
+                                    <option value="">Semua Status Bon</option>
+                                    <option value="DRAFT">Draft (Belum Diserahkan)</option>
+                                    <option value="DISETUJUI">Disetujui (Stok Terpotong)</option>
+                                </select>
+                                <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                            </div>
+                            {(searchQuery || statusFilter) && (
+                                <button
+                                    type="button"
+                                    className="gdg-btn-stripe secondary"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setStatusFilter('');
+                                        setPage(1);
+                                    }}
+                                    title="Reset filter"
+                                >
+                                    <X size={14} />
+                                    <span>Reset</span>
+                                </button>
+                            )}
                         </div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setPage(1);
-                            }}
-                            className="gdg-select-control"
-                            style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                        >
-                            <option value="">Semua Status Bon</option>
-                            <option value="DRAFT">Draft (Belum Diserahkan)</option>
-                            <option value="DISETUJUI">Disetujui (Stok Terpotong)</option>
-                        </select>
-                        {(searchQuery || statusFilter) && (
-                            <button
-                                type="button"
-                                className="gdg-btn soft"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    setStatusFilter('');
-                                    setPage(1);
-                                }}
-                                title="Reset filter"
-                            >
-                                <X size={14} /> Reset
-                            </button>
-                        )}
+                        <div className="gdg-brg-total-hint">
+                            Menampilkan {pengeluaranList.length} dari {totalCount} bon pengeluaran
+                        </div>
                     </div>
 
                     {/* TABLE */}
-                    <div className="gdg-table-wrap">
-                        <table className="gdg-table">
+                    <div className="gdg-table-wrap gdg-table-borderless">
+                        <table className="gdg-table gdg-table-stripe">
                             <thead>
                                 <tr>
-                                    <th>NO BON OUT</th>
-                                    <th>TGL PENYERAHAN</th>
-                                    <th>UNIT / RUANGAN</th>
-                                    <th>PENERIMA FISIK</th>
-                                    <th>REF PERMINTAAN</th>
-                                    <th>NILAI HPP</th>
-                                    <th>STATUS</th>
-                                    <th style={{ textAlign: 'right' }}>AKSI</th>
+                                    <th>No. Bon Out</th>
+                                    <th>Tgl Penyerahan</th>
+                                    <th>Unit / Ruangan</th>
+                                    <th>Penerima Fisik</th>
+                                    <th>Ref Permintaan</th>
+                                    <th style={{ textAlign: 'right' }}>Nilai HPP</th>
+                                    <th>Status</th>
+                                    <th style={{ textAlign: 'right' }}>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>Memuat bon pengeluaran...</td></tr>
+                                    <tr>
+                                        <td colSpan="8" className="gdg-table-empty">
+                                            Memuat bon pengeluaran...
+                                        </td>
+                                    </tr>
                                 ) : pengeluaranList.length === 0 ? (
-                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Tidak ada data bon pengeluaran.</td></tr>
+                                    <tr>
+                                        <td colSpan="8" className="gdg-table-empty gdg-po-empty-cell">
+                                            <div className="gdg-po-empty-box">
+                                                <FileText size={28} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                                <div className="gdg-po-empty-title">Tidak ada data bon pengeluaran</div>
+                                                <p className="gdg-po-empty-desc">
+                                                    Bon pengeluaran otomatis terbentuk saat barang fisik diserahkan ke unit ruangan.
+                                                </p>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 ) : (
                                     pengeluaranList.map(out => (
                                         <tr key={out.id}>
-                                            <td style={{ fontWeight: 600, color: '#f59e0b' }}>{out.nomor}</td>
-                                            <td style={{ fontWeight: 600, color: '#10b981' }}>{out.tanggal}</td>
-                                            <td className="gdg-cell-strong">{out.ruang_nama}</td>
-                                            <td>{out.penerima_nama || '-'}</td>
-                                            <td>{out.permintaan_nomor ? <span style={{ color: '#38bdf8' }}>{out.permintaan_nomor}</span> : <span style={{ color: '#64748b' }}>Langsung</span>}</td>
-                                            <td style={{ fontWeight: 600, color: '#10b981' }}>{formatRp(out.total_nilai)}</td>
+                                            <td className="gdg-code-cell">{out.nomor}</td>
+                                            <td className="gdg-num-cell">{out.tanggal}</td>
+                                            <td className="gdg-po-vendor-name">{out.ruang_nama}</td>
+                                            <td className="gdg-po-meta-cell">{out.penerima_nama || '-'}</td>
+                                            <td className="gdg-code-cell" style={{ color: out.permintaan_nomor ? '#635bff' : 'var(--gdg-muted)' }}>
+                                                {out.permintaan_nomor || 'Langsung'}
+                                            </td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                {formatRp(out.total_nilai)}
+                                            </td>
                                             <td>
-                                                <span className={`gdg-badge ${out.status === 'DISETUJUI' ? 'success' : 'neutral'}`}>
-                                                    {out.status}
+                                                <span className={`gdg-status-text ${out.status === 'DISETUJUI' ? 'emerald' : 'slate'}`}>
+                                                    <span className="gdg-status-dot" />
+                                                    <span>{out.status}</span>
                                                 </span>
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                <div className="gdg-brg-row-actions">
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn view"
+                                                        className="gdg-brg-icon-btn"
                                                         title="Lihat Detail Bon Keluar"
                                                         onClick={() => { setSelectedOut(out); setShowDetailOutModal(true); }}
                                                     >
-                                                        <Eye size={15} />
+                                                        <Eye size={14} />
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn print"
+                                                        className="gdg-brg-icon-btn"
                                                         title="Cetak Bon Pengeluaran (PDF)"
                                                         onClick={() => handlePrintBon(out)}
                                                     >
-                                                        <Printer size={15} />
+                                                        <Printer size={14} />
                                                     </button>
                                                     {out.can_approve && (
                                                         <button
                                                             type="button"
-                                                            className="gdg-action-btn success"
+                                                            className="gdg-brg-icon-btn success"
                                                             title="Setujui & Potong Stok Gudang"
                                                             onClick={() => handleApproveOut(out)}
                                                         >
-                                                            <Check size={15} />
+                                                            <Check size={14} />
                                                         </button>
                                                     )}
                                                 </div>
@@ -929,36 +977,33 @@ export default function GudangPengeluaran() {
                             </tbody>
                         </table>
                     </div>
-                    {totalCount > 10 && (
-                        <div style={{ marginTop: '16px' }}>
-                            <SimplePagination page={page} totalPages={Math.ceil(totalCount / 10)} onPageChange={setPage} totalCount={totalCount} pageSize={10} />
-                        </div>
-                    )}
-                </div>
+
+                    <SimplePagination
+                        className="gdg-dash-pagination"
+                        page={page}
+                        totalPages={Math.ceil(totalCount / 10)}
+                        onPageChange={setPage}
+                        total={totalCount}
+                        totalCount={totalCount}
+                        pageSize={10}
+                    />
+                </section>
             )}
 
             {/* MODAL: BUAT PERMINTAAN */}
             {showCreateReqModal && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowCreateReqModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(37, 99, 235, 0.15)',
-                                    color: '#2563eb'
-                                }}>
-                                    <Plus size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Buat Permintaan Barang (Amprahan)</h3>
-                                    <p>Ajukan permohonan kebutuhan operasional unit ruangan ke gudang logistik</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Buat Permintaan Barang (Amprahan)</h3>
+                                <p>Ajukan permohonan kebutuhan operasional unit ruangan ke gudang logistik</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowCreateReqModal(false)}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
@@ -967,18 +1012,22 @@ export default function GudangPengeluaran() {
                             <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Unit / Ruangan Pemohon</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Unit / Ruangan Pemohon</label>
+                                        </div>
                                         <select value={formRuangId} onChange={(e) => setFormRuangId(e.target.value)} required>
                                             {ruangList.map(r => <option key={r.id} value={r.id}>{r.nama}</option>)}
                                         </select>
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Tanggal Permintaan *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Tanggal Permintaan *</label>
+                                        </div>
                                         <DateField
                                             value={formTanggal}
                                             onChange={(val) => setFormTanggal(val)}
                                             placeholder="Pilih tanggal..."
-                                            className="gdg-date-field"
+                                            className="gdg-date-field gdg-po-date-field"
                                         />
                                     </div>
                                 </div>
@@ -988,29 +1037,34 @@ export default function GudangPengeluaran() {
                                 </div>
 
                                 <div className="gdg-detail-divider">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div className="gdg-po-items-head">
                                         <span className="gdg-detail-section-title">Daftar Barang yang Diminta</span>
-                                        <button type="button" className="gdg-btn soft" onClick={handleAddItemRow}><Plus size={14} /> Tambah Baris</button>
+                                        <button type="button" className="gdg-btn-stripe secondary" onClick={handleAddItemRow}>
+                                            <Plus size={14} />
+                                            <span>Tambah Baris</span>
+                                        </button>
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div className="gdg-po-items-list">
                                         {formItems.map((item, idx) => (
-                                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 100px 80px 1.5fr 36px', gap: '8px', alignItems: 'center' }}>
-                                                <select value={item.barang_id} onChange={(e) => handleItemChange(idx, 'barang_id', e.target.value)} required>
+                                            <div key={idx} className="gdg-out-item-grid gdg-item-row">
+                                                <select value={item.barang_id} onChange={(e) => handleItemChange(idx, 'barang_id', e.target.value)} className="gdg-inline-input" required>
                                                     <option value="">-- Pilih Barang --</option>
                                                     {barangList.map(b => <option key={b.id} value={b.id}>[{b.kode}] {b.nama}</option>)}
                                                 </select>
-                                                <input type="number" min="0.1" step="any" value={item.qty} onChange={(e) => handleItemChange(idx, 'qty', e.target.value)} required placeholder="Qty" />
-                                                <input type="text" value={item.satuan} readOnly placeholder="Satuan" className="gdg-inline-input" style={{ textAlign: 'center' }} />
-                                                <input type="text" placeholder="Ket..." value={item.keterangan} onChange={(e) => handleItemChange(idx, 'keterangan', e.target.value)} />
-                                                <button type="button" className="gdg-btn soft" style={{ padding: '6px', color: '#f43f5e' }} onClick={() => handleRemoveItemRow(idx)} disabled={formItems.length === 1}><X size={14} /></button>
+                                                <input type="number" min="0.1" step="any" value={item.qty} onChange={(e) => handleItemChange(idx, 'qty', e.target.value)} className="gdg-inline-input gdg-num-cell" required placeholder="Qty" />
+                                                <input type="text" value={item.satuan} readOnly placeholder="Satuan" className="gdg-inline-input gdg-po-readonly-input" style={{ textAlign: 'center' }} />
+                                                <input type="text" placeholder="Ket..." value={item.keterangan} onChange={(e) => handleItemChange(idx, 'keterangan', e.target.value)} className="gdg-inline-input" />
+                                                <button type="button" className="gdg-brg-icon-btn danger" onClick={() => handleRemoveItemRow(idx)} disabled={formItems.length === 1} title="Hapus baris">
+                                                    <X size={14} />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
                             <div className="gdg-modal-foot">
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowCreateReqModal(false)}>Batal</button>
-                                <button type="submit" className="gdg-btn primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Ajukan Permintaan'}</button>
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCreateReqModal(false)}>Batal</button>
+                                <button type="submit" className="gdg-btn-stripe primary" disabled={saving}>{saving ? 'Menyimpan...' : 'Ajukan Permintaan'}</button>
                             </div>
                         </form>
                     </div>
@@ -1021,26 +1075,20 @@ export default function GudangPengeluaran() {
             {/* MODAL: PENYERAHAN BARANG FISIK (DONE OLEH LOGISTIK) */}
             {showSerahkanModal && serahkanTargetReq && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !serahSubmitting && setShowSerahkanModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981'
-                                }}>
-                                    <PackageCheck size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Serah Terima Fisik Barang (Done)</h3>
-                                    <p>Permintaan: <strong style={{ color: '#0284c7' }}>{serahkanTargetReq.nomor}</strong> — {serahkanTargetReq.ruang_nama}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Serah Terima Fisik Barang (Done)</h3>
+                                <p>
+                                    Permintaan: <span className="gdg-code-cell">{serahkanTargetReq.nomor}</span> · {serahkanTargetReq.ruang_nama}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => !serahSubmitting && setShowSerahkanModal(false)}
                                 disabled={serahSubmitting}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
@@ -1050,27 +1098,34 @@ export default function GudangPengeluaran() {
                             <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Unit / Ruangan Penerima</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Unit / Ruangan Penerima</label>
+                                        </div>
                                         <input
                                             type="text"
                                             value={serahkanTargetReq.ruang_nama}
                                             readOnly
+                                            className="gdg-po-readonly-input"
                                         />
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Tanggal Penyerahan Fisik *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Tanggal Penyerahan Fisik *</label>
+                                        </div>
                                         <DateField
                                             value={serahTanggal}
                                             onChange={(val) => setSerahTanggal(val)}
                                             placeholder="Pilih tanggal penyerahan..."
-                                            className="gdg-date-field"
+                                            className="gdg-date-field gdg-po-date-field"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Nama Petugas Penerima Fisik (Ruangan) *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Nama Petugas Penerima Fisik (Ruangan) *</label>
+                                        </div>
                                         <input
                                             type="text"
                                             placeholder="Contoh: Ns. Siti Rahma (Perawat IGD)"
@@ -1079,12 +1134,14 @@ export default function GudangPengeluaran() {
                                             required
                                             autoFocus
                                         />
-                                        <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '3px' }}>
+                                        <small className="gdg-grn-hint">
                                             Nama perawat/staf unit ruangan yang mengambil fisik barang di loket gudang.
                                         </small>
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Catatan Penyerahan (Opsional)</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Catatan Penyerahan (Opsional)</label>
+                                        </div>
                                         <input
                                             type="text"
                                             placeholder="Misal: Penyerahan rutin amprahan mingguan"
@@ -1095,27 +1152,29 @@ export default function GudangPengeluaran() {
                                 </div>
 
                                 <div className="gdg-detail-divider">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div className="gdg-po-items-head">
                                         <span className="gdg-detail-section-title">Rincian Fisik Barang yang Diserahkan</span>
-                                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Kuantitas terisi otomatis sesuai persetujuan</span>
+                                        <span className="gdg-po-section-meta">Kuantitas terisi otomatis sesuai persetujuan</span>
                                     </div>
-                                    <div className="gdg-table-wrap">
-                                        <table className="gdg-table" style={{ fontSize: '0.86rem' }}>
+                                    <div className="gdg-table-wrap gdg-table-borderless">
+                                        <table className="gdg-table gdg-table-stripe">
                                             <thead>
                                                 <tr>
-                                                    <th>KODE</th>
-                                                    <th>NAMA BARANG</th>
-                                                    <th style={{ textAlign: 'right' }}>DISETUJUI</th>
-                                                    <th style={{ textAlign: 'right', width: '130px' }}>QTY DISERAHKAN *</th>
-                                                    <th>SATUAN</th>
+                                                    <th>Kode</th>
+                                                    <th>Nama Barang</th>
+                                                    <th style={{ textAlign: 'right' }}>Disetujui</th>
+                                                    <th style={{ textAlign: 'right', width: '130px' }}>Qty Diserahkan *</th>
+                                                    <th>Satuan</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {serahItems.map((item, idx) => (
                                                     <tr key={idx}>
-                                                        <td style={{ color: '#0284c7', fontWeight: 600 }}>{item.barang_kode}</td>
-                                                        <td className="gdg-cell-strong">{item.barang_nama}</td>
-                                                        <td style={{ textAlign: 'right', color: '#64748b', fontWeight: 600 }}>{Number(item.qty_disetujui).toLocaleString('id-ID')}</td>
+                                                        <td className="gdg-code-cell">{item.barang_kode}</td>
+                                                        <td className="gdg-po-vendor-name">{item.barang_nama}</td>
+                                                        <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                            {Number(item.qty_disetujui).toLocaleString('id-ID')}
+                                                        </td>
                                                         <td style={{ textAlign: 'right' }}>
                                                             <input
                                                                 type="number"
@@ -1124,11 +1183,11 @@ export default function GudangPengeluaran() {
                                                                 value={item.qty_serah}
                                                                 onChange={(e) => handleSerahItemQtyChange(idx, e.target.value)}
                                                                 required
-                                                                className="gdg-inline-input"
-                                                                style={{ width: '100%', textAlign: 'right', fontWeight: 600, color: '#10b981' }}
+                                                                className="gdg-inline-input gdg-num-cell"
+                                                                style={{ width: '100%', textAlign: 'right', fontWeight: 600, height: '34px' }}
                                                             />
                                                         </td>
-                                                        <td>{item.satuan}</td>
+                                                        <td className="gdg-po-meta-cell">{item.satuan}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1136,20 +1195,21 @@ export default function GudangPengeluaran() {
                                     </div>
                                 </div>
 
-                                <div className="gdg-banner success">
-                                    <CheckCircle2 size={16} color="#10b981" style={{ flexShrink: 0 }} />
+                                <div className="gdg-out-banner success">
+                                    <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
                                     <span>
                                         Mengonfirmasi penyerahan ini akan otomatis menerbitkan <strong>Bon Pengeluaran</strong>, memotong <strong>kartu stok gudang</strong>, dan mengubah status permohonan menjadi <strong>SELESAI</strong>.
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="gdg-modal-foot" style={{ justifyContent: 'space-between' }}>
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowSerahkanModal(false)} disabled={serahSubmitting}>
+                            <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowSerahkanModal(false)} disabled={serahSubmitting}>
                                     Batal
                                 </button>
-                                <button type="submit" className="gdg-btn success" disabled={serahSubmitting}>
-                                    <CheckCircle2 size={16} /> {serahSubmitting ? 'Memproses Penyerahan...' : 'Konfirmasi Penyerahan & Selesai (Done)'}
+                                <button type="submit" className="gdg-btn-stripe success" disabled={serahSubmitting}>
+                                    <CheckCircle2 size={14} />
+                                    <span>{serahSubmitting ? 'Memproses Penyerahan...' : 'Konfirmasi Penyerahan & Selesai (Done)'}</span>
                                 </button>
                             </div>
                         </form>
@@ -1161,26 +1221,18 @@ export default function GudangPengeluaran() {
             {/* MODAL: TOLAK PERMINTAAN */}
             {showRejectModal && rejectTargetReq && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !rejectSubmitting && setShowRejectModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(244, 63, 94, 0.15)',
-                                    color: '#f43f5e'
-                                }}>
-                                    <XCircle size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Tolak Permintaan Barang</h3>
-                                    <p>{rejectTargetReq.nomor} — {rejectTargetReq.ruang_nama}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Tolak Permintaan Barang</h3>
+                                <p>{rejectTargetReq.nomor} · {rejectTargetReq.ruang_nama}</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => !rejectSubmitting && setShowRejectModal(false)}
                                 disabled={rejectSubmitting}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
@@ -1188,7 +1240,7 @@ export default function GudangPengeluaran() {
 
                         <form onSubmit={handleExecuteReject}>
                             <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                <div className="gdg-form-group">
+                                <div className="gdg-form-group" style={{ margin: 0 }}>
                                     <label>Alasan Penolakan Permintaan *</label>
                                     <textarea
                                         rows="3"
@@ -1197,21 +1249,21 @@ export default function GudangPengeluaran() {
                                         onChange={(e) => setRejectAlasan(e.target.value)}
                                         required
                                         autoFocus
-                                        className="gdg-inline-input"
-                                        style={{ width: '100%', resize: 'vertical' }}
+                                        className="gdg-po-textarea"
                                     />
-                                    <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '3px' }}>
+                                    <small className="gdg-grn-hint">
                                         Alasan ini akan dapat dibaca oleh staf unit ruangan yang bersangkutan.
                                     </small>
                                 </div>
                             </div>
 
                             <div className="gdg-modal-foot">
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowRejectModal(false)} disabled={rejectSubmitting}>
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowRejectModal(false)} disabled={rejectSubmitting}>
                                     Batal
                                 </button>
-                                <button type="submit" className="gdg-btn danger" disabled={rejectSubmitting}>
-                                    <X size={15} /> {rejectSubmitting ? 'Memproses...' : 'Tolak Permintaan'}
+                                <button type="submit" className="gdg-btn-stripe danger" disabled={rejectSubmitting}>
+                                    <X size={14} />
+                                    <span>{rejectSubmitting ? 'Memproses...' : 'Tolak Permintaan'}</span>
                                 </button>
                             </div>
                         </form>
@@ -1223,99 +1275,115 @@ export default function GudangPengeluaran() {
             {/* MODAL: DETAIL PERMINTAAN */}
             {showDetailReqModal && selectedReq && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowDetailReqModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(14, 165, 233, 0.15)',
-                                    color: '#0284c7'
-                                }}>
-                                    <FileText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Detail Permintaan: {selectedReq.nomor}</h3>
-                                    <p>
-                                        Ruangan: <strong style={{ color: '#0284c7' }}>{selectedReq.ruang_nama}</strong> | Tanggal Pengajuan: {selectedReq.tanggal}
-                                        {selectedReq.tanggal_penyerahan && ` | Diserahkan: ${selectedReq.tanggal_penyerahan}`}
-                                        {selectedReq.penerima_nama && ` (Penerima: ${selectedReq.penerima_nama})`}
-                                        {selectedReq.approved_by_nama && ` | Diverifikasi: ${selectedReq.approved_by_nama}`}
-                                    </p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Detail Permintaan: {selectedReq.nomor}</h3>
+                                <p>
+                                    Ruangan: <span className="gdg-po-detail-strong">{selectedReq.ruang_nama}</span> · Tanggal: {selectedReq.tanggal}
+                                    {selectedReq.tanggal_penyerahan && ` · Diserahkan: ${selectedReq.tanggal_penyerahan}`}
+                                    {selectedReq.penerima_nama && ` (Penerima: ${selectedReq.penerima_nama})`}
+                                    {selectedReq.approved_by_nama && ` · Diverifikasi: ${selectedReq.approved_by_nama}`}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowDetailReqModal(false)}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
                         </div>
                         <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {selectedReq.status === 'DITOLAK' && selectedReq.alasan_tolak && (
-                                <div className="gdg-banner danger">
-                                    <XCircle size={16} color="#f43f5e" style={{ flexShrink: 0 }} />
+                                <div className="gdg-out-banner danger">
+                                    <XCircle size={15} style={{ flexShrink: 0 }} />
                                     <span><strong>Alasan Penolakan:</strong> {selectedReq.alasan_tolak}</span>
                                 </div>
                             )}
 
-                            <div className="gdg-table-wrap">
-                                <table className="gdg-table" style={{ fontSize: '0.86rem' }}>
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
                                     <thead>
                                         <tr>
-                                            <th>KODE</th>
-                                            <th>NAMA BARANG</th>
-                                            <th style={{ textAlign: 'right' }}>DIMINTA</th>
-                                            <th style={{ textAlign: 'right' }}>DISETUJUI</th>
-                                            <th style={{ textAlign: 'right' }}>TERSEDIA GUDANG</th>
-                                            <th>SATUAN</th>
+                                            <th>Kode</th>
+                                            <th>Nama Barang</th>
+                                            <th style={{ textAlign: 'right' }}>Diminta</th>
+                                            <th style={{ textAlign: 'right' }}>Disetujui</th>
+                                            <th style={{ textAlign: 'right' }}>Tersedia Gudang</th>
+                                            <th>Satuan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {(selectedReq.items || []).map((it, idx) => (
                                             <tr key={idx}>
-                                                <td style={{ color: '#0284c7', fontWeight: 600 }}>{it.barang_kode}</td>
-                                                <td className="gdg-cell-strong">{it.barang_nama}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td style={{ textAlign: 'right', color: Number(it.qty_disetujui) > 0 ? '#10b981' : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : '#94a3b8'), fontWeight: 600 }}>
+                                                <td className="gdg-code-cell">{it.barang_kode}</td>
+                                                <td className="gdg-po-vendor-name">{it.barang_nama}</td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                    {Number(it.qty_minta).toLocaleString('id-ID')}
+                                                </td>
+                                                <td
+                                                    className="gdg-num-cell"
+                                                    style={{
+                                                        textAlign: 'right',
+                                                        color: Number(it.qty_disetujui) > 0
+                                                            ? '#10b981'
+                                                            : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : 'var(--gdg-muted)'),
+                                                        fontWeight: 600
+                                                    }}
+                                                >
                                                     {selectedReq.status === 'MENUNGGU' || selectedReq.status === 'DRAFT'
                                                         ? '-'
                                                         : Number(it.qty_disetujui) > 0
                                                             ? Number(it.qty_disetujui).toLocaleString('id-ID')
                                                             : '0 (Ditolak)'}
                                                 </td>
-                                                <td style={{ textAlign: 'right', color: it.stok_tersedia < it.qty_minta ? '#f43f5e' : '#0284c7', fontWeight: 600 }}>
+                                                <td
+                                                    className="gdg-num-cell"
+                                                    style={{
+                                                        textAlign: 'right',
+                                                        color: it.stok_tersedia < it.qty_minta ? '#f43f5e' : 'var(--gdg-text)',
+                                                        fontWeight: 600
+                                                    }}
+                                                >
                                                     {Number(it.stok_tersedia).toLocaleString('id-ID')}
                                                 </td>
-                                                <td>{it.satuan}</td>
+                                                <td className="gdg-po-meta-cell">{it.satuan}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                        <div className="gdg-modal-foot">
-                            <button className="gdg-btn soft" onClick={() => setShowDetailReqModal(false)}>Tutup</button>
-                            {selectedReq.status === 'MENUNGGU' && selectedReq.can_approve && (
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button className="gdg-btn danger" onClick={() => handleOpenRejectModal(selectedReq)}>
-                                        <X size={15} /> Tolak Permintaan
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                            <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowDetailReqModal(false)}>Tutup</button>
+                            <div className="gdg-po-foot-group">
+                                {selectedReq.status === 'MENUNGGU' && selectedReq.can_approve && (
+                                    <>
+                                        <button type="button" className="gdg-btn-stripe danger" onClick={() => handleOpenRejectModal(selectedReq)}>
+                                            <X size={14} />
+                                            <span>Tolak Permintaan</span>
+                                        </button>
+                                        <button type="button" className="gdg-btn-stripe success" onClick={() => handleOpenApproveModal(selectedReq)}>
+                                            <Check size={14} />
+                                            <span>Verifikasi &amp; Setujui</span>
+                                        </button>
+                                    </>
+                                )}
+                                {selectedReq.status === 'DISETUJUI' && (
+                                    <button type="button" className="gdg-btn-stripe primary" onClick={() => handleOpenSerahkanModal(selectedReq)}>
+                                        <PackageCheck size={14} />
+                                        <span>Serahkan Barang (Done)</span>
                                     </button>
-                                    <button className="gdg-btn success" onClick={() => handleOpenApproveModal(selectedReq)}>
-                                        <Check size={15} /> Verifikasi & Setujui
+                                )}
+                                {selectedReq.status === 'SELESAI' && (
+                                    <button type="button" className="gdg-btn-stripe secondary" onClick={() => handlePrintFromReq(selectedReq)}>
+                                        <Printer size={14} />
+                                        <span>Cetak Bukti Serah Terima</span>
                                     </button>
-                                </div>
-                            )}
-                            {selectedReq.status === 'DISETUJUI' && (
-                                <button className="gdg-btn primary" onClick={() => handleOpenSerahkanModal(selectedReq)}>
-                                    <PackageCheck size={16} /> Serahkan Barang (Done)
-                                </button>
-                            )}
-                            {selectedReq.status === 'SELESAI' && (
-                                <button className="gdg-btn soft" onClick={() => handlePrintFromReq(selectedReq)}>
-                                    <Printer size={15} /> Cetak Bukti Serah Terima
-                                </button>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>,
@@ -1325,73 +1393,75 @@ export default function GudangPengeluaran() {
             {/* MODAL: DETAIL PENGELUARAN */}
             {showDetailOutModal && selectedOut && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowDetailOutModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(245, 158, 11, 0.15)',
-                                    color: '#d97706'
-                                }}>
-                                    <FileText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Bon Pengeluaran: {selectedOut.nomor}</h3>
-                                    <p>
-                                        Unit: <strong style={{ color: '#d97706' }}>{selectedOut.ruang_nama}</strong> | Penerima: {selectedOut.penerima_nama || '-'}
-                                    </p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Bon Pengeluaran: {selectedOut.nomor}</h3>
+                                <p>
+                                    Unit: <span className="gdg-po-detail-strong">{selectedOut.ruang_nama}</span> · Penerima: {selectedOut.penerima_nama || '-'}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowDetailOutModal(false)}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
                         </div>
                         <div className="gdg-modal-body">
-                            <div className="gdg-table-wrap">
-                                <table className="gdg-table" style={{ fontSize: '0.86rem' }}>
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
                                     <thead>
                                         <tr>
-                                            <th>KODE</th>
-                                            <th>NAMA BARANG</th>
-                                            <th style={{ textAlign: 'right' }}>QTY KELUAR</th>
-                                            <th>SATUAN</th>
-                                            <th style={{ textAlign: 'right' }}>HPP BERJALAN</th>
-                                            <th style={{ textAlign: 'right' }}>SUBTOTAL</th>
+                                            <th>Kode</th>
+                                            <th>Nama Barang</th>
+                                            <th style={{ textAlign: 'right' }}>Qty Keluar</th>
+                                            <th>Satuan</th>
+                                            <th style={{ textAlign: 'right' }}>HPP Berjalan</th>
+                                            <th style={{ textAlign: 'right' }}>Subtotal</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {(selectedOut.items || []).map((it, idx) => (
                                             <tr key={idx}>
-                                                <td style={{ color: '#d97706', fontWeight: 600 }}>{it.barang_kode}</td>
-                                                <td className="gdg-cell-strong">{it.barang_nama}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(it.qty).toLocaleString('id-ID')}</td>
-                                                <td>{it.satuan}</td>
-                                                <td style={{ textAlign: 'right', color: '#64748b' }}>{formatRp(it.harga_unit)}</td>
-                                                <td style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{formatRp(it.subtotal)}</td>
+                                                <td className="gdg-code-cell">{it.barang_kode}</td>
+                                                <td className="gdg-po-vendor-name">{it.barang_nama}</td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                    {Number(it.qty).toLocaleString('id-ID')}
+                                                </td>
+                                                <td className="gdg-po-meta-cell">{it.satuan}</td>
+                                                <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right' }}>
+                                                    {formatRp(it.harga_unit)}
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                    {formatRp(it.subtotal)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center' }}>
-                                <span style={{ color: '#64748b', fontWeight: 500 }}>Total Nilai HPP Dikeluarkan:</span>
-                                <strong style={{ fontSize: '1.2rem', color: '#10b981' }}>{formatRp(selectedOut.total_nilai)}</strong>
+                            <div className="gdg-po-grand-total">
+                                <span className="gdg-po-grand-total-label">Total Nilai HPP Dikeluarkan</span>
+                                <strong className="gdg-po-grand-total-value gdg-num-cell">{formatRp(selectedOut.total_nilai)}</strong>
                             </div>
                         </div>
-                        <div className="gdg-modal-foot">
-                            <button className="gdg-btn soft" onClick={() => handlePrintBon(selectedOut)}>
-                                <Printer size={15} /> Cetak Bukti Serah Terima
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                            <button type="button" className="gdg-btn-stripe secondary" onClick={() => handlePrintBon(selectedOut)}>
+                                <Printer size={14} />
+                                <span>Cetak Bukti Serah Terima</span>
                             </button>
-                            <button className="gdg-btn soft" onClick={() => setShowDetailOutModal(false)}>Tutup</button>
-                            {selectedOut.can_approve && (
-                                <button className="gdg-btn primary" onClick={() => handleApproveOut(selectedOut)}>
-                                    <CheckCircle2 size={16} /> Setujui & Potong Stok Sekarang
-                                </button>
-                            )}
+                            <div className="gdg-po-foot-group">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowDetailOutModal(false)}>Tutup</button>
+                                {selectedOut.can_approve && (
+                                    <button type="button" className="gdg-btn-stripe primary" onClick={() => handleApproveOut(selectedOut)}>
+                                        <CheckCircle2 size={14} />
+                                        <span>Setujui &amp; Potong Stok Sekarang</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>,
@@ -1401,26 +1471,20 @@ export default function GudangPengeluaran() {
             {/* MODAL: VERIFIKASI & PERSETUJUAN PERMINTAAN (TENTUKAN JUMLAH YANG DISETUJUI) */}
             {showApproveModal && approveTargetReq && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !approveSubmitting && setShowApproveModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981'
-                                }}>
-                                    <CheckCircle2 size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Persetujuan Permintaan Barang</h3>
-                                    <p>Permintaan: <strong style={{ color: '#0284c7' }}>{approveTargetReq.nomor}</strong> — {approveTargetReq.ruang_nama}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Persetujuan Permintaan Barang</h3>
+                                <p>
+                                    Permintaan: <span className="gdg-code-cell">{approveTargetReq.nomor}</span> · {approveTargetReq.ruang_nama}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => !approveSubmitting && setShowApproveModal(false)}
                                 disabled={approveSubmitting}
+                                title="Tutup Modal"
                             >
                                 <X size={16} />
                             </button>
@@ -1435,6 +1499,7 @@ export default function GudangPengeluaran() {
                                             type="text"
                                             value={approveTargetReq.ruang_nama}
                                             readOnly
+                                            className="gdg-po-readonly-input"
                                         />
                                     </div>
                                     <div className="gdg-form-group">
@@ -1443,6 +1508,7 @@ export default function GudangPengeluaran() {
                                             type="text"
                                             value={approveTargetReq.tanggal}
                                             readOnly
+                                            className="gdg-po-readonly-input gdg-num-cell"
                                         />
                                     </div>
                                 </div>
@@ -1457,27 +1523,26 @@ export default function GudangPengeluaran() {
                                 )}
 
                                 <div className="gdg-detail-divider">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div className="gdg-po-items-head">
                                         <span className="gdg-detail-section-title">Tentukan Kuantitas yang Disetujui (ACC)</span>
                                         <button
                                             type="button"
-                                            className="gdg-btn soft"
-                                            style={{ fontSize: '0.78rem', padding: '4px 8px' }}
+                                            className="gdg-btn-stripe secondary"
                                             onClick={handleApproveSetAllMax}
                                         >
                                             Setujui Penuh Semua
                                         </button>
                                     </div>
-                                    <div className="gdg-table-wrap">
-                                        <table className="gdg-table" style={{ fontSize: '0.86rem' }}>
+                                    <div className="gdg-table-wrap gdg-table-borderless">
+                                        <table className="gdg-table gdg-table-stripe">
                                             <thead>
                                                 <tr>
-                                                    <th>KODE</th>
-                                                    <th>NAMA BARANG</th>
-                                                    <th style={{ textAlign: 'right' }}>DIMINTA</th>
-                                                    <th style={{ textAlign: 'right' }}>STOK GUDANG</th>
-                                                    <th style={{ textAlign: 'right', width: '140px' }}>QTY DISETUJUI *</th>
-                                                    <th>SATUAN</th>
+                                                    <th>Kode</th>
+                                                    <th>Nama Barang</th>
+                                                    <th style={{ textAlign: 'right' }}>Diminta</th>
+                                                    <th style={{ textAlign: 'right' }}>Stok Gudang</th>
+                                                    <th style={{ textAlign: 'right', width: '140px' }}>Qty Disetujui *</th>
+                                                    <th>Satuan</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1488,16 +1553,19 @@ export default function GudangPengeluaran() {
                                                     const isZeroOrLess = !item.qty_disetujui || qtyVal <= 0;
                                                     return (
                                                         <tr key={idx}>
-                                                            <td style={{ color: '#0284c7', fontWeight: 600 }}>{item.barang_kode}</td>
-                                                            <td className="gdg-cell-strong">{item.barang_nama}</td>
-                                                            <td style={{ textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                                                            <td className="gdg-code-cell">{item.barang_kode}</td>
+                                                            <td className="gdg-po-vendor-name">{item.barang_nama}</td>
+                                                            <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                                 {Number(item.qty_minta).toLocaleString('id-ID')}
                                                             </td>
-                                                            <td style={{
-                                                                textAlign: 'right',
-                                                                color: item.stok_tersedia <= 0 ? '#f43f5e' : '#0284c7',
-                                                                fontWeight: 600
-                                                            }}>
+                                                            <td
+                                                                className="gdg-num-cell"
+                                                                style={{
+                                                                    textAlign: 'right',
+                                                                    color: item.stok_tersedia <= 0 ? '#f43f5e' : 'var(--gdg-text)',
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
                                                                 {Number(item.stok_tersedia).toLocaleString('id-ID')}
                                                                 {item.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10px' }}>Habis</small>}
                                                             </td>
@@ -1510,20 +1578,20 @@ export default function GudangPengeluaran() {
                                                                     value={item.qty_disetujui}
                                                                     onChange={(e) => handleApproveItemQtyChange(idx, e.target.value)}
                                                                     required
-                                                                    className="gdg-inline-input"
+                                                                    className="gdg-inline-input gdg-num-cell"
                                                                     style={{
                                                                         width: '100%',
+                                                                        height: '34px',
                                                                         textAlign: 'right',
                                                                         fontWeight: 600,
-                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? '#64748b' : '#10b981',
-                                                                        borderColor: isOverStock ? '#f43f5e' : isZeroOrLess ? '#cbd5e1' : undefined,
-                                                                        background: isOverStock ? '#fff1f2' : isZeroOrLess ? '#f8fafc' : undefined
+                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? 'var(--gdg-muted)' : '#10b981',
+                                                                        borderColor: isOverStock ? '#f43f5e' : undefined
                                                                     }}
                                                                 />
                                                                 {isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Melebihi stok!</small>}
-                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: '#64748b', fontSize: '10.5px' }}>Tidak disetujui (0)</small>}
+                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: 'var(--gdg-muted)', fontSize: '10.5px' }}>Tidak disetujui (0)</small>}
                                                             </td>
-                                                            <td>{item.satuan}</td>
+                                                            <td className="gdg-po-meta-cell">{item.satuan}</td>
                                                         </tr>
                                                     );
                                                 })}
@@ -1532,32 +1600,32 @@ export default function GudangPengeluaran() {
                                     </div>
                                 </div>
 
-                                <div className="gdg-banner info">
-                                    <AlertCircle size={16} color="#0284c7" style={{ flexShrink: 0 }} />
+                                <div className="gdg-out-banner info">
+                                    <AlertCircle size={15} style={{ flexShrink: 0 }} />
                                     <span>
                                         Anda dapat menyesuaikan kuantitas yang disetujui jika stok fisik gudang terbatas atau sesuai jatah kuota ruangan. Barang yang diisi 0 berarti tidak disetujui.
                                     </span>
                                 </div>
 
                                 {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                    <div className="gdg-banner danger" style={{ marginTop: '10px', background: '#fee2e2', border: '1px solid #fecaca', color: '#991b1b', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                                        <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+                                    <div className="gdg-out-banner danger">
+                                        <AlertCircle size={15} style={{ flexShrink: 0 }} />
                                         <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
                                     </div>
                                 )}
 
                                 {approveItems.every(it => Number(it.qty_disetujui || 0) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                    <div className="gdg-banner warning" style={{ marginTop: '10px', background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                                        <AlertCircle size={16} color="#d97706" style={{ flexShrink: 0 }} />
+                                    <div className="gdg-out-banner warning">
+                                        <AlertCircle size={15} style={{ flexShrink: 0 }} />
                                         <span>Seluruh kuantitas bernilai 0. Minimal harus ada 1 barang yang disetujui (&gt; 0). Jika seluruh barang ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="gdg-modal-foot" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="gdg-modal-foot gdg-po-modal-foot-split">
                                 <button
                                     type="button"
-                                    className="gdg-btn danger"
+                                    className="gdg-btn-stripe danger"
                                     onClick={() => {
                                         const target = approveTargetReq;
                                         setShowApproveModal(false);
@@ -1565,28 +1633,24 @@ export default function GudangPengeluaran() {
                                     }}
                                     disabled={approveSubmitting}
                                 >
-                                    <X size={15} /> Tolak Permintaan
+                                    <X size={14} />
+                                    <span>Tolak Permintaan</span>
                                 </button>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button type="button" className="gdg-btn soft" onClick={() => setShowApproveModal(false)} disabled={approveSubmitting}>
+                                <div className="gdg-po-foot-group">
+                                    <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowApproveModal(false)} disabled={approveSubmitting}>
                                         Batal
                                     </button>
                                     <button
                                         type="submit"
-                                        className="gdg-btn success"
+                                        className="gdg-btn-stripe success"
                                         disabled={
                                             approveSubmitting ||
                                             approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
                                             approveItems.every(it => Number(it.qty_disetujui || 0) <= 0)
                                         }
-                                        style={
-                                            (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                             approveItems.every(it => Number(it.qty_disetujui || 0) <= 0))
-                                                ? { opacity: 0.5, cursor: 'not-allowed' }
-                                                : {}
-                                        }
                                     >
-                                        <Check size={16} /> {approveSubmitting ? 'Menyimpan...' : 'Setujui & Terbitkan Izin Penyerahan'}
+                                        <Check size={14} />
+                                        <span>{approveSubmitting ? 'Menyimpan...' : 'Setujui & Terbitkan Izin Penyerahan'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1599,24 +1663,15 @@ export default function GudangPengeluaran() {
             {/* MODAL KONFIRMASI AKSI (SETUJUI PERMINTAAN / SETUJUI PENGELUARAN) */}
             {confirmAction && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !confirmSubmitting && setConfirmAction(null)}>
-                    <div className="gdg-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981'
-                                }}>
-                                    {confirmAction.icon}
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>{confirmAction.title}</h3>
-                                    <p>{confirmAction.subtitle}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>{confirmAction.title}</h3>
+                                <p>{confirmAction.subtitle}</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => !confirmSubmitting && setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                                 title="Tutup Modal"
@@ -1626,7 +1681,7 @@ export default function GudangPengeluaran() {
                         </div>
 
                         <div className="gdg-modal-body">
-                            <p style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6', margin: '0 0 8px 0' }}>
+                            <p className="gdg-po-confirm-msg">
                                 {confirmAction.message}
                             </p>
                         </div>
@@ -1634,7 +1689,7 @@ export default function GudangPengeluaran() {
                         <div className="gdg-modal-foot">
                             <button
                                 type="button"
-                                className="gdg-btn soft"
+                                className="gdg-btn-stripe secondary"
                                 onClick={() => setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                             >
@@ -1642,7 +1697,7 @@ export default function GudangPengeluaran() {
                             </button>
                             <button
                                 type="button"
-                                className={`gdg-btn ${confirmAction.btnColor || 'primary'}`}
+                                className={`gdg-btn-stripe ${confirmAction.btnColor || 'primary'}`}
                                 onClick={handleExecuteConfirmAction}
                                 disabled={confirmSubmitting}
                             >

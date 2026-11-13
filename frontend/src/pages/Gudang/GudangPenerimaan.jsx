@@ -7,15 +7,11 @@ import {
     RefreshCw,
     Eye,
     CheckCircle2,
-    FileCheck2,
-    Building2,
-    Calendar,
-    ReceiptText,
     Trash2,
     X,
-    FileSpreadsheet,
     Check,
-    PackageCheck
+    PackageCheck,
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -23,7 +19,7 @@ import { SimplePagination } from '../../utils/pagination.jsx';
 import { useAuth } from '../../context/AuthContext';
 import DateField from '../../components/DateField';
 
-export default function GudangPenerimaan() {
+export default function GudangPenerimaan({ heroActionsTarget = null }) {
     const navigate = useNavigate();
     const toast = useToast();
     const { user } = useAuth();
@@ -300,67 +296,77 @@ export default function GudangPenerimaan() {
         return `Rp ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     };
 
+    const heroActions = (
+        <>
+            <button type="button" className="gdg-btn-stripe secondary" onClick={fetchGRNs} disabled={loading}>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
+            </button>
+            <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                <Plus size={14} />
+                <span>Input Penerimaan (GRN)</span>
+            </button>
+        </>
+    );
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="gdg-card">
-                <div className="gdg-card-head">
-                    <div className="gdg-card-title">
-                        <h2>Penerimaan Barang Masuk (GRN)</h2>
-                        <p>Catat faktur & fisik barang masuk rekanan, otomatis perbarui stok & kartu stok buku besar (independen gudang)</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="gdg-btn soft" onClick={fetchGRNs} disabled={loading}>
-                            <RefreshCw size={15} /> Refresh
-                        </button>
-                        <button className="gdg-btn primary" onClick={handleOpenCreate}>
-                            <Plus size={16} /> Input Penerimaan (GRN)
-                        </button>
-                    </div>
-                </div>
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(heroActions, heroActionsTarget)
+                : <div className="gdg-brg-fallback-actions">{heroActions}</div>}
 
+            <section className="gdg-dash-section">
                 {/* FILTER TOOLBAR */}
-                <div className="gdg-toolbar" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                    <div className="gdg-search">
-                        <Search size={16} />
-                        <input
-                            type="text"
-                            placeholder="Cari nomor GRN, nomor faktur, vendor..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                        />
+                <div className="gdg-brg-toolbar">
+                    <div className="gdg-brg-toolbar-left">
+                        <div className="gdg-dash-search">
+                            <Search size={14} className="gdg-dash-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Cari nomor GRN, nomor faktur, vendor..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                className="gdg-ks-select gdg-brg-select"
+                                value={statusFilter}
+                                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                            >
+                                <option value="">Semua Status ({totalCount})</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="DISETUJUI">Disetujui (Stok Bertambah)</option>
+                                <option value="BATAL">Dibatalkan</option>
+                            </select>
+                            <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        {(searchQuery || statusFilter) && (
+                            <button
+                                type="button"
+                                className="gdg-btn-stripe secondary"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setStatusFilter('');
+                                    setPage(1);
+                                }}
+                                title="Reset pencarian dan filter"
+                            >
+                                <X size={14} />
+                                <span>Reset</span>
+                            </button>
+                        )}
                     </div>
-
-                    <select
-                        className="gdg-select-control"
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                        style={{ minWidth: '220px' }}
-                    >
-                        <option value="">Semua Status ({totalCount})</option>
-                        <option value="DRAFT">Draft</option>
-                        <option value="DISETUJUI">Disetujui (Stok Bertambah)</option>
-                        <option value="BATAL">Dibatalkan</option>
-                    </select>
-
-                    {(searchQuery || statusFilter) && (
-                        <button
-                            type="button"
-                            className="gdg-btn soft"
-                            onClick={() => {
-                                setSearchQuery('');
-                                setStatusFilter('');
-                                setPage(1);
-                            }}
-                            title="Reset pencarian dan filter"
-                        >
-                            <X size={14} /> Reset
-                        </button>
-                    )}
+                    <div className="gdg-brg-total-hint">
+                        Menampilkan {grnList.length} dari {totalCount} GRN
+                    </div>
                 </div>
 
                 {/* GRN TABLE */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
                                 <th>No. GRN</th>
@@ -368,61 +374,78 @@ export default function GudangPenerimaan() {
                                 <th>No. Faktur</th>
                                 <th>No. PO</th>
                                 <th>Rekanan / Vendor</th>
-                                <th>Total Nilai</th>
+                                <th style={{ textAlign: 'right' }}>Total Nilai</th>
                                 <th>Metode Bayar</th>
                                 <th>Status</th>
-                                <th style={{ textAlign: 'center' }}>Aksi</th>
+                                <th style={{ textAlign: 'right' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                    <td colSpan="9" className="gdg-table-empty">
                                         Memuat daftar Penerimaan Barang...
                                     </td>
                                 </tr>
                             ) : grnList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                                        Belum ada transaksi Penerimaan Barang (GRN).
+                                    <td colSpan="9" className="gdg-table-empty gdg-po-empty-cell">
+                                        <div className="gdg-po-empty-box">
+                                            <PackageCheck size={28} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                            <div className="gdg-po-empty-title">
+                                                {searchQuery || statusFilter
+                                                    ? 'Tidak ada Penerimaan Barang yang cocok dengan filter.'
+                                                    : 'Belum ada transaksi Penerimaan Barang (GRN)'}
+                                            </div>
+                                            <p className="gdg-po-empty-desc">
+                                                {searchQuery || statusFilter
+                                                    ? 'Silakan periksa kembali kata kunci pencarian atau reset filter status.'
+                                                    : 'Catat faktur & fisik barang masuk dari Surat Pesanan (PO) yang telah disetujui.'}
+                                            </p>
+                                            {!searchQuery && !statusFilter && (
+                                                <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                                                    <Plus size={14} />
+                                                    <span>Input Penerimaan Pertama</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 grnList.map((grn) => {
                                     const isDraft = grn.status === 'DRAFT';
                                     const isDisetujui = grn.status === 'DISETUJUI';
+                                    const isBatal = grn.status === 'BATAL';
+                                    const statusTone = isDisetujui ? 'emerald' : isBatal ? 'rose' : 'amber';
 
                                     return (
                                         <tr key={grn.id}>
-                                            <td style={{ fontWeight: 700, color: '#38bdf8', fontFamily: 'monospace' }}>
-                                                {grn.nomor}
-                                            </td>
-                                            <td>{grn.tanggal}</td>
-                                            <td style={{ fontFamily: 'monospace', color: '#cbd5e1' }}>
+                                            <td className="gdg-code-cell">{grn.nomor}</td>
+                                            <td className="gdg-num-cell">{grn.tanggal}</td>
+                                            <td className="gdg-code-cell" style={{ color: grn.no_faktur ? 'var(--gdg-text)' : 'var(--gdg-muted)' }}>
                                                 {grn.no_faktur || '-'}
                                             </td>
-                                            <td style={{ color: grn.po_nomor ? '#38bdf8' : '#64748b' }}>
+                                            <td className="gdg-code-cell" style={{ color: grn.po_nomor ? '#635bff' : 'var(--gdg-muted)' }}>
                                                 {grn.po_nomor || 'Langsung'}
                                             </td>
                                             <td>
-                                                <strong style={{ color: '#f8fafc' }}>{grn.vendor_nama}</strong>
+                                                <div className="gdg-po-vendor-name">{grn.vendor_nama}</div>
                                             </td>
-                                            <td style={{ fontWeight: 600 }}>{formatMoney(grn.total_nilai)}</td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                {formatMoney(grn.total_nilai)}
+                                            </td>
+                                            <td className="gdg-po-meta-cell">{grn.metode_pembayaran}</td>
                                             <td>
-                                                <span className={`gdg-badge ${grn.metode_pembayaran === 'Kredit' ? 'blue' : 'slate'}`}>
-                                                    {grn.metode_pembayaran}
+                                                <span className={`gdg-status-text ${statusTone}`}>
+                                                    <span className="gdg-status-dot" />
+                                                    <span>{isDisetujui ? 'Disetujui (Stok Masuk)' : isBatal ? 'Dibatalkan' : 'Draft'}</span>
                                                 </span>
                                             </td>
-                                            <td>
-                                                <span className={`gdg-badge ${isDisetujui ? 'emerald' : 'amber'}`}>
-                                                    {isDisetujui ? 'Disetujui (Stok Masuk)' : 'Draft'}
-                                                </span>
-                                            </td>
-                                            <td style={{ textAlign: 'center' }}>
-                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div className="gdg-brg-row-actions">
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn view"
+                                                        className="gdg-brg-icon-btn"
                                                         onClick={() => { setSelectedGRN(grn); setShowDetailModal(true); }}
                                                         title="Lihat Detail Penerimaan"
                                                     >
@@ -431,7 +454,7 @@ export default function GudangPenerimaan() {
                                                     {isDraft && (grn.can_approve || isSuper) && (
                                                         <button
                                                             type="button"
-                                                            className="gdg-action-btn success"
+                                                            className="gdg-brg-icon-btn success"
                                                             onClick={() => handleActionApprove(grn)}
                                                             title="Setujui Penerimaan & Tambah Stok"
                                                         >
@@ -449,35 +472,28 @@ export default function GudangPenerimaan() {
                 </div>
 
                 {/* PAGINATION */}
-                <div style={{ marginTop: '16px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
-            </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
+            </section>
 
             {/* MODAL INPUT PENERIMAAN (GRN) */}
             {showCreateModal && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowCreateModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '940px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                                    <ReceiptText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Input Penerimaan Barang Masuk (GRN)</h3>
-                                    <p>Catat faktur & fisik barang masuk rekanan, otomatis perbarui kartu stok buku besar gudang.</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Input Penerimaan Barang Masuk (GRN)</h3>
+                                <p>Catat faktur &amp; fisik barang masuk rekanan, otomatis perbarui kartu stok buku besar gudang.</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowCreateModal(false)}
                                 title="Tutup Modal"
                             >
@@ -492,8 +508,6 @@ export default function GudangPenerimaan() {
                                     <select
                                         value={formPOId}
                                         onChange={(e) => handleSelectPO(e.target.value)}
-                                        className="gdg-select-control"
-                                        style={{ width: '100%', height: '40px', borderRadius: '8px', fontWeight: formPOId ? 600 : 400 }}
                                         required
                                     >
                                         <option value="">-- Pilih Surat Pesanan (SPB) yang Telah Disetujui --</option>
@@ -504,11 +518,11 @@ export default function GudangPenerimaan() {
                                         ))}
                                     </select>
                                     {approvedPOs.length === 0 ? (
-                                        <small style={{ color: '#f59e0b', marginTop: '4px', display: 'block' }}>
+                                        <small className="gdg-grn-hint warn">
                                             * Belum ada Surat Pesanan (SPB) berstatus DISETUJUI yang memiliki sisa barang. Silakan ajukan dan setujui SPB di menu Surat Pesanan terlebih dahulu.
                                         </small>
                                     ) : (
-                                        <small style={{ color: '#64748b', marginTop: '4px', display: 'block' }}>
+                                        <small className="gdg-grn-hint">
                                             * Penerimaan hanya dapat diproses dari Surat Pesanan yang telah disetujui (Approved).
                                         </small>
                                     )}
@@ -516,34 +530,36 @@ export default function GudangPenerimaan() {
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Tanggal Penerimaan Fisik *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Tanggal Penerimaan Fisik *</label>
+                                        </div>
                                         <DateField
                                             value={formDate}
                                             onChange={(newDate) => setFormDate(newDate)}
                                             placeholder="Pilih tanggal penerimaan..."
-                                            className="gdg-date-field"
+                                            className="gdg-date-field gdg-po-date-field"
                                         />
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Rekanan / Vendor <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Terkunci dari SPB)</span></label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Rekanan / Vendor <span className="gdg-grn-label-muted">(Terkunci dari SPB)</span></label>
+                                        </div>
                                         <input
                                             type="text"
                                             value={formVendor.nama || ''}
                                             placeholder="Otomatis terisi saat SPB dipilih..."
                                             readOnly
-                                            style={{
-                                                background: 'rgba(255, 255, 255, 0.04)',
-                                                cursor: 'not-allowed',
-                                                color: formVendor.nama ? 'inherit' : '#64748b',
-                                                fontWeight: formVendor.nama ? 600 : 400
-                                            }}
+                                            className="gdg-po-readonly-input"
+                                            style={{ cursor: 'not-allowed', fontWeight: formVendor.nama ? 600 : 400 }}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Nomor Faktur / Surat Jalan Rekanan <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Opsional)</span></label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Nomor Faktur / Surat Jalan Rekanan <span className="gdg-grn-label-muted">(Opsional)</span></label>
+                                        </div>
                                         <input
                                             type="text"
                                             placeholder="Contoh: INV-2026/XI/0091 atau SJ/981"
@@ -552,31 +568,35 @@ export default function GudangPenerimaan() {
                                         />
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Tanggal Jatuh Tempo Pembayaran</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Tanggal Jatuh Tempo Pembayaran</label>
+                                        </div>
                                         <DateField
                                             value={formDueDate}
                                             onChange={(newDate) => setFormDueDate(newDate)}
                                             placeholder="Pilih tanggal jatuh tempo (opsional)..."
-                                            className="gdg-date-field"
+                                            className="gdg-date-field gdg-po-date-field"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Metode Pembayaran</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Metode Pembayaran</label>
+                                        </div>
                                         <select
                                             value={formMetode}
                                             onChange={(e) => setFormMetode(e.target.value)}
-                                            className="gdg-select-control"
-                                            style={{ width: '100%', height: '40px', borderRadius: '8px' }}
                                         >
                                             <option value="Tunai">Tunai / Cash</option>
                                             <option value="Kredit">Kredit / Utang Usaha (Tempo)</option>
                                         </select>
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Catatan / Keterangan (Opsional)</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Catatan / Keterangan (Opsional)</label>
+                                        </div>
                                         <input
                                             type="text"
                                             placeholder="Misal: Titipan pengiriman tahap 1, kardus aman"
@@ -587,14 +607,14 @@ export default function GudangPenerimaan() {
                                 </div>
 
                                 {/* ITEM LIST */}
-                                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <div className="gdg-detail-divider">
+                                    <div className="gdg-po-items-head">
                                         <div>
-                                            <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.95rem' }}>
+                                            <span className="gdg-detail-section-title">
                                                 Daftar Fisik Barang yang Diterima
                                             </span>
                                             {formPOId && (
-                                                <small style={{ display: 'block', color: '#64748b', marginTop: '2px' }}>
+                                                <small className="gdg-grn-hint">
                                                     Keluarkan baris jika item belum dikirim (mendukung pengiriman parsial/bertahap).
                                                 </small>
                                             )}
@@ -602,66 +622,44 @@ export default function GudangPenerimaan() {
                                         {formPOId && (
                                             <button
                                                 type="button"
-                                                className="gdg-btn soft"
-                                                style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                                                className="gdg-btn-stripe secondary"
                                                 onClick={() => handleSelectPO(formPOId)}
                                                 title="Muat ulang seluruh item asli dari SPB ini"
                                             >
-                                                <RefreshCw size={13} /> Muat Ulang Item SPB
+                                                <RefreshCw size={13} />
+                                                <span>Muat Ulang Item SPB</span>
                                             </button>
                                         )}
                                     </div>
 
                                     {!formPOId ? (
-                                        <div style={{
-                                            padding: '36px 20px',
-                                            textAlign: 'center',
-                                            background: 'rgba(255, 255, 255, 0.02)',
-                                            border: '1px dashed rgba(255, 255, 255, 0.12)',
-                                            borderRadius: '10px',
-                                            color: '#94a3b8'
-                                        }}>
-                                            <PackageCheck size={40} style={{ margin: '0 auto 10px', opacity: 0.6, color: '#38bdf8' }} />
-                                            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: '#cbd5e1' }}>
+                                        <div className="gdg-grn-empty-box">
+                                            <PackageCheck size={32} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                            <p className="gdg-po-empty-title" style={{ margin: 0 }}>
                                                 Silakan pilih Surat Pesanan (SPB / PO) di atas
                                             </p>
-                                            <small style={{ color: '#64748b', marginTop: '4px', display: 'block' }}>
+                                            <small className="gdg-grn-hint">
                                                 Daftar item pesanan beserta merk, kemasan, sisa pesanan, dan harga akan dimuat secara otomatis.
                                             </small>
                                         </div>
                                     ) : formItems.length === 0 ? (
-                                        <div style={{
-                                            padding: '32px 20px',
-                                            textAlign: 'center',
-                                            background: 'rgba(255, 255, 255, 0.02)',
-                                            border: '1px dashed rgba(255, 255, 255, 0.12)',
-                                            borderRadius: '10px',
-                                            color: '#94a3b8'
-                                        }}>
-                                            <p style={{ margin: 0, fontWeight: 500, fontSize: '0.92rem', color: '#cbd5e1' }}>
+                                        <div className="gdg-grn-empty-box">
+                                            <p className="gdg-po-empty-title" style={{ margin: 0 }}>
                                                 Semua baris item dikeluarkan dari pengiriman ini.
                                             </p>
                                             <button
                                                 type="button"
-                                                className="gdg-btn soft"
-                                                style={{ marginTop: '10px', padding: '6px 14px', fontSize: '0.8rem' }}
+                                                className="gdg-btn-stripe secondary"
                                                 onClick={() => handleSelectPO(formPOId)}
                                             >
-                                                <RefreshCw size={13} /> Muat Ulang Item SPB
+                                                <RefreshCw size={13} />
+                                                <span>Muat Ulang Item SPB</span>
                                             </button>
                                         </div>
                                     ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <div className="gdg-po-items-list">
                                             {/* Column Headers for Items */}
-                                            <div style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '2.5fr 1.2fr 1.1fr 1fr 1fr 1.2fr 1.3fr 36px',
-                                                gap: '10px',
-                                                padding: '0 2px 4px 2px',
-                                                fontSize: '0.8rem',
-                                                fontWeight: 600,
-                                                color: '#94a3b8'
-                                            }}>
+                                            <div className="gdg-grn-item-grid gdg-po-item-header">
                                                 <div>Barang</div>
                                                 <div>Merk</div>
                                                 <div>Kemasan</div>
@@ -673,20 +671,14 @@ export default function GudangPenerimaan() {
                                             </div>
 
                                             {formItems.map((item, idx) => (
-                                                <div key={idx} className="gdg-item-row" style={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: '2.5fr 1.2fr 1.1fr 1fr 1fr 1.2fr 1.3fr 36px',
-                                                    gap: '10px',
-                                                    alignItems: 'center'
-                                                }}>
+                                                <div key={idx} className="gdg-grn-item-grid gdg-item-row">
                                                     <div style={{ minWidth: 0 }}>
                                                         <input
                                                             type="text"
                                                             value={`[${item.barang_kode}] ${item.barang_nama}`}
                                                             readOnly
                                                             tabIndex={-1}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.04)', fontWeight: 500 }}
+                                                            className="gdg-inline-input gdg-po-readonly-input"
                                                             title={`[${item.barang_kode}] ${item.barang_nama}`}
                                                         />
                                                     </div>
@@ -697,8 +689,7 @@ export default function GudangPenerimaan() {
                                                             value={item.barang_merk || '-'}
                                                             readOnly
                                                             tabIndex={-1}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.04)', color: item.barang_merk ? 'inherit' : '#64748b' }}
+                                                            className="gdg-inline-input gdg-po-readonly-input"
                                                             title={`Merk: ${item.barang_merk || '-'}`}
                                                         />
                                                     </div>
@@ -709,13 +700,12 @@ export default function GudangPenerimaan() {
                                                             value={`${item.kemasan} (isi ${item.isi})`}
                                                             readOnly
                                                             tabIndex={-1}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.04)' }}
+                                                            className="gdg-inline-input gdg-po-readonly-input"
                                                         />
                                                     </div>
 
-                                                    <div style={{ minWidth: 0, display: 'flex', justifyContent: 'center' }}>
-                                                        <span className="gdg-badge blue" style={{ fontSize: '0.8rem', padding: '6px 10px', borderRadius: '6px' }} title="Sisa barang yang belum diterima dari SPB">
+                                                    <div style={{ minWidth: 0, textAlign: 'center' }}>
+                                                        <span className="gdg-grn-sisa-text gdg-num-cell" title="Sisa barang yang belum diterima dari SPB">
                                                             {item.sisa_kemasan} {item.kemasan}
                                                         </span>
                                                     </div>
@@ -728,8 +718,8 @@ export default function GudangPenerimaan() {
                                                             step="1"
                                                             value={item.qty_kemasan}
                                                             onChange={(e) => handleItemChange(idx, 'qty_kemasan', e.target.value)}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', textAlign: 'center', fontWeight: 700 }}
+                                                            className="gdg-inline-input gdg-num-cell"
+                                                            style={{ textAlign: 'center', fontWeight: 600 }}
                                                             required
                                                         />
                                                     </div>
@@ -741,15 +731,15 @@ export default function GudangPenerimaan() {
                                                             step="100"
                                                             value={item.harga_kemasan}
                                                             onChange={(e) => handleItemChange(idx, 'harga_kemasan', e.target.value)}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px', textAlign: 'right', fontWeight: 600 }}
+                                                            className="gdg-inline-input gdg-num-cell"
+                                                            style={{ textAlign: 'right', fontWeight: 600 }}
                                                             required
                                                             title="Harga per kemasan faktur (dapat disesuaikan jika berbeda dengan PO)"
                                                         />
                                                     </div>
 
                                                     <div style={{ minWidth: 0 }}>
-                                                        <div className="gdg-subtotal-val" style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '8px', fontWeight: 600 }}>
+                                                        <div className="gdg-po-subtotal-val gdg-num-cell">
                                                             {formatMoney(item.subtotal)}
                                                         </div>
                                                     </div>
@@ -757,12 +747,11 @@ export default function GudangPenerimaan() {
                                                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                                                         <button
                                                             type="button"
-                                                            className="gdg-btn soft"
-                                                            style={{ width: '36px', height: '36px', padding: 0, justifyContent: 'center', color: '#f43f5e' }}
+                                                            className="gdg-brg-icon-btn danger"
                                                             onClick={() => handleRemoveItemRow(idx)}
                                                             title="Keluarkan item ini jika belum dikirim pada pengiriman ini (Pengiriman Parsial)"
                                                         >
-                                                            <Trash2 size={15} />
+                                                            <Trash2 size={14} />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -771,46 +760,27 @@ export default function GudangPenerimaan() {
                                     )}
 
                                     {/* GRAND TOTAL */}
-                                    <div style={{
-                                        marginTop: '16px',
-                                        padding: '14px 20px',
-                                        background: 'rgba(16, 185, 129, 0.1)',
-                                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                                        borderRadius: '10px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
-                                    }}>
-                                        <span style={{ fontWeight: 600, color: '#f8fafc' }}>
-                                            Total Nilai Penerimaan Fisik:
+                                    <div className="gdg-po-grand-total">
+                                        <span className="gdg-po-grand-total-label">
+                                            Total Nilai Penerimaan Fisik
                                         </span>
-                                        <strong style={{ fontSize: '1.25rem', color: '#34d399' }}>
+                                        <strong className="gdg-po-grand-total-value gdg-num-cell">
                                             {formatMoney(grandTotal)}
                                         </strong>
                                     </div>
 
                                     {/* OPSI PENYELESAIAN SPB */}
                                     {formPOId && (
-                                        <div style={{
-                                            marginTop: '14px',
-                                            padding: '12px 16px',
-                                            background: 'rgba(56, 189, 248, 0.06)',
-                                            border: '1px solid rgba(56, 189, 248, 0.25)',
-                                            borderRadius: '8px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '12px'
-                                        }}>
+                                        <div className="gdg-grn-checkbox-card">
                                             <input
                                                 type="checkbox"
                                                 id="tutup-po-checkbox"
                                                 checked={formTutupPO}
                                                 onChange={(e) => setFormTutupPO(e.target.checked)}
-                                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#38bdf8', flexShrink: 0 }}
                                             />
-                                            <label htmlFor="tutup-po-checkbox" style={{ margin: 0, cursor: 'pointer', fontSize: '0.88rem', color: '#f8fafc', fontWeight: 600 }}>
+                                            <label htmlFor="tutup-po-checkbox">
                                                 Tandai Surat Pesanan (SPB) ini SELESAI / Final saat penerimaan disetujui
-                                                <span style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 400, marginTop: '2px' }}>
+                                                <span>
                                                     (Sesuai SOP logistik: transaksi pesanan langsung ditutup, sisa barang yang tidak datang dianggap hangus/tidak ada susulan)
                                                 </span>
                                             </label>
@@ -820,10 +790,10 @@ export default function GudangPenerimaan() {
                             </div>
 
                             <div className="gdg-modal-foot">
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowCreateModal(false)} disabled={saving}>
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCreateModal(false)} disabled={saving}>
                                     Batal
                                 </button>
-                                <button type="submit" className="gdg-btn primary" disabled={saving || !formPOId || formItems.length === 0}>
+                                <button type="submit" className="gdg-btn-stripe primary" disabled={saving || !formPOId || formItems.length === 0}>
                                     {saving ? 'Menyimpan...' : 'Simpan Penerimaan (Draft)'}
                                 </button>
                             </div>
@@ -836,21 +806,17 @@ export default function GudangPenerimaan() {
             {/* MODAL DETAIL GRN */}
             {showDetailModal && selectedGRN && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowDetailModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '860px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                                    <ReceiptText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Penerimaan Barang: {selectedGRN.nomor}</h3>
-                                    <p>Vendor: <strong>{selectedGRN.vendor_nama}</strong> | No. Faktur: {selectedGRN.no_faktur || '-'}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Penerimaan Barang: {selectedGRN.nomor}</h3>
+                                <p>
+                                    Vendor: <span className="gdg-po-detail-strong">{selectedGRN.vendor_nama}</span> · No. Faktur: {selectedGRN.no_faktur || '-'}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowDetailModal(false)}
                                 title="Tutup Modal"
                             >
@@ -859,25 +825,25 @@ export default function GudangPenerimaan() {
                         </div>
 
                         <div className="gdg-modal-body">
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                            <div className="gdg-grn-detail-meta">
                                 <div>
-                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Tanggal Terima</span>
-                                    <div style={{ fontWeight: 600, color: '#f8fafc' }}>{selectedGRN.tanggal}</div>
+                                    <span className="gdg-po-confirm-label">Tanggal Terima</span>
+                                    <div className="gdg-po-confirm-val gdg-num-cell">{selectedGRN.tanggal}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Surat Pesanan (PO)</span>
-                                    <div style={{ fontWeight: 600, color: selectedGRN.po_nomor ? '#38bdf8' : '#cbd5e1' }}>
+                                    <span className="gdg-po-confirm-label">Surat Pesanan (PO)</span>
+                                    <div className="gdg-po-confirm-val gdg-code-cell" style={{ color: selectedGRN.po_nomor ? '#635bff' : 'var(--gdg-muted)' }}>
                                         {selectedGRN.po_nomor || 'Langsung'}
                                     </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Metode Bayar</span>
-                                    <div style={{ fontWeight: 600, color: '#f8fafc' }}>{selectedGRN.metode_pembayaran}</div>
+                                    <span className="gdg-po-confirm-label">Metode Bayar</span>
+                                    <div className="gdg-po-confirm-val">{selectedGRN.metode_pembayaran}</div>
                                 </div>
                             </div>
 
-                            <div className="gdg-table-wrap">
-                                <table className="gdg-table">
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
                                     <thead>
                                         <tr>
                                             <th>Barang</th>
@@ -896,41 +862,47 @@ export default function GudangPenerimaan() {
                                             return (
                                                 <tr key={it.id}>
                                                     <td>
-                                                        <strong>{it.barang_nama}</strong>
-                                                        <small style={{ display: 'block', color: '#64748b' }}>{it.barang_kode}</small>
+                                                        <div className="gdg-po-vendor-name">{it.barang_nama}</div>
+                                                        <div className="gdg-po-vendor-note">{it.barang_kode}</div>
                                                     </td>
-                                                    <td>
-                                                        <span style={{ color: it.barang_merk ? 'inherit' : '#64748b', fontSize: '0.85rem' }}>
-                                                            {it.barang_merk || '-'}
-                                                        </span>
+                                                    <td className="gdg-po-meta-cell">
+                                                        {it.barang_merk || '-'}
                                                     </td>
                                                     <td>{Number(it.qty_kemasan)} {it.kemasan}</td>
-                                                    <td>
-                                                        <span className="gdg-badge emerald">
-                                                            +{Number(it.qty_dasar)} {it.satuan_dasar_kode}
+                                                    <td className="gdg-num-cell">
+                                                        <span className="gdg-status-text emerald">
+                                                            <span className="gdg-status-dot" />
+                                                            <span>+{Number(it.qty_dasar)} {it.satuan_dasar_kode}</span>
                                                         </span>
                                                     </td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(it.harga_kemasan)}</td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                        {formatMoney(it.harga_kemasan)}
+                                                    </td>
                                                     <td style={{ textAlign: 'right' }}>
                                                         {hasPOPrice ? (
                                                             diff === 0 ? (
-                                                                <span className="gdg-badge slate" style={{ fontSize: '0.75rem' }} title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
-                                                                    Sesuai SPB ({formatMoney(it.po_harga_kemasan)})
+                                                                <span className="gdg-status-text slate" title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
+                                                                    <span className="gdg-status-dot" />
+                                                                    <span>Sesuai SPB</span>
                                                                 </span>
                                                             ) : diff > 0 ? (
-                                                                <span className="gdg-badge amber" style={{ fontSize: '0.75rem' }} title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
-                                                                    Naik +{formatMoney(diff)}
+                                                                <span className="gdg-status-text amber" title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
+                                                                    <span className="gdg-status-dot" />
+                                                                    <span>Naik +{formatMoney(diff)}</span>
                                                                 </span>
                                                             ) : (
-                                                                <span className="gdg-badge emerald" style={{ fontSize: '0.75rem' }} title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
-                                                                    Turun {formatMoney(diff)}
+                                                                <span className="gdg-status-text emerald" title={`Harga SPB: ${formatMoney(it.po_harga_kemasan)}`}>
+                                                                    <span className="gdg-status-dot" />
+                                                                    <span>Turun {formatMoney(diff)}</span>
                                                                 </span>
                                                             )
                                                         ) : (
-                                                            <span style={{ color: '#64748b', fontSize: '0.75rem' }}>-</span>
+                                                            <span className="gdg-po-meta-cell">-</span>
                                                         )}
                                                     </td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(it.subtotal)}</td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                        {formatMoney(it.subtotal)}
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -939,10 +911,10 @@ export default function GudangPenerimaan() {
                             </div>
                         </div>
 
-                        <div className="gdg-modal-foot" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
                             <button
                                 type="button"
-                                className="gdg-btn soft"
+                                className="gdg-btn-stripe secondary"
                                 onClick={() => setShowDetailModal(false)}
                             >
                                 Tutup
@@ -950,13 +922,14 @@ export default function GudangPenerimaan() {
                             {selectedGRN.status === 'DRAFT' && (selectedGRN.can_approve || isSuper) && (
                                 <button
                                     type="button"
-                                    className="gdg-btn success"
+                                    className="gdg-btn-stripe success"
                                     onClick={() => {
                                         setShowDetailModal(false);
                                         handleActionApprove(selectedGRN);
                                     }}
                                 >
-                                    <Check size={15} /> Setujui Penerimaan & Tambah Stok
+                                    <Check size={14} />
+                                    <span>Setujui Penerimaan &amp; Tambah Stok</span>
                                 </button>
                             )}
                         </div>
@@ -968,24 +941,15 @@ export default function GudangPenerimaan() {
             {/* MODAL KONFIRMASI APPROVE GRN */}
             {confirmAction && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !confirmSubmitting && setConfirmAction(null)}>
-                    <div className="gdg-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981'
-                                }}>
-                                    {confirmAction.icon}
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>{confirmAction.title}</h3>
-                                    <p>{confirmAction.subtitle || `${confirmAction.grn.nomor} • ${confirmAction.grn.vendor_nama}`}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>{confirmAction.title}</h3>
+                                <p>{confirmAction.subtitle || `${confirmAction.grn.nomor} • ${confirmAction.grn.vendor_nama}`}</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                                 title="Tutup Modal"
@@ -995,38 +959,29 @@ export default function GudangPenerimaan() {
                         </div>
 
                         <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.5', color: 'var(--text-secondary, #cbd5e1)', whiteSpace: 'pre-line' }}>
+                            <p className="gdg-po-confirm-msg" style={{ whiteSpace: 'pre-line' }}>
                                 {confirmAction.message}
                             </p>
 
                             {/* Info Card Summary */}
-                            <div style={{
-                                padding: '12px 14px',
-                                borderRadius: '10px',
-                                background: 'rgba(255, 255, 255, 0.04)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '10px',
-                                fontSize: '0.84rem'
-                            }}>
+                            <div className="gdg-po-confirm-card">
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Nomor GRN</span>
-                                    <strong style={{ color: '#38bdf8' }}>{confirmAction.grn.nomor}</strong>
+                                    <span className="gdg-po-confirm-label">Nomor GRN</span>
+                                    <strong className="gdg-po-confirm-val gdg-code-cell">{confirmAction.grn.nomor}</strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Total Nilai Faktur</span>
-                                    <strong style={{ color: '#34d399' }}>{formatMoney(confirmAction.grn.total_nilai)}</strong>
+                                    <span className="gdg-po-confirm-label">Total Nilai Faktur</span>
+                                    <strong className="gdg-po-confirm-val gdg-num-cell">{formatMoney(confirmAction.grn.total_nilai)}</strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Rekanan / Vendor</span>
-                                    <strong style={{ color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                                    <span className="gdg-po-confirm-label">Rekanan / Vendor</span>
+                                    <strong className="gdg-po-confirm-val gdg-po-ellipsis">
                                         {confirmAction.grn.vendor_nama}
                                     </strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>No. Surat Pesanan (PO)</span>
-                                    <strong style={{ color: confirmAction.grn.po_nomor ? '#38bdf8' : '#94a3b8' }}>
+                                    <span className="gdg-po-confirm-label">No. Surat Pesanan (PO)</span>
+                                    <strong className="gdg-po-confirm-val gdg-code-cell">
                                         {confirmAction.grn.po_nomor || 'Langsung'}
                                     </strong>
                                 </div>
@@ -1036,7 +991,7 @@ export default function GudangPenerimaan() {
                         <div className="gdg-modal-foot">
                             <button
                                 type="button"
-                                className="gdg-btn soft"
+                                className="gdg-btn-stripe secondary"
                                 onClick={() => setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                             >
@@ -1044,7 +999,7 @@ export default function GudangPenerimaan() {
                             </button>
                             <button
                                 type="button"
-                                className="gdg-btn success"
+                                className="gdg-btn-stripe success"
                                 onClick={handleExecuteConfirmAction}
                                 disabled={confirmSubmitting}
                             >

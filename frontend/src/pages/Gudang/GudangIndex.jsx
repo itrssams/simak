@@ -280,10 +280,10 @@ export default function GudangIndex() {
                 {activeSection === 'barang' && <GudangBarang heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'vendor' && <GudangVendor heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'po' && <GudangPO heroActionsTarget={heroActionsEl} />}
-                {activeSection === 'penerimaan' && <GudangPenerimaan />}
-                {activeSection === 'pengeluaran' && <GudangPengeluaran />}
+                {activeSection === 'penerimaan' && <GudangPenerimaan heroActionsTarget={heroActionsEl} />}
+                {activeSection === 'pengeluaran' && <GudangPengeluaran heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'kartu-stok' && <GudangKartuStok />}
-                {activeSection === 'opname' && <GudangOpname />}
+                {activeSection === 'opname' && <GudangOpname heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'laporan' && <GudangLaporan />}
             </div>
         </div>

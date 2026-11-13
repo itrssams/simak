@@ -1,20 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    ClipboardCheck,
     Plus,
     Search,
     RefreshCw,
     CheckCircle2,
-    XCircle,
     Eye,
     Printer,
-    FileSpreadsheet,
     X,
-    Calendar,
     Layers,
-    AlertCircle,
-    Check
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -22,7 +17,7 @@ import { SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
 import SearchableSelect from '../../components/SearchableSelect';
 
-export default function GudangOpname() {
+export default function GudangOpname({ heroActionsTarget = null }) {
     const toast = useToast();
 
     const [opnameList, setOpnameList] = useState([]);
@@ -353,156 +348,209 @@ export default function GudangOpname() {
         setTimeout(() => printWindow.print(), 300);
     };
 
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="gdg-card">
-                <div className="gdg-card-head">
-                    <div className="gdg-card-title">
-                        <h2>Stock Opname & Saldo Awal (Fisik)</h2>
-                        <p>Pencatatan hitung fisik gudang dan pembentukan saldo awal resmi persediaan</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="gdg-btn soft" onClick={fetchOpnames} disabled={loading}>
-                            <RefreshCw size={15} /> Refresh
-                        </button>
-                        <button className="gdg-btn primary" onClick={handleOpenCreate}>
-                            <Plus size={16} /> Input Opname / Saldo Awal
-                        </button>
-                    </div>
-                </div>
+    const heroActions = (
+        <>
+            <button type="button" className="gdg-btn-stripe secondary" onClick={fetchOpnames} disabled={loading}>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
+            </button>
+            <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                <Plus size={14} />
+                <span>Input Opname / Saldo Awal</span>
+            </button>
+        </>
+    );
 
+    return (
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(heroActions, heroActionsTarget)
+                : <div className="gdg-brg-fallback-actions">{heroActions}</div>}
+
+            <section className="gdg-dash-section">
                 {/* TOOLBAR */}
-                <div className="gdg-toolbar">
-                    <div className="gdg-search">
-                        <Search size={16} />
-                        <input
-                            type="text"
-                            placeholder="Cari nomor opname, catatan..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                        />
+                <div className="gdg-brg-toolbar">
+                    <div className="gdg-brg-toolbar-left">
+                        <div className="gdg-dash-search">
+                            <Search size={14} className="gdg-dash-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Cari nomor opname, catatan..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="gdg-ks-select gdg-brg-select"
+                            >
+                                <option value="">Semua Status</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="DISETUJUI">Disetujui (Stok Diterapkan)</option>
+                                <option value="BATAL">Batal</option>
+                            </select>
+                            <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                value={jenisFilter}
+                                onChange={(e) => {
+                                    setJenisFilter(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="gdg-ks-select gdg-brg-select"
+                            >
+                                <option value="">Semua Jenis Dokumen</option>
+                                <option value="SALDO_AWAL">Saldo Awal Cut-Over</option>
+                                <option value="RUTIN">Opname Rutin / Fisik</option>
+                            </select>
+                            <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        {(searchQuery || statusFilter || jenisFilter) && (
+                            <button
+                                type="button"
+                                className="gdg-btn-stripe secondary"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setStatusFilter('');
+                                    setJenisFilter('');
+                                    setPage(1);
+                                }}
+                                title="Reset filter"
+                            >
+                                <X size={14} />
+                                <span>Reset</span>
+                            </button>
+                        )}
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => {
-                            setStatusFilter(e.target.value);
-                            setPage(1);
-                        }}
-                        className="gdg-select-control"
-                        style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                    >
-                        <option value="">Semua Status</option>
-                        <option value="DRAFT">Draft</option>
-                        <option value="DISETUJUI">Disetujui (Stok Diterapkan)</option>
-                        <option value="BATAL">Batal</option>
-                    </select>
-                    <select
-                        value={jenisFilter}
-                        onChange={(e) => {
-                            setJenisFilter(e.target.value);
-                            setPage(1);
-                        }}
-                        className="gdg-select-control"
-                        style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                    >
-                        <option value="">Semua Jenis Dokumen</option>
-                        <option value="SALDO_AWAL">Saldo Awal Cut-Over</option>
-                        <option value="RUTIN">Opname Rutin / Fisik</option>
-                    </select>
-                    {(searchQuery || statusFilter || jenisFilter) && (
-                        <button
-                            type="button"
-                            className="gdg-btn soft"
-                            onClick={() => {
-                                setSearchQuery('');
-                                setStatusFilter('');
-                                setJenisFilter('');
-                                setPage(1);
-                            }}
-                            title="Reset filter"
-                        >
-                            <X size={14} /> Reset
-                        </button>
-                    )}
+                    <div className="gdg-brg-total-hint">
+                        Menampilkan {opnameList.length} dari {totalCount} dokumen
+                    </div>
                 </div>
 
                 {/* TABLE */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
-                                <th>NO OPNAME</th>
-                                <th>TANGGAL</th>
-                                <th>JENIS DOKUMEN</th>
-                                <th>JUMLAH BARANG</th>
-                                <th>TOTAL FISIK</th>
-                                <th>TOTAL SELISIH</th>
-                                <th>STATUS</th>
-                                <th style={{ textAlign: 'right' }}>AKSI</th>
+                                <th>No. Opname</th>
+                                <th>Tanggal</th>
+                                <th>Jenis Dokumen</th>
+                                <th>Jumlah Barang</th>
+                                <th style={{ textAlign: 'right' }}>Total Fisik</th>
+                                <th>Total Selisih</th>
+                                <th>Status</th>
+                                <th style={{ textAlign: 'right' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>Memuat dokumen opname...</td></tr>
+                                <tr>
+                                    <td colSpan="8" className="gdg-table-empty">
+                                        Memuat dokumen opname...
+                                    </td>
+                                </tr>
                             ) : opnameList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                                        Belum ada dokumen opname atau saldo awal. Klik <strong>"+ Input Opname / Saldo Awal"</strong> untuk memulai.
+                                    <td colSpan="8" className="gdg-table-empty gdg-po-empty-cell">
+                                        <div className="gdg-po-empty-box">
+                                            <Layers size={28} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                            <div className="gdg-po-empty-title">
+                                                Belum ada dokumen opname atau saldo awal
+                                            </div>
+                                            <p className="gdg-po-empty-desc">
+                                                Catat hasil hitung fisik stok gudang atau tetapkan saldo awal resmi persediaan.
+                                            </p>
+                                            <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                                                <Plus size={14} />
+                                                <span>Input Opname / Saldo Awal</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 opnameList.map(opn => {
                                     const totalFisik = (opn.items || []).reduce((acc, it) => acc + Number(it.qty_fisik || 0), 0);
+                                    const statusTone = opn.status === 'DISETUJUI' ? 'emerald' : opn.status === 'BATAL' ? 'rose' : 'slate';
+                                    const selisihVal = Number(opn.total_selisih_qty);
+
                                     return (
                                         <tr key={opn.id}>
-                                            <td style={{ fontWeight: 600, color: '#0284c7' }}>{opn.nomor}</td>
-                                            <td>{opn.tanggal}</td>
+                                            <td className="gdg-code-cell">{opn.nomor}</td>
+                                            <td className="gdg-num-cell">{opn.tanggal}</td>
                                             <td>
-                                                <span className={`gdg-badge ${opn.jenis === 'SALDO_AWAL' ? 'success' : 'info'}`}>
-                                                    {opn.jenis === 'SALDO_AWAL' ? 'Saldo Awal Cut-Over' : 'Opname Rutin'}
+                                                <span className={`gdg-status-text ${opn.jenis === 'SALDO_AWAL' ? 'emerald' : 'indigo'}`}>
+                                                    <span className="gdg-status-dot" />
+                                                    <span>{opn.jenis === 'SALDO_AWAL' ? 'Saldo Awal Cut-Over' : 'Opname Rutin'}</span>
                                                 </span>
                                             </td>
-                                            <td>{(opn.items || []).length} barang</td>
-                                            <td style={{ fontWeight: 600 }}>{formatQty(totalFisik)}</td>
-                                            <td>
+                                            <td className="gdg-num-cell">{(opn.items || []).length} barang</td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                {formatQty(totalFisik)}
+                                            </td>
+                                            <td className="gdg-num-cell">
                                                 {opn.jenis === 'SALDO_AWAL' ? (
-                                                    <span className="gdg-badge neutral">Saldo Awal</span>
-                                                ) : Number(opn.total_selisih_qty) === 0 ? (
-                                                    <span className="gdg-badge success">0 (Cocok)</span>
-                                                ) : Number(opn.total_selisih_qty) > 0 ? (
-                                                    <span className="gdg-badge info">+{formatQty(opn.total_selisih_qty)}</span>
+                                                    <span className="gdg-status-text slate">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>Saldo Awal</span>
+                                                    </span>
+                                                ) : selisihVal === 0 ? (
+                                                    <span className="gdg-status-text emerald">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>0 (Cocok)</span>
+                                                    </span>
+                                                ) : selisihVal > 0 ? (
+                                                    <span className="gdg-status-text indigo">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>+{formatQty(opn.total_selisih_qty)}</span>
+                                                    </span>
                                                 ) : (
-                                                    <span className="gdg-badge danger">{formatQty(opn.total_selisih_qty)}</span>
+                                                    <span className="gdg-status-text rose">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>{formatQty(opn.total_selisih_qty)}</span>
+                                                    </span>
                                                 )}
                                             </td>
                                             <td>
-                                                <span className={`gdg-badge ${opn.status === 'DISETUJUI' ? 'success' : opn.status === 'BATAL' ? 'danger' : 'neutral'}`}>
-                                                    {opn.status}
+                                                <span className={`gdg-status-text ${statusTone}`}>
+                                                    <span className="gdg-status-dot" />
+                                                    <span>{opn.status}</span>
                                                 </span>
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                                <div className="gdg-brg-row-actions">
                                                     <button
-                                                        className="gdg-action-btn view"
+                                                        type="button"
+                                                        className="gdg-brg-icon-btn"
                                                         title="Lihat Detail Opname"
                                                         onClick={() => { setSelectedOpname(opn); setShowDetailModal(true); }}
                                                     >
-                                                        <Eye size={15} />
+                                                        <Eye size={14} />
                                                     </button>
                                                     <button
-                                                        className="gdg-action-btn print"
+                                                        type="button"
+                                                        className="gdg-brg-icon-btn"
                                                         title="Cetak Berita Acara / Lembar Opname"
                                                         onClick={() => handlePrintSheet(opn)}
                                                     >
-                                                        <Printer size={15} />
+                                                        <Printer size={14} />
                                                     </button>
                                                     {opn.can_approve && (
                                                         <button
-                                                            className="gdg-action-btn success"
+                                                            type="button"
+                                                            className="gdg-brg-icon-btn success"
                                                             title="Setujui & Terapkan Saldo Stok"
                                                             onClick={() => handleApproveOpname(opn)}
                                                         >
-                                                            <CheckCircle2 size={15} />
+                                                            <CheckCircle2 size={14} />
                                                         </button>
                                                     )}
                                                 </div>
@@ -515,30 +563,41 @@ export default function GudangOpname() {
                     </table>
                 </div>
 
-                {totalCount > pageSize && (
-                    <div style={{ marginTop: '16px' }}>
-                        <SimplePagination page={page} totalPages={Math.ceil(totalCount / pageSize)} onPageChange={setPage} totalCount={totalCount} pageSize={pageSize} />
-                    </div>
-                )}
-            </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={page}
+                    totalPages={Math.ceil(totalCount / pageSize)}
+                    onPageChange={setPage}
+                    total={totalCount}
+                    totalCount={totalCount}
+                    pageSize={pageSize}
+                />
+            </section>
 
             {/* MODAL: INPUT OPNAME */}
             {showCreateModal && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowCreateModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '980px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div>
-                                <h3>Input Stock Opname & Saldo Awal Fisik</h3>
-                                <p style={{ color: 'var(--gdg-text-secondary, #64748b)', margin: '2px 0 0 0', fontSize: '0.84rem' }}>
-                                    Pencatatan hitung fisik riil di gudang logistik dan penetapan selisih stok
-                                </p>
+                            <div className="gdg-modal-header-text">
+                                <h3>Input Stock Opname &amp; Saldo Awal Fisik</h3>
+                                <p>Pencatatan hitung fisik riil di gudang logistik dan penetapan selisih stok</p>
                             </div>
-                            <button className="gdg-btn soft" style={{ padding: '6px' }} onClick={() => setShowCreateModal(false)}><X size={16} /></button>
+                            <button
+                                type="button"
+                                className="gdg-brg-icon-btn"
+                                onClick={() => setShowCreateModal(false)}
+                                title="Tutup Modal"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                         <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div className="gdg-form-row">
                                 <div className="gdg-form-group">
-                                    <label>Jenis Dokumen Opname</label>
+                                    <div className="gdg-form-label-row">
+                                        <label>Jenis Dokumen Opname</label>
+                                    </div>
                                     <select
                                         value={formJenis}
                                         onChange={(e) => {
@@ -559,11 +618,14 @@ export default function GudangOpname() {
                                     </select>
                                 </div>
                                 <div className="gdg-form-group">
-                                    <label>Tanggal Hitung Fisik *</label>
+                                    <div className="gdg-form-label-row">
+                                        <label>Tanggal Hitung Fisik *</label>
+                                    </div>
                                     <DateField
                                         value={formTanggal}
                                         onChange={(val) => setFormTanggal(val)}
                                         placeholder="Pilih tanggal..."
+                                        className="gdg-date-field gdg-po-date-field"
                                     />
                                 </div>
                             </div>
@@ -578,36 +640,25 @@ export default function GudangOpname() {
                             </div>
 
                             {/* ITEM LIST */}
-                            <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.2)', paddingTop: '16px', marginTop: '4px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                    <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--gdg-text-main, #0f172a)' }}>
+                            <div className="gdg-detail-divider">
+                                <div className="gdg-po-items-head">
+                                    <span className="gdg-detail-section-title">
                                         Daftar Hasil Hitung Fisik ({formItems.length} barang)
                                     </span>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button type="button" className="gdg-btn soft" onClick={handleLoadTemplate} disabled={loadingTemplate}>
-                                            <Layers size={14} /> {loadingTemplate ? 'Memuat...' : 'Muat Semua Katalog Barang'}
+                                    <div className="gdg-po-foot-group">
+                                        <button type="button" className="gdg-btn-stripe secondary" onClick={handleLoadTemplate} disabled={loadingTemplate}>
+                                            <Layers size={14} />
+                                            <span>{loadingTemplate ? 'Memuat...' : 'Muat Semua Katalog Barang'}</span>
                                         </button>
-                                        <button type="button" className="gdg-btn soft" onClick={handleAddItemRow}>
-                                            <Plus size={14} /> Tambah Baris
+                                        <button type="button" className="gdg-btn-stripe secondary" onClick={handleAddItemRow}>
+                                            <Plus size={14} />
+                                            <span>Tambah Baris</span>
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Table Column Headers */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '2.5fr 70px 100px 110px 110px 1.8fr 36px',
-                                    gap: '8px',
-                                    padding: '8px 10px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 700,
-                                    color: '#64748b',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.04em',
-                                    background: 'rgba(148, 163, 184, 0.08)',
-                                    borderRadius: '6px',
-                                    marginBottom: '6px'
-                                }}>
+                                <div className="gdg-opn-item-grid gdg-po-item-header">
                                     <div>Barang</div>
                                     <div style={{ textAlign: 'center' }}>Satuan</div>
                                     <div style={{ textAlign: 'right' }}>Stok Sistem</div>
@@ -617,15 +668,9 @@ export default function GudangOpname() {
                                     <div></div>
                                 </div>
 
-                                <div style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+                                <div className="gdg-opn-items-scroll">
                                     {formItems.map((item, idx) => (
-                                        <div key={idx} className="gdg-item-row" style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '2.5fr 70px 100px 110px 110px 1.8fr 36px',
-                                            gap: '8px',
-                                            alignItems: 'center',
-                                            padding: '8px 10px'
-                                        }}>
+                                        <div key={idx} className="gdg-opn-item-grid gdg-item-row">
                                             <div style={{ minWidth: 0 }}>
                                                 <SearchableSelect
                                                     options={barangOptions}
@@ -636,12 +681,13 @@ export default function GudangOpname() {
                                                     emptyMessage="Barang tidak ditemukan"
                                                     minDropdownWidth={340}
                                                     maxDropdownWidth={600}
+                                                    popoverClassName="gdg-ks-ss-popover"
                                                 />
                                             </div>
-                                            <div style={{ textAlign: 'center', fontSize: '0.82rem', fontWeight: 600, color: 'var(--gdg-text-secondary, #64748b)' }}>
+                                            <div className="gdg-po-meta-cell" style={{ textAlign: 'center', fontWeight: 600 }}>
                                                 {item.satuan}
                                             </div>
-                                            <div style={{ textAlign: 'right', fontSize: '0.84rem', fontWeight: 600, color: 'var(--gdg-text-secondary, #64748b)' }}>
+                                            <div className="gdg-po-meta-cell gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                 {formatQty(item.qty_sistem)}
                                             </div>
                                             <div>
@@ -653,22 +699,25 @@ export default function GudangOpname() {
                                                     onChange={(e) => handleItemChange(idx, 'qty_fisik', e.target.value)}
                                                     required
                                                     placeholder="0"
-                                                    className="gdg-inline-input"
-                                                    style={{ width: '100%', padding: '6px 8px', fontSize: '0.84rem', fontWeight: 700, height: '36px', textAlign: 'right' }}
+                                                    className="gdg-inline-input gdg-num-cell"
+                                                    style={{ textAlign: 'right', fontWeight: 600 }}
                                                 />
                                             </div>
                                             <div style={{ textAlign: 'center' }}>
                                                 {Number(item.selisih) === 0 ? (
-                                                    <span className="gdg-badge success" style={{ fontSize: '0.74rem', padding: '3px 8px' }}>
-                                                        0 Sesuai
+                                                    <span className="gdg-status-text emerald">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>0 Sesuai</span>
                                                     </span>
                                                 ) : Number(item.selisih) > 0 ? (
-                                                    <span className="gdg-badge info" style={{ fontSize: '0.74rem', padding: '3px 8px' }}>
-                                                        +{formatQty(item.selisih)}
+                                                    <span className="gdg-status-text indigo">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>+{formatQty(item.selisih)}</span>
                                                     </span>
                                                 ) : (
-                                                    <span className="gdg-badge danger" style={{ fontSize: '0.74rem', padding: '3px 8px' }}>
-                                                        {formatQty(item.selisih)}
+                                                    <span className="gdg-status-text rose">
+                                                        <span className="gdg-status-dot" />
+                                                        <span>{formatQty(item.selisih)}</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -679,13 +728,12 @@ export default function GudangOpname() {
                                                     onChange={(e) => handleItemChange(idx, 'keterangan', e.target.value)}
                                                     placeholder="Catatan kondisi fisik..."
                                                     className="gdg-inline-input"
-                                                    style={{ width: '100%', padding: '6px 8px', fontSize: '0.82rem', height: '36px' }}
                                                 />
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                                                 <button
                                                     type="button"
-                                                    className="gdg-action-btn delete"
+                                                    className="gdg-brg-icon-btn danger"
                                                     onClick={() => handleRemoveItemRow(idx)}
                                                     disabled={formItems.length === 1}
                                                     title="Hapus baris"
@@ -698,42 +746,37 @@ export default function GudangOpname() {
                                 </div>
 
                                 {/* TOTALS SUMMARY */}
-                                <div style={{
-                                    marginTop: '14px',
-                                    padding: '12px 16px',
-                                    background: 'rgba(56, 189, 248, 0.08)',
-                                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                                    borderRadius: '8px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}>
-                                    <span style={{ fontSize: '0.9rem', color: 'var(--gdg-text-secondary, #475569)' }}>
-                                        Total Barang: <strong style={{ color: 'var(--gdg-text-main, #0f172a)' }}>{formItems.length} item</strong> | Total Qty Fisik: <strong style={{ color: 'var(--gdg-text-main, #0f172a)' }}>{formatQty(totalQtyFisik)}</strong>
+                                <div className="gdg-po-grand-total">
+                                    <span className="gdg-po-grand-total-label">
+                                        Total Barang: <strong style={{ color: 'var(--gdg-text)' }}>{formItems.length} item</strong> · Total Qty Fisik:{' '}
+                                        <strong className="gdg-num-cell" style={{ color: 'var(--gdg-text)' }}>{formatQty(totalQtyFisik)}</strong>
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontSize: '0.86rem', color: 'var(--gdg-text-secondary, #64748b)' }}>Status Selisih Fisik:</span>
+                                        <span className="gdg-po-section-meta">Status Selisih Fisik:</span>
                                         {formItems.some(it => Number(it.selisih) !== 0) ? (
-                                            <span className="gdg-badge warning" style={{ fontSize: '0.82rem', padding: '4px 10px' }}>
-                                                Ada Selisih ({formItems.filter(it => Number(it.selisih) !== 0).length} barang)
+                                            <span className="gdg-status-text amber">
+                                                <span className="gdg-status-dot" />
+                                                <span>Ada Selisih ({formItems.filter(it => Number(it.selisih) !== 0).length} barang)</span>
                                             </span>
                                         ) : (
-                                            <span className="gdg-badge success" style={{ fontSize: '0.82rem', padding: '4px 10px' }}>
-                                                Semua Sesuai Stok Buku
+                                            <span className="gdg-status-text emerald">
+                                                <span className="gdg-status-dot" />
+                                                <span>Semua Sesuai Stok Buku</span>
                                             </span>
                                         )}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="gdg-modal-foot" style={{ justifyContent: 'space-between' }}>
-                            <button type="button" className="gdg-btn soft" onClick={() => setShowCreateModal(false)}>Batal</button>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="button" className="gdg-btn soft" disabled={saving} onClick={() => handleSubmitOpname(false)}>
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                            <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCreateModal(false)}>Batal</button>
+                            <div className="gdg-po-foot-group">
+                                <button type="button" className="gdg-btn-stripe secondary" disabled={saving} onClick={() => handleSubmitOpname(false)}>
                                     Simpan Draft
                                 </button>
-                                <button type="button" className="gdg-btn primary" disabled={saving} onClick={() => handleSubmitOpname(true)}>
-                                    <CheckCircle2 size={16} /> {saving ? 'Memproses...' : 'Terapkan Hasil Opname'}
+                                <button type="button" className="gdg-btn-stripe primary" disabled={saving} onClick={() => handleSubmitOpname(true)}>
+                                    <CheckCircle2 size={14} />
+                                    <span>{saving ? 'Memproses...' : 'Terapkan Hasil Opname'}</span>
                                 </button>
                             </div>
                         </div>
@@ -745,74 +788,104 @@ export default function GudangOpname() {
             {/* MODAL: DETAIL OPNAME */}
             {showDetailModal && selectedOpname && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowDetailModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '900px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '900px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div>
+                            <div className="gdg-modal-header-text">
                                 <h3>Dokumen Opname: {selectedOpname.nomor}</h3>
-                                <p style={{ color: 'var(--gdg-text-secondary, #64748b)', margin: '2px 0 0 0', fontSize: '0.84rem' }}>
-                                    Jenis: <strong>{selectedOpname.jenis === 'SALDO_AWAL' ? 'Saldo Awal Cut-Over' : 'Opname Rutin Fisik'}</strong> | Tanggal: {selectedOpname.tanggal} | Status: {selectedOpname.status}
+                                <p>
+                                    Jenis: <span className="gdg-po-detail-strong">{selectedOpname.jenis === 'SALDO_AWAL' ? 'Saldo Awal Cut-Over' : 'Opname Rutin Fisik'}</span> · Tanggal: {selectedOpname.tanggal} · Status: {selectedOpname.status}
                                 </p>
                             </div>
-                            <button className="gdg-btn soft" style={{ padding: '6px' }} onClick={() => setShowDetailModal(false)}><X size={16} /></button>
+                            <button
+                                type="button"
+                                className="gdg-brg-icon-btn"
+                                onClick={() => setShowDetailModal(false)}
+                                title="Tutup Modal"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                         <div className="gdg-modal-body">
-                            <div className="gdg-table-wrap">
-                                <table className="gdg-table" style={{ fontSize: '0.86rem' }}>
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
                                     <thead>
                                         <tr>
-                                            <th>KODE</th>
-                                            <th>NAMA BARANG</th>
-                                            <th>SATUAN</th>
-                                            <th style={{ textAlign: 'right' }}>QTY SISTEM</th>
-                                            <th style={{ textAlign: 'right' }}>QTY FISIK</th>
-                                            <th style={{ textAlign: 'center' }}>SELISIH</th>
-                                            <th>KETERANGAN</th>
+                                            <th>Kode</th>
+                                            <th>Nama Barang</th>
+                                            <th>Satuan</th>
+                                            <th style={{ textAlign: 'right' }}>Qty Sistem</th>
+                                            <th style={{ textAlign: 'right' }}>Qty Fisik</th>
+                                            <th style={{ textAlign: 'center' }}>Selisih</th>
+                                            <th>Keterangan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {(selectedOpname.items || []).map((it, idx) => (
                                             <tr key={idx}>
-                                                <td style={{ color: '#0284c7', fontWeight: 600 }}>{it.barang_kode}</td>
-                                                <td className="gdg-cell-strong">{it.barang_nama}</td>
-                                                <td>{it.satuan}</td>
-                                                <td style={{ textAlign: 'right', color: 'var(--gdg-text-secondary, #64748b)' }}>{formatQty(it.qty_sistem)}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600, color: '#0284c7' }}>{formatQty(it.qty_fisik)}</td>
-                                                <td style={{ textAlign: 'center' }}>
+                                                <td className="gdg-code-cell">{it.barang_kode}</td>
+                                                <td className="gdg-po-vendor-name">{it.barang_nama}</td>
+                                                <td className="gdg-po-meta-cell">{it.satuan}</td>
+                                                <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right' }}>
+                                                    {formatQty(it.qty_sistem)}
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                    {formatQty(it.qty_fisik)}
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'center' }}>
                                                     {Number(it.selisih) === 0 ? (
-                                                        <span className="gdg-badge success" style={{ fontSize: '0.74rem' }}>0 (Sesuai)</span>
+                                                        <span className="gdg-status-text emerald">
+                                                            <span className="gdg-status-dot" />
+                                                            <span>0 (Sesuai)</span>
+                                                        </span>
                                                     ) : Number(it.selisih) > 0 ? (
-                                                        <span className="gdg-badge info" style={{ fontSize: '0.74rem' }}>+{formatQty(it.selisih)}</span>
+                                                        <span className="gdg-status-text indigo">
+                                                            <span className="gdg-status-dot" />
+                                                            <span>+{formatQty(it.selisih)}</span>
+                                                        </span>
                                                     ) : (
-                                                        <span className="gdg-badge danger" style={{ fontSize: '0.74rem' }}>{formatQty(it.selisih)}</span>
+                                                        <span className="gdg-status-text rose">
+                                                            <span className="gdg-status-dot" />
+                                                            <span>{formatQty(it.selisih)}</span>
+                                                        </span>
                                                     )}
                                                 </td>
-                                                <td style={{ color: 'var(--gdg-text-secondary, #64748b)' }}>{it.keterangan || '-'}</td>
+                                                <td className="gdg-po-meta-cell">{it.keterangan || '-'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ color: 'var(--gdg-text-secondary, #64748b)', fontSize: '0.88rem' }}>
-                                    Total Item: <strong>{(selectedOpname.items || []).length} barang</strong>
+                            <div className="gdg-po-grand-total">
+                                <span className="gdg-po-grand-total-label">
+                                    Total Item: <strong style={{ color: 'var(--gdg-text)' }}>{(selectedOpname.items || []).length} barang</strong>
                                 </span>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--gdg-text-secondary, #64748b)' }}>Total Selisih Fisik:</span>
-                                    <strong style={{ fontSize: '1.1rem', color: Number(selectedOpname.total_selisih_qty) === 0 ? '#10b981' : '#f59e0b' }}>
-                                        {Number(selectedOpname.total_selisih_qty) > 0 ? `+${formatQty(selectedOpname.total_selisih_qty)}` : formatQty(selectedOpname.total_selisih_qty)} unit
+                                    <span className="gdg-po-section-meta">Total Selisih Fisik:</span>
+                                    <strong
+                                        className="gdg-num-cell"
+                                        style={{
+                                            fontSize: '15px',
+                                            color: Number(selectedOpname.total_selisih_qty) === 0 ? '#10b981' : '#f59e0b'
+                                        }}
+                                    >
+                                        {Number(selectedOpname.total_selisih_qty) > 0
+                                            ? `+${formatQty(selectedOpname.total_selisih_qty)}`
+                                            : formatQty(selectedOpname.total_selisih_qty)} unit
                                     </strong>
                                 </div>
                             </div>
                         </div>
-                        <div className="gdg-modal-foot" style={{ justifyContent: 'space-between' }}>
-                            <button className="gdg-btn soft" onClick={() => handlePrintSheet(selectedOpname)}>
-                                <Printer size={15} /> Cetak Berita Acara
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                            <button type="button" className="gdg-btn-stripe secondary" onClick={() => handlePrintSheet(selectedOpname)}>
+                                <Printer size={14} />
+                                <span>Cetak Berita Acara</span>
                             </button>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="gdg-btn soft" onClick={() => setShowDetailModal(false)}>Tutup</button>
+                            <div className="gdg-po-foot-group">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowDetailModal(false)}>Tutup</button>
                                 {selectedOpname.can_approve && (
-                                    <button className="gdg-btn primary" onClick={() => handleApproveOpname(selectedOpname)}>
-                                        <CheckCircle2 size={16} /> Setujui & Terapkan Hasil Opname
+                                    <button type="button" className="gdg-btn-stripe primary" onClick={() => handleApproveOpname(selectedOpname)}>
+                                        <CheckCircle2 size={14} />
+                                        <span>Setujui &amp; Terapkan Hasil Opname</span>
                                     </button>
                                 )}
                             </div>
