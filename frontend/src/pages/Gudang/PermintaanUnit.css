@@ -1088,6 +1088,13 @@
     min-width: 0;
 }
 
+.pu-item-select-wrap .searchable-select-trigger {
+    height: 40px !important;
+    min-height: 40px !important;
+    box-sizing: border-box;
+    border-radius: 6px;
+}
+
 .pu-item-inputs-wrap {
     display: flex;
     align-items: center;
@@ -1097,8 +1104,10 @@
 }
 
 .pu-input-qty {
-    padding: 10px 8px;
-    border-radius: 8px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 8px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(15, 23, 42, 0.6);
     color: #f8fafc;
@@ -1124,8 +1133,10 @@
 }
 
 .pu-input-satuan {
-    padding: 10px 6px;
-    border-radius: 8px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 6px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.05);
     color: #cbd5e1;
@@ -1144,8 +1155,10 @@
 }
 
 .pu-input-keterangan {
-    padding: 10px 12px;
-    border-radius: 8px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(15, 23, 42, 0.6);
     color: #f8fafc;
@@ -1178,7 +1191,8 @@
 
 .pu-btn-del-item {
     width: 34px;
-    height: 36px;
+    height: 40px;
+    min-height: 40px;
     border-radius: 6px;
     border: 1px solid transparent;
     background: transparent;
@@ -1188,6 +1202,7 @@
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
+    box-sizing: border-box;
     transition: background 0.15s, color 0.15s;
 }
 
