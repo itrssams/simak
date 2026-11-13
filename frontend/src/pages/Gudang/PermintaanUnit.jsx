@@ -20,7 +20,6 @@ import {
     User,
     Calendar,
     FileText,
-    Boxes,
     ChevronRight,
     Lock,
 } from 'lucide-react';
@@ -565,77 +564,53 @@ export default function PermintaanUnit() {
 
     return (
         <div className="pu-page">
-            {/* ── 1. Hero Banner ── */}
-            <div className="pu-hero">
-                <div className="pu-hero-content">
-                    <div className="pu-hero-icon">
-                        <PackagePlus size={30} />
-                    </div>
-                    <div className="pu-hero-text">
-                        <h1>Permintaan Barang Unit (Amprahan)</h1>
-                        <p>
-                            Portal mandiri untuk seluruh unit ruangan RS Siaga mengajukan barang kebutuhan operasional,
-                            memantau status persetujuan Koordinator, dan mengambil fisik barang di loket gudang.
-                        </p>
-                    </div>
+            {/* ── 1. Compact Page Header ── */}
+            <div className="pu-header">
+                <div className="pu-header-text">
+                    <h1>Permintaan Barang Unit (Amprahan)</h1>
+                    <p>Ajukan barang kebutuhan ruangan, pantau persetujuan Koordinator, dan ambil barang di loket gudang.</p>
                 </div>
-                <div className="pu-hero-action">
-                    <button type="button" className="pu-btn-create" onClick={handleOpenCreateModal}>
-                        <Plus size={18} /> Ajukan Permintaan Barang
-                    </button>
+                <button type="button" className="pu-btn-create" onClick={handleOpenCreateModal}>
+                    <Plus size={16} /> Ajukan Permintaan Barang
+                </button>
+            </div>
+
+            {/* ── 2. Flat Stat Bar ── */}
+            <div className="pu-stat-bar">
+                <div className="pu-stat-item">
+                    <span className="pu-stat-num">{stats.total}</span>
+                    <span className="pu-stat-label">Total Permintaan</span>
+                </div>
+                <div className="pu-stat-item">
+                    <span className="pu-stat-num">{stats.menunggu}</span>
+                    <span className="pu-stat-label">Menunggu Otorisasi</span>
+                </div>
+                <div className="pu-stat-item">
+                    <span className="pu-stat-num">{stats.disetujui}</span>
+                    <span className="pu-stat-label">Disetujui (Siap Ambil)</span>
+                </div>
+                <div className="pu-stat-item">
+                    <span className="pu-stat-num">{stats.selesai}</span>
+                    <span className="pu-stat-label">Selesai Diserahkan</span>
+                </div>
+                <div className="pu-stat-item">
+                    <span className="pu-stat-num">{stats.ditolak}</span>
+                    <span className="pu-stat-label">Permintaan Ditolak</span>
                 </div>
             </div>
 
-            {/* ── 2. Stat Summary Counters ── */}
-            <div className="pu-stat-grid">
-                <div className="pu-stat-card">
-                    <div className="pu-stat-icon purple"><Boxes size={22} /></div>
-                    <div className="pu-stat-info">
-                        <span className="pu-stat-num">{stats.total}</span>
-                        <span className="pu-stat-label">Total Permintaan</span>
-                    </div>
-                </div>
-                <div className="pu-stat-card">
-                    <div className="pu-stat-icon amber"><Clock size={22} /></div>
-                    <div className="pu-stat-info">
-                        <span className="pu-stat-num">{stats.menunggu}</span>
-                        <span className="pu-stat-label">Menunggu Otorisasi</span>
-                    </div>
-                </div>
-                <div className="pu-stat-card">
-                    <div className="pu-stat-icon emerald"><CheckCircle2 size={22} /></div>
-                    <div className="pu-stat-info">
-                        <span className="pu-stat-num">{stats.disetujui}</span>
-                        <span className="pu-stat-label">Disetujui (Siap Ambil)</span>
-                    </div>
-                </div>
-                <div className="pu-stat-card">
-                    <div className="pu-stat-icon sky"><PackageCheck size={22} /></div>
-                    <div className="pu-stat-info">
-                        <span className="pu-stat-num">{stats.selesai}</span>
-                        <span className="pu-stat-label">Selesai Diserahkan</span>
-                    </div>
-                </div>
-                <div className="pu-stat-card">
-                    <div className="pu-stat-icon rose"><XCircle size={22} /></div>
-                    <div className="pu-stat-info">
-                        <span className="pu-stat-num">{stats.ditolak}</span>
-                        <span className="pu-stat-label">Permintaan Ditolak</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── 3. Filter & Table Card ── */}
+            {/* ── 3. Toolbar + Tabel (satu kontainer) ── */}
             <div className="pu-card">
                 <form className="pu-filter-row" onSubmit={handleSearchSubmit}>
                     <div className="pu-search-box">
-                        <Search size={16} className="pu-search-icon" />
+                        <button type="submit" className="pu-search-submit" title="Cari (Enter)">
+                            <Search size={15} />
+                        </button>
                         <input
                             type="text"
                             placeholder="Cari nomor SPB, catatan, nama pemohon..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            style={{ paddingLeft: '44px' }}
                         />
                     </div>
                     {isLogistikAdmin ? (
@@ -661,20 +636,8 @@ export default function PermintaanUnit() {
                             ))}
                         </select>
                     ) : (
-                        <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '8px 14px',
-                            borderRadius: '10px',
-                            background: 'rgba(124, 58, 237, 0.12)',
-                            border: '1px solid rgba(139, 92, 246, 0.25)',
-                            color: '#c4b5fd',
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            <Building2 size={14} style={{ color: '#a78bfa' }} />
+                        <div className="pu-chip">
+                            <Building2 size={14} />
                             <span>{userRuang?.nama || userUnitNama || 'Unit Pemohon'}</span>
                         </div>
                     )}
@@ -689,15 +652,12 @@ export default function PermintaanUnit() {
                         <option value="SELESAI">Selesai</option>
                         <option value="DITOLAK">Ditolak</option>
                     </select>
-                    <button type="submit" className="pu-btn primary">
-                        <Search size={14} /> Cari
-                    </button>
                     {(search || filterRuang || filterStatus) && (
-                        <button type="button" className="pu-btn soft" onClick={handleResetFilter}>
-                            Reset
+                        <button type="button" className="pu-tool-btn" onClick={handleResetFilter}>
+                            <X size={13} /> Reset
                         </button>
                     )}
-                    <button type="button" className="pu-btn soft" onClick={fetchRequests} title="Muat Ulang">
+                    <button type="button" className="pu-tool-btn" onClick={fetchRequests} title="Muat Ulang">
                         <RotateCw size={14} className={loading ? 'spin' : ''} />
                     </button>
                 </form>
@@ -741,7 +701,7 @@ export default function PermintaanUnit() {
                                     return (
                                         <tr key={req.id}>
                                             <td>
-                                                <strong style={{ color: '#a78bfa' }}>{req.nomor}</strong>
+                                                <span className="pu-doc-no">{req.nomor}</span>
                                             </td>
                                             <td style={{ whiteSpace: 'nowrap' }}>
                                                 {new Date(req.tanggal).toLocaleDateString('id-ID', {
@@ -751,9 +711,9 @@ export default function PermintaanUnit() {
                                                 })}
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <Building2 size={13} style={{ color: '#818cf8' }} />
-                                                    <strong>{req.ruang_nama}</strong>
+                                                <div className="pu-ruang-cell">
+                                                    <Building2 size={13} />
+                                                    <span>{req.ruang_nama}</span>
                                                 </div>
                                             </td>
                                             <td>
@@ -764,7 +724,7 @@ export default function PermintaanUnit() {
                                                         </span>
                                                     ))}
                                                     {remainingCount > 0 && (
-                                                        <span className="pu-item-pill" style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#c4b5fd' }}>
+                                                        <span className="pu-item-pill more">
                                                             +{remainingCount} lainnya
                                                         </span>
                                                     )}
@@ -852,7 +812,7 @@ export default function PermintaanUnit() {
                 </div>
 
                 {totalCount > pageSize && (
-                    <div style={{ marginTop: '16px' }}>
+                    <div className="pu-pagination">
                         <SimplePagination
                             page={page}
                             totalPages={Math.ceil(totalCount / pageSize)}
