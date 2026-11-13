@@ -233,7 +233,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
             <div className="app-switcher-panel" onClick={(e) => e.stopPropagation()}>
                 <div className="app-switcher-top">
                     <div className="app-switcher-title">
-                        <LayoutGrid size={20} color="#38bdf8" strokeWidth={2.3} />
+                        <LayoutGrid size={18} className="app-switcher-title-icon" strokeWidth={2.2} />
                         <h3>Pilih Modul Aplikasi</h3>
                     </div>
                     <div className="app-switcher-actions">
@@ -245,16 +245,16 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                             }}
                             title="Ke Layar Utama (Home Launcher)"
                         >
-                            <Home size={15} /> Layar Utama
+                            <Home size={14} /> Layar Utama
                         </button>
                         <button className="app-switcher-close-btn" onClick={onClose} title="Tutup">
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
                 </div>
 
                 <div className="app-switcher-search">
-                    <Search size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                    <Search size={15} className="app-switcher-search-icon" />
                     <input
                         type="text"
                         placeholder="Ketik untuk mencari modul..."
@@ -263,36 +263,35 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                         autoFocus
                     />
                     {searchQuery && (
-                        <button className="app-switcher-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+                        <button className="app-switcher-search-clear" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian">✕</button>
                     )}
                 </div>
 
                 <div className="app-switcher-grid">
-                    {visibleApps.map((app) => {
-                        const Icon = app.icon;
-                        return (
-                            <button
-                                key={app.id}
-                                className="app-switcher-tile-btn"
-                                onClick={() => {
-                                    onClose();
-                                    navigate(app.path);
-                                }}
-                            >
-                                <div
-                                    className="app-switcher-tile-icon"
-                                    style={{
-                                        '--glow-color': app.glowColor,
-                                        '--glass-glow': app.glassGlow,
+                    {visibleApps.length === 0 ? (
+                        <div className="app-switcher-empty">
+                            Tidak ada modul yang cocok dengan &ldquo;{searchQuery}&rdquo;
+                        </div>
+                    ) : (
+                        visibleApps.map((app) => {
+                            const Icon = app.icon;
+                            return (
+                                <button
+                                    key={app.id}
+                                    className="app-switcher-tile-btn"
+                                    onClick={() => {
+                                        onClose();
+                                        navigate(app.path);
                                     }}
                                 >
-                                    <div className="app-switcher-tile-shine" />
-                                    <Icon size={28} color={app.color} strokeWidth={2.1} />
-                                </div>
-                                <span className="app-switcher-tile-name">{app.name}</span>
-                            </button>
-                        );
-                    })}
+                                    <div className="app-switcher-tile-icon">
+                                        <Icon size={22} color={app.color} strokeWidth={2} />
+                                    </div>
+                                    <span className="app-switcher-tile-name">{app.name}</span>
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>

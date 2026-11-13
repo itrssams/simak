@@ -1,14 +1,12 @@
 .app-switcher-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.68) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  background: rgba(15, 23, 42, 0.55);
   z-index: 9999;
   display: grid;
   place-items: center;
   padding: 20px;
-  animation: appSwitcherFadeIn 0.18s ease;
+  animation: appSwitcherFadeIn 0.15s ease;
 }
 
 @keyframes appSwitcherFadeIn {
@@ -18,289 +16,301 @@
 
 .app-switcher-panel {
   width: 100%;
-  max-width: 680px;
-  background: #0f172a !important;
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.12), transparent 45%),
-    linear-gradient(180deg, #111827 0%, #0f172a 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.28) !important;
-  border-radius: 24px !important;
-  box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.75) !important;
-  padding: 24px !important;
-  animation: appSwitcherScaleUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 660px;
+  background: #12161f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  padding: 22px 24px;
+  animation: appSwitcherScaleUp 0.16s ease-out;
   color: #f8fafc;
 }
 
 [data-theme="light"] .app-switcher-panel {
-  background: #ffffff !important;
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05), transparent 45%),
-    radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.05), transparent 45%),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-  border-color: rgba(226, 232, 240, 0.95) !important;
-  border-top: 2px solid #ffffff !important;
-  box-shadow: 0 25px 60px -10px rgba(15, 23, 42, 0.15) !important;
-  color: #0f172a;
+  background: #ffffff;
+  border-color: #e3e8ee;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  color: #1a1f36;
 }
 
 @keyframes appSwitcherScaleUp {
-  from { transform: scale(0.94) translateY(10px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* ── Clean Top Row (No background bands or borders) ── */
+/* ── Top Row ── */
 .app-switcher-top {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  margin-bottom: 18px !important;
-  background: transparent !important;
-  background-image: none !important;
-  border: none !important;
-  border-bottom: none !important;
-  padding: 0 !important;
-  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .app-switcher-title {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  background: transparent !important;
-  background-image: none !important;
-  border: none !important;
-  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-switcher-title-icon {
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .app-switcher-title-icon {
+  color: #635bff;
 }
 
 .app-switcher-title h3 {
-  margin: 0 !important;
-  font-size: 16px !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.3px !important;
-  color: #f8fafc !important;
-  background: transparent !important;
-  border: none !important;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #f8fafc;
 }
 
 [data-theme="light"] .app-switcher-title h3 {
-  color: #0f172a !important;
+  color: #1a1f36;
 }
 
 .app-switcher-actions {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  background: transparent !important;
-  border: none !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-switcher-home-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  padding: 6px 13px !important;
-  border-radius: 12px !important;
-  border: 1px solid rgba(56, 189, 248, 0.2) !important;
-  background: rgba(56, 189, 248, 0.08) !important;
-  color: #38bdf8 !important;
-  font-size: 12px !important;
-  font-weight: 750 !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #f8fafc;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .app-switcher-home-btn:hover {
-  background: rgba(56, 189, 248, 0.18) !important;
-  border-color: rgba(56, 189, 248, 0.45) !important;
-  color: #ffffff !important;
+  background: #161b24;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="light"] .app-switcher-home-btn {
-  background: rgba(2, 132, 199, 0.08) !important;
-  border-color: rgba(2, 132, 199, 0.2) !important;
-  color: #0284c7 !important;
+  background: #ffffff;
+  border-color: #d8dee4;
+  color: #1a1f36;
+  box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
 }
 
 [data-theme="light"] .app-switcher-home-btn:hover {
-  background: rgba(2, 132, 199, 0.15) !important;
-  color: #0369a1 !important;
+  background: #f7fafc;
+  border-color: #cbd5e1;
 }
 
 .app-switcher-close-btn {
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 10px !important;
-  border: none !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: #94a3b8 !important;
-  display: grid !important;
-  place-items: center !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
-}
-
-[data-theme="light"] .app-switcher-close-btn {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: #64748b !important;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .app-switcher-close-btn:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  color: #ef4444 !important;
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+[data-theme="light"] .app-switcher-close-btn {
+  color: #697386;
+}
+
+[data-theme="light"] .app-switcher-close-btn:hover {
+  background: #f1f5f9;
+  color: #1a1f36;
 }
 
 /* ── Search Bar ── */
 .app-switcher-search {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 0 14px !important;
-  height: 42px !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 14px !important;
-  margin-bottom: 22px !important;
-  transition: border-color 0.15s ease !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  height: 38px;
+  background: #090c12;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  margin-bottom: 18px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .app-switcher-search:focus-within {
-  border-color: rgba(56, 189, 248, 0.5) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: #635bff;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
 }
 
 [data-theme="light"] .app-switcher-search {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background: #ffffff;
+  border-color: #d8dee4;
+  box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
 }
 
 [data-theme="light"] .app-switcher-search:focus-within {
-  background: #ffffff !important;
-  border-color: #0284c7 !important;
+  border-color: #635bff;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.14);
+}
+
+.app-switcher-search-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .app-switcher-search-icon {
+  color: #8792a2;
 }
 
 .app-switcher-search input {
-  background: transparent !important;
-  border: none !important;
-  color: #f8fafc !important;
-  font-size: 13.5px !important;
-  width: 100% !important;
-  outline: none !important;
-  font-family: inherit !important;
+  background: transparent;
+  border: none;
+  color: #f8fafc;
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+}
+
+.app-switcher-search input::placeholder {
+  color: #64748b;
 }
 
 [data-theme="light"] .app-switcher-search input {
-  color: #0f172a !important;
+  color: #1a1f36;
+}
+
+[data-theme="light"] .app-switcher-search input::placeholder {
+  color: #8792a2;
 }
 
 .app-switcher-search-clear {
-  background: transparent !important;
-  border: none !important;
-  color: #94a3b8 !important;
-  cursor: pointer !important;
-  font-size: 13px !important;
-  padding: 2px 6px !important;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.app-switcher-search-clear:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+[data-theme="light"] .app-switcher-search-clear {
+  color: #697386;
+}
+
+[data-theme="light"] .app-switcher-search-clear:hover {
+  background: #f1f5f9;
+  color: #1a1f36;
 }
 
 /* ── Grid of Apps ── */
 .app-switcher-grid {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)) !important;
-  gap: 14px !important;
-  justify-items: center !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
 }
 
 .app-switcher-tile-btn {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 8px !important;
-  padding: 8px 4px !important;
-  border-radius: 16px !important;
-  background: transparent !important;
-  border: none !important;
-  cursor: pointer !important;
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  width: 100% !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  width: 100%;
 }
 
 .app-switcher-tile-btn:hover {
-  transform: translateY(-4px) !important;
+  background: #161b24;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* ── Frosted Glass Tile Icon ── */
+[data-theme="light"] .app-switcher-tile-btn:hover {
+  background: #f7fafc;
+  border-color: #e3e8ee;
+}
+
+/* ── Clean Flat Tile Icon ── */
 .app-switcher-tile-icon {
-  width: 60px !important;
-  height: 60px !important;
-  border-radius: 18px !important;
-  display: grid !important;
-  place-items: center !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 
-    0 10px 22px -4px rgba(0, 0, 0, 0.45),
-    inset 0 0 16px var(--glass-glow, rgba(255, 255, 255, 0.06)) !important;
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  position: relative !important;
-  overflow: hidden !important;
-}
-
-.app-switcher-tile-shine {
-  position: absolute !important;
-  inset: 0 !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%) !important;
-  pointer-events: none !important;
-  border-radius: 18px !important;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #161b24;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 [data-theme="light"] .app-switcher-tile-icon {
-  background: rgba(255, 255, 255, 0.72) !important;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 100%) !important;
-  border-color: rgba(255, 255, 255, 0.85) !important;
-  border-top: 2px solid #ffffff !important;
-  box-shadow: 0 10px 20px -4px rgba(15, 23, 42, 0.08) !important;
+  background: #f7fafc;
+  border-color: #e3e8ee;
 }
 
 .app-switcher-tile-btn:hover .app-switcher-tile-icon {
-  transform: scale(1.08) !important;
-  background: rgba(255, 255, 255, 0.11) !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 
-    0 16px 32px -4px rgba(0, 0, 0, 0.6),
-    0 0 24px var(--glow-color, rgba(56, 189, 248, 0.45)),
-    inset 0 0 20px var(--glass-glow, rgba(255, 255, 255, 0.16)) !important;
+  background: #1e2430;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 [data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-color: #ffffff !important;
-  box-shadow: 
-    0 14px 28px -4px rgba(15, 23, 42, 0.12),
-    0 0 20px var(--glow-color, rgba(56, 189, 248, 0.3)) !important;
+  background: #ffffff;
+  border-color: #d8dee4;
 }
 
 .app-switcher-tile-name {
-  font-size: 11.5px !important;
-  font-weight: 750 !important;
-  text-align: center !important;
-  color: #f1f5f9 !important;
-  line-height: 1.25 !important;
-  transition: color 0.15s ease !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: #cbd5e1;
+  line-height: 1.3;
+  transition: color 0.15s ease;
 }
 
 [data-theme="light"] .app-switcher-tile-name {
-  color: #334155 !important;
+  color: #1a1f36;
 }
 
 .app-switcher-tile-btn:hover .app-switcher-tile-name {
-  color: #38bdf8 !important;
+  color: #f8fafc;
 }
 
 [data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-name {
-  color: #0284c7 !important;
+  color: #635bff;
+}
+
+.app-switcher-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 28px 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+[data-theme="light"] .app-switcher-empty {
+  color: #697386;
 }
