@@ -4233,7 +4233,7 @@
 .lb-act-filter {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
 .lb-act-filter.grow {
@@ -4246,8 +4246,12 @@
 }
 
 .lb-act-label {
+  display: block;
   font-size: 11px;
   font-weight: 600;
+  line-height: 14px;
+  height: 14px;
+  margin: 0 0 6px 0;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--lb-muted);
@@ -4257,13 +4261,16 @@
 .lb-seg-control {
   display: inline-flex;
   align-items: center;
-  height: 36px;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
   padding: 2px;
   gap: 2px;
+  margin: 0;
   border-radius: 6px;
   background: var(--lb-surface);
   border: 1px solid var(--lb-border);
-  box-sizing: border-box;
+  box-sizing: border-box !important;
 }
 
 .lb-seg-btn {
@@ -4296,28 +4303,40 @@
 
 /* Uniform 36px Select & DateRangePicker Trigger */
 .lb-select {
-  height: 36px;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
   min-width: 150px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--lb-border);
-  background: var(--lb-surface);
-  color: var(--lb-text);
-  font-size: 13px;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--lb-border) !important;
+  background: var(--lb-surface) !important;
+  color: var(--lb-text) !important;
+  font-size: 13px !important;
   font-family: inherit;
-  box-sizing: border-box;
+  line-height: 34px !important;
+  box-sizing: border-box !important;
   cursor: pointer;
 }
 
 .lb-select:focus {
   outline: none;
-  border-color: #635bff;
+  border-color: #635bff !important;
   box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
+}
+
+.lb-act-toolbar .drp-container {
+  display: flex;
+  align-items: center;
+  height: 36px;
 }
 
 .lb-act-toolbar .drp-container .drp-trigger {
   height: 36px !important;
   min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
   padding: 0 12px !important;
   border-radius: 6px !important;
   font-size: 13px !important;
@@ -4329,39 +4348,55 @@
   box-sizing: border-box !important;
 }
 
+.lb-act-toolbar .drp-container .drp-trigger.has-value {
+  background: var(--lb-surface) !important;
+  border-color: rgba(99, 91, 255, 0.45) !important;
+  color: var(--lb-text) !important;
+}
+
+.lb-act-toolbar .drp-container .drp-trigger .drp-icon {
+  color: var(--lb-muted) !important;
+}
+
 .lb-act-toolbar .drp-container .drp-trigger:hover {
   border-color: rgba(99, 91, 255, 0.5) !important;
 }
 
-/* Flex Search Box (Fixes icon overlap permanently) */
+/* Flex Search Box (Fixes icon overlap permanently, strictly 36px) */
 .lb-search-box {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--lb-border);
-  background: var(--lb-surface);
-  box-sizing: border-box;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--lb-border) !important;
+  background: var(--lb-surface) !important;
+  box-sizing: border-box !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .lb-search-box:focus-within {
-  border-color: #635bff;
+  border-color: #635bff !important;
   box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
 }
 
 .lb-search-field {
   flex: 1;
   min-width: 0;
-  height: 100%;
-  border: none;
-  background: transparent;
-  color: var(--lb-text);
-  font-size: 13px;
+  height: 34px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--lb-text) !important;
+  font-size: 13px !important;
   font-family: inherit;
-  padding: 0;
 }
 
 .lb-search-field::placeholder {
