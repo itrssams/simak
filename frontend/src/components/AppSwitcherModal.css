@@ -268,105 +268,71 @@
   background: #f1f5f9;
 }
 
-/* ── Muted Semantic Category Tile Icons ── */
+/* ── Neutral Icon Box + Semantic Category Stroke Colors ── */
 .app-switcher-tile-icon {
   width: 42px;
   height: 42px;
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #1e293b;
+  background: #181b23;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #cbd5e1;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 [data-theme="light"] .app-switcher-tile-icon {
-  background: #f7f9fc;
+  background: #f8fafc;
+  border-color: #e2e8f0;
   color: #3c4257;
+}
+
+.app-switcher-tile-btn:hover .app-switcher-tile-icon,
+.app-switcher-tile-btn.is-active .app-switcher-tile-icon {
+  background: #1f2430;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon,
+[data-theme="light"] .app-switcher-tile-btn.is-active .app-switcher-tile-icon {
+  background: #ffffff;
+  border-color: #cbd5e1;
 }
 
 /* Keuangan — Emerald */
 .app-switcher-tile-icon.cat-keuangan {
-  background: rgba(52, 211, 153, 0.11);
   color: #34d399;
 }
 
 [data-theme="light"] .app-switcher-tile-icon.cat-keuangan {
-  background: rgba(5, 150, 105, 0.09);
   color: #059669;
 }
 
 /* Logistik & Aset — Indigo */
 .app-switcher-tile-icon.cat-logistik {
-  background: rgba(129, 140, 248, 0.12);
   color: #818cf8;
 }
 
 [data-theme="light"] .app-switcher-tile-icon.cat-logistik {
-  background: rgba(79, 70, 229, 0.09);
   color: #4f46e5;
 }
 
 /* SDM & Informasi — Amber */
 .app-switcher-tile-icon.cat-sdm {
-  background: rgba(251, 191, 36, 0.11);
   color: #fbbf24;
 }
 
 [data-theme="light"] .app-switcher-tile-icon.cat-sdm {
-  background: rgba(217, 119, 6, 0.09);
   color: #d97706;
 }
 
 /* Sistem & Analitik — Sky/Cyan */
 .app-switcher-tile-icon.cat-sistem {
-  background: rgba(56, 189, 248, 0.11);
   color: #38bdf8;
 }
 
 [data-theme="light"] .app-switcher-tile-icon.cat-sistem {
-  background: rgba(2, 132, 199, 0.09);
   color: #0284c7;
-}
-
-.app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-keuangan,
-.app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-keuangan {
-  background: rgba(52, 211, 153, 0.18);
-}
-
-[data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-keuangan,
-[data-theme="light"] .app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-keuangan {
-  background: rgba(5, 150, 105, 0.15);
-}
-
-.app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-logistik,
-.app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-logistik {
-  background: rgba(129, 140, 248, 0.2);
-}
-
-[data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-logistik,
-[data-theme="light"] .app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-logistik {
-  background: rgba(79, 70, 229, 0.15);
-}
-
-.app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-sdm,
-.app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-sdm {
-  background: rgba(251, 191, 36, 0.18);
-}
-
-[data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-sdm,
-[data-theme="light"] .app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-sdm {
-  background: rgba(217, 119, 6, 0.15);
-}
-
-.app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-sistem,
-.app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-sistem {
-  background: rgba(56, 189, 248, 0.18);
-}
-
-[data-theme="light"] .app-switcher-tile-btn:hover .app-switcher-tile-icon.cat-sistem,
-[data-theme="light"] .app-switcher-tile-btn.is-active .app-switcher-tile-icon.cat-sistem {
-  background: rgba(2, 132, 199, 0.15);
 }
 
 .app-switcher-tile-name {
