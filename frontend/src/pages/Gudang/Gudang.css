@@ -4282,3 +4282,94 @@
 [data-theme="light"] .gdg-out-banner.danger {
     color: #be123c;
 }
+
+/* =========================================================
+   STRIPE UNDERLINE TABS (PENGELUARAN UNIT & LAPORAN)
+========================================================= */
+.gdg-segmented-tabs {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--gdg-border) !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+
+[data-theme="light"] .gdg-segmented-tabs {
+    background: transparent !important;
+    border-bottom: 1px solid var(--gdg-border) !important;
+    box-shadow: none !important;
+}
+
+.gdg-segmented-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 2px;
+    border-radius: 0 !important;
+    font-size: 13px;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -1px;
+    box-shadow: none !important;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="light"] .gdg-segmented-tab {
+    color: #64748b;
+}
+
+.gdg-segmented-tab:hover:not(.active) {
+    color: #f8fafc;
+    background: transparent !important;
+}
+
+[data-theme="light"] .gdg-segmented-tab:hover:not(.active) {
+    color: #1a1f36;
+    background: transparent !important;
+}
+
+.gdg-segmented-tab.active {
+    background: transparent !important;
+    color: #818cf8;
+    border: none !important;
+    border-bottom: 2px solid #635bff !important;
+    box-shadow: none !important;
+    font-weight: 600;
+}
+
+[data-theme="light"] .gdg-segmented-tab.active {
+    background: transparent !important;
+    color: #635bff;
+    border: none !important;
+    border-bottom: 2px solid #635bff !important;
+    box-shadow: none !important;
+}
+
+.gdg-segmented-tab .tab-icon,
+.gdg-segmented-tab.active .tab-icon,
+[data-theme="light"] .gdg-segmented-tab.active .tab-icon {
+    color: inherit;
+    transform: none;
+}
+
+.gdg-segmented-tab.active .tab-badge {
+    background: rgba(99, 91, 255, 0.16);
+    color: #818cf8;
+}
+
+[data-theme="light"] .gdg-segmented-tab.active .tab-badge {
+    background: rgba(99, 91, 255, 0.12);
+    color: #635bff;
+}
