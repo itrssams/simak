@@ -36,6 +36,7 @@ import './IzinMeninggalkanKerja.css';
 import './PresensiPegawai.css';
 import OrgTreeChart from './OrgTreeChart';
 import SdmPagination from './SdmPagination';
+import { SimplePagination } from '../../utils/pagination.jsx';
 
 const KATEGORI_CONFIG = {
   dinas: { label: 'Dinas Luar', class: 'dinas' },
@@ -635,17 +636,12 @@ export default function IzinMeninggalkanKerja() {
     }
   }, [activeTab]);
 
-  const HeroIcon = heroInfo.Icon;
-
   return (
-    <div className="sdm-wrapper">
-      {/* ════════════════ HERO HEADER (SIMAK STANDARD) ════════════════ */}
-      <div className="sdm-hero">
+    <div className="sdm-wrapper imtk-stripe-page">
+      {/* ════════════════ HERO HEADER (STRIPE CLEAN) ════════════════ */}
+      <div className="sdm-hero imtk-hero">
         <div className="sdm-hero-main">
-          <div className="sdm-title">
-            <span>
-              <HeroIcon size={24} />
-            </span>
+          <div className="sdm-title imtk-title">
             <div>
               <h1>{heroInfo.title}</h1>
               <p>{heroInfo.subtitle}</p>
@@ -654,10 +650,10 @@ export default function IzinMeninggalkanKerja() {
           <div className="sdm-hero-actions">
             <button
               type="button"
-              className="sdm-btn-primary"
+              className="imtk-btn primary"
               onClick={() => setShowCreateModal(true)}
             >
-              <Plus size={16} />
+              <Plus size={15} />
               <span>Ajukan Izin Keluar</span>
             </button>
           </div>
@@ -694,214 +690,172 @@ export default function IzinMeninggalkanKerja() {
       {/* ════════════════ TAB 1: IZIN SAYA ════════════════ */}
       {activeTab === 'saya' && (
         <>
-          {/* Active Permit Hero Card */}
+          {/* Active Permit Flat Panel */}
           {activeMine ? (
-            <div className="sdm-active-hero">
-              <div className="sdm-active-top">
-                <div className="sdm-active-status-group">
-                  {activeMine.status === 'menunggu_approval' ? (
-                    <div className="sdm-live-pill" style={{ background: '#fef3c7', borderColor: '#fde68a', color: '#b45309' }}>
-                      <span className="sdm-live-dot" style={{ background: '#f59e0b' }} />
-                      <span>MENUNGGU PERSETUJUAN ATASAN</span>
-                    </div>
-                  ) : (
-                    <div className="sdm-live-pill">
-                      <span className="sdm-live-dot" />
-                      <span>SEDANG DI LUAR TEMPAT KERJA</span>
-                    </div>
-                  )}
-                  <span className={`sdm-badge ${activeMine.kategori}`}>
-                    {activeMine.kategori_label}
+            <div className="imtk-active-panel">
+              <div className="imtk-active-top">
+                <div className="imtk-active-meta">
+                  <span
+                    className="imtk-dot"
+                    style={{
+                      background: activeMine.status === 'menunggu_approval' ? '#f59e0b' : '#10b981'
+                    }}
+                  />
+                  <span className="imtk-active-status-label">
+                    {activeMine.status === 'menunggu_approval'
+                      ? 'Menunggu Persetujuan Atasan'
+                      : 'Sedang di Luar Tempat Kerja'}
                   </span>
-                  <span className={`sdm-badge ${activeMine.status}`}>
-                    {activeMine.status_label}
-                  </span>
+                  <span className="imtk-meta-sep">•</span>
+                  <span>{activeMine.kategori_label}</span>
+                  <span className="imtk-meta-sep">•</span>
+                  <span className="imtk-tabular">{formatTanggalIndo(activeMine.tanggal)}</span>
                 </div>
 
-                <div className="sdm-active-date-tag">
-                  <Calendar size={14} />
-                  <span>{formatTanggalIndo(activeMine.tanggal)}</span>
-                </div>
-              </div>
-
-              <div className="sdm-active-body">
-                <div className="sdm-active-info">
-                  <div className="sdm-active-keperluan-container">
-                    <span className="sdm-active-keperluan-label">KEPERLUAN / KEGIATAN:</span>
-                    <h3 className="sdm-active-keperluan">{activeMine.keperluan}</h3>
-                  </div>
-
-                  {activeMine.status === 'menunggu_approval' ? (
-                    <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '12px', padding: '12px 16px', margin: '14px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b45309', fontWeight: 750, fontSize: '0.88rem' }}>
-                        <Clock size={16} />
-                        <span>Menunggu Single Approval dari Salah Satu Atasan:</span>
-                      </div>
-                      <div className="sdm-approvers-preview" style={{ marginTop: 8 }}>
-                        {activeMine.approvers_list && activeMine.approvers_list.length > 0 ? (
-                          activeMine.approvers_list.map((ap) => (
-                            <span key={ap.id} className="sdm-approver-chip">
-                              <UserCheck size={12} color="#4f46e5" />
-                              {ap.nama} ({ap.role})
-                            </span>
-                          ))
-                        ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Pejabat Struktural / Direksi</span>
-                        )}
-                      </div>
-                    </div>
-                  ) : activeMine.approved_by_nama ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', color: '#059669', margin: '8px 0', fontWeight: 650 }}>
-                      <CheckCircle2 size={16} />
-                      <span>Disetujui oleh: <strong>{activeMine.approved_by_nama}</strong> {activeMine.catatan_approval ? `("${activeMine.catatan_approval}")` : ''}</span>
-                    </div>
-                  ) : null}
-
-                  <div className="sdm-active-timeline">
-                    <div className="sdm-timeline-node">
-                      <div className="sdm-timeline-icon out">
-                        <LogOut size={16} />
-                      </div>
-                      <div className="sdm-timeline-details">
-                        <span className="sdm-timeline-lbl">Jam Keluar</span>
-                        <strong className="sdm-timeline-val">
-                          {activeMine.jam_keluar?.slice(0, 5)}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="sdm-timeline-connector">
-                      <div className="sdm-timeline-line" />
-                      {activeDuration && (
-                        <span className="sdm-timeline-duration" title="Estimasi total durasi keluar kantor">
-                          <Clock size={12} />
-                          {activeDuration}
-                        </span>
-                      )}
-                      <ArrowRight size={14} className="sdm-timeline-arrow" />
-                    </div>
-
-                    <div className="sdm-timeline-node">
-                      <div className="sdm-timeline-icon in">
-                        <Clock size={16} />
-                      </div>
-                      <div className="sdm-timeline-details">
-                        <span className="sdm-timeline-lbl">Rencana Kembali</span>
-                        <strong className="sdm-timeline-val">
-                          {activeMine.jam_kembali?.slice(0, 5)}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {activeMine.is_adjusted && (
-                    <div className="sdm-adjusted-banner">
-                      <div className="sdm-adjusted-banner-left">
-                        <span className="sdm-adjusted-tag">JADWAL DISESUAIKAN</span>
-                        <span>
-                          Rencana awal: <strong>{activeMine.jam_keluar_awal?.slice(0, 5)} – {activeMine.jam_kembali_awal?.slice(0, 5)} </strong>
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="sdm-btn-history-link"
-                        onClick={() => setLogsModalItem(activeMine)}
-                      >
-                        <History size={13} />
-                        Lihat Log Audit
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="sdm-active-actions">
-                  <div className="sdm-actions-header">
-                    <span>Aksi Cepat</span>
-                  </div>
+                <div className="imtk-active-top-actions">
                   {activeMine.status === 'menunggu_approval' ? (
                     <button
                       type="button"
-                      className="sdm-btn-batalkan"
+                      className="imtk-btn-sm danger-ghost"
                       onClick={() => handleCancelPermit(activeMine)}
                     >
-                      <X size={14} />
+                      <X size={13} />
                       <span>Batalkan Pengajuan</span>
                     </button>
                   ) : (
                     <>
                       <button
                         type="button"
-                        className="sdm-btn-kembali"
+                        className="imtk-btn-sm primary"
                         onClick={() => openReturnModal(activeMine)}
                       >
-                        <CheckCircle2 size={18} />
+                        <CheckCircle2 size={13} />
                         <span>Sudah Kembali</span>
                       </button>
                       <button
                         type="button"
-                        className="sdm-btn-sesuaikan"
+                        className="imtk-btn-sm secondary"
                         onClick={() => openAdjustModal(activeMine)}
                       >
-                        <Clock size={16} />
+                        <Clock size={13} />
                         <span>Sesuaikan Jam</span>
                       </button>
                       <button
                         type="button"
-                        className="sdm-btn-batalkan"
+                        className="imtk-btn-sm danger-ghost"
                         onClick={() => handleCancelPermit(activeMine)}
                       >
-                        <X size={14} />
-                        <span>Batalkan Izin Ini</span>
+                        <X size={13} />
+                        <span>Batalkan</span>
                       </button>
                     </>
                   )}
                 </div>
               </div>
+
+              <div className="imtk-active-body">
+                <h3 className="imtk-active-keperluan">{activeMine.keperluan}</h3>
+
+                {activeMine.status === 'menunggu_approval' ? (
+                  <div className="imtk-active-approver-line">
+                    <UserCheck size={14} className="imtk-icon-muted" />
+                    <span>
+                      Menunggu persetujuan:{' '}
+                      {activeMine.approvers_list && activeMine.approvers_list.length > 0
+                        ? activeMine.approvers_list.map((ap) => `${ap.nama} (${ap.role})`).join(', ')
+                        : 'Pejabat Struktural / Direksi'}
+                    </span>
+                  </div>
+                ) : activeMine.approved_by_nama ? (
+                  <div className="imtk-active-approver-line is-approved">
+                    <CheckCircle2 size={14} />
+                    <span>
+                      Disetujui oleh: <strong>{activeMine.approved_by_nama}</strong>
+                      {activeMine.catatan_approval ? ` ("${activeMine.catatan_approval}")` : ''}
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="imtk-active-schedule">
+                  <span>
+                    Jam Keluar: <strong>{activeMine.jam_keluar?.slice(0, 5)}</strong>
+                  </span>
+                  <span className="imtk-schedule-arrow">→</span>
+                  <span>
+                    Rencana Kembali: <strong>{activeMine.jam_kembali?.slice(0, 5)}</strong>
+                  </span>
+                  {activeDuration && (
+                    <>
+                      <span className="imtk-meta-sep">•</span>
+                      <span className="imtk-schedule-dur">{activeDuration}</span>
+                    </>
+                  )}
+                </div>
+
+                {activeMine.is_adjusted && (
+                  <div className="imtk-adjusted-note">
+                    <span>
+                      Jadwal disesuaikan (rencana awal:{' '}
+                      <strong className="imtk-tabular">
+                        {activeMine.jam_keluar_awal?.slice(0, 5)} – {activeMine.jam_kembali_awal?.slice(0, 5)}
+                      </strong>
+                      )
+                    </span>
+                    <button
+                      type="button"
+                      className="imtk-link-btn"
+                      onClick={() => setLogsModalItem(activeMine)}
+                    >
+                      <History size={13} />
+                      <span>Lihat Log Audit</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="sdm-presence-banner">
-              <div className="sdm-presence-banner-content">
-                <div className="sdm-presence-banner-icon">
-                  <UserCheck size={28} />
-                </div>
+            <div className="imtk-active-panel imtk-presence-flat">
+              <div className="imtk-presence-left">
+                <UserCheck size={18} className="imtk-icon-muted" />
                 <div>
-                  <h4 className="sdm-presence-banner-title">Anda sedang berada di tempat kerja</h4>
-                  <p className="sdm-presence-banner-sub">
-                    Jika perlu keluar kantor untuk tugas dinas atau urusan mendesak, silakan klik tombol <strong>Ajukan Izin Keluar</strong>.
+                  <h4 className="imtk-presence-title">Anda sedang berada di tempat kerja</h4>
+                  <p className="imtk-presence-sub">
+                    Jika perlu keluar kantor untuk tugas dinas atau urusan mendesak, silakan klik{' '}
+                    <strong>Ajukan Izin Keluar</strong>.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                className="sdm-btn-primary"
+                className="imtk-btn primary"
                 onClick={() => setShowCreateModal(true)}
               >
-                <Plus size={16} />
+                <Plus size={15} />
                 <span>Ajukan Izin</span>
               </button>
             </div>
           )}
 
           {/* History Table Izin Saya */}
-          <div className="sdm-table-section">
-            <div className="sdm-table-header">
+          <section className="imtk-table-section">
+            <div className="imtk-table-header">
               <div>
-                <h3 className="sdm-table-title">Riwayat Izin Keluar Saya</h3>
-                <p className="sdm-table-desc">Daftar semua izin meninggalkan tempat kerja yang pernah Anda ajukan</p>
+                <h3 className="imtk-table-title">Riwayat Izin Keluar Saya</h3>
+                <p className="imtk-table-desc">Daftar semua izin meninggalkan tempat kerja yang pernah Anda ajukan</p>
               </div>
               <button
                 type="button"
-                className="sdm-btn-outline"
+                className="imtk-btn secondary"
                 onClick={fetchPersonalPermits}
                 disabled={loading}
               >
-                <RefreshCw size={14} />
+                <RefreshCw size={14} className={loading ? 'imtk-spin' : ''} />
                 <span>Segarkan</span>
               </button>
             </div>
 
-            <div className="sdm-table-responsive">
-              <table className="sdm-table">
+            <div className="imtk-table-wrap">
+              <table className="imtk-table">
                 <thead>
                   <tr>
                     <th>Tanggal</th>
@@ -913,144 +867,153 @@ export default function IzinMeninggalkanKerja() {
                     <th>Status</th>
                     <th>Persetujuan Atasan</th>
                     <th>Penyesuaian</th>
-                    <th style={{ textAlign: 'center' }}>Aksi</th>
+                    <th style={{ textAlign: 'right' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {izinSaya.length === 0 ? (
                     <tr>
-                      <td colSpan={10}>
-                        <div className="sdm-empty-state">
-                          <FileText size={36} />
-                          <p>Belum ada riwayat izin keluar yang tercatat.</p>
+                      <td colSpan={10} className="imtk-table-empty">
+                        <div className="imtk-empty-inner">
+                          <FileText size={28} strokeWidth={1.5} className="imtk-icon-muted" />
+                          <span>Belum ada riwayat izin keluar yang tercatat.</span>
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    izinSaya.slice((sayaPage - 1) * sayaPageSize, sayaPage * sayaPageSize).map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <strong>{item.tanggal}</strong>
-                        </td>
-                        <td>
-                          <span className={`sdm-badge ${item.kategori}`}>
-                            {item.kategori_label}
-                          </span>
-                        </td>
-                        <td style={{ maxWidth: '240px' }}>{item.keperluan}</td>
-                        <td>
-                          <span style={{ color: '#64748b', fontSize: '0.82rem' }}>
-                            {item.jam_keluar_awal?.slice(0, 5)} - {item.jam_kembali_awal?.slice(0, 5)}
-                          </span>
-                        </td>
-                        <td>
-                          <strong>
-                            {item.jam_keluar?.slice(0, 5)} - {item.jam_kembali?.slice(0, 5)}
-                          </strong>
-                        </td>
-                        <td>
-                          {item.jam_kembali_aktual ? (
-                            <span style={{ color: '#059669', fontWeight: 700 }}>
-                              {item.jam_kembali_aktual.slice(0, 5)}
+                    izinSaya.slice((sayaPage - 1) * sayaPageSize, sayaPage * sayaPageSize).map((item) => {
+                      const dotColor =
+                        item.status === 'menunggu_approval'
+                          ? '#f59e0b'
+                          : item.status === 'ditolak' || item.status === 'dibatalkan'
+                            ? '#f43f5e'
+                            : '#10b981';
+
+                      return (
+                        <tr key={item.id}>
+                          <td className="imtk-tabular">
+                            <strong>{item.tanggal}</strong>
+                          </td>
+                          <td>{item.kategori_label}</td>
+                          <td style={{ maxWidth: '240px' }}>{item.keperluan}</td>
+                          <td className="imtk-tabular imtk-muted">
+                            {item.jam_keluar_awal?.slice(0, 5)} – {item.jam_kembali_awal?.slice(0, 5)}
+                          </td>
+                          <td className="imtk-tabular">
+                            <strong>
+                              {item.jam_keluar?.slice(0, 5)} – {item.jam_kembali?.slice(0, 5)}
+                            </strong>
+                          </td>
+                          <td className="imtk-tabular">
+                            {item.jam_kembali_aktual ? (
+                              <span style={{ color: '#10b981', fontWeight: 600 }}>
+                                {item.jam_kembali_aktual.slice(0, 5)}
+                              </span>
+                            ) : (
+                              <span className="imtk-muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="imtk-status-text">
+                              <span className="imtk-dot" style={{ background: dotColor }} />
+                              <span>{item.status_label}</span>
                             </span>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`sdm-badge ${item.status}`}>
-                            {item.status_label}
-                          </span>
-                        </td>
-                        <td>
-                          {item.approved_by_nama ? (
-                            <div style={{ fontSize: '0.8rem' }}>
-                              <strong style={{ color: '#059669', display: 'block' }}>{item.approved_by_nama}</strong>
-                              {item.catatan_approval && (
-                                <span style={{ color: '#64748b', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                                  "{item.catatan_approval}"
-                                </span>
+                          </td>
+                          <td>
+                            {item.approved_by_nama ? (
+                              <div style={{ fontSize: '12.5px' }}>
+                                <strong style={{ color: '#10b981', display: 'block' }}>{item.approved_by_nama}</strong>
+                                {item.catatan_approval && (
+                                  <span className="imtk-muted" style={{ fontStyle: 'italic', fontSize: '11.5px' }}>
+                                    "{item.catatan_approval}"
+                                  </span>
+                                )}
+                              </div>
+                            ) : item.status === 'ditolak' ? (
+                              <div style={{ fontSize: '12.5px', color: '#f43f5e' }}>
+                                <strong>Ditolak:</strong> {item.catatan_approval || '-'}
+                              </div>
+                            ) : item.status === 'menunggu_approval' ? (
+                              <span style={{ color: '#f59e0b', fontSize: '12.5px', fontWeight: 500 }}>
+                                Menunggu atasan
+                              </span>
+                            ) : (
+                              <span className="imtk-muted">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {item.is_adjusted ? (
+                              <button
+                                type="button"
+                                className="imtk-link-btn"
+                                onClick={() => setLogsModalItem(item)}
+                                title="Klik untuk melihat riwayat perubahan"
+                              >
+                                <History size={12} />
+                                <span>{item.logs?.length || 1}x Diubah</span>
+                              </button>
+                            ) : (
+                              <span className="imtk-muted" style={{ fontSize: '12px' }}>Sesuai Rencana</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '4px', justifyContent: 'flex-end' }}>
+                              {item.status === 'menunggu_approval' ? (
+                                <button
+                                  type="button"
+                                  className="imtk-row-btn danger"
+                                  onClick={() => handleCancelPermit(item)}
+                                >
+                                  Batalkan
+                                </button>
+                              ) : item.status === 'disetujui' || item.status === 'berjalan' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="imtk-row-btn success"
+                                    onClick={() => openReturnModal(item)}
+                                  >
+                                    Kembali
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="imtk-row-btn"
+                                    onClick={() => openAdjustModal(item)}
+                                  >
+                                    Sesuaikan
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="imtk-row-btn"
+                                  onClick={() => setLogsModalItem(item)}
+                                  title="Lihat detail jejak audit"
+                                >
+                                  <History size={13} />
+                                  <span>Detail</span>
+                                </button>
                               )}
                             </div>
-                          ) : item.status === 'ditolak' ? (
-                            <div style={{ fontSize: '0.8rem', color: '#dc2626' }}>
-                              <strong>Ditolak:</strong> {item.catatan_approval || '-'}
-                            </div>
-                          ) : item.status === 'menunggu_approval' ? (
-                            <span style={{ color: '#d97706', fontSize: '0.78rem', fontWeight: 650 }}>
-                              Menunggu atasan
-                            </span>
-                          ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
-                          )}
-                        </td>
-                        <td>
-                          {item.is_adjusted ? (
-                            <button
-                              className="sdm-adjusted-badge"
-                              onClick={() => setLogsModalItem(item)}
-                              title="Klik untuk melihat riwayat perubahan"
-                            >
-                              <History size={12} />
-                              <span>{item.logs?.length || 1}x Diubah</span>
-                            </button>
-                          ) : (
-                            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Sesuai Rencana</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: '6px' }}>
-                            {item.status === 'menunggu_approval' ? (
-                              <button
-                                className="sdm-btn-outline"
-                                style={{ color: '#dc2626', borderColor: '#fca5a5' }}
-                                onClick={() => handleCancelPermit(item)}
-                              >
-                                Batalkan
-                              </button>
-                            ) : item.status === 'disetujui' || item.status === 'berjalan' ? (
-                              <>
-                                <button
-                                  className="sdm-btn-outline"
-                                  style={{ color: '#059669', borderColor: '#a7f3d0' }}
-                                  onClick={() => openReturnModal(item)}
-                                >
-                                  Kembali
-                                </button>
-                                <button
-                                  className="sdm-btn-outline"
-                                  onClick={() => openAdjustModal(item)}
-                                >
-                                  Sesuaikan
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                className="sdm-btn-outline"
-                                onClick={() => setLogsModalItem(item)}
-                                title="Lihat detail jejak audit"
-                              >
-                                <History size={14} />
-                                <span>Detail</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
-            <SdmPagination
-              totalItems={izinSaya.length}
-              currentPage={sayaPage}
-              pageSize={sayaPageSize}
-              onPageChange={setSayaPage}
-              onPageSizeChange={setSayaPageSize}
-              label="pengajuan izin"
-            />
-          </div>
+            {izinSaya.length > 0 && (
+              <SimplePagination
+                className="imtk-pagination"
+                currentPage={sayaPage}
+                totalItems={izinSaya.length}
+                itemsPerPage={sayaPageSize}
+                onPageChange={setSayaPage}
+                onItemsPerPageChange={(n) => { setSayaPageSize(n); setSayaPage(1); }}
+              />
+            )}
+          </section>
         </>
       )}
 
