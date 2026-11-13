@@ -184,11 +184,8 @@ input[type="number"] {
   .logbook-page, .logbook-page-wrap,
   .odoo-launcher-page
 ) {
-  background-color: #0b0f19 !important;
-  background-image:
-    radial-gradient(circle at 12% 8%, rgba(99,102,241,.14), transparent 28%),
-    radial-gradient(circle at 88% 14%, rgba(6,182,212,.12), transparent 27%),
-    radial-gradient(circle at 52% 92%, rgba(236,72,153,.08), transparent 30%) !important;
+  background-color: #0b0f17 !important;
+  background-image: none !important;
   color: #f8fafc !important;
 }
 

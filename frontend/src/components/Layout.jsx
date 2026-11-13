@@ -971,13 +971,12 @@ export default function Layout({ children }) {
                     min-height: calc(100vh / 0.88);
                     display: flex;
                     flex-direction: column;
-                    background:
-                        radial-gradient(circle at 12% 8%, rgba(99,102,241,.18), transparent 28%),
-                        radial-gradient(circle at 88% 10%, rgba(6,182,212,.15), transparent 27%),
-                        radial-gradient(circle at 56% 92%, rgba(236,72,153,.10), transparent 28%),
-                        var(--inv-bg);
+                    background: #0b0f17;
                     font-family: 'Plus Jakarta Sans', sans-serif;
                     font-size: 13.5px;
+                }
+                [data-theme="light"] .app-shell {
+                    background: #ffffff;
                 }
 
                 .topbar {
@@ -1763,10 +1762,7 @@ export default function Layout({ children }) {
                     flex: 1;
                     padding: 16px;
                     overflow-x: hidden;
-                    background:
-                        radial-gradient(circle at 18% 10%, rgba(99,102,241,.12), transparent 28%),
-                        radial-gradient(circle at 88% 0%, rgba(6,182,212,.10), transparent 24%),
-                        transparent;
+                    background: transparent;
                 }
                 .main-page-transition {
                     width: 100%;
@@ -1783,12 +1779,18 @@ export default function Layout({ children }) {
                     }
                 }
                 .app-footer {
-                    background: linear-gradient(135deg, #101632, #161b3f);
-                    color: rgba(255,255,255,.68);
+                    background: #0b0f17;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                    color: #64748b;
                     text-align: center;
                     padding: 12px;
                     font-size: 12px;
                     flex-shrink: 0;
+                }
+                [data-theme="light"] .app-footer {
+                    background: #ffffff;
+                    border-top: 1px solid #e3e8ee;
+                    color: #697386;
                 }
 
                 @media (max-width: 1400px) {
