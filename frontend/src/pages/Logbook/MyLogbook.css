@@ -4002,26 +4002,27 @@
   background: rgba(15, 23, 42, 0.45);
 }
 
-.lb-modal-card {
+.lb-modal-overlay .lb-modal-card {
   width: 100%;
   max-width: 520px;
-  background: #111318;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
-  color: #f1f5f9;
+  background: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45) !important;
+  color: #f1f5f9 !important;
   overflow: hidden;
 }
 
-.lb-modal-card.sm {
+.lb-modal-overlay .lb-modal-card.sm {
   max-width: 440px;
 }
 
-[data-theme="light"] .lb-modal-card {
-  background: #ffffff;
-  border: 1px solid #e3e8ee;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
-  color: #1a1f36;
+[data-theme="light"] .lb-modal-overlay .lb-modal-card {
+  background: #ffffff !important;
+  border: 1px solid #e3e8ee !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12) !important;
+  color: #1a1f36 !important;
 }
 
 .lb-modal-header {
@@ -4090,31 +4091,31 @@
   color: #f43f5e;
 }
 
-.lb-textarea {
+.lb-modal-overlay .lb-textarea {
   width: 100%;
   box-sizing: border-box;
-  border-radius: 6px;
+  border-radius: 6px !important;
   padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   line-height: 1.5;
-  background: #181b23;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
+  background: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
   resize: vertical;
   min-height: 92px;
 }
 
-.lb-textarea:focus {
+.lb-modal-overlay .lb-textarea:focus {
   outline: none;
-  border-color: #635bff;
-  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
 }
 
-[data-theme="light"] .lb-textarea {
-  background: #ffffff;
-  border: 1px solid #d8dee4;
-  color: #1a1f36;
+[data-theme="light"] .lb-modal-overlay .lb-textarea {
+  background: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
 }
 
 .lb-field-hint {
@@ -4175,16 +4176,47 @@
   border-top: 1px solid #e3e8ee;
 }
 
-.lb-modal-overlay .lb-btn.secondary {
-  background: #181b23;
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #e2e8f0;
+.lb-modal-overlay .lb-modal-footer .lb-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 16px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-sizing: border-box !important;
 }
 
-[data-theme="light"] .lb-modal-overlay .lb-btn.secondary {
-  background: #ffffff;
-  border-color: #d8dee4;
-  color: #1a1f36;
+.lb-modal-overlay .lb-modal-footer .lb-btn.primary {
+  background: #635bff !important;
+  border-color: #635bff !important;
+  color: #ffffff !important;
+}
+
+.lb-modal-overlay .lb-modal-footer .lb-btn.primary:hover:not(:disabled) {
+  background: #5249f5 !important;
+  border-color: #5249f5 !important;
+}
+
+.lb-modal-overlay .lb-modal-footer .lb-btn.secondary {
+  background: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
+}
+
+.lb-modal-overlay .lb-modal-footer .lb-btn.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .lb-modal-footer .lb-btn.secondary {
+  background: #ffffff !important;
+  border-color: #d8dee4 !important;
+  color: #1a1f36 !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .lb-modal-footer .lb-btn.secondary:hover:not(:disabled) {
+  background: #f8fafc !important;
 }
 
 .lb-btn.danger {
@@ -4625,45 +4657,87 @@
   gap: 10px;
 }
 
-.lb-input {
-  width: 100%;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #181b23;
-  color: #f1f5f9;
+.lb-modal-overlay .lb-input {
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: #181b23 !important;
+  color: #f1f5f9 !important;
   color-scheme: dark;
-  font-size: 13px;
+  font-size: 13px !important;
   font-family: inherit;
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   font-variant-numeric: tabular-nums;
 }
 
-.lb-input:focus {
-  outline: none;
-  border-color: #635bff;
-  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
+.lb-modal-overlay .lb-input:focus {
+  outline: none !important;
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
 }
 
-[data-theme="light"] .lb-input {
-  background: #ffffff;
-  border-color: #d8dee4;
-  color: #1a1f36;
+[data-theme="light"] .lb-modal-overlay .lb-input {
+  background: #ffffff !important;
+  border-color: #d8dee4 !important;
+  color: #1a1f36 !important;
   color-scheme: light;
 }
 
 /* Force 36px uniform controls for DateField & SearchableSelect inside Stripe Modal */
-.lb-modal-card .df-wrap {
+.lb-modal-overlay .df-wrap {
   display: block;
   width: 100%;
 }
 
-.lb-modal-card .df-wrap .df-input {
+.lb-modal-overlay .df-wrap .df-input {
   width: 100% !important;
   height: 36px !important;
   min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  background: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-modal-overlay .df-wrap .df-input:hover:not(:disabled) {
+  background: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.lb-modal-overlay .df-wrap .df-input:focus {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .df-wrap .df-input {
+  background: #ffffff !important;
+  border-color: #d8dee4 !important;
+  color: #1a1f36 !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .df-wrap .df-input:hover:not(:disabled) {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.lb-modal-overlay .searchable-select-trigger {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  margin: 0 !important;
   padding: 0 10px !important;
   border-radius: 6px !important;
   font-size: 13px !important;
@@ -4674,27 +4748,42 @@
   box-shadow: none !important;
 }
 
-[data-theme="light"] .lb-modal-card .df-wrap .df-input {
+.lb-modal-overlay .searchable-select-trigger:hover:not(.disabled) {
+  background: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.lb-modal-overlay .searchable-select-trigger:focus,
+.lb-modal-overlay .searchable-select-trigger.open {
+  border-color: #635bff !important;
+  background: #181b23 !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+.lb-modal-overlay .searchable-select-value-text {
+  color: #f1f5f9 !important;
+  font-weight: 400 !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .searchable-select-trigger {
   background: #ffffff !important;
   border-color: #d8dee4 !important;
   color: #1a1f36 !important;
 }
 
-.lb-modal-card .searchable-select-trigger {
-  min-height: 36px !important;
-  height: 36px !important;
-  padding: 0 10px !important;
-  border-radius: 6px !important;
-  font-size: 13px !important;
-  background: #181b23 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: #f1f5f9 !important;
-  box-shadow: none !important;
+[data-theme="light"] .lb-modal-overlay .searchable-select-trigger:hover:not(.disabled) {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
 }
 
-[data-theme="light"] .lb-modal-card .searchable-select-trigger {
+[data-theme="light"] .lb-modal-overlay .searchable-select-trigger:focus,
+[data-theme="light"] .lb-modal-overlay .searchable-select-trigger.open {
+  border-color: #635bff !important;
   background: #ffffff !important;
-  border-color: #d8dee4 !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+[data-theme="light"] .lb-modal-overlay .searchable-select-value-text {
   color: #1a1f36 !important;
 }
 
