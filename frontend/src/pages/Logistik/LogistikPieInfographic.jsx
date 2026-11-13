@@ -497,13 +497,19 @@ export default function LogistikPieInfographic({
                                             <span className="lpi-legend-name" title={s.name}>
                                                 {s.name}
                                             </span>
-                                            {s.sublabel && <span className="lpi-subtext">{s.sublabel}</span>}
+                                            {s.sublabel && (
+                                                <>
+                                                    <span className="lpi-legend-sep" aria-hidden="true">•</span>
+                                                    <span className="lpi-subtext">{s.sublabel}</span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="lpi-legend-row-right">
                                         <span className="lpi-val-text">
                                             {valuePrefix}{fmtNum(s.value)}{s.satuan || unitLabel ? ` ${s.satuan || unitLabel}` : ''}
                                         </span>
+                                        <span className="lpi-legend-sep" aria-hidden="true">•</span>
                                         <span className="lpi-pct-text">{s.pct}%</span>
                                     </div>
                                 </div>

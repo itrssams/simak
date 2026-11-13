@@ -21,15 +21,14 @@ import {
     ChevronDown,
     ChevronUp,
     FileText,
-    CheckCircle2,
-    Package
+    CheckCircle2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import DateField from '../../components/DateField';
 import { SimplePagination } from '../../utils/pagination.jsx';
-import LogistikPieInfographic, { MACARON_PALETTE, getLogistikCuteMeta } from '../Logistik/LogistikPieInfographic';
+import LogistikPieInfographic, { MACARON_PALETTE } from '../Logistik/LogistikPieInfographic';
 import '../Logistik/LogistikLaporan.css';
 
 export default function GudangLaporan({ heroActionsTarget = null }) {
@@ -1025,69 +1024,44 @@ export default function GudangLaporan({ heroActionsTarget = null }) {
                                                     {isExpanded && (
                                                         <tr>
                                                             <td colSpan="8" style={{ padding: 0 }}>
-                                                                <div className="ll-drilldown-box">
-                                                                    <div className="ll-drilldown-header">
-                                                                        <Package size={16} />
-                                                                        <h4>Rincian Barang yang Diminta oleh: <strong>{u.unit_nama}</strong></h4>
-                                                                        <span className="ll-drilldown-total">
+                                                                <div className="gdg-lap-drilldown">
+                                                                    <div className="gdg-lap-drilldown-head">
+                                                                        <h4>Rincian Barang Diminta: <strong>{u.unit_nama}</strong></h4>
+                                                                        <span className="gdg-lap-drilldown-meta">
                                                                             Total: {formatQty(u.total_minta)} item • Disetujui: {formatQty(u.total_setuju)} item
                                                                         </span>
                                                                     </div>
 
-                                                                    <div className="ll-drilldown-grid">
-                                                                        {(!u.daftar_barang || u.daftar_barang.length === 0) ? (
-                                                                            <p className="ll-drilldown-empty">Tidak ada rincian barang.</p>
-                                                                        ) : (
-                                                                            u.daftar_barang.map((bItem, bIdx) => {
-                                                                                const bPal = MACARON_PALETTE[bIdx % MACARON_PALETTE.length];
-                                                                                const bMeta = getLogistikCuteMeta(bItem.barang_nama, false);
-
-                                                                                return (
-                                                                                    <div key={bIdx} className="ll-unit-breakdown-card">
-                                                                                        <div className="ll-ub-header">
-                                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                                                                                <bMeta.icon size={14} style={{ color: bPal.color, flexShrink: 0 }} />
-                                                                                                <span className="ll-ub-title" title={bItem.barang_nama}>
-                                                                                                    {bItem.barang_nama}
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            <span
-                                                                                                className="ll-ub-pct"
-                                                                                                style={{
-                                                                                                    background: bPal.bg,
-                                                                                                    color: bPal.text,
-                                                                                                    borderColor: bPal.border
-                                                                                                }}
-                                                                                            >
-                                                                                                {bItem.persentase}%
-                                                                                            </span>
-                                                                                        </div>
-
-                                                                                        <div className="ll-ub-bar-wrap">
-                                                                                            <div className="ll-ub-bar-track">
-                                                                                                <div
-                                                                                                    className="ll-ub-bar-fill"
-                                                                                                    style={{
-                                                                                                        width: `${Math.min(bItem.persentase, 100)}%`,
-                                                                                                        background: bPal.color
-                                                                                                    }}
-                                                                                                />
-                                                                                            </div>
-                                                                                        </div>
-
-                                                                                        <div className="ll-ub-footer">
-                                                                                            <span>
-                                                                                                Minta: <strong>{formatQty(bItem.qty_minta)}</strong> {bItem.satuan}
-                                                                                            </span>
-                                                                                            <span style={{ color: '#10b981', fontWeight: 600 }}>
-                                                                                                ACC: {formatQty(bItem.qty_setuju)}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })
-                                                                        )}
-                                                                    </div>
+                                                                    {(!u.daftar_barang || u.daftar_barang.length === 0) ? (
+                                                                        <div className="gdg-lap-drilldown-empty">Tidak ada rincian barang.</div>
+                                                                    ) : (
+                                                                        <table className="gdg-lap-drilldown-table">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>NAMA BARANG</th>
+                                                                                    <th style={{ textAlign: 'right', width: 150 }}>MINTA</th>
+                                                                                    <th style={{ textAlign: 'right', width: 130 }}>ACC</th>
+                                                                                    <th style={{ textAlign: 'right', width: 110 }}>PEMENUHAN</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {u.daftar_barang.map((bItem, bIdx) => (
+                                                                                    <tr key={bIdx}>
+                                                                                        <td className="gdg-cell-strong">{bItem.barang_nama}</td>
+                                                                                        <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
+                                                                                            Minta: <strong>{formatQty(bItem.qty_minta)}</strong> {bItem.satuan}
+                                                                                        </td>
+                                                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>
+                                                                                            ACC: {formatQty(bItem.qty_setuju)}
+                                                                                        </td>
+                                                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', color: 'var(--gdg-muted)' }}>
+                                                                                            {bItem.persentase}%
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>
