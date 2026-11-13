@@ -17,7 +17,8 @@ import {
     Download,
     Upload,
     Trash2,
-    AlertTriangle
+    AlertTriangle,
+    ChevronDown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
@@ -26,7 +27,7 @@ import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import './Gudang.css';
 
-export default function GudangBarang() {
+export default function GudangBarang({ heroActionsTarget = null }) {
     const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
@@ -385,81 +386,107 @@ export default function GudangBarang() {
         reader.readAsBinaryString(file);
     };
 
+    const actionButtons = (
+        <>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={handleDownloadTemplate}
+                title="Unduh format spreadsheet untuk impor masal"
+            >
+                <Download size={14} strokeWidth={1.75} /> Unduh Template Excel
+            </button>
+            <label className="gdg-btn-stripe secondary" style={{ cursor: 'pointer', margin: 0 }}>
+                <Upload size={14} strokeWidth={1.75} /> Import File Excel
+                <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    onChange={handleImportExcel}
+                    style={{ display: 'none' }}
+                />
+            </label>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={fetchBarang}
+                disabled={loading}
+            >
+                <RefreshCw size={14} strokeWidth={1.75} className={loading ? 'gdg-spin' : ''} /> Refresh
+            </button>
+            <button
+                type="button"
+                className="gdg-btn-stripe primary"
+                onClick={handleOpenCreate}
+            >
+                <Plus size={14} strokeWidth={1.75} /> Tambah Barang
+            </button>
+        </>
+    );
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="gdg-card">
-                <div className="gdg-card-head">
-                    <div className="gdg-card-title">
-                        <h2>Master Katalog Barang</h2>
-                        <p>Total {totalCount.toLocaleString('id-ID')} barang aktif dengan normalisasi satuan & kemasan</p>
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(actionButtons, heroActionsTarget)
+                : (
+                    <div className="gdg-brg-fallback-actions">
+                        {actionButtons}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button className="gdg-btn soft" onClick={handleDownloadTemplate} title="Unduh format spreadsheet untuk impor masal">
-                            <Download size={15} /> Unduh Template Excel
-                        </button>
-                        <label className="gdg-btn soft" style={{ cursor: 'pointer', margin: 0 }}>
-                            <Upload size={15} /> Import File Excel
-                            <input
-                                type="file"
-                                accept=".xlsx, .xls, .csv"
-                                onChange={handleImportExcel}
-                                style={{ display: 'none' }}
-                            />
-                        </label>
-                        <button className="gdg-btn soft" onClick={fetchBarang} disabled={loading}>
-                            <RefreshCw size={15} /> Refresh
-                        </button>
-                        <button className="gdg-btn primary" onClick={handleOpenCreate}>
-                            <Plus size={16} /> Tambah Barang
-                        </button>
-                    </div>
-                </div>
+                )}
 
+            <section className="gdg-dash-section">
                 {/* SEARCH & FILTER TOOLBAR */}
-                <div className="gdg-toolbar" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                    <div className="gdg-search">
-                        <Search size={16} />
-                        <input
-                            type="text"
-                            placeholder="Cari kode material, nama barang, merk..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                        />
+                <div className="gdg-brg-toolbar">
+                    <div className="gdg-brg-toolbar-left">
+                        <div className="gdg-dash-search">
+                            <Search size={14} strokeWidth={1.75} className="gdg-dash-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Cari kode material, nama barang, merk..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                value={selectedGolongan}
+                                onChange={(e) => { setSelectedGolongan(e.target.value); setPage(1); }}
+                                className="gdg-ks-select gdg-brg-select"
+                            >
+                                <option value="">Semua Golongan ({totalSemuaBarang})</option>
+                                {golonganList.map((g) => (
+                                    <option key={g.id} value={String(g.id)}>
+                                        {g.kode} - {g.nama} {g.total_barang !== undefined ? `(${g.total_barang})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={14} strokeWidth={1.75} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        {(searchQuery || selectedGolongan) && (
+                            <button
+                                type="button"
+                                className="gdg-btn-stripe secondary"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedGolongan('');
+                                    setPage(1);
+                                }}
+                                title="Reset pencarian dan filter"
+                            >
+                                <X size={14} strokeWidth={1.75} /> Reset
+                            </button>
+                        )}
                     </div>
 
-                    <select
-                        value={selectedGolongan}
-                        onChange={(e) => { setSelectedGolongan(e.target.value); setPage(1); }}
-                        className="gdg-select-control"
-                        style={{ minWidth: '220px' }}
-                    >
-                        <option value="">Semua Golongan ({totalSemuaBarang})</option>
-                        {golonganList.map((g) => (
-                            <option key={g.id} value={String(g.id)}>
-                                {g.kode} - {g.nama} {g.total_barang !== undefined ? `(${g.total_barang})` : ''}
-                            </option>
-                        ))}
-                    </select>
-
-                    {(searchQuery || selectedGolongan) && (
-                        <button
-                            type="button"
-                            className="gdg-btn soft"
-                            onClick={() => {
-                                setSearchQuery('');
-                                setSelectedGolongan('');
-                                setPage(1);
-                            }}
-                            title="Reset pencarian dan filter"
-                        >
-                            <X size={14} /> Reset
-                        </button>
-                    )}
+                    <span className="gdg-brg-total-hint">
+                        Total {totalCount.toLocaleString('id-ID')} barang aktif
+                    </span>
                 </div>
 
-                {/* BARANG TABLE */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                {/* BARANG BORDERLESS TABLE */}
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
                                 <th>Kode</th>
@@ -468,9 +495,9 @@ export default function GudangBarang() {
                                 <th>Satuan Dasar</th>
                                 <th>Kemasan Pembelian</th>
                                 <th>Merk</th>
-                                <th>Stok Fisik</th>
-                                <th>Min. Buffer</th>
-                                <th style={{ textAlign: 'center' }}>Aksi</th>
+                                <th style={{ textAlign: 'right' }}>Stok Fisik</th>
+                                <th style={{ textAlign: 'right' }}>Min. Buffer</th>
+                                <th style={{ textAlign: 'right' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -487,90 +514,96 @@ export default function GudangBarang() {
                                     </td>
                                 </tr>
                             ) : (
-                                barangList.map((b) => (
-                                    <tr key={b.id}>
-                                        <td className="gdg-code-cell">
-                                            {b.kode}
-                                        </td>
-                                        <td>
-                                            <strong>{b.nama}</strong>
-                                            {b.legacy_id_brg && (
-                                                <small style={{ display: 'block', color: '#64748b', fontSize: '0.72rem' }}>
-                                                    Ref ID Legacy: #{b.legacy_id_brg}
-                                                </small>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className="gdg-badge slate">{b.golongan?.kode || '-'}</span>
-                                        </td>
-                                        <td>
-                                            <span className="gdg-satuan-badge">
-                                                {b.satuan_dasar?.kode || '-'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {b.kemasan_list && b.kemasan_list.length > 0 ? (
-                                                b.kemasan_list.map((k, idx) => (
-                                                    <span key={idx} className="gdg-kemasan-pill" title={`1 ${k.nama_kemasan} = ${k.isi_per_kemasan} ${b.satuan_dasar?.kode}`}>
-                                                        {k.nama_kemasan} ({Number(k.isi_per_kemasan)} {b.satuan_dasar?.kode})
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <span style={{ color: '#64748b', fontSize: '0.78rem' }}>1 {b.satuan_dasar?.kode}</span>
-                                            )}
-                                        </td>
-                                        <td>{b.merk || '-'}</td>
-                                        <td>
-                                            <span className={`gdg-badge ${b.stok_saat_ini > 0 ? 'emerald' : b.is_stok_rendah ? 'rose' : 'slate'}`}>
-                                                {Number(b.stok_saat_ini || 0).toLocaleString('id-ID')} {b.satuan_dasar?.kode}
-                                            </span>
-                                        </td>
-                                        <td>{Number(b.stok_minimum || 0).toLocaleString('id-ID')} {b.satuan_dasar?.kode}</td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                                <button
-                                                    className="gdg-action-btn view"
-                                                    onClick={() => handleOpenDetail(b)}
-                                                    title="Lihat Detail & Riwayat"
-                                                >
-                                                    <Eye size={15} />
-                                                </button>
-                                                <button
-                                                    className="gdg-action-btn edit"
-                                                    onClick={() => handleOpenEdit(b)}
-                                                    title="Edit Barang"
-                                                >
-                                                    <Pencil size={15} />
-                                                </button>
-                                                {canDeleteBarang && (
-                                                    <button
-                                                        className="gdg-action-btn delete"
-                                                        onClick={() => handleOpenDelete(b)}
-                                                        title="Hapus Barang"
-                                                    >
-                                                        <Trash2 size={15} />
-                                                    </button>
+                                barangList.map((b) => {
+                                    const isLowStock = Number(b.stok_saat_ini || 0) <= Number(b.stok_minimum || 0);
+                                    return (
+                                        <tr key={b.id}>
+                                            <td className="gdg-code-cell">
+                                                {b.kode}
+                                            </td>
+                                            <td>
+                                                <div className="gdg-unit-name">{b.nama}</div>
+                                                {b.legacy_id_brg && (
+                                                    <div className="gdg-unit-by">
+                                                        Ref ID Legacy: #{b.legacy_id_brg}
+                                                    </div>
                                                 )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="gdg-brg-golongan-cell">
+                                                {b.golongan?.kode || '-'}
+                                            </td>
+                                            <td className="gdg-brg-unit-cell">
+                                                {b.satuan_dasar?.kode || '-'}
+                                            </td>
+                                            <td className="gdg-cell-muted">
+                                                {b.kemasan_list && b.kemasan_list.length > 0 ? (
+                                                    b.kemasan_list.map((k, idx) => (
+                                                        <span key={idx} className="gdg-brg-kemasan-item" title={`1 ${k.nama_kemasan} = ${k.isi_per_kemasan} ${b.satuan_dasar?.kode}`}>
+                                                            {idx > 0 ? ', ' : ''}{k.nama_kemasan} ({Number(k.isi_per_kemasan)} {b.satuan_dasar?.kode})
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span>1 {b.satuan_dasar?.kode}</span>
+                                                )}
+                                            </td>
+                                            <td className="gdg-cell-muted">{b.merk || '—'}</td>
+                                            <td className={`gdg-num-cell gdg-brg-stock${isLowStock ? ' is-low' : ''}`} style={{ textAlign: 'right' }}>
+                                                {Number(b.stok_saat_ini || 0).toLocaleString('id-ID')} {b.satuan_dasar?.kode}
+                                            </td>
+                                            <td className="gdg-num-cell gdg-cell-muted" style={{ textAlign: 'right' }}>
+                                                {Number(b.stok_minimum || 0).toLocaleString('id-ID')} {b.satuan_dasar?.kode}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div className="gdg-brg-row-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="gdg-brg-icon-btn"
+                                                        onClick={() => handleOpenDetail(b)}
+                                                        title="Lihat Detail & Riwayat"
+                                                        aria-label="Lihat Detail & Riwayat"
+                                                    >
+                                                        <Eye size={14} strokeWidth={1.75} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="gdg-brg-icon-btn"
+                                                        onClick={() => handleOpenEdit(b)}
+                                                        title="Edit Barang"
+                                                        aria-label="Edit Barang"
+                                                    >
+                                                        <Pencil size={14} strokeWidth={1.75} />
+                                                    </button>
+                                                    {canDeleteBarang && (
+                                                        <button
+                                                            type="button"
+                                                            className="gdg-brg-icon-btn danger"
+                                                            onClick={() => handleOpenDelete(b)}
+                                                            title="Hapus Barang"
+                                                            aria-label="Hapus Barang"
+                                                        >
+                                                            <Trash2 size={14} strokeWidth={1.75} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
 
                 {/* PAGINATION */}
-                <div className="gdg-pagination-wrap">
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
-            </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
+            </section>
 
             {/* MODAL FORM TAMBAH / EDIT BARANG */}
             {showModalForm && createPortal(

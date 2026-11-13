@@ -94,6 +94,7 @@ export default function GudangIndex() {
     const [collapsed, setCollapsed] = useState(() => {
         return localStorage.getItem('simak_gudang_sidebar_collapsed') === 'true';
     });
+    const [heroActionsEl, setHeroActionsEl] = useState(null);
 
     const toggleCollapse = () => {
         setCollapsed((prev) => {
@@ -270,12 +271,13 @@ export default function GudangIndex() {
                                 <p>{heroInfo.subtitle}</p>
                             </div>
                         </div>
+                        <div className="gdg-page-hero-actions" ref={setHeroActionsEl} />
                     </div>
                 </div>
 
                 {/* ── Active Section View ── */}
                 {activeSection === 'dashboard' && <GudangDashboard />}
-                {activeSection === 'barang' && <GudangBarang />}
+                {activeSection === 'barang' && <GudangBarang heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'vendor' && <GudangVendor />}
                 {activeSection === 'po' && <GudangPO />}
                 {activeSection === 'penerimaan' && <GudangPenerimaan />}

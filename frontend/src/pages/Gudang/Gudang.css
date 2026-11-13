@@ -3263,3 +3263,169 @@
     display: flex;
     align-items: center;
 }
+
+/* ==========================================================================
+   MASTER KATALOG BARANG — STRIPE CLEAN ENTERPRISE
+   ========================================================================== */
+
+.gdg-brg-fallback-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gdg-brg-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gdg-border);
+}
+
+.gdg-brg-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.gdg-brg-toolbar .gdg-dash-search {
+    margin-bottom: 0;
+    min-width: 260px;
+    max-width: 380px;
+}
+
+.gdg-brg-toolbar select.gdg-brg-select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 32px 0 12px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 34px !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    background-color: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+    outline: none !important;
+    min-width: 220px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.gdg-brg-toolbar select.gdg-brg-select:hover {
+    background-color: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.gdg-brg-toolbar select.gdg-brg-select:focus {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+.gdg-brg-toolbar select.gdg-brg-select option {
+    background-color: #181b23;
+    color: #e2e8f0;
+}
+
+[data-theme="light"] .gdg-brg-toolbar select.gdg-brg-select {
+    background-color: #ffffff !important;
+    border: 1px solid #d8dee4 !important;
+    color: #1a1f36 !important;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06) !important;
+}
+
+[data-theme="light"] .gdg-brg-toolbar select.gdg-brg-select:hover {
+    background-color: #f7fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .gdg-brg-toolbar select.gdg-brg-select option {
+    background-color: #ffffff;
+    color: #1a1f36;
+}
+
+.gdg-brg-total-hint {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--gdg-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.gdg-brg-golongan-cell {
+    color: var(--gdg-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.gdg-brg-unit-cell {
+    color: var(--gdg-text);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.gdg-brg-stock {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--gdg-text);
+}
+
+.gdg-brg-stock.is-low {
+    color: #f87171;
+    font-weight: 600;
+}
+
+[data-theme="light"] .gdg-brg-stock.is-low {
+    color: #dc2626;
+}
+
+.gdg-brg-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+}
+
+.gdg-brg-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--gdg-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.gdg-brg-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f8fafc;
+}
+
+[data-theme="light"] .gdg-brg-icon-btn:hover {
+    background: #f1f5f9;
+    color: #1a1f36;
+}
+
+.gdg-brg-icon-btn.danger:hover {
+    background: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+}
+
+[data-theme="light"] .gdg-brg-icon-btn.danger:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
