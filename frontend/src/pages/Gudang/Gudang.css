@@ -3100,3 +3100,152 @@
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
+
+/* ── SearchableSelect Popover (Pilih Barang — Stripe Clean Enterprise) ── */
+.searchable-select-popover.gdg-ks-ss-popover,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover {
+    background: #111318;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover {
+    background: #ffffff;
+    border: 1px solid #e3e8ee;
+    border-radius: 8px;
+    box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-header,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-header {
+    padding: 8px 12px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-header {
+    background: transparent;
+    border-bottom: 1px solid #e3e8ee;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-icon {
+    left: 4px;
+    color: #94a3b8;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input {
+    height: 32px !important;
+    padding: 0 28px 0 28px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #e2e8f0 !important;
+    font-size: 13px !important;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input:focus,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input {
+    color: #1a1f36 !important;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-search-input::placeholder {
+    color: #64748b;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-count,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-count {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-count {
+    background: transparent;
+    color: #64748b;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-list {
+    padding: 6px;
+    gap: 2px;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    align-items: center;
+    gap: 10px;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item:not(.special-item) .searchable-select-item-icon {
+    display: none;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-label,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-label {
+    color: #1a1f36;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-subtext,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-subtext {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-subtext {
+    color: #64748b;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.selected,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.selected {
+    background: transparent;
+    border-color: transparent;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item:hover,
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.active,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item:hover,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.active {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item:hover,
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.active {
+    background: #f1f5f9;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.selected .searchable-select-item-label,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.selected .searchable-select-item-label,
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item.selected .searchable-select-item-label {
+    color: #635bff;
+    font-weight: 600;
+}
+
+.searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-check,
+[data-theme="dark"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-check,
+[data-theme="light"] .searchable-select-popover.gdg-ks-ss-popover .searchable-select-item-check {
+    color: #635bff;
+    display: flex;
+    align-items: center;
+}

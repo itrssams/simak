@@ -13,6 +13,8 @@ export default function SearchableSelect({
     searchPlaceholder = 'Ketik untuk mencari...',
     emptyMessage = 'Pilihan tidak ditemukan',
     className = '',
+    popoverClassName = '',
+    countUnit = 'pilihan',
     disabled = false,
     required = false,
     name = '',
@@ -230,7 +232,7 @@ export default function SearchableSelect({
     const popoverContent = open ? (
         <div
             ref={popoverRef}
-            className={`searchable-select-popover ${position.openUp ? 'popover-up' : 'popover-down'}`}
+            className={`searchable-select-popover ${position.openUp ? 'popover-up' : 'popover-down'} ${popoverClassName}`.trim()}
             style={{
                 position: 'fixed',
                 top: `${position.top}px`,
@@ -271,7 +273,7 @@ export default function SearchableSelect({
                     )}
                 </div>
                 <div className="searchable-select-count">
-                    {filteredOptions.length} pilihan
+                    {filteredOptions.length} {countUnit}
                 </div>
             </div>
 

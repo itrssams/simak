@@ -244,6 +244,8 @@ export default function GudangKartuStok() {
                             placeholder="Cari berdasarkan kode, nama barang, merk, atau golongan..."
                             searchPlaceholder="Ketik kode, nama, merk, atau golongan..."
                             emptyMessage="Barang tidak ditemukan"
+                            popoverClassName="gdg-ks-ss-popover"
+                            countUnit="item"
                             minDropdownWidth={500}
                             maxDropdownWidth={850}
                         />
