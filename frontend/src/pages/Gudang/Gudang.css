@@ -2341,17 +2341,28 @@
     gap: 12px 24px;
     border-bottom: 1px solid var(--gdg-border);
     width: 100%;
+    position: relative;
 }
 
 .gdg-dash-tabs {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 20px;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow: visible;
     border: none !important;
 }
 
+.gdg-dash-tabs::before,
+.gdg-dash-tabs::after,
+.gdg-dash-tab::before,
+.gdg-dash-tab::after {
+    content: none !important;
+    display: none !important;
+}
+
 .gdg-dash-tab {
+    position: relative;
     background: transparent !important;
     border: none !important;
     border-top: none !important;
