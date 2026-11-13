@@ -610,27 +610,22 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                 <div className="gdg-modal-backdrop" onClick={() => setShowModalForm(false)}>
                     <div className="gdg-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon">
-                                    <Package size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>{isEditMode ? 'Edit Master Barang' : 'Tambah Master Barang Baru'}</h3>
-                                    <p>
-                                        {isEditMode
-                                            ? `Perbarui spesifikasi & konversi kemasan [${formData.kode || ''}]`
-                                            : 'Lengkapi spesifikasi barang, golongan, satuan dasar, dan konversi multi-kemasan.'}
-                                    </p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>{isEditMode ? 'Edit Master Barang' : 'Tambah Master Barang Baru'}</h3>
+                                <p>
+                                    {isEditMode
+                                        ? `Perbarui spesifikasi & konversi kemasan [${formData.kode || ''}]`
+                                        : 'Lengkapi spesifikasi barang, golongan, satuan dasar, dan konversi multi-kemasan.'}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowModalForm(false)}
                                 title="Tutup Modal"
+                                aria-label="Tutup Modal"
                             >
-                                <X size={16} />
+                                <X size={16} strokeWidth={1.75} />
                             </button>
                         </div>
 
@@ -720,7 +715,7 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                 {/* QUICK INLINE ADD SATUAN */}
                                 {showAddSatuan && (
                                     <div className="gdg-quick-add-box">
-                                        <div style={{ fontSize: '0.8rem', fontWeight: 650, color: '#0284c7', marginBottom: '8px' }}>
+                                        <div className="gdg-quick-add-title">
                                             Tambah Satuan Baku Baru ke Master Satuan:
                                         </div>
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -743,8 +738,7 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                             <button
                                                 type="button"
                                                 onClick={handleQuickAddSatuan}
-                                                className="gdg-btn primary"
-                                                style={{ height: '34px', padding: '0 12px', fontSize: '0.8rem' }}
+                                                className="gdg-btn-stripe primary"
                                             >
                                                 Simpan Satuan
                                             </button>
@@ -765,11 +759,11 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                         </div>
                                         <button
                                             type="button"
-                                            className="gdg-btn soft"
-                                            style={{ height: '32px', padding: '0 10px', fontSize: '0.78rem', whiteSpace: 'nowrap' }}
+                                            className="gdg-btn-stripe secondary"
+                                            style={{ height: '32px', minHeight: '32px', padding: '0 12px', fontSize: '12.5px', whiteSpace: 'nowrap' }}
                                             onClick={handleAddKemasanRow}
                                         >
-                                            <Plus size={13} /> Tambah Kemasan
+                                            <Plus size={13} strokeWidth={1.75} /> Tambah Kemasan
                                         </button>
                                     </div>
 
@@ -781,7 +775,7 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             {formData.kemasan_list.map((k, index) => (
                                                 <div key={index} className="gdg-conversion-row">
-                                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: 500, color: '#64748b', whiteSpace: 'nowrap' }}>
                                                         1 Kemasan:
                                                     </span>
                                                     <input
@@ -810,12 +804,12 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                                     </div>
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn delete"
-                                                        style={{ width: '28px', height: '28px' }}
+                                                        className="gdg-brg-icon-btn danger"
                                                         onClick={() => handleRemoveKemasanRow(index)}
                                                         title="Hapus kemasan"
+                                                        aria-label="Hapus kemasan"
                                                     >
-                                                        <X size={14} />
+                                                        <X size={14} strokeWidth={1.75} />
                                                     </button>
                                                 </div>
                                             ))}
@@ -827,7 +821,8 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                             <div className="gdg-modal-foot">
                                 <button
                                     type="button"
-                                    className="gdg-btn soft"
+                                    className="gdg-btn-stripe secondary"
+                                    style={{ padding: '0 16px' }}
                                     onClick={() => setShowModalForm(false)}
                                     disabled={saving}
                                 >
@@ -835,17 +830,18 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="gdg-btn primary"
+                                    className="gdg-btn-stripe primary"
+                                    style={{ padding: '0 16px' }}
                                     disabled={saving}
                                 >
                                     {saving ? (
                                         <>
-                                            <RefreshCw size={14} className="gdg-spin" />
+                                            <RefreshCw size={14} strokeWidth={1.75} className="gdg-spin" />
                                             <span>Menyimpan...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <Check size={16} />
+                                            <Check size={14} strokeWidth={1.75} />
                                             <span>{isEditMode ? 'Simpan Perubahan' : 'Simpan Barang'}</span>
                                         </>
                                     )}
