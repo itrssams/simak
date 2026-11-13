@@ -575,7 +575,29 @@ export default function PermintaanUnit() {
                 </button>
             </div>
 
-            {/* ── 2. Flat Stat Bar ── */}
+            {/* ── 1b. Stripe Underline Tabs (Status Filter) ── */}
+            <div className="pu-tabs" role="tablist" aria-label="Filter status permintaan">
+                {[
+                    { value: '', label: 'Semua' },
+                    { value: 'MENUNGGU', label: 'Menunggu Otorisasi' },
+                    { value: 'DISETUJUI', label: 'Disetujui' },
+                    { value: 'SELESAI', label: 'Selesai' },
+                    { value: 'DITOLAK', label: 'Ditolak' },
+                ].map(tab => (
+                    <button
+                        key={tab.value || 'ALL'}
+                        type="button"
+                        role="tab"
+                        aria-selected={filterStatus === tab.value}
+                        className={`pu-tab ${filterStatus === tab.value ? 'active' : ''}`}
+                        onClick={() => { setFilterStatus(tab.value); setPage(1); }}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ── 2. Flat Unboxed Stat Bar ── */}
             <div className="pu-stat-bar">
                 <div className="pu-stat-item">
                     <span className="pu-stat-num">{stats.total}</span>

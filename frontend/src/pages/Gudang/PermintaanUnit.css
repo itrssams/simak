@@ -12,30 +12,39 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
-/* ── Design tokens (lihat frontend/DESIGN.md) ── */
+/* ── Design tokens (lihat frontend/DESIGN.md — Stripe Dashboard Clean Enterprise) ── */
 .pu-page {
+    --pu-bg: #09090b;
     --pu-surface: #09090b;
     --pu-surface-2: #18181b;
     --pu-border: #27272a;
+    --pu-border-ctrl: #3f3f46;
     --pu-text: #fafafa;
     --pu-muted: #a1a1aa;
     --pu-faint: #71717a;
-    --pu-accent: #fafafa;
-    --pu-accent-fg: #18181b;
+    --pu-accent: #635bff;
+    --pu-accent-hover: #7a73ff;
+    --pu-accent-fg: #ffffff;
     --pu-hover: rgba(255, 255, 255, 0.035);
-    gap: 16px;
+    --pu-ctrl-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    gap: 20px;
 }
 
 [data-theme="light"] .pu-page {
+    --pu-bg: #ffffff;
     --pu-surface: #ffffff;
-    --pu-surface-2: #fafafa;
-    --pu-border: #e4e4e7;
-    --pu-text: #18181b;
-    --pu-muted: #52525b;
-    --pu-faint: #71717a;
-    --pu-accent: #18181b;
-    --pu-accent-fg: #fafafa;
-    --pu-hover: #fafafa;
+    --pu-surface-2: #f7fafc;
+    --pu-border: #e3e8ee;
+    --pu-border-ctrl: #d8dee4;
+    --pu-text: #1a1f36;
+    --pu-muted: #697386;
+    --pu-faint: #8792a2;
+    --pu-accent: #635bff;
+    --pu-accent-hover: #544dc9;
+    --pu-accent-fg: #ffffff;
+    --pu-hover: #f7fafc;
+    --pu-ctrl-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
+    background: var(--pu-bg);
 }
 
 /* ── Compact Page Header ── */
@@ -48,17 +57,17 @@
 }
 
 .pu-header-text h1 {
-    font-size: 20px;
-    font-weight: 650;
+    font-size: 22px;
+    font-weight: 700;
     margin: 0;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
     color: var(--pu-text);
 }
 
 .pu-header-text p {
     font-size: 13px;
-    margin: 3px 0 0 0;
-    color: var(--pu-faint);
+    margin: 4px 0 0 0;
+    color: var(--pu-muted);
 }
 
 .pu-btn-create {
@@ -75,36 +84,87 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
-    transition: opacity 0.15s;
+    box-shadow: 0 1px 2px rgba(99, 91, 255, 0.2);
+    transition: background 0.15s, border-color 0.15s;
 }
 
 .pu-btn-create:hover {
-    opacity: 0.86;
+    background: var(--pu-accent-hover);
+    border-color: var(--pu-accent-hover);
 }
 
-/* ── Flat Stat Bar ── */
+/* ── Stripe Underline Tabs ── */
+.pu-tabs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid var(--pu-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.pu-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.pu-tab {
+    position: relative;
+    background: none;
+    border: none;
+    padding: 8px 2px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pu-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s;
+}
+
+.pu-tab:hover {
+    color: var(--pu-text);
+}
+
+.pu-tab.active {
+    color: var(--pu-accent);
+    font-weight: 600;
+}
+
+.pu-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--pu-accent);
+    border-radius: 1px;
+}
+
+/* ── Flat Unboxed Stat Bar ── */
 .pu-stat-bar {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    background: var(--pu-surface);
-    border: 1px solid var(--pu-border);
-    border-radius: 8px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--pu-border);
+    padding-bottom: 16px;
 }
 
 .pu-stat-item {
-    padding: 12px 18px;
+    padding: 4px 18px 4px 0;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: column-reverse;
+    gap: 4px;
     min-width: 0;
 }
 
 .pu-stat-item + .pu-stat-item {
+    padding-left: 18px;
     border-left: 1px solid var(--pu-border);
 }
 
 .pu-stat-num {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 650;
     line-height: 1.2;
     color: var(--pu-text);
@@ -113,17 +173,19 @@
 
 .pu-stat-label {
     font-size: 12px;
+    font-weight: 500;
     color: var(--pu-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* ── Card: toolbar + tabel dalam satu kontainer ── */
+
+/* ── Flat Container: inline toolbar + borderless table ── */
 .pu-card {
-    background: var(--pu-surface);
-    border: 1px solid var(--pu-border);
-    border-radius: 8px;
-    overflow: hidden;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
 }
 
 .pu-filter-row {
@@ -131,8 +193,8 @@
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--pu-border);
+    padding: 0 0 12px 0;
+    border-bottom: none;
     margin: 0;
 }
 
@@ -149,8 +211,8 @@
     left: 4px;
     top: 50%;
     transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -170,19 +232,20 @@
 
 .pu-search-box input {
     width: 100%;
-    height: 34px;
-    min-height: 34px;
-    padding-left: 34px !important;
+    height: 32px;
+    min-height: 32px;
+    padding-left: 32px !important;
     padding-right: 12px !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     border-radius: 6px;
-    border: 1px solid var(--pu-border) !important;
-    background: var(--pu-surface-2) !important;
+    border: 1px solid var(--pu-border-ctrl) !important;
+    background: var(--pu-surface) !important;
     color: var(--pu-text) !important;
     font-size: 13px;
     outline: none;
     box-sizing: border-box;
+    box-shadow: var(--pu-ctrl-shadow);
     transition: border-color 0.15s;
 }
 
@@ -191,57 +254,64 @@
 }
 
 .pu-search-box input:focus {
-    border-color: var(--pu-muted) !important;
-    box-shadow: none;
+    border-color: var(--pu-accent) !important;
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.14);
 }
 
 .pu-select {
-    height: 34px;
+    height: 32px;
     padding: 0 10px;
     border-radius: 6px;
-    border: 1px solid var(--pu-border);
-    background: var(--pu-surface-2);
+    border: 1px solid var(--pu-border-ctrl);
+    background: var(--pu-surface);
     color: var(--pu-text);
-    font-size: 13px;
+    font-size: 12.5px;
+    font-weight: 500;
     outline: none;
     cursor: pointer;
-    min-width: 150px;
+    min-width: 145px;
+    box-shadow: var(--pu-ctrl-shadow);
+    transition: border-color 0.15s;
 }
 
 .pu-select:focus {
-    border-color: var(--pu-muted);
+    border-color: var(--pu-accent);
 }
 
 .pu-chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 34px;
+    height: 32px;
     padding: 0 10px;
     border-radius: 6px;
-    border: 1px solid var(--pu-border);
-    background: var(--pu-surface-2);
+    border: 1px solid var(--pu-border-ctrl);
+    background: var(--pu-surface);
     color: var(--pu-muted);
-    font-size: 13px;
+    font-size: 12.5px;
+    font-weight: 500;
     white-space: nowrap;
+    box-shadow: var(--pu-ctrl-shadow);
 }
 
 .pu-tool-btn {
-    height: 34px;
-    min-width: 34px;
+    height: 32px;
+    min-width: 32px;
     padding: 0 10px;
     border-radius: 6px;
-    border: 1px solid var(--pu-border);
-    background: transparent;
+    border: 1px solid var(--pu-border-ctrl);
+    background: var(--pu-surface);
     color: var(--pu-muted);
     font-size: 12.5px;
+    font-weight: 500;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    box-shadow: var(--pu-ctrl-shadow);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .pu-tool-btn:hover {
@@ -250,8 +320,8 @@
 }
 
 .pu-pagination {
-    padding: 10px 16px;
-    border-top: 1px solid var(--pu-border);
+    padding: 12px 0 0 0;
+    border-top: none;
 }
 
 .pu-btn {
@@ -300,6 +370,7 @@
 /* ── Table & Badges ── */
 .pu-table-wrap {
     overflow-x: auto;
+    border-top: 1px solid var(--pu-border);
 }
 
 .pu-table {
@@ -310,26 +381,22 @@
 }
 
 .pu-table th {
-    padding: 10px 16px;
-    background: var(--pu-surface-2);
-    color: var(--pu-faint);
-    font-size: 11px;
+    padding: 10px 14px;
+    background: transparent;
+    color: var(--pu-muted);
+    font-size: 11.5px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     border-bottom: 1px solid var(--pu-border);
     white-space: nowrap;
 }
 
 .pu-table td {
-    padding: 12px 16px;
+    padding: 12px 14px;
     color: var(--pu-text);
     border-bottom: 1px solid var(--pu-border);
     vertical-align: middle;
-}
-
-.pu-table tbody tr:last-child td {
-    border-bottom: none;
 }
 
 .pu-table tbody tr:hover td {
@@ -365,35 +432,35 @@
     padding: 2px 8px;
     border-radius: 6px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
     background: var(--pu-surface-2);
     color: var(--pu-muted);
-    border: 1px solid var(--pu-border);
+    border: 1px solid transparent;
 }
 
 .pu-badge.amber {
-    background: rgba(245, 158, 11, 0.08);
-    color: #d6a243;
-    border-color: rgba(245, 158, 11, 0.22);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.24);
 }
 
 .pu-badge.emerald {
-    background: rgba(16, 185, 129, 0.08);
-    color: #4fb892;
-    border-color: rgba(16, 185, 129, 0.22);
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.24);
 }
 
 .pu-badge.sky {
-    background: rgba(14, 165, 233, 0.08);
-    color: #5aaed6;
-    border-color: rgba(14, 165, 233, 0.22);
+    background: rgba(14, 165, 233, 0.12);
+    color: #38bdf8;
+    border-color: rgba(14, 165, 233, 0.24);
 }
 
 .pu-badge.rose {
-    background: rgba(244, 63, 94, 0.08);
-    color: #d9707f;
-    border-color: rgba(244, 63, 94, 0.22);
+    background: rgba(244, 63, 94, 0.12);
+    color: #fb7185;
+    border-color: rgba(244, 63, 94, 0.24);
 }
 
 .pu-badge.slate {
@@ -402,10 +469,10 @@
     border-color: var(--pu-border);
 }
 
-[data-theme="light"] .pu-badge.amber { color: #92620a; background: #fffbeb; border-color: #fde9b5; }
-[data-theme="light"] .pu-badge.emerald { color: #1f7a5c; background: #f0fdf7; border-color: #bfeed9; }
-[data-theme="light"] .pu-badge.sky { color: #1d6f96; background: #f0f9ff; border-color: #c2e4f5; }
-[data-theme="light"] .pu-badge.rose { color: #a8374a; background: #fff1f3; border-color: #fbcdd4; }
+[data-theme="light"] .pu-badge.amber { color: #92400e; background: #fef3c7; border-color: #fde68a; }
+[data-theme="light"] .pu-badge.emerald { color: #065f46; background: #d1fae5; border-color: #a7f3d0; }
+[data-theme="light"] .pu-badge.sky { color: #075985; background: #e0f2fe; border-color: #bae6fd; }
+[data-theme="light"] .pu-badge.rose { color: #9f1239; background: #ffe4e6; border-color: #fecdd3; }
 
 .pu-items-preview {
     display: flex;
@@ -1144,6 +1211,11 @@
         justify-content: center;
     }
 
+    /* ── Tabs ── */
+    .pu-tabs {
+        gap: 14px;
+    }
+
     /* ── Stat Bar ── */
     .pu-stat-bar {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1154,6 +1226,7 @@
     }
 
     .pu-stat-item + .pu-stat-item {
+        padding-left: 12px;
         border-left: none;
     }
 
