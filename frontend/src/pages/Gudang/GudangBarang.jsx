@@ -672,7 +672,7 @@ export default function GudangBarang({ heroActionsTarget = null }) {
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div className="gdg-form-label-row">
                                             <label>Satuan Terkecil (Dasar) *</label>
                                             <button
                                                 type="button"
@@ -697,7 +697,9 @@ export default function GudangBarang({ heroActionsTarget = null }) {
                                     </div>
 
                                     <div className="gdg-form-group">
-                                        <label>Batas Minimum (Buffer Stock)</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Batas Minimum (Buffer Stock)</label>
+                                        </div>
                                         <div className="gdg-input-group">
                                             <input
                                                 type="number"
