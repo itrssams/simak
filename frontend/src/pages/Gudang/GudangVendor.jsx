@@ -7,13 +7,9 @@ import {
     Pencil,
     Trash2,
     Building2,
-    Phone,
-    User,
-    MapPin,
-    Tag,
     X,
     Check,
-    AlertTriangle
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -31,7 +27,7 @@ const DEFAULT_CATEGORIES = [
     'UMUM'
 ];
 
-export default function GudangVendor() {
+export default function GudangVendor({ heroActionsTarget = null }) {
     const toast = useToast();
 
     const [vendors, setVendors] = useState([]);
@@ -205,256 +201,201 @@ export default function GudangVendor() {
         }
     };
 
-    // Render helper for category badge styling
-    const renderCategoryBadge = (cat) => {
-        const text = cat || 'UMUM';
-        let badgeStyle = {
-            fontSize: '0.75rem',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            fontWeight: 600,
-            display: 'inline-block'
-        };
-
-        if (text.includes('ATK') || text.includes('CETAKAN')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.25)' };
-        } else if (text.includes('HOUSEKEEPING') || text.includes('KEBERSIHAN')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(16, 185, 129, 0.12)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.25)' };
-        } else if (text.includes('MATERIAL') || text.includes('SUKU CADANG')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(234, 88, 12, 0.12)', color: '#c2410c', border: '1px solid rgba(234, 88, 12, 0.25)' };
-        } else if (text.includes('ALAT KESEHATAN') || text.includes('ELEKTRONIK')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(6, 182, 212, 0.12)', color: '#0891b2', border: '1px solid rgba(6, 182, 212, 0.25)' };
-        } else if (text.includes('PENUNJANG')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(139, 92, 246, 0.12)', color: '#7c3aed', border: '1px solid rgba(139, 92, 246, 0.25)' };
-        } else if (text.includes('TEKSTIL') || text.includes('SERAGAM')) {
-            badgeStyle = { ...badgeStyle, background: 'rgba(236, 72, 153, 0.12)', color: '#db2777', border: '1px solid rgba(236, 72, 153, 0.25)' };
-        } else {
-            badgeStyle = { ...badgeStyle, background: 'rgba(100, 116, 139, 0.12)', color: '#475569', border: '1px solid rgba(100, 116, 139, 0.25)' };
-        }
-
-        return <span style={badgeStyle}>{text}</span>;
-    };
+    const actionButtons = (
+        <>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={fetchVendors}
+                disabled={loading}
+                title="Refresh daftar vendor"
+            >
+                <RefreshCw size={14} strokeWidth={1.75} className={loading ? 'gdg-spin' : ''} /> Refresh
+            </button>
+            <button
+                type="button"
+                className="gdg-btn-stripe primary"
+                onClick={handleOpenCreate}
+            >
+                <Plus size={14} strokeWidth={1.75} /> Tambah Vendor
+            </button>
+        </>
+    );
 
     return (
-        <div className="gdg-card">
-            {/* CARD HEADER */}
-            <div className="gdg-card-head">
-                <div className="gdg-card-title">
-                    <h2>Direktori Master Vendor & Rekanan</h2>
-                    <p>Daftar rekanan aktif untuk pemesanan barang logistik (PO), penerimaan faktur (GRN), dan manajemen utang supplier</p>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button className="gdg-btn soft" onClick={fetchVendors} disabled={loading} title="Refresh daftar vendor">
-                        <RefreshCw size={15} /> Refresh
-                    </button>
-                    <button className="gdg-btn primary" onClick={handleOpenCreate}>
-                        <Plus size={16} /> Tambah Vendor
-                    </button>
-                </div>
-            </div>
-
-            {/* SEARCH & FILTER TOOLBAR */}
-            <div className="gdg-toolbar" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                <div className="gdg-search">
-                    <Search size={16} />
-                    <input
-                        type="text"
-                        placeholder="Cari kode rekanan, nama vendor, telepon, atau PIC..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-
-                <select
-                    className="gdg-select-control"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    style={{ minWidth: '240px' }}
-                >
-                    <option value="">Semua Kategori ({vendors.length})</option>
-                    {availableCategories.map((cat) => (
-                        <option key={cat} value={cat}>
-                            {cat} {categoryStats[cat] ? `(${categoryStats[cat]})` : ''}
-                        </option>
-                    ))}
-                </select>
-
-                {(search || categoryFilter) && (
-                    <button
-                        type="button"
-                        className="gdg-btn soft"
-                        onClick={() => {
-                            setSearch('');
-                            setCategoryFilter('');
-                        }}
-                        title="Reset pencarian dan filter"
-                    >
-                        <X size={14} /> Reset
-                    </button>
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(actionButtons, heroActionsTarget)
+                : (
+                    <div className="gdg-brg-fallback-actions">
+                        {actionButtons}
+                    </div>
                 )}
-            </div>
 
-            {/* VENDOR TABLE */}
-            <div className="gdg-table-wrap">
-                <table className="gdg-table">
-                    <thead>
-                        <tr>
-                            <th style={{ width: '80px' }}>Kode</th>
-                            <th>Nama Perusahaan / Vendor</th>
-                            <th style={{ width: '220px' }}>Kategori</th>
-                            <th style={{ width: '180px' }}>Kontak Person (PIC)</th>
-                            <th style={{ width: '160px' }}>Telepon</th>
-                            <th>Alamat</th>
-                            <th style={{ width: '100px', textAlign: 'center' }}>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
+            <section className="gdg-dash-section">
+                {/* SEARCH & FILTER TOOLBAR */}
+                <div className="gdg-brg-toolbar">
+                    <div className="gdg-brg-toolbar-left">
+                        <div className="gdg-dash-search">
+                            <Search size={14} strokeWidth={1.75} className="gdg-dash-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Cari kode rekanan, nama vendor, telepon, atau PIC..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                className="gdg-ks-select gdg-brg-select"
+                                value={categoryFilter}
+                                onChange={(e) => setCategoryFilter(e.target.value)}
+                            >
+                                <option value="">Semua Kategori ({vendors.length})</option>
+                                {availableCategories.map((cat) => (
+                                    <option key={cat} value={cat}>
+                                        {cat} {categoryStats[cat] ? `(${categoryStats[cat]})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={14} strokeWidth={1.75} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        {(search || categoryFilter) && (
+                            <button
+                                type="button"
+                                className="gdg-btn-stripe secondary"
+                                onClick={() => {
+                                    setSearch('');
+                                    setCategoryFilter('');
+                                }}
+                                title="Reset pencarian dan filter"
+                            >
+                                <X size={14} strokeWidth={1.75} /> Reset
+                            </button>
+                        )}
+                    </div>
+
+                    <span className="gdg-brg-total-hint">
+                        Total {vendors.length.toLocaleString('id-ID')} rekanan aktif
+                    </span>
+                </div>
+
+                {/* VENDOR BORDERLESS TABLE */}
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
+                        <thead>
                             <tr>
-                                <td colSpan="7" className="gdg-table-empty">
-                                    Memuat data rekanan vendor...
-                                </td>
+                                <th style={{ width: '90px' }}>Kode</th>
+                                <th>Nama Perusahaan / Vendor</th>
+                                <th style={{ width: '240px' }}>Kategori</th>
+                                <th style={{ width: '180px' }}>Kontak Person (PIC)</th>
+                                <th style={{ width: '160px' }}>Telepon</th>
+                                <th>Alamat</th>
+                                <th style={{ width: '90px', textAlign: 'right' }}>Aksi</th>
                             </tr>
-                        ) : pagedVendors.length === 0 ? (
-                            <tr>
-                                <td colSpan="7" className="gdg-table-empty" style={{ padding: '48px 20px', textAlign: 'center' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Building2 size={24} />
-                                        </div>
-                                        <div style={{ fontWeight: 600, color: 'var(--text-primary, #1e293b)', fontSize: '0.96rem' }}>
-                                            {search || categoryFilter ? 'Tidak ada rekanan yang cocok dengan pencarian / filter.' : 'Belum ada data Master Vendor di database SIMAK'}
-                                        </div>
-                                        <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', maxWidth: '440px' }}>
-                                            {search || categoryFilter ? 'Silakan periksa kembali kata kunci atau reset filter kategori.' : 'Daftarkan rekanan distributor pengadaan logistik umum baru melalui tombol di bawah.'}
-                                        </p>
-                                        {!search && !categoryFilter && (
-                                            <button type="button" className="gdg-btn primary" onClick={handleOpenCreate} style={{ marginTop: '6px' }}>
-                                                <Plus size={16} /> Tambah Vendor Pertama
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            pagedVendors.map((v) => (
-                                <tr key={v.id}>
-                                    <td className="gdg-code-cell">{v.kode || `#${v.id}`}</td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <div
-                                                style={{
-                                                    width: '28px',
-                                                    height: '28px',
-                                                    borderRadius: '6px',
-                                                    background: 'rgba(37, 99, 235, 0.08)',
-                                                    color: '#2563eb',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0
-                                                }}
-                                            >
-                                                <Building2 size={15} />
-                                            </div>
-                                            <strong style={{ fontSize: '0.88rem' }}>{v.nama}</strong>
-                                        </div>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="7" className="gdg-table-empty">
+                                        Memuat data rekanan vendor...
                                     </td>
-                                    <td>{renderCategoryBadge(v.kategori)}</td>
-                                    <td>
-                                        {v.kc ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'inherit' }}>
-                                                <User size={14} style={{ opacity: 0.6 }} />
-                                                <span>{v.kc}</span>
+                                </tr>
+                            ) : pagedVendors.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" className="gdg-table-empty" style={{ padding: '44px 20px', textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                            <Building2 size={28} className="gdg-icon-muted" />
+                                            <div style={{ fontWeight: 600, color: 'var(--gdg-text)', fontSize: '14px' }}>
+                                                {search || categoryFilter ? 'Tidak ada rekanan yang cocok dengan pencarian / filter.' : 'Belum ada data Master Vendor di database SIMAK'}
                                             </div>
-                                        ) : (
-                                            <span style={{ opacity: 0.4 }}>-</span>
-                                        )}
-                                    </td>
-                                    <td>
-                                        {v.telp ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <Phone size={14} style={{ opacity: 0.6 }} />
-                                                <span>{v.telp}</span>
-                                            </div>
-                                        ) : (
-                                            <span style={{ opacity: 0.4 }}>-</span>
-                                        )}
-                                    </td>
-                                    <td style={{ maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4' }}>
-                                        {v.alamat ? (
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                                                <MapPin size={14} style={{ opacity: 0.6, marginTop: '2px', flexShrink: 0 }} />
-                                                <span>{v.alamat}</span>
-                                            </div>
-                                        ) : (
-                                            <span style={{ opacity: 0.4 }}>-</span>
-                                        )}
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'center' }}>
-                                            <button
-                                                type="button"
-                                                className="gdg-action-btn edit"
-                                                onClick={() => handleOpenEdit(v)}
-                                                title="Edit data rekanan"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="gdg-action-btn delete"
-                                                onClick={() => handleOpenDelete(v)}
-                                                title="Hapus vendor"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            <p style={{ margin: 0, color: 'var(--gdg-muted)', fontSize: '13px', maxWidth: '440px' }}>
+                                                {search || categoryFilter ? 'Silakan periksa kembali kata kunci atau reset filter kategori.' : 'Daftarkan rekanan distributor pengadaan logistik umum baru melalui tombol Tambah Vendor.'}
+                                            </p>
+                                            {!search && !categoryFilter && (
+                                                <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate} style={{ marginTop: '4px' }}>
+                                                    <Plus size={14} strokeWidth={1.75} /> Tambah Vendor Pertama
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                            ) : (
+                                pagedVendors.map((v) => (
+                                    <tr key={v.id}>
+                                        <td className="gdg-code-cell">{v.kode || `#${v.id}`}</td>
+                                        <td>
+                                            <div className="gdg-unit-name">{v.nama}</div>
+                                        </td>
+                                        <td className="gdg-cell-muted">{v.kategori || 'UMUM'}</td>
+                                        <td className="gdg-cell-muted">{v.kc || '—'}</td>
+                                        <td className="gdg-cell-muted gdg-num-cell">{v.telp || '—'}</td>
+                                        <td className="gdg-cell-muted" style={{ maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.45' }}>
+                                            {v.alamat || '—'}
+                                        </td>
+                                        <td style={{ textAlign: 'right' }}>
+                                            <div className="gdg-brg-row-actions">
+                                                <button
+                                                    type="button"
+                                                    className="gdg-brg-icon-btn"
+                                                    onClick={() => handleOpenEdit(v)}
+                                                    title="Edit data rekanan"
+                                                    aria-label="Edit data rekanan"
+                                                >
+                                                    <Pencil size={14} strokeWidth={1.75} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="gdg-brg-icon-btn danger"
+                                                    onClick={() => handleOpenDelete(v)}
+                                                    title="Hapus vendor"
+                                                    aria-label="Hapus vendor"
+                                                >
+                                                    <Trash2 size={14} strokeWidth={1.75} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-            {/* PAGINATION */}
-            <div className="gdg-pagination-wrap">
+                {/* PAGINATION */}
                 <SimplePagination
-                    totalCount={vendors.length}
+                    className="gdg-dash-pagination"
+                    total={vendors.length}
                     page={page}
                     pageSize={pageSize}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
                 />
-            </div>
+            </section>
 
             {/* MODAL FORM TAMBAH / EDIT VENDOR */}
             {showModalForm && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowModalForm(false)}>
                     <div className="gdg-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon">
-                                    <Building2 size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>{isEditMode ? 'Edit Data Vendor' : 'Tambah Vendor Baru'}</h3>
-                                    <p>
-                                        {isEditMode
-                                            ? `Perbarui informasi profil dan kontak rekanan [${formData.kode || `#${formData.id}`}]`
-                                            : 'Daftarkan nama rekanan / distributor penyedia pengadaan gudang logistik.'}
-                                    </p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>{isEditMode ? 'Edit Data Vendor' : 'Tambah Vendor Baru'}</h3>
+                                <p>
+                                    {isEditMode
+                                        ? `Perbarui informasi profil dan kontak rekanan [${formData.kode || `#${formData.id}`}]`
+                                        : 'Daftarkan nama rekanan / distributor penyedia pengadaan gudang logistik.'}
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowModalForm(false)}
                                 title="Tutup Modal"
+                                aria-label="Tutup Modal"
                             >
-                                <X size={16} />
+                                <X size={16} strokeWidth={1.75} />
                             </button>
                         </div>
 
@@ -476,10 +417,8 @@ export default function GudangVendor() {
                                     <div className="gdg-form-group">
                                         <label>Kategori Rekanan *</label>
                                         <select
-                                            className="gdg-select-control"
                                             value={formData.kategori}
                                             onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                                            style={{ width: '100%', height: '40px' }}
                                             required
                                         >
                                             {availableCategories.map((cat) => (
@@ -524,7 +463,8 @@ export default function GudangVendor() {
                             <div className="gdg-modal-foot">
                                 <button
                                     type="button"
-                                    className="gdg-btn soft"
+                                    className="gdg-btn-stripe secondary"
+                                    style={{ padding: '0 16px' }}
                                     onClick={() => setShowModalForm(false)}
                                     disabled={saving}
                                 >
@@ -532,10 +472,11 @@ export default function GudangVendor() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="gdg-btn primary"
+                                    className="gdg-btn-stripe primary"
+                                    style={{ padding: '0 16px' }}
                                     disabled={saving}
                                 >
-                                    <Check size={16} />
+                                    <Check size={14} strokeWidth={1.75} />
                                     {saving ? 'Menyimpan...' : isEditMode ? 'Simpan Perubahan' : 'Simpan Vendor'}
                                 </button>
                             </div>
@@ -550,48 +491,27 @@ export default function GudangVendor() {
                 <div className="gdg-modal-backdrop" onClick={() => !deleting && setShowDeleteModal(false)}>
                     <div className="gdg-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div
-                                    className="gdg-modal-header-icon"
-                                    style={{
-                                        background: 'rgba(244, 63, 94, 0.15)',
-                                        color: '#e11d48'
-                                    }}
-                                >
-                                    <AlertTriangle size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Hapus Vendor Rekanan?</h3>
-                                    <p>Tindakan ini akan menonaktifkan rekanan dari daftar aktif.</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Hapus Vendor Rekanan?</h3>
+                                <p>Tindakan ini akan menonaktifkan rekanan dari daftar aktif.</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => !deleting && setShowDeleteModal(false)}
                                 disabled={deleting}
+                                aria-label="Tutup Modal"
                             >
-                                <X size={16} />
+                                <X size={16} strokeWidth={1.75} />
                             </button>
                         </div>
 
                         <div className="gdg-modal-body" style={{ padding: '20px 24px' }}>
-                            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.6' }}>
+                            <p style={{ margin: 0, fontSize: '13.5px', lineHeight: '1.6', color: 'var(--gdg-text)' }}>
                                 Apakah Anda yakin ingin menghapus rekanan{' '}
-                                <strong style={{ color: '#0f172a' }}>{vendorToDelete.nama}</strong>?
+                                <strong>{vendorToDelete.nama}</strong>?
                             </p>
-                            <div
-                                style={{
-                                    marginTop: '12px',
-                                    padding: '10px 14px',
-                                    borderRadius: '8px',
-                                    background: 'rgba(245, 158, 11, 0.08)',
-                                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                                    fontSize: '0.84rem',
-                                    color: '#b45309'
-                                }}
-                            >
+                            <div className="gdg-banner warning" style={{ marginTop: '12px' }}>
                                 Catatan: Vendor tidak dihapus permanen untuk menjaga integritas transaksi Surat Pesanan (PO) & riwayat mutasi lama.
                             </div>
                         </div>
@@ -599,7 +519,8 @@ export default function GudangVendor() {
                         <div className="gdg-modal-foot">
                             <button
                                 type="button"
-                                className="gdg-btn soft"
+                                className="gdg-btn-stripe secondary"
+                                style={{ padding: '0 16px' }}
                                 onClick={() => setShowDeleteModal(false)}
                                 disabled={deleting}
                             >
@@ -608,10 +529,11 @@ export default function GudangVendor() {
                             <button
                                 type="button"
                                 className="gdg-btn danger"
+                                style={{ height: '36px', borderRadius: '6px', padding: '0 16px', fontSize: '13px', fontWeight: 500 }}
                                 onClick={handleConfirmDelete}
                                 disabled={deleting}
                             >
-                                <Trash2 size={15} />
+                                <Trash2 size={14} strokeWidth={1.75} />
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus Vendor'}
                             </button>
                         </div>
