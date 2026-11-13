@@ -5,6 +5,7 @@ import {
     Printer,
     Info,
     X,
+    ChevronDown,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -362,22 +363,25 @@ export default function GudangKartuStok() {
                             }}
                         />
 
-                        <select
-                            value={jenisFilter}
-                            onChange={(e) => {
-                                setJenisFilter(e.target.value);
-                                setPageV2(1);
-                            }}
-                            className="gdg-ks-select"
-                        >
-                            <option value="">Semua Jenis Transaksi</option>
-                            <option value="INIT">Saldo Awal</option>
-                            <option value="IN">Penerimaan (GRN)</option>
-                            <option value="OUT">Pengeluaran Unit</option>
-                            <option value="OPNAME">Stock Opname (+ / -)</option>
-                            <option value="ADJ_PLUS">Stock Opname (+ Lebih)</option>
-                            <option value="ADJ_MINUS">Stock Opname (- Kurang)</option>
-                        </select>
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                value={jenisFilter}
+                                onChange={(e) => {
+                                    setJenisFilter(e.target.value);
+                                    setPageV2(1);
+                                }}
+                                className="gdg-ks-select"
+                            >
+                                <option value="">Semua Jenis Transaksi</option>
+                                <option value="INIT">Saldo Awal</option>
+                                <option value="IN">Penerimaan (GRN)</option>
+                                <option value="OUT">Pengeluaran Unit</option>
+                                <option value="OPNAME">Stock Opname (+ / -)</option>
+                                <option value="ADJ_PLUS">Stock Opname (+ Lebih)</option>
+                                <option value="ADJ_MINUS">Stock Opname (- Kurang)</option>
+                            </select>
+                            <ChevronDown size={14} strokeWidth={1.75} className="gdg-ks-select-chevron" />
+                        </div>
 
                         {(startDate || endDate || jenisFilter) && (
                             <button
