@@ -299,41 +299,54 @@
   border-color: #cbd5e1;
 }
 
-/* Keuangan — Emerald */
-.app-switcher-tile-icon.cat-keuangan {
-  color: #34d399;
-}
+/* Per-module unique icon stroke colors (shade 400 dark / shade 600 light) */
+.app-switcher-tile-icon.mod-catatan-utang { color: #fb7185; }
+[data-theme="light"] .app-switcher-tile-icon.mod-catatan-utang { color: #e11d48; }
 
-[data-theme="light"] .app-switcher-tile-icon.cat-keuangan {
-  color: #059669;
-}
+.app-switcher-tile-icon.mod-penagihan-invoice { color: #60a5fa; }
+[data-theme="light"] .app-switcher-tile-icon.mod-penagihan-invoice { color: #2563eb; }
 
-/* Logistik & Aset — Indigo */
-.app-switcher-tile-icon.cat-logistik {
-  color: #818cf8;
-}
+.app-switcher-tile-icon.mod-manajemen-aset { color: #818cf8; }
+[data-theme="light"] .app-switcher-tile-icon.mod-manajemen-aset { color: #4f46e5; }
 
-[data-theme="light"] .app-switcher-tile-icon.cat-logistik {
-  color: #4f46e5;
-}
+.app-switcher-tile-icon.mod-gudang-logistik { color: #fbbf24; }
+[data-theme="light"] .app-switcher-tile-icon.mod-gudang-logistik { color: #d97706; }
 
-/* SDM & Informasi — Amber */
-.app-switcher-tile-icon.cat-sdm {
-  color: #fbbf24;
-}
+.app-switcher-tile-icon.mod-amprahan-unit { color: #a78bfa; }
+[data-theme="light"] .app-switcher-tile-icon.mod-amprahan-unit { color: #7c3aed; }
 
-[data-theme="light"] .app-switcher-tile-icon.cat-sdm {
-  color: #d97706;
-}
+.app-switcher-tile-icon.mod-petty-cash { color: #34d399; }
+[data-theme="light"] .app-switcher-tile-icon.mod-petty-cash { color: #059669; }
 
-/* Sistem & Analitik — Sky/Cyan */
-.app-switcher-tile-icon.cat-sistem {
-  color: #38bdf8;
-}
+.app-switcher-tile-icon.mod-logbook { color: #2dd4bf; }
+[data-theme="light"] .app-switcher-tile-icon.mod-logbook { color: #0d9488; }
 
-[data-theme="light"] .app-switcher-tile-icon.cat-sistem {
-  color: #0284c7;
-}
+.app-switcher-tile-icon.mod-sdm { color: #22d3ee; }
+[data-theme="light"] .app-switcher-tile-icon.mod-sdm { color: #0891b2; }
+
+.app-switcher-tile-icon.mod-driver { color: #38bdf8; }
+[data-theme="light"] .app-switcher-tile-icon.mod-driver { color: #0284c7; }
+
+.app-switcher-tile-icon.mod-akuntansi { color: #4ade80; }
+[data-theme="light"] .app-switcher-tile-icon.mod-akuntansi { color: #16a34a; }
+
+.app-switcher-tile-icon.mod-pengumuman { color: #fb923c; }
+[data-theme="light"] .app-switcher-tile-icon.mod-pengumuman { color: #ea580c; }
+
+.app-switcher-tile-icon.mod-audit-log { color: #94a3b8; }
+[data-theme="light"] .app-switcher-tile-icon.mod-audit-log { color: #475569; }
+
+.app-switcher-tile-icon.mod-manajemen-user { color: #c084fc; }
+[data-theme="light"] .app-switcher-tile-icon.mod-manajemen-user { color: #9333ea; }
+
+.app-switcher-tile-icon.mod-manajemen-sistem { color: #e879f9; }
+[data-theme="light"] .app-switcher-tile-icon.mod-manajemen-sistem { color: #c026d3; }
+
+.app-switcher-tile-icon.mod-it-center { color: #f472b6; }
+[data-theme="light"] .app-switcher-tile-icon.mod-it-center { color: #db2777; }
+
+.app-switcher-tile-icon.mod-statistik-analitik { color: #a3e635; }
+[data-theme="light"] .app-switcher-tile-icon.mod-statistik-analitik { color: #65a30d; }
 
 .app-switcher-tile-name {
   font-size: 13px;
