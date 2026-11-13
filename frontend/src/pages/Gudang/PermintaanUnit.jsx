@@ -577,6 +577,18 @@ export default function PermintaanUnit() {
         setTimeout(() => printWindow.print(), 300);
     };
 
+    // Helper format tanggal manusiawi (e.g. 10 Nov 2026)
+    const formatTanggal = (val) => {
+        if (!val) return '—';
+        const d = new Date(val);
+        if (Number.isNaN(d.getTime())) return val;
+        return d.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        });
+    };
+
     // Helper status badge styling
     const renderStatusBadge = (status) => {
         switch (status) {
@@ -1082,14 +1094,9 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '820px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 className="pu-modal-title" style={{ fontSize: '18px' }}>
+                                <h3 className="pu-modal-title">
                                     Detail Permintaan: {selectedReq.nomor}
                                 </h3>
-                                <p className="pu-modal-subtitle">
-                                    Ruangan: <strong>{selectedReq.ruang_nama}</strong> &bull; Diajukan: {selectedReq.tanggal}
-                                    {selectedReq.tanggal_penyerahan && ` • Diserahkan: ${selectedReq.tanggal_penyerahan}`}
-                                    {selectedReq.penerima_nama && ` (Penerima: ${selectedReq.penerima_nama})`}
-                                </p>
                             </div>
                             <button type="button" className="pu-action-btn" onClick={() => setShowDetailModal(false)}>
                                 <X size={16} />
@@ -1097,28 +1104,70 @@ export default function PermintaanUnit() {
                         </div>
 
                         <div className="pu-modal-body">
-                            {/* Visual Timeline Stepper */}
-                            <div className="pu-stepper">
-                                <div className="pu-step done">
-                                    <div className="pu-step-circle">1</div>
-                                    <div className="pu-step-title">Diajukan</div>
-                                    <div className="pu-step-sub">{selectedReq.created_by_nama || 'Pemohon'}</div>
+                            {/* Grid Metadata Key-Value */}
+                            <div className="pu-detail-meta-grid">
+                                <div className="pu-detail-meta-item">
+                                    <span className="pu-detail-meta-label">Ruangan</span>
+                                    <span className="pu-detail-meta-value">{selectedReq.ruang_nama || '—'}</span>
                                 </div>
-                                <div className={`pu-step ${selectedReq.status === 'DITOLAK' ? 'rejected' : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? 'done' : 'active')}`}>
-                                    <div className="pu-step-circle">2</div>
-                                    <div className="pu-step-title">Otorisasi Koordinator</div>
-                                    <div className="pu-step-sub">
-                                        {selectedReq.status === 'DITOLAK' ? 'Ditolak' : (selectedReq.approved_by_nama || 'Menunggu Otorisasi')}
-                                    </div>
+                                <div className="pu-detail-meta-item">
+                                    <span className="pu-detail-meta-label">Tanggal Diajukan</span>
+                                    <span className="pu-detail-meta-value">{formatTanggal(selectedReq.tanggal)}</span>
                                 </div>
-                                <div className={`pu-step ${selectedReq.status === 'SELESAI' ? 'done' : 'pending'}`}>
-                                    <div className="pu-step-circle">3</div>
-                                    <div className="pu-step-title">Penyerahan Fisik</div>
-                                    <div className="pu-step-sub">
-                                        {selectedReq.status === 'SELESAI' ? (selectedReq.bon_pengeluaran_nomor || 'Selesai') : 'Loket Gudang'}
-                                    </div>
+                                <div className="pu-detail-meta-item">
+                                    <span className="pu-detail-meta-label">Tanggal Diserahkan</span>
+                                    <span className="pu-detail-meta-value">
+                                        {selectedReq.tanggal_penyerahan ? formatTanggal(selectedReq.tanggal_penyerahan) : '—'}
+                                    </span>
+                                </div>
+                                <div className="pu-detail-meta-item">
+                                    <span className="pu-detail-meta-label">Penerima</span>
+                                    <span className="pu-detail-meta-value">{selectedReq.penerima_nama || '—'}</span>
                                 </div>
                             </div>
+
+                            {/* Compact Horizontal Audit Trail */}
+                            {(() => {
+                                const authState = selectedReq.status === 'DITOLAK'
+                                    ? 'rejected'
+                                    : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? 'done' : 'active');
+                                const handState = selectedReq.status === 'SELESAI' ? 'done' : 'pending';
+                                const renderAuditIcon = (state) => {
+                                    if (state === 'done') return <CheckCircle2 size={14} className="pu-audit-icon" />;
+                                    if (state === 'rejected') return <XCircle size={14} className="pu-audit-icon" />;
+                                    return <Clock size={14} className="pu-audit-icon" />;
+                                };
+
+                                return (
+                                    <div className="pu-audit-trail">
+                                        <div className="pu-audit-step done">
+                                            <div className="pu-audit-step-head">
+                                                {renderAuditIcon('done')}
+                                                <span className="pu-audit-step-title">Diajukan</span>
+                                            </div>
+                                            <span className="pu-audit-step-sub">{selectedReq.created_by_nama || 'Pemohon'}</span>
+                                        </div>
+                                        <div className={`pu-audit-step ${authState}`}>
+                                            <div className="pu-audit-step-head">
+                                                {renderAuditIcon(authState)}
+                                                <span className="pu-audit-step-title">Otorisasi Koordinator</span>
+                                            </div>
+                                            <span className="pu-audit-step-sub">
+                                                {selectedReq.status === 'DITOLAK' ? 'Ditolak' : (selectedReq.approved_by_nama || 'Menunggu Otorisasi')}
+                                            </span>
+                                        </div>
+                                        <div className={`pu-audit-step ${handState}`}>
+                                            <div className="pu-audit-step-head">
+                                                {renderAuditIcon(handState)}
+                                                <span className="pu-audit-step-title">Penyerahan Fisik</span>
+                                            </div>
+                                            <span className="pu-audit-step-sub">
+                                                {selectedReq.status === 'SELESAI' ? (selectedReq.bon_pengeluaran_nomor || 'Selesai') : 'Loket Gudang'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Alasan Ditolak Alert */}
                             {selectedReq.status === 'DITOLAK' && selectedReq.alasan_tolak && (
@@ -1175,20 +1224,16 @@ export default function PermintaanUnit() {
                         </div>
 
                         <div className="pu-modal-footer">
-                            <button
-                                type="button"
-                                className="pu-btn soft"
-                                onClick={() => handlePrintSPB(selectedReq)}
-                            >
-                                <Printer size={15} /> Cetak SPB
+                            <button type="button" className="pu-btn soft" onClick={() => setShowDetailModal(false)}>
+                                Tutup
                             </button>
 
                             {selectedReq.can_approve && selectedReq.status === 'MENUNGGU' && (
                                 <>
                                     <button
                                         type="button"
-                                        className="pu-btn"
-                                        style={{ background: '#e11d48', color: '#fff' }}
+                                        className="pu-btn soft"
+                                        style={{ color: '#dc2626' }}
                                         onClick={() => handleOpenRejectModal(selectedReq)}
                                     >
                                         <X size={15} /> Tolak
@@ -1203,8 +1248,12 @@ export default function PermintaanUnit() {
                                 </>
                             )}
 
-                            <button type="button" className="pu-btn soft" onClick={() => setShowDetailModal(false)}>
-                                Tutup
+                            <button
+                                type="button"
+                                className="pu-btn primary"
+                                onClick={() => handlePrintSPB(selectedReq)}
+                            >
+                                <Printer size={15} /> Cetak SPB
                             </button>
                         </div>
                     </div>
