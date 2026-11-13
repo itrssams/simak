@@ -975,17 +975,19 @@ export default function Layout({ children }) {
                     top: 0;
                     z-index: 200;
                     height: ${TOPBAR_H}px;
-                    background: rgba(255,255,255,.78);
-                    backdrop-filter: blur(22px);
-                    -webkit-backdrop-filter: blur(22px);
-                    border-bottom: 1px solid rgba(255,255,255,.70);
+                    background: #0b0f17;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    padding: 0 14px;
-                    gap: 10px;
-                    box-shadow: var(--inv-shadow);
+                    padding: 0 20px;
+                    gap: 12px;
+                    box-shadow: none;
                     flex-shrink: 0;
+                }
+                [data-theme="light"] .topbar {
+                    background: #ffffff;
+                    border-bottom: 1px solid #e3e8ee;
                 }
                 .topbar-left,
                 .topbar-right {
@@ -999,7 +1001,7 @@ export default function Layout({ children }) {
                     min-width: 0;
                 }
                 .topbar-right {
-                    gap: 8px;
+                    gap: 6px;
                     justify-content: flex-end;
                     flex: 0 0 auto;
                 }
@@ -1123,7 +1125,7 @@ export default function Layout({ children }) {
                 .odoo-horizontal-submenus {
                     display: flex;
                     align-items: center;
-                    gap: 3px;
+                    gap: 6px;
                     overflow-x: auto;
                     scrollbar-width: none;
                 }
@@ -1137,42 +1139,52 @@ export default function Layout({ children }) {
                     min-width: 0;
                 }
                 .topbar-menu-item {
+                    position: relative;
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    padding: 6px 12px;
-                    border-radius: 8px;
+                    height: ${TOPBAR_H}px;
+                    padding: 0 10px;
+                    border-radius: 0;
                     border: none;
                     background: transparent;
-                    color: rgba(255, 255, 255, 0.72);
-                    font-size: 12.5px;
-                    font-weight: 600;
+                    color: #94a3b8;
+                    font-size: 13px;
+                    font-weight: 500;
                     cursor: pointer;
-                    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                    transition: color 0.15s ease;
                     white-space: nowrap;
                     font-family: inherit;
                 }
-                [data-theme="light"] .topbar-menu-item { color: #475569; }
+                [data-theme="light"] .topbar-menu-item { color: #697386; }
                 .topbar-menu-item:hover {
-                    color: #ffffff;
-                    background: rgba(255, 255, 255, 0.12);
-                    transform: translateY(-1px);
+                    color: #f8fafc;
+                    background: transparent;
                 }
                 [data-theme="light"] .topbar-menu-item:hover {
-                    color: #0f172a;
-                    background: rgba(0, 0, 0, 0.06);
-                    transform: translateY(-1px);
+                    color: #1a1f36;
+                    background: transparent;
                 }
                 .topbar-menu-item.active {
-                    color: #38bdf8;
-                    background: rgba(56, 189, 248, 0.16);
-                    font-weight: 700;
-                    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28);
+                    color: #f8fafc;
+                    background: transparent;
+                    font-weight: 600;
+                    box-shadow: none;
                 }
                 [data-theme="light"] .topbar-menu-item.active {
-                    color: #0284c7;
-                    background: rgba(2, 132, 199, 0.12);
-                    box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.25);
+                    color: #1a1f36;
+                    background: transparent;
+                    box-shadow: none;
+                }
+                .topbar-menu-item.active::after {
+                    content: '';
+                    position: absolute;
+                    left: 10px;
+                    right: 10px;
+                    bottom: 0;
+                    height: 2px;
+                    background: #635bff;
+                    border-radius: 1px 1px 0 0;
                 }
                 .topbar-menu-dropdown-wrap { position: relative; }
                 .topbar-dropdown-menu {
@@ -1275,32 +1287,36 @@ export default function Layout({ children }) {
                     align-items: center;
                     gap: 7px;
                     flex-shrink: 0;
-                    border: 1px solid rgba(99,102,241,.14);
+                    height: 34px;
+                    box-sizing: border-box;
+                    border: 1px solid #e3e8ee;
                     border-radius: 999px;
-                    background: rgba(255,255,255,.76);
-                    padding: 3px 3px 3px 10px;
-                    box-shadow: 0 12px 30px rgba(99,102,241,.10);
+                    background: #f7f9fc;
+                    padding: 2px 3px 2px 10px;
+                    box-shadow: none;
                 }
                 .notify-wrap {
                     position: relative;
                     flex-shrink: 0;
+                    display: inline-flex;
+                    align-items: center;
                 }
                 .notify-btn {
                     position: relative;
                     width: 32px;
                     height: 32px;
                     padding: 0;
-                    border: 1px solid rgba(99,102,241,.16);
-                    border-radius: 11px;
-                    background: rgba(255,255,255,.72);
-                    color: var(--inv-primary-dark);
+                    border: 1px solid transparent;
+                    border-radius: 6px;
+                    background: transparent;
+                    color: #697386;
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
                     cursor: pointer;
-                    transition: background .12s ease, border-color .12s ease;
+                    transition: background .12s ease, color .12s ease;
                 }
-                .notify-btn:hover { background: rgba(238,242,255,.95); border-color: rgba(99,102,241,.32); }
+                .notify-btn:hover { background: #f1f5f9; color: #1a1f36; }
                 .notify-badge {
                     position: absolute;
                     top: -5px;
@@ -1872,13 +1888,8 @@ export default function Layout({ children }) {
                             onClick={handleInstallClick}
                             title="Pasang SIMAK di Desktop / PC"
                             type="button"
-                            style={{
-                                color: '#0284c7',
-                                borderColor: 'rgba(2, 132, 199, 0.3)',
-                                background: 'rgba(2, 132, 199, 0.08)',
-                            }}
                         >
-                            <Download size={16} strokeWidth={2.4} />
+                            <Download size={16} strokeWidth={2.2} />
                         </button>
                     )}
 
