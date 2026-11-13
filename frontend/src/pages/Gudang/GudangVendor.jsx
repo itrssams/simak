@@ -8,7 +8,6 @@ import {
     Trash2,
     Building2,
     X,
-    Check,
     ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
@@ -415,7 +414,9 @@ export default function GudangVendor({ heroActionsTarget = null }) {
 
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Kategori Rekanan *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Kategori Rekanan *</label>
+                                        </div>
                                         <select
                                             value={formData.kategori}
                                             onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
@@ -429,7 +430,9 @@ export default function GudangVendor({ heroActionsTarget = null }) {
                                         </select>
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Kontak Person / PIC (Sales)</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Kontak Person / PIC (Sales)</label>
+                                        </div>
                                         <input
                                             type="text"
                                             placeholder="Contoh: Budi Santoso / Ibu Maya"
@@ -476,7 +479,6 @@ export default function GudangVendor({ heroActionsTarget = null }) {
                                     style={{ padding: '0 16px' }}
                                     disabled={saving}
                                 >
-                                    <Check size={14} strokeWidth={1.75} />
                                     {saving ? 'Menyimpan...' : isEditMode ? 'Simpan Perubahan' : 'Simpan Vendor'}
                                 </button>
                             </div>

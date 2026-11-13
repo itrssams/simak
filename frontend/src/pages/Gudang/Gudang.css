@@ -3681,11 +3681,27 @@
 }
 
 .gdg-form-group input,
-.gdg-form-group select {
+.gdg-form-group select,
+.gdg-modal .gdg-form-group input,
+.gdg-modal .gdg-form-group select {
     height: 36px;
     min-height: 36px;
     max-height: 36px;
+    margin: 0;
+    line-height: 1.4;
+    border-radius: 6px;
+    font-size: 13px;
     box-sizing: border-box;
+}
+
+.gdg-modal .gdg-form-group select option {
+    background: #181b23;
+    color: #e2e8f0;
+}
+
+[data-theme="light"] .gdg-modal .gdg-form-group select option {
+    background: #ffffff;
+    color: #1a1f36;
 }
 
 .gdg-input-group {
