@@ -26,6 +26,25 @@ import {
 import { useAuth } from '../context/AuthContext';
 import './AppSwitcherModal.css';
 
+const CATEGORY_BY_ID = {
+    'catatan-utang': 'keuangan',
+    'penagihan-invoice': 'keuangan',
+    'petty-cash': 'keuangan',
+    'akuntansi': 'keuangan',
+    'manajemen-aset': 'logistik',
+    'gudang-logistik': 'logistik',
+    'amprahan-unit': 'logistik',
+    'driver': 'logistik',
+    'logbook': 'sdm',
+    'sdm': 'sdm',
+    'pengumuman': 'sdm',
+    'audit-log': 'sistem',
+    'manajemen-user': 'sistem',
+    'manajemen-sistem': 'sistem',
+    'it-center': 'sistem',
+    'statistik-analitik': 'sistem',
+};
+
 export default function AppSwitcherModal({ isOpen, onClose }) {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -291,7 +310,7 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                                         navigate(app.path);
                                     }}
                                 >
-                                    <div className="app-switcher-tile-icon">
+                                    <div className={`app-switcher-tile-icon cat-${CATEGORY_BY_ID[app.id] || 'sistem'}`}>
                                         <Icon size={20} strokeWidth={1.85} />
                                     </div>
                                     <span className="app-switcher-tile-name">{app.name}</span>
