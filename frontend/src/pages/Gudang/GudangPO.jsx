@@ -5,21 +5,17 @@ import {
     Plus,
     Search,
     RefreshCw,
-    Pencil,
     Eye,
     Send,
     CheckCircle2,
     XCircle,
     Printer,
-    FileSpreadsheet,
     FileText,
     Trash2,
     X,
-    Calendar,
-    Building2,
     Check,
     ReceiptText,
-    PackageCheck
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -28,7 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import DateField from '../../components/DateField';
 import SearchableSelect from '../../components/SearchableSelect';
 
-export default function GudangPO() {
+export default function GudangPO({ heroActionsTarget = null }) {
     const navigate = useNavigate();
     const toast = useToast();
     const { user } = useAuth();
@@ -463,80 +459,90 @@ export default function GudangPO() {
         printWindow.document.close();
     };
 
+    const heroActions = (
+        <>
+            <button type="button" className="gdg-btn-stripe secondary" onClick={fetchPOs} disabled={loading}>
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
+            </button>
+            <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                <Plus size={14} />
+                <span>Buat Surat Pesanan (PO)</span>
+            </button>
+        </>
+    );
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="gdg-card">
-                <div className="gdg-card-head">
-                    <div className="gdg-card-title">
-                        <h2>Surat Pesanan Barang (PO / SPB)</h2>
-                        <p>Kelola pemesanan barang ke rekanan dengan penomoran berurutan & approval bertingkat</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="gdg-btn soft" onClick={fetchPOs} disabled={loading}>
-                            <RefreshCw size={15} /> Refresh
-                        </button>
-                        <button className="gdg-btn primary" onClick={handleOpenCreate}>
-                            <Plus size={16} /> Buat Surat Pesanan (PO)
-                        </button>
-                    </div>
-                </div>
+        <div className="gdg-dash-root">
+            {heroActionsTarget
+                ? createPortal(heroActions, heroActionsTarget)
+                : <div className="gdg-brg-fallback-actions">{heroActions}</div>}
 
+            <section className="gdg-dash-section">
                 {/* FILTER TOOLBAR */}
-                <div className="gdg-toolbar" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                    <div className="gdg-search">
-                        <Search size={16} />
-                        <input
-                            type="text"
-                            placeholder="Cari nomor PO, rekanan/vendor..."
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                        />
+                <div className="gdg-brg-toolbar">
+                    <div className="gdg-brg-toolbar-left">
+                        <div className="gdg-dash-search">
+                            <Search size={14} className="gdg-dash-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Cari nomor PO, rekanan/vendor..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                            />
+                        </div>
+
+                        <div className="gdg-ks-select-wrap">
+                            <select
+                                className="gdg-ks-select gdg-brg-select"
+                                value={statusFilter}
+                                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                            >
+                                <option value="">Semua Status ({totalCount})</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="MENUNGGU_APPROVAL">Menunggu Approval</option>
+                                <option value="DISETUJUI">Disetujui</option>
+                                <option value="SELESAI">Selesai (GRN)</option>
+                                <option value="DITOLAK">Ditolak</option>
+                                <option value="BATAL">Dibatalkan</option>
+                            </select>
+                            <ChevronDown size={14} className="gdg-ks-select-chevron" />
+                        </div>
+
+                        {(searchQuery || statusFilter) && (
+                            <button
+                                type="button"
+                                className="gdg-btn-stripe secondary"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setStatusFilter('');
+                                    setPage(1);
+                                }}
+                                title="Reset pencarian dan filter"
+                            >
+                                <X size={14} />
+                                <span>Reset</span>
+                            </button>
+                        )}
                     </div>
-
-                    <select
-                        className="gdg-select-control"
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                        style={{ minWidth: '220px' }}
-                    >
-                        <option value="">Semua Status ({totalCount})</option>
-                        <option value="DRAFT">Draft</option>
-                        <option value="MENUNGGU_APPROVAL">Menunggu Approval</option>
-                        <option value="DISETUJUI">Disetujui</option>
-                        <option value="SELESAI">Selesai (GRN)</option>
-                        <option value="DITOLAK">Ditolak</option>
-                        <option value="BATAL">Dibatalkan</option>
-                    </select>
-
-                    {(searchQuery || statusFilter) && (
-                        <button
-                            type="button"
-                            className="gdg-btn soft"
-                            onClick={() => {
-                                setSearchQuery('');
-                                setStatusFilter('');
-                                setPage(1);
-                            }}
-                            title="Reset pencarian dan filter"
-                        >
-                            <X size={14} /> Reset
-                        </button>
-                    )}
+                    <div className="gdg-brg-total-hint">
+                        Menampilkan {poList.length} dari {totalCount} PO
+                    </div>
                 </div>
 
                 {/* PO TABLE */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
                                 <th style={{ width: '130px' }}>No. PO</th>
                                 <th style={{ width: '110px' }}>Tanggal</th>
                                 <th>Rekanan / Vendor</th>
-                                <th style={{ width: '150px' }}>Total Nilai</th>
-                                <th style={{ width: '150px' }}>Status</th>
-                                <th style={{ width: '120px' }}>Pembuat</th>
-                                <th style={{ width: '120px' }}>Penyetuju</th>
-                                <th style={{ width: '120px', textAlign: 'center' }}>Aksi</th>
+                                <th style={{ width: '150px', textAlign: 'right' }}>Total Nilai</th>
+                                <th style={{ width: '165px' }}>Status</th>
+                                <th style={{ width: '130px' }}>Pembuat</th>
+                                <th style={{ width: '130px' }}>Penyetuju</th>
+                                <th style={{ width: '160px', textAlign: 'right' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -548,20 +554,23 @@ export default function GudangPO() {
                                 </tr>
                             ) : poList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" className="gdg-table-empty" style={{ padding: '48px 20px', textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.08)', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <FileText size={24} />
+                                    <td colSpan="8" className="gdg-table-empty gdg-po-empty-cell">
+                                        <div className="gdg-po-empty-box">
+                                            <FileText size={28} strokeWidth={1.6} className="gdg-po-empty-icon" />
+                                            <div className="gdg-po-empty-title">
+                                                {searchQuery || statusFilter
+                                                    ? 'Tidak ada Surat Pesanan yang cocok dengan pencarian / filter.'
+                                                    : 'Belum ada data Surat Pesanan (PO)'}
                                             </div>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-primary, #1e293b)', fontSize: '0.96rem' }}>
-                                                {searchQuery || statusFilter ? 'Tidak ada Surat Pesanan yang cocok dengan pencarian / filter.' : 'Belum ada data Surat Pesanan (PO)'}
-                                            </div>
-                                            <p style={{ margin: 0, color: '#64748b', fontSize: '0.85rem', maxWidth: '440px' }}>
-                                                {searchQuery || statusFilter ? 'Silakan periksa kembali kata kunci pencarian atau reset filter status.' : 'Buat Surat Pesanan (PO) baru untuk memesan stok barang ke vendor rekanan.'}
+                                            <p className="gdg-po-empty-desc">
+                                                {searchQuery || statusFilter
+                                                    ? 'Silakan periksa kembali kata kunci pencarian atau reset filter status.'
+                                                    : 'Buat Surat Pesanan (PO) baru untuk memesan stok barang ke vendor rekanan.'}
                                             </p>
                                             {!searchQuery && !statusFilter && (
-                                                <button type="button" className="gdg-btn primary" onClick={handleOpenCreate} style={{ marginTop: '6px' }}>
-                                                    <Plus size={16} /> Buat Surat Pesanan Pertama
+                                                <button type="button" className="gdg-btn-stripe primary" onClick={handleOpenCreate}>
+                                                    <Plus size={14} />
+                                                    <span>Buat Surat Pesanan Pertama</span>
                                                 </button>
                                             )}
                                         </div>
@@ -571,62 +580,43 @@ export default function GudangPO() {
                                 poList.map((po) => {
                                     const isDraft = po.status === 'DRAFT';
                                     const isMenunggu = po.status === 'MENUNGGU_APPROVAL';
-                                    const isDisetujui = po.status === 'DISETUJUI';
                                     const isSelesai = po.status === 'SELESAI';
                                     const isDitolak = po.status === 'DITOLAK';
 
-                                    let badgeColor = 'slate';
-                                    if (isDraft) badgeColor = 'slate';
-                                    else if (isMenunggu) badgeColor = 'amber';
-                                    else if (isDisetujui) badgeColor = 'emerald';
-                                    else if (isSelesai) badgeColor = 'blue';
-                                    else if (isDitolak) badgeColor = 'rose';
+                                    let statusTone = 'slate';
+                                    if (isDraft) statusTone = 'slate';
+                                    else if (isMenunggu) statusTone = 'amber';
+                                    else if (po.status === 'DISETUJUI') statusTone = 'emerald';
+                                    else if (isSelesai) statusTone = 'indigo';
+                                    else if (isDitolak || po.status === 'BATAL') statusTone = 'rose';
 
                                     return (
                                         <tr key={po.id}>
-                                            <td className="gdg-code-cell">
-                                                {po.nomor}
-                                            </td>
-                                            <td>{po.tanggal}</td>
+                                            <td className="gdg-code-cell">{po.nomor}</td>
+                                            <td className="gdg-num-cell">{po.tanggal}</td>
                                             <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <div
-                                                        style={{
-                                                            width: '26px',
-                                                            height: '26px',
-                                                            borderRadius: '6px',
-                                                            background: 'rgba(37, 99, 235, 0.08)',
-                                                            color: '#2563eb',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            flexShrink: 0
-                                                        }}
-                                                    >
-                                                        <Building2 size={14} />
-                                                    </div>
-                                                    <div>
-                                                        <strong>{po.vendor_nama}</strong>
-                                                        {po.catatan && <small style={{ display: 'block', color: '#64748b', marginTop: '2px' }}>{po.catatan}</small>}
-                                                    </div>
-                                                </div>
+                                                <div className="gdg-po-vendor-name">{po.vendor_nama}</div>
+                                                {po.catatan && <div className="gdg-po-vendor-note">{po.catatan}</div>}
                                             </td>
-                                            <td style={{ fontWeight: 600 }}>{formatMoney(po.total_nilai)}</td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                {formatMoney(po.total_nilai)}
+                                            </td>
                                             <td>
-                                                <span className={`gdg-badge ${badgeColor}`}>
-                                                    {po.status}
+                                                <span className={`gdg-status-text ${statusTone}`}>
+                                                    <span className="gdg-status-dot" />
+                                                    <span>{po.status}</span>
                                                 </span>
                                                 {po.catatan_tolak && isDitolak && (
-                                                    <small style={{ display: 'block', color: '#f43f5e', marginTop: '2px' }}>{po.catatan_tolak}</small>
+                                                    <div className="gdg-po-reject-note">{po.catatan_tolak}</div>
                                                 )}
                                             </td>
-                                            <td><small>{po.created_by_nama || '-'}</small></td>
-                                            <td><small>{po.approved_by_nama || '-'}</small></td>
-                                            <td style={{ textAlign: 'center' }}>
-                                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                            <td className="gdg-po-meta-cell">{po.created_by_nama || '-'}</td>
+                                            <td className="gdg-po-meta-cell">{po.approved_by_nama || '-'}</td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div className="gdg-brg-row-actions">
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn view"
+                                                        className="gdg-brg-icon-btn"
                                                         onClick={() => { setSelectedPO(po); setShowDetailModal(true); }}
                                                         title="Lihat Detail Barang PO"
                                                     >
@@ -634,7 +624,7 @@ export default function GudangPO() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn print"
+                                                        className="gdg-brg-icon-btn"
                                                         onClick={() => printPO(po)}
                                                         title="Cetak Surat Pesanan (Print PDF)"
                                                     >
@@ -644,12 +634,12 @@ export default function GudangPO() {
                                                     {isDraft && (
                                                         <button
                                                             type="button"
-                                                            className="gdg-btn primary"
-                                                            style={{ height: '32px', minHeight: '32px', padding: '0 12px', fontSize: '0.78rem', borderRadius: '8px' }}
+                                                            className="gdg-btn-stripe primary gdg-po-ajukan-btn"
                                                             onClick={() => handleActionSubmitToKasi(po)}
                                                             title="Ajukan ke Kepala Seksi / Atasan"
                                                         >
-                                                            <Send size={13} /> Ajukan
+                                                            <Send size={12} />
+                                                            <span>Ajukan</span>
                                                         </button>
                                                     )}
 
@@ -658,7 +648,7 @@ export default function GudangPO() {
                                                         <>
                                                             <button
                                                                 type="button"
-                                                                className="gdg-action-btn success"
+                                                                className="gdg-brg-icon-btn success"
                                                                 onClick={() => handleActionApprove(po)}
                                                                 title="Setujui PO Ini"
                                                             >
@@ -666,7 +656,7 @@ export default function GudangPO() {
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                className="gdg-action-btn delete"
+                                                                className="gdg-brg-icon-btn danger"
                                                                 onClick={() => handleActionReject(po)}
                                                                 title="Tolak PO Ini"
                                                             >
@@ -675,7 +665,10 @@ export default function GudangPO() {
                                                         </>
                                                     )}
                                                     {isMenunggu && !po.can_approve && !isSuper && (
-                                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', padding: '0 4px' }} title="Menunggu persetujuan Kepala Seksi / Atasan (Pembuat tidak dapat menyetujui dokumen sendiri)">
+                                                        <span
+                                                            className="gdg-po-waiting-hint"
+                                                            title="Menunggu persetujuan Kepala Seksi / Atasan (Pembuat tidak dapat menyetujui dokumen sendiri)"
+                                                        >
                                                             Menunggu Atasan
                                                         </span>
                                                     )}
@@ -684,7 +677,7 @@ export default function GudangPO() {
                                                     {po.status === 'DISETUJUI' && isSuper && (
                                                         <button
                                                             type="button"
-                                                            className="gdg-action-btn delete"
+                                                            className="gdg-brg-icon-btn danger"
                                                             onClick={() => handleActionBatalPO(po)}
                                                             title="Batalkan PO (Superadmin Override)"
                                                         >
@@ -696,7 +689,7 @@ export default function GudangPO() {
                                                     {(isDraft || isDitolak || po.status === 'BATAL' || isSuper) && po.status !== 'SELESAI' && (
                                                         <button
                                                             type="button"
-                                                            className="gdg-action-btn delete"
+                                                            className="gdg-brg-icon-btn danger"
                                                             onClick={() => handleActionDeletePO(po)}
                                                             title="Hapus Surat Pesanan"
                                                         >
@@ -714,35 +707,28 @@ export default function GudangPO() {
                 </div>
 
                 {/* PAGINATION */}
-                <div className="gdg-pagination-wrap">
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
-            </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
+            </section>
 
             {/* MODAL BUAT SURAT PESANAN (PO) */}
             {showCreateModal && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowCreateModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '980px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon">
-                                    <FileText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Buat Surat Pesanan Barang (PO / SPB)</h3>
-                                    <p>Pilih rekanan penyedia dan tentukan rincian item barang yang akan dipesan ke distributor.</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Buat Surat Pesanan Barang (PO / SPB)</h3>
+                                <p>Pilih rekanan penyedia dan tentukan rincian item barang yang akan dipesan ke distributor.</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowCreateModal(false)}
                                 title="Tutup Modal"
                             >
@@ -754,16 +740,20 @@ export default function GudangPO() {
                             <div className="gdg-modal-body">
                                 <div className="gdg-form-row">
                                     <div className="gdg-form-group">
-                                        <label>Tanggal Surat Pesanan *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Tanggal Surat Pesanan *</label>
+                                        </div>
                                         <DateField
                                             value={formDate}
                                             onChange={(newDate) => setFormDate(newDate)}
                                             placeholder="Pilih tanggal pesanan..."
-                                            className="gdg-date-field"
+                                            className="gdg-date-field gdg-po-date-field"
                                         />
                                     </div>
                                     <div className="gdg-form-group">
-                                        <label>Rekanan / Vendor *</label>
+                                        <div className="gdg-form-label-row">
+                                            <label>Rekanan / Vendor *</label>
+                                        </div>
                                         <SearchableSelect
                                             options={vendorOptions}
                                             value={formVendor.id ? String(formVendor.id) : (formVendor.nama || '')}
@@ -796,6 +786,7 @@ export default function GudangPO() {
                                             clearable={true}
                                             creatable={true}
                                             minDropdownWidth={360}
+                                            popoverClassName="gdg-ks-ss-popover"
                                         />
                                     </div>
                                 </div>
@@ -812,37 +803,29 @@ export default function GudangPO() {
 
                                 {/* ITEM LIST */}
                                 <div className="gdg-detail-divider">
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                    <div className="gdg-po-items-head">
                                         <span className="gdg-detail-section-title">
                                             Daftar Barang yang Dipesan
                                         </span>
                                         <button
                                             type="button"
-                                            className="gdg-btn soft"
-                                            style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                                            className="gdg-btn-stripe secondary"
                                             onClick={handleAddItemRow}
                                         >
-                                            <Plus size={14} /> Tambah Item
+                                            <Plus size={14} />
+                                            <span>Tambah Item</span>
                                         </button>
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div className="gdg-po-items-list">
                                         {/* Column Headers for Items */}
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '2.8fr 1.3fr 1.4fr 1fr 1.4fr 1.4fr 36px',
-                                            gap: '10px',
-                                            padding: '0 2px 4px 2px',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 600,
-                                            color: '#94a3b8'
-                                        }}>
+                                        <div className="gdg-po-item-grid gdg-po-item-header">
                                             <div>Barang *</div>
                                             <div>Merk</div>
                                             <div>Kemasan</div>
                                             <div>Qty Pesan</div>
                                             <div>Harga / Kemasan</div>
-                                            <div>Subtotal</div>
+                                            <div style={{ textAlign: 'right' }}>Subtotal</div>
                                             <div></div>
                                         </div>
 
@@ -854,12 +837,7 @@ export default function GudangPO() {
                                             ] : [];
 
                                             return (
-                                                <div key={idx} className="gdg-item-row" style={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: '2.8fr 1.3fr 1.4fr 1fr 1.4fr 1.4fr 36px',
-                                                    gap: '10px',
-                                                    alignItems: 'center'
-                                                }}>
+                                                <div key={idx} className="gdg-po-item-grid gdg-item-row">
                                                     <div style={{ minWidth: 0 }}>
                                                         <SearchableSelect
                                                             options={barangOptions}
@@ -870,6 +848,7 @@ export default function GudangPO() {
                                                             emptyMessage="Barang tidak ditemukan"
                                                             minDropdownWidth={360}
                                                             maxDropdownWidth={600}
+                                                            popoverClassName="gdg-ks-ss-popover"
                                                         />
                                                     </div>
 
@@ -879,19 +858,7 @@ export default function GudangPO() {
                                                             value={selectedBrg?.merk || '-'}
                                                             readOnly
                                                             tabIndex={-1}
-                                                            className="gdg-inline-input"
-                                                            style={{
-                                                                width: '100%',
-                                                                height: '40px',
-                                                                borderRadius: '8px',
-                                                                background: 'rgba(255, 255, 255, 0.04)',
-                                                                color: selectedBrg?.merk ? 'var(--text-primary, #f8fafc)' : '#64748b',
-                                                                cursor: 'default',
-                                                                fontWeight: 500,
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap'
-                                                            }}
+                                                            className="gdg-inline-input gdg-po-readonly-input"
                                                             title={selectedBrg?.merk ? `Merk: ${selectedBrg.merk}` : 'Tidak ada merk terdaftar'}
                                                         />
                                                     </div>
@@ -901,7 +868,6 @@ export default function GudangPO() {
                                                             value={item.kemasan}
                                                             onChange={(e) => handleItemChange(idx, 'kemasan', e.target.value)}
                                                             className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px' }}
                                                         >
                                                             {kemasanOptions.map((k, kIdx) => (
                                                                 <option key={kIdx} value={k.nama}>
@@ -918,8 +884,7 @@ export default function GudangPO() {
                                                             step="1"
                                                             value={item.qty_kemasan}
                                                             onChange={(e) => handleItemChange(idx, 'qty_kemasan', e.target.value)}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px' }}
+                                                            className="gdg-inline-input gdg-num-cell"
                                                             required
                                                         />
                                                     </div>
@@ -931,26 +896,24 @@ export default function GudangPO() {
                                                             step="100"
                                                             value={item.harga_kemasan}
                                                             onChange={(e) => handleItemChange(idx, 'harga_kemasan', e.target.value)}
-                                                            className="gdg-inline-input"
-                                                            style={{ width: '100%', height: '40px', borderRadius: '8px' }}
+                                                            className="gdg-inline-input gdg-num-cell"
                                                         />
                                                     </div>
 
                                                     <div style={{ minWidth: 0 }}>
-                                                        <div className="gdg-subtotal-val" style={{ height: '40px', display: 'flex', alignItems: 'center', fontWeight: 700, fontSize: '0.88rem', color: '#38bdf8' }}>
+                                                        <div className="gdg-po-subtotal-val gdg-num-cell">
                                                             {formatMoney(item.subtotal)}
                                                         </div>
                                                     </div>
 
                                                     <button
                                                         type="button"
-                                                        className="gdg-action-btn delete"
-                                                        style={{ width: '36px', height: '36px' }}
+                                                        className="gdg-brg-icon-btn danger"
                                                         onClick={() => handleRemoveItemRow(idx)}
                                                         disabled={formItems.length === 1}
                                                         title="Hapus baris barang"
                                                     >
-                                                        <Trash2 size={15} />
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </div>
                                             );
@@ -958,20 +921,11 @@ export default function GudangPO() {
                                     </div>
 
                                     {/* GRAND TOTAL ROW */}
-                                    <div style={{
-                                        marginTop: '16px',
-                                        padding: '14px 20px',
-                                        background: 'rgba(37, 99, 235, 0.1)',
-                                        border: '1px solid rgba(37, 99, 235, 0.25)',
-                                        borderRadius: '10px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
-                                    }}>
-                                        <span style={{ fontWeight: 600, color: '#f8fafc' }}>
-                                            Total Estimasi Nilai Pesanan (PO):
+                                    <div className="gdg-po-grand-total">
+                                        <span className="gdg-po-grand-total-label">
+                                            Total Estimasi Nilai Pesanan (PO)
                                         </span>
-                                        <strong style={{ fontSize: '1.25rem', color: '#38bdf8' }}>
+                                        <strong className="gdg-po-grand-total-value gdg-num-cell">
                                             {formatMoney(grandTotal)}
                                         </strong>
                                     </div>
@@ -979,10 +933,10 @@ export default function GudangPO() {
                             </div>
 
                             <div className="gdg-modal-foot">
-                                <button type="button" className="gdg-btn soft" onClick={() => setShowCreateModal(false)} disabled={saving}>
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCreateModal(false)} disabled={saving}>
                                     Batal
                                 </button>
-                                <button type="submit" className="gdg-btn primary" disabled={saving}>
+                                <button type="submit" className="gdg-btn-stripe primary" disabled={saving}>
                                     {saving ? 'Menyimpan...' : 'Simpan Sebagai Draft'}
                                 </button>
                             </div>
@@ -992,35 +946,32 @@ export default function GudangPO() {
                 document.body
             )}
 
-            {/* MODAL DETAIL PO */}
             {/* MODAL DETAIL PO & PERBANDINGAN PENERIMAAN */}
             {showDetailModal && selectedPO && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => setShowDetailModal(false)}>
-                    <div className="gdg-modal" style={{ maxWidth: '1040px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-detail" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon">
-                                    <FileText size={20} />
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>Detail Surat Pesanan: {selectedPO.nomor}</h3>
-                                    <p>
-                                        Rekanan: <strong>{selectedPO.vendor_nama}</strong> | Tanggal: {selectedPO.tanggal} | Status: {' '}
-                                        <span className={`gdg-badge ${
-                                            selectedPO.status === 'DISETUJUI' ? 'emerald' :
-                                            selectedPO.status === 'SELESAI' ? 'blue' :
-                                            selectedPO.status === 'MENUNGGU_APPROVAL' ? 'amber' :
-                                            selectedPO.status === 'DITOLAK' || selectedPO.status === 'BATAL' ? 'rose' : 'slate'
-                                        }`}>
-                                            {selectedPO.status}
-                                        </span>
-                                    </p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>Detail Surat Pesanan: {selectedPO.nomor}</h3>
+                                <p className="gdg-po-detail-sub">
+                                    <span>Rekanan: <span className="gdg-po-detail-strong">{selectedPO.vendor_nama}</span></span>
+                                    <span>·</span>
+                                    <span>Tanggal: <span className="gdg-num-cell">{selectedPO.tanggal}</span></span>
+                                    <span>·</span>
+                                    <span className={`gdg-status-text ${
+                                        selectedPO.status === 'DISETUJUI' ? 'emerald' :
+                                        selectedPO.status === 'SELESAI' ? 'indigo' :
+                                        selectedPO.status === 'MENUNGGU_APPROVAL' ? 'amber' :
+                                        selectedPO.status === 'DITOLAK' || selectedPO.status === 'BATAL' ? 'rose' : 'slate'
+                                    }`}>
+                                        <span className="gdg-status-dot" />
+                                        <span>{selectedPO.status}</span>
+                                    </span>
+                                </p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setShowDetailModal(false)}
                                 title="Tutup Modal"
                             >
@@ -1030,17 +981,18 @@ export default function GudangPO() {
 
                         <div className="gdg-modal-body">
                             {/* SECTION 1: PERBANDINGAN ITEM PESANAN VS PENERIMAAN */}
-                            <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#f8fafc' }}>
-                                    Perbandingan Item Pesanan & Realisasi Penerimaan (GRN)
+                            <div className="gdg-po-section-head">
+                                <span className="gdg-po-section-title">
+                                    Perbandingan Item Pesanan &amp; Realisasi Penerimaan (GRN)
                                 </span>
-                                <small style={{ color: '#94a3b8' }}>
-                                    Total Estimasi PO: <strong style={{ color: '#38bdf8' }}>{formatMoney(selectedPO.total_nilai)}</strong>
-                                </small>
+                                <span className="gdg-po-section-meta">
+                                    Total Estimasi PO:{' '}
+                                    <strong className="gdg-num-cell">{formatMoney(selectedPO.total_nilai)}</strong>
+                                </span>
                             </div>
 
-                            <div className="gdg-table-wrap">
-                                <table className="gdg-table">
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
                                     <thead>
                                         <tr>
                                             <th>Barang</th>
@@ -1067,49 +1019,50 @@ export default function GudangPO() {
                                             return (
                                                 <tr key={it.id}>
                                                     <td>
-                                                        <strong>{it.barang_nama}</strong>
-                                                        <small style={{ display: 'block', color: '#64748b' }}>{it.barang_kode}</small>
+                                                        <div className="gdg-po-vendor-name">{it.barang_nama}</div>
+                                                        <div className="gdg-po-vendor-note">{it.barang_kode}</div>
                                                     </td>
-                                                    <td>
-                                                        <span style={{ fontWeight: 500, color: it.barang_merk ? 'inherit' : '#64748b' }}>
-                                                            {it.barang_merk || '-'}
-                                                        </span>
+                                                    <td className="gdg-po-meta-cell">
+                                                        {it.barang_merk || '-'}
                                                     </td>
                                                     <td>{Number(it.qty_kemasan)} {it.kemasan}</td>
-                                                    <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'center', fontWeight: 600 }}>
                                                         {qtyDasar} {it.satuan_dasar_kode}
                                                     </td>
-                                                    <td style={{ textAlign: 'center' }}>
-                                                        <span style={{ fontWeight: 700, color: qtyDiterima > 0 ? '#10b981' : '#64748b' }}>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'center' }}>
+                                                        <span style={{ fontWeight: 600, color: qtyDiterima > 0 ? '#10b981' : '#64748b' }}>
                                                             {qtyDiterima} {it.satuan_dasar_kode}
                                                         </span>
                                                     </td>
-                                                    <td style={{ textAlign: 'center' }}>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'center' }}>
                                                         {sisaDasar > 0 ? (
-                                                            <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                                                            <span style={{ color: '#f59e0b', fontWeight: 500 }}>
                                                                 {sisaKemasan} {it.kemasan} ({sisaDasar} {it.satuan_dasar_kode})
                                                             </span>
                                                         ) : (
-                                                            <span style={{ color: '#64748b' }}>-</span>
+                                                            <span className="gdg-po-meta-cell">-</span>
                                                         )}
                                                     </td>
                                                     <td style={{ textAlign: 'center' }}>
                                                         {isLengkap ? (
-                                                            <span className="gdg-badge emerald" style={{ fontSize: '0.78rem' }}>
-                                                                Selesai Penuh (100%)
+                                                            <span className="gdg-status-text emerald">
+                                                                <span className="gdg-status-dot" />
+                                                                <span>Selesai Penuh (100%)</span>
                                                             </span>
                                                         ) : isParsial ? (
-                                                            <span className="gdg-badge amber" style={{ fontSize: '0.78rem' }}>
-                                                                Diterima Sebagian ({pct}%)
+                                                            <span className="gdg-status-text amber">
+                                                                <span className="gdg-status-dot" />
+                                                                <span>Diterima Sebagian ({pct}%)</span>
                                                             </span>
                                                         ) : (
-                                                            <span className="gdg-badge slate" style={{ fontSize: '0.78rem' }}>
-                                                                Belum Diterima
+                                                            <span className="gdg-status-text slate">
+                                                                <span className="gdg-status-dot" />
+                                                                <span>Belum Diterima</span>
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td style={{ textAlign: 'right' }}>{formatMoney(it.harga_kemasan)}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(it.subtotal)}</td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right' }}>{formatMoney(it.harga_kemasan)}</td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(it.subtotal)}</td>
                                                 </tr>
                                             );
                                         })}
@@ -1118,32 +1071,26 @@ export default function GudangPO() {
                             </div>
 
                             {/* SECTION 2: RIWAYAT DOKUMEN PENERIMAAN FISIK (GRN TERKAIT) */}
-                            <div style={{ marginTop: '22px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                                    <ReceiptText size={17} style={{ color: '#38bdf8' }} />
-                                    <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#f8fafc' }}>
-                                        Riwayat Dokumen Penerimaan Fisik (GRN Terkait)
-                                    </span>
-                                    <span className="gdg-badge slate" style={{ fontSize: '0.75rem' }}>
+                            <div className="gdg-po-detail-grn-wrap">
+                                <div className="gdg-po-section-head">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <ReceiptText size={16} className="gdg-po-grn-icon" />
+                                        <span className="gdg-po-section-title">
+                                            Riwayat Dokumen Penerimaan Fisik (GRN Terkait)
+                                        </span>
+                                    </div>
+                                    <span className="gdg-po-section-meta">
                                         {(selectedPO.penerimaan_list || []).length} Dokumen
                                     </span>
                                 </div>
 
                                 {(selectedPO.penerimaan_list || []).length === 0 ? (
-                                    <div style={{
-                                        padding: '18px',
-                                        textAlign: 'center',
-                                        background: 'rgba(255, 255, 255, 0.02)',
-                                        border: '1px dashed rgba(255, 255, 255, 0.1)',
-                                        borderRadius: '8px',
-                                        color: '#94a3b8',
-                                        fontSize: '0.85rem'
-                                    }}>
+                                    <div className="gdg-po-grn-empty">
                                         Belum ada dokumen Penerimaan Fisik (GRN) yang dicatat untuk Surat Pesanan ini.
                                     </div>
                                 ) : (
-                                    <div className="gdg-table-wrap">
-                                        <table className="gdg-table">
+                                    <div className="gdg-table-wrap gdg-table-borderless">
+                                        <table className="gdg-table gdg-table-stripe">
                                             <thead>
                                                 <tr>
                                                     <th>No. GRN</th>
@@ -1157,24 +1104,21 @@ export default function GudangPO() {
                                             <tbody>
                                                 {selectedPO.penerimaan_list.map((grn) => (
                                                     <tr key={grn.id}>
-                                                        <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8' }}>
-                                                            {grn.nomor}
-                                                        </td>
-                                                        <td>{grn.tanggal}</td>
-                                                        <td style={{ fontFamily: 'monospace', color: grn.no_faktur ? 'inherit' : '#64748b' }}>
+                                                        <td className="gdg-code-cell">{grn.nomor}</td>
+                                                        <td className="gdg-num-cell">{grn.tanggal}</td>
+                                                        <td className="gdg-code-cell" style={{ color: grn.no_faktur ? 'inherit' : '#64748b' }}>
                                                             {grn.no_faktur || '-'}
                                                         </td>
-                                                        <td>
-                                                            <span className={`gdg-badge ${grn.metode_pembayaran === 'Kredit' ? 'blue' : 'slate'}`}>
-                                                                {grn.metode_pembayaran}
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                        <td>{grn.metode_pembayaran}</td>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                             {formatMoney(grn.total_nilai)}
                                                         </td>
                                                         <td style={{ textAlign: 'center' }}>
-                                                            <span className={`gdg-badge ${grn.status === 'DISETUJUI' ? 'emerald' : grn.status === 'BATAL' ? 'rose' : 'amber'}`}>
-                                                                {grn.status === 'DISETUJUI' ? 'Disetujui (Stok Bertambah)' : grn.status === 'BATAL' ? 'Dibatalkan' : 'Draft'}
+                                                            <span className={`gdg-status-text ${grn.status === 'DISETUJUI' ? 'emerald' : grn.status === 'BATAL' ? 'rose' : 'amber'}`}>
+                                                                <span className="gdg-status-dot" />
+                                                                <span>
+                                                                    {grn.status === 'DISETUJUI' ? 'Disetujui (Stok Bertambah)' : grn.status === 'BATAL' ? 'Dibatalkan' : 'Draft'}
+                                                                </span>
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -1186,78 +1130,84 @@ export default function GudangPO() {
                             </div>
                         </div>
 
-                        <div className="gdg-modal-foot" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="gdg-modal-foot gdg-po-modal-foot-split">
+                            <div className="gdg-po-foot-group">
                                 <button
                                     type="button"
-                                    className="gdg-btn soft"
+                                    className="gdg-btn-stripe secondary"
                                     onClick={() => printPO(selectedPO)}
                                 >
-                                    <Printer size={15} /> Cetak SPB / PO
+                                    <Printer size={14} />
+                                    <span>Cetak SPB / PO</span>
                                 </button>
                                 {selectedPO.status === 'DISETUJUI' && (
                                     <>
                                         <button
                                             type="button"
-                                            className="gdg-btn primary"
+                                            className="gdg-btn-stripe primary"
                                             onClick={() => {
                                                 setShowDetailModal(false);
                                                 navigate('/gudang/penerimaan');
                                             }}
                                             title="Buka menu Penerimaan (GRN) untuk memproses barang pesanan ini"
                                         >
-                                            <ReceiptText size={15} /> Proses Penerimaan (GRN)
+                                            <ReceiptText size={14} />
+                                            <span>Proses Penerimaan (GRN)</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="gdg-btn soft"
+                                            className="gdg-btn-stripe secondary"
                                             onClick={() => {
                                                 setShowDetailModal(false);
                                                 handleActionClosePO(selectedPO);
                                             }}
                                             title="Tutup SPB ini menjadi SELESAI (sisa barang yang belum datang dianggap hangus)"
                                         >
-                                            <CheckCircle2 size={15} /> Selesaikan SPB
+                                            <CheckCircle2 size={14} />
+                                            <span>Selesaikan SPB</span>
                                         </button>
                                     </>
                                 )}
                             </div>
 
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div className="gdg-po-foot-group">
                                 {selectedPO.status === 'MENUNGGU_APPROVAL' && (selectedPO.can_approve || isSuper) && (
                                     <>
                                         <button
                                             type="button"
-                                            className="gdg-btn danger"
+                                            className="gdg-btn-stripe danger"
                                             onClick={() => {
                                                 setShowDetailModal(false);
                                                 handleActionReject(selectedPO);
                                             }}
                                         >
-                                            <XCircle size={15} /> Tolak PO
+                                            <XCircle size={14} />
+                                            <span>Tolak PO</span>
                                         </button>
                                         <button
                                             type="button"
-                                            className="gdg-btn success"
+                                            className="gdg-btn-stripe success"
                                             onClick={() => {
                                                 setShowDetailModal(false);
                                                 handleActionApprove(selectedPO);
                                             }}
                                         >
-                                            <Check size={15} /> Setujui PO
+                                            <Check size={14} />
+                                            <span>Setujui PO</span>
                                         </button>
                                     </>
                                 )}
                                 {selectedPO.status === 'DISETUJUI' && isSuper && (
                                     <button
                                         type="button"
-                                        className="gdg-btn danger"
+                                        className="gdg-btn-stripe danger"
                                         onClick={() => {
                                             setShowDetailModal(false);
                                             handleActionBatalPO(selectedPO);
                                         }}
                                     >
-                                        <XCircle size={15} /> Batalkan PO
+                                        <XCircle size={14} />
+                                        <span>Batalkan PO</span>
                                     </button>
                                 )}
                             </div>
@@ -1270,28 +1220,15 @@ export default function GudangPO() {
             {/* MODAL KONFIRMASI AKSI (SUBMIT / APPROVE / REJECT) */}
             {confirmAction && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !confirmSubmitting && setConfirmAction(null)}>
-                    <div className="gdg-modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
-                            <div className="gdg-modal-header-content">
-                                <div className="gdg-modal-header-icon" style={{
-                                    background: confirmAction.type === 'APPROVE' ? 'rgba(16, 185, 129, 0.15)' :
-                                               confirmAction.type === 'REJECT' ? 'rgba(239, 68, 68, 0.15)' :
-                                               'rgba(37, 99, 235, 0.15)',
-                                    color: confirmAction.type === 'APPROVE' ? '#10b981' :
-                                           confirmAction.type === 'REJECT' ? '#ef4444' :
-                                           '#38bdf8'
-                                }}>
-                                    {confirmAction.icon}
-                                </div>
-                                <div className="gdg-modal-header-text">
-                                    <h3>{confirmAction.title}</h3>
-                                    <p>{confirmAction.subtitle || `${confirmAction.po.nomor} • ${confirmAction.po.vendor_nama}`}</p>
-                                </div>
+                            <div className="gdg-modal-header-text">
+                                <h3>{confirmAction.title}</h3>
+                                <p>{confirmAction.subtitle || `${confirmAction.po.nomor} • ${confirmAction.po.vendor_nama}`}</p>
                             </div>
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{ width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}
+                                className="gdg-brg-icon-btn"
                                 onClick={() => setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                                 title="Tutup Modal"
@@ -1301,59 +1238,41 @@ export default function GudangPO() {
                         </div>
 
                         <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.5', color: 'var(--text-secondary, #cbd5e1)' }}>
+                            <p className="gdg-po-confirm-msg">
                                 {confirmAction.message}
                             </p>
 
                             {/* Info Card Summary */}
-                            <div style={{
-                                padding: '12px 14px',
-                                borderRadius: '10px',
-                                background: 'rgba(255, 255, 255, 0.04)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '10px',
-                                fontSize: '0.84rem'
-                            }}>
+                            <div className="gdg-po-confirm-card">
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Nomor Dokumen</span>
-                                    <strong style={{ color: '#f8fafc' }}>{confirmAction.po.nomor}</strong>
+                                    <span className="gdg-po-confirm-label">Nomor Dokumen</span>
+                                    <strong className="gdg-po-confirm-val gdg-code-cell">{confirmAction.po.nomor}</strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Total Estimasi Nilai</span>
-                                    <strong style={{ color: '#38bdf8' }}>{formatMoney(confirmAction.po.total_nilai)}</strong>
+                                    <span className="gdg-po-confirm-label">Total Estimasi Nilai</span>
+                                    <strong className="gdg-po-confirm-val gdg-num-cell">{formatMoney(confirmAction.po.total_nilai)}</strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Rekanan / Vendor</span>
-                                    <strong style={{ color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                                    <span className="gdg-po-confirm-label">Rekanan / Vendor</span>
+                                    <strong className="gdg-po-confirm-val gdg-po-ellipsis">
                                         {confirmAction.po.vendor_nama}
                                     </strong>
                                 </div>
                                 <div>
-                                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Tanggal Pesanan</span>
-                                    <strong style={{ color: '#f8fafc' }}>{confirmAction.po.tanggal}</strong>
+                                    <span className="gdg-po-confirm-label">Tanggal Pesanan</span>
+                                    <strong className="gdg-po-confirm-val gdg-num-cell">{confirmAction.po.tanggal}</strong>
                                 </div>
                             </div>
 
                             {confirmAction.type === 'REJECT' && (
                                 <div className="gdg-form-group" style={{ margin: 0 }}>
-                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Alasan Penolakan <span style={{ color: '#ef4444' }}>*</span></label>
+                                    <label>Alasan Penolakan *</label>
                                     <textarea
                                         rows={3}
+                                        className="gdg-po-textarea"
                                         placeholder="Tuliskan catatan atau alasan penolakan surat pesanan..."
                                         value={confirmAction.rejectReason || ''}
                                         onChange={(e) => setConfirmAction(prev => ({ ...prev, rejectReason: e.target.value }))}
-                                        style={{
-                                            width: '100%',
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                                            background: 'rgba(255, 255, 255, 0.04)',
-                                            color: 'inherit',
-                                            fontSize: '0.88rem',
-                                            resize: 'vertical'
-                                        }}
                                         autoFocus
                                     />
                                 </div>
@@ -1363,7 +1282,7 @@ export default function GudangPO() {
                         <div className="gdg-modal-foot">
                             <button
                                 type="button"
-                                className="gdg-btn soft"
+                                className="gdg-btn-stripe secondary"
                                 onClick={() => setConfirmAction(null)}
                                 disabled={confirmSubmitting}
                             >
@@ -1371,7 +1290,7 @@ export default function GudangPO() {
                             </button>
                             <button
                                 type="button"
-                                className={`gdg-btn ${confirmAction.btnColor === 'danger' ? 'danger' : confirmAction.btnColor === 'success' ? 'success' : 'primary'}`}
+                                className={`gdg-btn-stripe ${confirmAction.btnColor === 'danger' ? 'danger' : confirmAction.btnColor === 'success' ? 'success' : 'primary'}`}
                                 onClick={handleExecuteConfirmAction}
                                 disabled={confirmSubmitting || (confirmAction.type === 'REJECT' && !confirmAction.rejectReason?.trim())}
                             >

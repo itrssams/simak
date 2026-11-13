@@ -279,7 +279,7 @@ export default function GudangIndex() {
                 {activeSection === 'dashboard' && <GudangDashboard />}
                 {activeSection === 'barang' && <GudangBarang heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'vendor' && <GudangVendor heroActionsTarget={heroActionsEl} />}
-                {activeSection === 'po' && <GudangPO />}
+                {activeSection === 'po' && <GudangPO heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'penerimaan' && <GudangPenerimaan />}
                 {activeSection === 'pengeluaran' && <GudangPengeluaran />}
                 {activeSection === 'kartu-stok' && <GudangKartuStok />}

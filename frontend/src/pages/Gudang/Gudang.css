@@ -3720,3 +3720,374 @@
     line-height: 1;
     box-sizing: border-box;
 }
+
+/* =========================================================
+   SURAT PESANAN BARANG (PO) - STRIPE ENTERPRISE POLISH
+========================================================= */
+.gdg-btn-stripe.success {
+    background: #059669;
+    border: 1px solid #059669;
+    color: #ffffff;
+}
+
+.gdg-btn-stripe.success:hover:not(:disabled) {
+    background: #047857;
+    border-color: #047857;
+}
+
+.gdg-btn-stripe.danger {
+    background: #dc2626;
+    border: 1px solid #dc2626;
+    color: #ffffff;
+}
+
+.gdg-btn-stripe.danger:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.gdg-brg-icon-btn.success:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
+}
+
+.gdg-brg-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.gdg-po-empty-cell {
+    padding: 52px 20px !important;
+    text-align: center;
+}
+
+.gdg-po-empty-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.gdg-po-empty-icon {
+    color: #64748b;
+}
+
+.gdg-po-empty-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--gdg-text);
+}
+
+.gdg-po-empty-desc {
+    margin: 0;
+    color: var(--gdg-muted);
+    font-size: 13px;
+    max-width: 440px;
+}
+
+.gdg-po-vendor-name {
+    font-weight: 600;
+    color: var(--gdg-text);
+    line-height: 1.35;
+}
+
+.gdg-po-vendor-note {
+    font-size: 12px;
+    color: var(--gdg-muted);
+    margin-top: 2px;
+    line-height: 1.35;
+}
+
+.gdg-po-reject-note {
+    font-size: 12px;
+    color: #f43f5e;
+    margin-top: 3px;
+}
+
+.gdg-po-meta-cell {
+    font-size: 12.5px;
+    color: var(--gdg-muted);
+}
+
+.gdg-po-ajukan-btn {
+    height: 28px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+}
+
+.gdg-po-waiting-hint {
+    font-size: 12px;
+    color: var(--gdg-muted);
+    font-style: italic;
+    padding: 0 4px;
+}
+
+.gdg-po-modal-wide {
+    max-width: 980px;
+}
+
+.gdg-po-modal-detail {
+    max-width: 1040px;
+}
+
+.gdg-po-modal-confirm {
+    max-width: 520px;
+}
+
+/* Uniform 36px height for DateField and SearchableSelect inside Stripe modals */
+.gdg-modal .gdg-form-group .gdg-po-date-field,
+.gdg-modal .gdg-form-group .df-trigger,
+.gdg-modal .gdg-form-group .ss-trigger,
+.gdg-modal .gdg-item-row .ss-trigger {
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    box-sizing: border-box !important;
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+}
+
+[data-theme="light"] .gdg-modal .gdg-form-group .gdg-po-date-field,
+[data-theme="light"] .gdg-modal .gdg-form-group .df-trigger,
+[data-theme="light"] .gdg-modal .gdg-form-group .ss-trigger,
+[data-theme="light"] .gdg-modal .gdg-item-row .ss-trigger {
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
+}
+
+.gdg-po-items-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.gdg-po-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gdg-po-item-grid {
+    display: grid;
+    grid-template-columns: 2.8fr 1.3fr 1.4fr 1fr 1.4fr 1.4fr 32px;
+    gap: 10px;
+    align-items: center;
+}
+
+.gdg-po-item-header {
+    padding: 0 2px 4px 2px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--gdg-muted);
+}
+
+.gdg-modal .gdg-item-row .gdg-inline-input {
+    width: 100%;
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    box-sizing: border-box;
+}
+
+.gdg-po-readonly-input {
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: var(--gdg-muted) !important;
+    cursor: default;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-theme="light"] .gdg-po-readonly-input {
+    background: #f8fafc !important;
+    color: #64748b !important;
+}
+
+.gdg-po-subtotal-val {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--gdg-text);
+}
+
+.gdg-po-grand-total {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+[data-theme="light"] .gdg-po-grand-total {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.gdg-po-grand-total-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gdg-muted);
+}
+
+.gdg-po-grand-total-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #635bff;
+}
+
+.gdg-po-detail-sub {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.gdg-po-detail-strong {
+    font-weight: 600;
+    color: var(--gdg-text);
+}
+
+.gdg-po-section-head {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.gdg-po-section-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--gdg-text);
+}
+
+.gdg-po-section-meta {
+    font-size: 12.5px;
+    color: var(--gdg-muted);
+}
+
+.gdg-po-section-meta strong {
+    color: var(--gdg-text);
+    font-weight: 600;
+}
+
+.gdg-po-detail-grn-wrap {
+    margin-top: 22px;
+    border-top: 1px solid var(--gdg-border);
+    padding-top: 16px;
+}
+
+.gdg-po-grn-icon {
+    color: var(--gdg-muted);
+}
+
+.gdg-po-grn-empty {
+    padding: 16px;
+    text-align: center;
+    background: #181b23;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: var(--gdg-muted);
+    font-size: 13px;
+}
+
+[data-theme="light"] .gdg-po-grn-empty {
+    background: #f8fafc;
+    border-color: #d8dee4;
+}
+
+.gdg-po-modal-foot-split {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gdg-po-foot-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gdg-po-confirm-msg {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--gdg-text);
+}
+
+.gdg-po-confirm-card {
+    padding: 12px 14px;
+    border-radius: 6px;
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 13px;
+}
+
+[data-theme="light"] .gdg-po-confirm-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.gdg-po-confirm-label {
+    color: var(--gdg-muted);
+    display: block;
+    font-size: 11.5px;
+    margin-bottom: 2px;
+}
+
+.gdg-po-confirm-val {
+    color: var(--gdg-text);
+    font-weight: 600;
+}
+
+.gdg-po-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.gdg-po-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #181b23;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gdg-po-textarea:focus {
+    border-color: #635bff;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
+}
+
+[data-theme="light"] .gdg-po-textarea {
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
+}
