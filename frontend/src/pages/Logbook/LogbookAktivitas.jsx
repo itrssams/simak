@@ -678,6 +678,7 @@ export default function LogbookAktivitas() {
                                             <label>Uraian Tugas <span className="lb-req">*</span></label>
                                             <SearchableSelect
                                                 name="uraian_tugas_id"
+                                                popoverClassName="lb-ss-popover"
                                                 options={uraianTugasSelectOptions}
                                                 value={formData.uraian_tugas_id}
                                                 onChange={(val) => setFormData(prev => ({ ...prev, uraian_tugas_id: val }))}

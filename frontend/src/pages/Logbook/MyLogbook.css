@@ -4025,19 +4025,23 @@
   color: #1a1f36 !important;
 }
 
-.lb-modal-header {
+.lb-modal-overlay .lb-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111318 !important;
+  background-image: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-[data-theme="light"] .lb-modal-header {
-  border-bottom: 1px solid #e3e8ee;
+[data-theme="light"] .lb-modal-overlay .lb-modal-header {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-bottom: 1px solid #e3e8ee !important;
 }
 
-.lb-modal-header h3 {
+.lb-modal-overlay .lb-modal-header h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
@@ -4163,17 +4167,20 @@
   color: #64748b;
 }
 
-.lb-modal-footer {
+.lb-modal-overlay .lb-modal-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111318 !important;
+  background-image: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-[data-theme="light"] .lb-modal-footer {
-  border-top: 1px solid #e3e8ee;
+[data-theme="light"] .lb-modal-overlay .lb-modal-footer {
+  background: #ffffff !important;
+  border-top: 1px solid #e3e8ee !important;
 }
 
 .lb-modal-overlay .lb-modal-footer .lb-btn {
@@ -4189,7 +4196,7 @@
 
 .lb-modal-overlay .lb-modal-footer .lb-btn.primary {
   background: #635bff !important;
-  border-color: #635bff !important;
+  border: 1px solid #635bff !important;
   color: #ffffff !important;
 }
 
@@ -4200,7 +4207,7 @@
 
 .lb-modal-overlay .lb-modal-footer .lb-btn.secondary {
   background: #181b23 !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: #e2e8f0 !important;
 }
 
@@ -4211,7 +4218,7 @@
 
 [data-theme="light"] .lb-modal-overlay .lb-modal-footer .lb-btn.secondary {
   background: #ffffff !important;
-  border-color: #d8dee4 !important;
+  border: 1px solid #d8dee4 !important;
   color: #1a1f36 !important;
 }
 
@@ -5028,6 +5035,179 @@
   .lb-textarea-spacious {
     min-height: 160px;
   }
+}
+
+/* ============================================================================
+   SEARCHABLE SELECT POPOVER (URAIAIN TUGAS DROPDOWN — STRIPE / LINEAR STYLE)
+   ============================================================================ */
+
+.searchable-select-popover.lb-ss-popover {
+  background: #111318 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover {
+  background: #ffffff !important;
+  border: 1px solid #e3e8ee !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-header {
+  padding: 10px 12px !important;
+  background: #111318 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  gap: 10px !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e3e8ee !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-search-input {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  background: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+  padding-left: 36px !important;
+  padding-right: 30px !important;
+  box-shadow: none !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-search-input:focus {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-search-input {
+  background: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-search-icon {
+  left: 11px !important;
+  color: #94a3b8 !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-count {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 4px !important;
+  border-radius: 0 !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: #94a3b8 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-count {
+  color: #64748b !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-list {
+  padding: 6px !important;
+  gap: 2px !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item {
+  min-height: 34px !important;
+  padding: 7px 10px !important;
+  border-radius: 6px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  border: 1px solid transparent !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item-icon,
+.searchable-select-popover.lb-ss-popover .searchable-select-item-num {
+  display: none !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item-label {
+  color: #1a1f36 !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item-subtext {
+  font-size: 11.5px !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item-subtext {
+  color: #64748b !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item:hover,
+.searchable-select-popover.lb-ss-popover .searchable-select-item.active {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item:hover,
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.active {
+  background: #f1f5f9 !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item.selected {
+  background: rgba(99, 91, 255, 0.14) !important;
+  border-color: rgba(99, 91, 255, 0.35) !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.selected {
+  background: rgba(99, 91, 255, 0.08) !important;
+  border-color: rgba(99, 91, 255, 0.25) !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item.selected .searchable-select-item-label,
+.searchable-select-popover.lb-ss-popover .searchable-select-item.selected .searchable-select-item-check {
+  color: #a5b4fc !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.selected .searchable-select-item-label,
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.selected .searchable-select-item-check {
+  color: #635bff !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item.special-item {
+  border-top: 1px dashed rgba(255, 255, 255, 0.1) !important;
+  background: transparent !important;
+  margin-top: 4px !important;
+  padding-top: 9px !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.special-item {
+  border-top: 1px dashed #e3e8ee !important;
+  background: transparent !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item.special-item:hover,
+.searchable-select-popover.lb-ss-popover .searchable-select-item.special-item.active {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.special-item:hover,
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.special-item.active {
+  background: #f1f5f9 !important;
+}
+
+.searchable-select-popover.lb-ss-popover .searchable-select-item.special-item .searchable-select-item-label {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .searchable-select-popover.lb-ss-popover .searchable-select-item.special-item .searchable-select-item-label {
+  color: #3c4257 !important;
 }
 
 
