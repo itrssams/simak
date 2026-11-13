@@ -48,16 +48,16 @@
     max-width: calc(100vw - 20px);
     box-sizing: border-box;
     overflow: hidden !important;
-    border: 1px solid #e2e8f0;
-    border-radius: 18px;
+    border: 1px solid #e3e8ee;
+    border-radius: 8px;
     background: #ffffff;
-    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
     padding: 6px;
-    animation: dfPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: dfPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes dfPop {
-    from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+    from { opacity: 0; transform: scale(0.97) translateY(-4px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -66,12 +66,13 @@
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    background: transparent !important;
     padding: 8px 6px 4px !important;
 }
 
 .df-popover .react-datepicker__header {
-    background: #ffffff !important;
-    border-bottom: 1px solid #f1f5f9 !important;
+    background: transparent !important;
+    border-bottom: 1px solid #e3e8ee !important;
     border-radius: 0 !important;
     padding: 6px 0 10px !important;
 }
@@ -92,21 +93,23 @@
 .df-popover .react-datepicker__year-select {
     height: 32px !important;
     min-width: 96px !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 10px !important;
-    background: #f8fafc !important;
-    color: #0f172a !important;
+    border: 1px solid #d8dee4 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #1a1f36 !important;
     font-family: inherit !important;
     font-size: 13px !important;
-    font-weight: 700 !important;
+    font-weight: 500 !important;
     padding: 0 10px !important;
     cursor: pointer !important;
     outline: none !important;
+    box-sizing: border-box !important;
 }
 
 .df-popover .react-datepicker__month-select:hover,
 .df-popover .react-datepicker__year-select:hover {
-    background: #e2e8f0 !important;
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
 }
 
 .df-popover .react-datepicker__day-names {
@@ -116,11 +119,11 @@
 }
 
 .df-popover .react-datepicker__day-name {
-    color: #94a3b8 !important;
+    color: #64748b !important;
     font-size: 11px !important;
-    font-weight: 750 !important;
+    font-weight: 600 !important;
     text-transform: uppercase !important;
-    width: 32px !important;
+    width: 34px !important;
     height: 32px !important;
     line-height: 32px !important;
     margin: 2px !important;
@@ -130,6 +133,7 @@
 
 .df-popover .react-datepicker__month {
     margin: 0 !important;
+    font-variant-numeric: tabular-nums !important;
 }
 
 .df-popover .react-datepicker__week {
@@ -138,13 +142,14 @@
 }
 
 .df-popover .react-datepicker__day {
-    color: #334155 !important;
-    border-radius: 50% !important;
+    color: #1a1f36 !important;
+    border-radius: 6px !important;
     font-size: 12.5px !important;
-    font-weight: 600 !important;
-    width: 32px !important;
-    height: 32px !important;
-    line-height: 32px !important;
+    font-weight: 500 !important;
+    font-variant-numeric: tabular-nums !important;
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
     margin: 2px !important;
     transition: 0.15s ease !important;
     display: inline-block !important;
@@ -152,8 +157,8 @@
 }
 
 .df-popover .react-datepicker__day:hover {
-    background: #e2e8f0 !important;
-    color: #0f172a !important;
+    background: #f1f5f9 !important;
+    color: #1a1f36 !important;
 }
 
 /* Outside month days (previous / next month) */
@@ -168,17 +173,17 @@
 }
 
 .df-popover .react-datepicker__day--selected {
-    background: #2563eb !important;
+    background: #635bff !important;
     color: #ffffff !important;
-    font-weight: 800 !important;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3) !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
     opacity: 1 !important;
 }
 
 .df-popover .react-datepicker__day--today:not(.react-datepicker__day--selected) {
-    border: 1.5px solid #2563eb !important;
-    color: #2563eb !important;
-    font-weight: 750 !important;
+    border: 1px solid #635bff !important;
+    color: #635bff !important;
+    font-weight: 600 !important;
     background: transparent !important;
 }
 
@@ -186,44 +191,49 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: 10px 12px 10px;
-    border-top: 1px solid #f1f5f9;
-    background: #ffffff;
-    border-bottom-left-radius: 18px;
-    border-bottom-right-radius: 18px;
+    padding: 10px 10px 8px;
+    border-top: 1px solid #e3e8ee;
+    background: transparent;
 }
 
 .df-btn {
-    height: 32px;
+    height: 34px;
     min-width: 68px;
-    border-radius: 10px;
-    border: none;
-    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    padding: 0 14px;
     font-family: inherit;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: 0.15s ease;
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .df-btn.soft {
-    background: #f1f5f9;
-    color: #475569;
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
 }
 
 .df-btn.soft:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: #f8fafc;
+    border-color: #cbd5e1;
 }
 
 .df-btn.ok {
-    background: #2563eb;
+    background: #635bff;
+    border-color: #635bff;
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    box-shadow: none;
 }
 
 .df-btn.ok:hover {
-    background: #1d4ed8;
+    background: #544dc9;
+    border-color: #544dc9;
 }
 
 .df-btn:disabled {
@@ -236,59 +246,60 @@
    ========================================================================== */
 
 [data-theme="dark"] .df-input {
-    background: #0f172a !important;
-    border-color: rgba(255, 255, 255, 0.16) !important;
-    color: #f8fafc !important;
+    background: #181b23 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .df-input:hover:not(:disabled) {
-    background: #1e293b !important;
-    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 [data-theme="dark"] .df-input:focus {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.2) !important;
 }
 
 [data-theme="dark"] .df-input:disabled {
-    background: rgba(15, 23, 42, 0.6) !important;
+    background: rgba(24, 27, 35, 0.6) !important;
     border-color: rgba(255, 255, 255, 0.08) !important;
     color: #64748b !important;
 }
 
 /* Dark Mode Popover */
 [data-theme="dark"] .df-popover {
-    background: #1e293b !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.6) !important;
+    background: #111318 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35) !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker {
-    background: #1e293b !important;
+    background: transparent !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__header {
-    background: #1e293b !important;
+    background: transparent !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__month-select,
 [data-theme="dark"] .df-popover .react-datepicker__year-select {
-    background: #0f172a !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    color: #f8fafc !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__month-select option,
 [data-theme="dark"] .df-popover .react-datepicker__year-select option {
-    background: #0f172a !important;
-    color: #f8fafc !important;
+    background: #181b23 !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__month-select:hover,
 [data-theme="dark"] .df-popover .react-datepicker__year-select:hover {
-    background: #334155 !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__day-name {
@@ -300,7 +311,7 @@
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__day:hover {
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
     color: #ffffff !important;
 }
 
@@ -315,38 +326,41 @@
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__day--selected {
-    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    background: #635bff !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45) !important;
+    box-shadow: none !important;
 }
 
 [data-theme="dark"] .df-popover .react-datepicker__day--today:not(.react-datepicker__day--selected) {
-    border: 1.5px solid #60a5fa !important;
-    color: #60a5fa !important;
+    border: 1px solid #635bff !important;
+    color: #a5b4fc !important;
 }
 
 [data-theme="dark"] .df-actions {
-    background: #1e293b !important;
+    background: transparent !important;
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-theme="dark"] .df-btn.soft {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: #181b23 !important;
     color: #e2e8f0 !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
 [data-theme="dark"] .df-btn.soft:hover {
-    background: rgba(255, 255, 255, 0.16) !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
 }
 
 [data-theme="dark"] .df-btn.ok {
-    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    background: #635bff !important;
+    border-color: #635bff !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+    box-shadow: none !important;
 }
 
 [data-theme="dark"] .df-btn.ok:hover {
-    background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
+    background: #544dc9 !important;
+    border-color: #544dc9 !important;
 }

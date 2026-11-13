@@ -59,13 +59,14 @@
 
 /* Popover */
 .drp-popover {
-    width: 340px;
+    width: max-content;
+    min-width: 340px;
     background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 18px;
-    box-shadow: 0 24px 50px -10px rgba(15, 23, 42, 0.35), 0 10px 20px -5px rgba(15, 23, 42, 0.15);
-    padding: 16px;
-    animation: drpPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid #e3e8ee;
+    border-radius: 8px;
+    box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
+    padding: 14px;
+    animation: drpPop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
 }
 
@@ -74,52 +75,41 @@
 }
 
 @keyframes drpPop {
-    from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+    from { opacity: 0; transform: scale(0.97) translateY(-4px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* Presets */
 .drp-presets {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 4px;
-    margin-bottom: 14px;
-    overflow: hidden;
+    margin-bottom: 12px;
 }
 
 .drp-preset-btn {
     height: 28px;
-    padding: 0 2px;
-    border-radius: 20px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e3e8ee;
     color: #475569;
-    font-size: 11px;
-    font-weight: 650;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
     text-align: center;
-    transition: 0.15s ease;
-    display: flex;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-.drp-preset-btn:hover {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: #ffffff;
-}
-
-.drp-preset-btn.clear {
-    background: #fff1f2;
-    border-color: #fecdd3;
-    color: #e11d48;
-}
-
-.drp-preset-btn.clear:hover {
-    background: #e11d48;
-    border-color: #e11d48;
+.drp-preset-btn:hover,
+.drp-preset-btn.active {
+    background: #635bff;
+    border-color: #635bff;
     color: #ffffff;
 }
 
@@ -143,61 +133,64 @@
 .drp-select {
     height: 32px;
     padding: 0 8px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #d8dee4;
+    border-radius: 6px;
     font-size: 13px;
-    font-weight: 700;
-    color: #0f172a;
+    font-weight: 500;
+    color: #1a1f36;
     cursor: pointer;
     outline: none;
+    box-sizing: border-box;
     transition: all 0.15s ease;
 }
 
 .drp-select:hover {
-    background: #f1f5f9;
+    background: #f8fafc;
     border-color: #cbd5e1;
 }
 
 .drp-select:focus {
-    border-color: #3b82f6;
+    border-color: #635bff;
     background: #ffffff;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15);
 }
 
 .drp-select-month {
     flex: 1.2;
-    max-width: 125px;
+    max-width: 128px;
 }
 
 .drp-select-year {
     flex: 1;
-    max-width: 85px;
+    max-width: 86px;
 }
 
 .drp-month-title {
-    font-size: 14px;
-    font-weight: 800;
-    color: #0f172a;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1a1f36;
 }
 
 .drp-nav-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #d8dee4;
     color: #64748b;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    box-sizing: border-box;
     transition: 0.15s ease;
 }
 
 .drp-nav-btn:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1a1f36;
 }
 
 /* Weekdays */
@@ -210,8 +203,8 @@
 
 .drp-weekday {
     font-size: 11px;
-    font-weight: 750;
-    color: #94a3b8;
+    font-weight: 600;
+    color: #64748b;
     text-transform: uppercase;
 }
 
@@ -220,17 +213,20 @@
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 2px 0;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
 .drp-day {
     height: 34px;
+    min-width: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12.5px;
-    font-weight: 600;
-    color: #334155;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: #1a1f36;
     background: transparent;
     border: none;
     border-radius: 0;
@@ -240,9 +236,9 @@
 }
 
 .drp-day span {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -255,29 +251,29 @@
 }
 
 .drp-day:hover:not(.muted) span {
-    background: #e2e8f0;
+    background: #f1f5f9;
 }
 
 /* Range Selection Styling */
 .drp-day.in-range {
-    background: #dbeafe;
+    background: #eef2ff;
 }
 
 .drp-day.start {
-    border-top-left-radius: 50%;
-    border-bottom-left-radius: 50%;
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
 }
 
 .drp-day.end {
-    border-top-right-radius: 50%;
-    border-bottom-right-radius: 50%;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 
 .drp-day.selected span {
-    background: #2563eb;
+    background: #635bff;
     color: #ffffff;
-    font-weight: 800;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    font-weight: 600;
+    box-shadow: none;
 }
 
 /* Footer */
@@ -286,91 +282,113 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 10px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid #e3e8ee;
 }
 
 .drp-btn-soft {
     height: 34px;
-    padding: 0 12px;
-    border-radius: 10px;
-    background: #f1f5f9;
-    border: none;
-    color: #475569;
-    font-size: 12px;
-    font-weight: 700;
+    padding: 0 14px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #d8dee4;
+    color: #1a1f36;
+    font-size: 13px;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 .drp-btn-soft:hover {
-    background: #e2e8f0;
-    color: #0f172a;
+    background: #f8fafc;
+    border-color: #cbd5e1;
 }
 
 .drp-btn-primary {
     height: 34px;
     padding: 0 14px;
-    border-radius: 10px;
-    background: #2563eb;
-    border: none;
+    border-radius: 6px;
+    background: #635bff;
+    border: 1px solid #635bff;
     color: #ffffff;
-    font-size: 12px;
-    font-weight: 750;
+    font-size: 13px;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease;
 }
 .drp-btn-primary:hover {
-    background: #1d4ed8;
+    background: #544dc9;
+    border-color: #544dc9;
 }
 
 /* Dark Mode Overrides */
 [data-theme="dark"] .drp-trigger {
-    background: #1e293b !important;
-    border-color: #334155 !important;
-    color: #f8fafc !important;
+    background: #181b23 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .drp-trigger:hover:not(:disabled) {
-    background: #334155 !important;
-    border-color: #475569 !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
 }
 
 [data-theme="dark"] .drp-popover {
-    background: #151c2c !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6) !important;
-    color: #f8fafc !important;
+    background: #111318 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .drp-preset-btn {
-    background: #1e293b !important;
-    border-color: #334155 !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     color: #cbd5e1 !important;
 }
 
-[data-theme="dark"] .drp-preset-btn:hover {
-    background: #3b82f6 !important;
-    border-color: #3b82f6 !important;
+[data-theme="dark"] .drp-preset-btn:hover,
+[data-theme="dark"] .drp-preset-btn.active {
+    background: #635bff !important;
+    border-color: #635bff !important;
     color: #ffffff !important;
 }
 
+[data-theme="dark"] .drp-select {
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .drp-select:hover {
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .drp-select option {
+    background: #181b23;
+    color: #e2e8f0;
+}
+
 [data-theme="dark"] .drp-month-title {
-    color: #f8fafc !important;
+    color: #e2e8f0 !important;
 }
 
 [data-theme="dark"] .drp-nav-btn {
-    background: #1e293b !important;
-    border-color: #334155 !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     color: #cbd5e1 !important;
 }
 
 [data-theme="dark"] .drp-nav-btn:hover {
-    background: #334155 !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
 }
 
@@ -387,30 +405,31 @@
 }
 
 [data-theme="dark"] .drp-day:hover:not(.muted) span {
-    background: #334155 !important;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-theme="dark"] .drp-day.in-range {
-    background: rgba(59, 130, 246, 0.22) !important;
+    background: rgba(99, 91, 255, 0.16) !important;
 }
 
 [data-theme="dark"] .drp-day.selected span {
-    background: #3b82f6 !important;
+    background: #635bff !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+    box-shadow: none !important;
 }
 
 [data-theme="dark"] .drp-footer {
-    border-top-color: rgba(255, 255, 255, 0.08) !important;
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-theme="dark"] .drp-btn-soft {
-    background: #1e293b !important;
+    background: #181b23 !important;
     color: #e2e8f0 !important;
-    border: 1px solid #334155 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
 [data-theme="dark"] .drp-btn-soft:hover {
-    background: #334155 !important;
+    background: #1e232e !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
 }
