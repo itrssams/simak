@@ -4599,6 +4599,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: #181b23;
   color: #f1f5f9;
+  color-scheme: dark;
   font-size: 13px;
   font-family: inherit;
   box-sizing: border-box;
@@ -4615,6 +4616,7 @@
   background: #ffffff;
   border-color: #d8dee4;
   color: #1a1f36;
+  color-scheme: light;
 }
 
 /* Force 36px uniform controls for DateField & SearchableSelect inside Stripe Modal */

@@ -364,11 +364,6 @@ export default function LogbookAktivitas() {
             </div>
 
             <section className="lb-act-section">
-                <div className="lb-act-head">
-                    <h2>Riwayat Aktivitas Logbook</h2>
-                    <p>Daftar lengkap aktivitas kerja harian yang telah Anda catat.</p>
-                </div>
-
                 {/* Filter Bar (36px Uniform Height) */}
                 <div className="lb-act-toolbar">
                     <div className="lb-act-filter">
@@ -535,8 +530,7 @@ export default function LogbookAktivitas() {
                                                 </td>
                                                 <td>
                                                     <div className="lb-td-time">
-                                                        <Clock size={12} className="lb-icon-muted" />
-                                                        <span>{formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}</span>
+                                                        {formatTime(item.jam_mulai)} - {formatTime(item.jam_selesai)}
                                                     </div>
                                                     <div className="lb-td-duration">
                                                         <span>Durasi: <strong>{item.durasi_format}</strong></span>
