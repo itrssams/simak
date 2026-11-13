@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     FileSpreadsheet,
     ReceiptText,
@@ -29,6 +29,7 @@ import './AppSwitcherModal.css';
 export default function AppSwitcherModal({ isOpen, onClose }) {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
@@ -275,17 +276,23 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
                     ) : (
                         visibleApps.map((app) => {
                             const Icon = app.icon;
+                            const isActive =
+                                location.pathname === app.path ||
+                                location.pathname.startsWith(`${app.path}/`) ||
+                                (app.id === 'catatan-utang' && location.pathname.startsWith('/keuangan/catatan-utang')) ||
+                                (app.id === 'penagihan-invoice' && location.pathname.startsWith('/keuangan/invoices')) ||
+                                (app.id === 'sdm' && location.pathname.startsWith('/sdm'));
                             return (
                                 <button
                                     key={app.id}
-                                    className="app-switcher-tile-btn"
+                                    className={`app-switcher-tile-btn${isActive ? ' is-active' : ''}`}
                                     onClick={() => {
                                         onClose();
                                         navigate(app.path);
                                     }}
                                 >
                                     <div className="app-switcher-tile-icon">
-                                        <Icon size={22} color={app.color} strokeWidth={2} />
+                                        <Icon size={20} strokeWidth={1.85} />
                                     </div>
                                     <span className="app-switcher-tile-name">{app.name}</span>
                                 </button>
