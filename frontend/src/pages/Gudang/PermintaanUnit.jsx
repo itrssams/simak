@@ -981,7 +981,7 @@ export default function PermintaanUnit() {
                                     />
                                 </div>
 
-                                <div style={{ borderTop: '1px solid #e3e8ee', paddingTop: '16px' }}>
+                                <div className="pu-modal-section-divider">
                                     <div className="pu-items-header">
                                         <span className="pu-section-title">
                                             Daftar Barang yang Diminta

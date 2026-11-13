@@ -29,18 +29,21 @@ Aturan desain UI untuk frontend SIMAK (CSS kustom per halaman dengan dukungan te
 | `--pu-accent-fg` | `#ffffff` | Teks tombol aksi utama |
 | `--pu-ctrl-shadow` | `0 1px 2px rgba(26, 31, 54, 0.06)` | Bayangan halus kontrol inline |
 
-### Dark Mode (Fallback)
+### Dark Mode (Aligned High-Contrast Enterprise)
 | Token | Nilai | Penggunaan |
 | :--- | :--- | :--- |
-| `--pu-bg` | `#09090b` | Kanvas gelap |
-| `--pu-surface` | `#09090b` | Permukaan datar |
-| `--pu-surface-2` | `#18181b` | Latar hover baris |
-| `--pu-border` | `#27272a` | Garis pemisah tipis |
-| `--pu-border-ctrl` | `#3f3f46` | Bingkai kontrol filter |
-| `--pu-text` | `#fafafa` | Teks utama |
-| `--pu-muted` | `#a1a1aa` | Teks sekunder & label |
-| `--pu-faint` | `#71717a` | Placeholder |
-| `--pu-accent` | `#635bff` | Aksen indigo konsisten |
+| `--pu-bg` | `#0b0f17` | Kanvas gelap |
+| `--pu-surface` | `#12161f` | Permukaan modal & kontrol |
+| `--pu-input-bg` | `#090c12` | Latar input lebih gelap agar batas tegas |
+| `--pu-surface-2` | `#161b24` | Latar hover baris & menu dropdown |
+| `--pu-border` | `rgba(255, 255, 255, 0.1)` | Garis pemisah tabel & divider stat-bar |
+| `--pu-border-ctrl` | `rgba(255, 255, 255, 0.12)` | Bingkai kontrol filter & input |
+| `--pu-text` | `#f8fafc` | Teks utama & label stat/tab aktif |
+| `--pu-muted` | `#94a3b8` | Teks sekunder & header tabel |
+| `--pu-faint` | `#64748b` | Placeholder & tanda kosong (`—`) |
+| `--pu-accent` | `#635bff` | Tombol aksi utama |
+| `--pu-tab-active-text` | `#f8fafc` | Teks tab stat aktif di dark mode |
+| `--pu-tab-active-line` | `#818cf8` | Garis bawah indikator aktif (indigo terang) |
 | `--pu-accent-fg` | `#ffffff` | Teks tombol utama |
 
 ---
