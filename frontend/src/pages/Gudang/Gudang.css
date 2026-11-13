@@ -3471,12 +3471,14 @@
     gap: 16px;
     padding: 18px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: transparent;
+    background: #111318 !important;
+    background-image: none !important;
 }
 
 [data-theme="light"] .gdg-modal-head {
     border-bottom-color: #e3e8ee;
-    background: #ffffff;
+    background: #ffffff !important;
+    background-image: none !important;
 }
 
 .gdg-modal-header-text h3 {
@@ -3850,28 +3852,40 @@
     max-width: 520px;
 }
 
-/* Uniform 36px height for DateField and SearchableSelect inside Stripe modals */
-.gdg-modal .gdg-form-group .gdg-po-date-field,
-.gdg-modal .gdg-form-group .df-trigger,
+/* Uniform 36px height for DateField, Select, and SearchableSelect inside Stripe modals */
+.gdg-modal .gdg-form-group .df-wrap,
+.gdg-modal .gdg-form-group .gdg-po-date-field {
+    width: 100%;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box !important;
+}
+
+.gdg-modal .gdg-form-group .df-input,
+.gdg-modal .gdg-form-group select,
 .gdg-modal .gdg-form-group .ss-trigger,
 .gdg-modal .gdg-item-row .ss-trigger {
     height: 36px !important;
     min-height: 36px !important;
+    max-height: 36px !important;
     border-radius: 6px !important;
     font-size: 13px !important;
     box-sizing: border-box !important;
-    background: #181b23;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #e2e8f0;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
 }
 
-[data-theme="light"] .gdg-modal .gdg-form-group .gdg-po-date-field,
-[data-theme="light"] .gdg-modal .gdg-form-group .df-trigger,
+[data-theme="light"] .gdg-modal .gdg-form-group .df-input,
+[data-theme="light"] .gdg-modal .gdg-form-group select,
 [data-theme="light"] .gdg-modal .gdg-form-group .ss-trigger,
 [data-theme="light"] .gdg-modal .gdg-item-row .ss-trigger {
-    background: #ffffff;
-    border-color: #d8dee4;
-    color: #1a1f36;
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #1a1f36 !important;
 }
 
 .gdg-po-items-head {

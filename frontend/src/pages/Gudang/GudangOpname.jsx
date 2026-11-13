@@ -56,7 +56,6 @@ export default function GudangOpname({ heroActionsTarget = null }) {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedOpname, setSelectedOpname] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [loadingTemplate, setLoadingTemplate] = useState(false);
 
     // Form states
     const [formJenis, setFormJenis] = useState('SALDO_AWAL'); // 'SALDO_AWAL' | 'RUTIN'
@@ -124,44 +123,6 @@ export default function GudangOpname({ heroActionsTarget = null }) {
             }
         ]);
         setShowCreateModal(true);
-    };
-
-    // Load template of all active items with current system stock
-    const handleLoadTemplate = async () => {
-        setLoadingTemplate(true);
-        try {
-            const res = await api.get('/gudang/opname/current_stock_template/');
-            const items = res.data || [];
-            if (!items.length) {
-                toast.info('Belum ada katalog barang aktif yang terdaftar. Tambah barang terlebih dahulu di Master Barang.');
-                return;
-            }
-
-            const mapped = items.map(it => {
-                const qtySistem = Number(it.qty_sistem) || 0;
-                const qtyFisik = formJenis === 'SALDO_AWAL' ? 0 : qtySistem;
-                const selisih = formJenis === 'SALDO_AWAL' ? qtyFisik : (qtyFisik - qtySistem);
-                const hargaUnit = Number(it.harga_unit) || 0;
-                return {
-                    barang_id: it.barang_id,
-                    barang_kode: it.barang_kode,
-                    barang_nama: it.barang_nama,
-                    qty_sistem: qtySistem,
-                    qty_fisik: qtyFisik,
-                    selisih: selisih,
-                    satuan: it.satuan,
-                    harga_unit: hargaUnit,
-                    keterangan: ''
-                };
-            });
-
-            setFormItems(mapped);
-            toast.success(`Berhasil memuat ${mapped.length} barang dari katalog.`);
-        } catch (err) {
-            toast.error('Gagal memuat template barang.');
-        } finally {
-            setLoadingTemplate(false);
-        }
     };
 
     // Handle Item Row Changes
@@ -646,10 +607,6 @@ export default function GudangOpname({ heroActionsTarget = null }) {
                                         Daftar Hasil Hitung Fisik ({formItems.length} barang)
                                     </span>
                                     <div className="gdg-po-foot-group">
-                                        <button type="button" className="gdg-btn-stripe secondary" onClick={handleLoadTemplate} disabled={loadingTemplate}>
-                                            <Layers size={14} />
-                                            <span>{loadingTemplate ? 'Memuat...' : 'Muat Semua Katalog Barang'}</span>
-                                        </button>
                                         <button type="button" className="gdg-btn-stripe secondary" onClick={handleAddItemRow}>
                                             <Plus size={14} />
                                             <span>Tambah Baris</span>
