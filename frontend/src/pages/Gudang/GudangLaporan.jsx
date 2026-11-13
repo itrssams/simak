@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     BarChart3,
     FileSpreadsheet,
@@ -27,13 +28,16 @@ import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import DateField from '../../components/DateField';
+import { SimplePagination } from '../../utils/pagination.jsx';
 import LogistikPieInfographic, { MACARON_PALETTE, getLogistikCuteMeta } from '../Logistik/LogistikPieInfographic';
 import '../Logistik/LogistikLaporan.css';
 
-export default function GudangLaporan() {
+export default function GudangLaporan({ heroActionsTarget = null }) {
     const toast = useToast();
     const [subTab, setSubTab] = useState('stok_akhir'); // 'stok_akhir' | 'permintaan' | 'pemakaian' | 'pembelian'
     const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(15);
 
     // Pie chart modes
     const [pieModeStok, setPieModeStok] = useState('golongan'); // 'golongan' | 'top_barang'
@@ -436,80 +440,130 @@ export default function GudangLaporan() {
         window.print();
     };
 
+    const handleRefreshActiveTab = () => {
+        if (subTab === 'stok_akhir') fetchStokAkhir();
+        else if (subTab === 'permintaan') fetchPermintaan();
+        else if (subTab === 'pemakaian') fetchPemakaian();
+        else fetchPembelian();
+    };
+
+    const switchSubTab = (tab) => {
+        setSubTab(tab);
+        setPage(1);
+    };
+
+    const paginateRows = (rows = []) => {
+        const total = rows.length;
+        const maxPage = Math.max(1, Math.ceil(total / pageSize));
+        const curPage = Math.min(page, maxPage);
+        return {
+            total,
+            curPage,
+            items: rows.slice((curPage - 1) * pageSize, curPage * pageSize),
+        };
+    };
+
+    const heroActions = (
+        <>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={handleExportExcel}
+                disabled={loading}
+            >
+                <FileSpreadsheet size={14} />
+                <span>Export Excel</span>
+            </button>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={handlePrint}
+            >
+                <Printer size={14} />
+                <span>Cetak</span>
+            </button>
+            <button
+                type="button"
+                className="gdg-btn-stripe secondary"
+                onClick={handleRefreshActiveTab}
+                disabled={loading}
+            >
+                <RefreshCw size={14} className={loading ? 'gdg-spin' : ''} />
+                <span>Refresh</span>
+            </button>
+        </>
+    );
+
+    const stokPage = paginateRows(stokAkhirData.results || []);
+    const permintaanPage = paginateRows(permintaanUnitData.results || []);
+    const pemakaianPage = paginateRows(pemakaianData.results || []);
+    const pembelianPage = paginateRows(pembelianData.results || []);
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="gdg-dash-root">
+            {heroActionsTarget && createPortal(heroActions, heroActionsTarget)}
+            {!heroActionsTarget && (
+                <div className="gdg-brg-fallback-actions">{heroActions}</div>
+            )}
+
             {/* SUB-TABS NAVIGATION */}
-            <div>
-                <div className="gdg-segmented-tabs">
-                    <button
-                        type="button"
-                        className={`gdg-segmented-tab ${subTab === 'stok_akhir' ? 'active' : ''}`}
-                        onClick={() => setSubTab('stok_akhir')}
-                    >
-                        <span className="tab-icon"><Boxes size={17} /></span>
-                        <span>Nilai Persediaan & Stok Akhir</span>
-                    </button>
-                    <button
-                        type="button"
-                        className={`gdg-segmented-tab ${subTab === 'permintaan' ? 'active' : ''}`}
-                        onClick={() => setSubTab('permintaan')}
-                    >
-                        <span className="tab-icon"><FileText size={17} /></span>
-                        <span>Rekap Permintaan Tiap Unit</span>
-                    </button>
-                    <button
-                        type="button"
-                        className={`gdg-segmented-tab ${subTab === 'pemakaian' ? 'active' : ''}`}
-                        onClick={() => setSubTab('pemakaian')}
-                    >
-                        <span className="tab-icon"><TrendingUp size={17} /></span>
-                        <span>Rekap Pemakaian per Ruangan</span>
-                    </button>
-                    <button
-                        type="button"
-                        className={`gdg-segmented-tab ${subTab === 'pembelian' ? 'active' : ''}`}
-                        onClick={() => setSubTab('pembelian')}
-                    >
-                        <span className="tab-icon"><Truck size={17} /></span>
-                        <span>Rekap Pembelian per Vendor</span>
-                    </button>
-                </div>
+            <div className="gdg-segmented-tabs">
+                <button
+                    type="button"
+                    className={`gdg-segmented-tab ${subTab === 'stok_akhir' ? 'active' : ''}`}
+                    onClick={() => switchSubTab('stok_akhir')}
+                >
+                    <Boxes size={15} />
+                    <span>Nilai Persediaan & Stok Akhir</span>
+                </button>
+                <button
+                    type="button"
+                    className={`gdg-segmented-tab ${subTab === 'permintaan' ? 'active' : ''}`}
+                    onClick={() => switchSubTab('permintaan')}
+                >
+                    <FileText size={15} />
+                    <span>Rekap Permintaan Tiap Unit</span>
+                </button>
+                <button
+                    type="button"
+                    className={`gdg-segmented-tab ${subTab === 'pemakaian' ? 'active' : ''}`}
+                    onClick={() => switchSubTab('pemakaian')}
+                >
+                    <TrendingUp size={15} />
+                    <span>Rekap Pemakaian per Ruangan</span>
+                </button>
+                <button
+                    type="button"
+                    className={`gdg-segmented-tab ${subTab === 'pembelian' ? 'active' : ''}`}
+                    onClick={() => switchSubTab('pembelian')}
+                >
+                    <Truck size={15} />
+                    <span>Rekap Pembelian per Vendor</span>
+                </button>
             </div>
 
             {/* TAB 1: STOK AKHIR & NILAI PERSEDIAAN */}
             {subTab === 'stok_akhir' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* KPI CARDS */}
-                    <div className="gdg-kpi-grid">
-                        <div className="gdg-kpi-card blue">
-                            <div className="gdg-kpi-icon">
-                                <Boxes size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Varian Barang</span>
-                                <strong>{stokAkhirData.summary?.total_items || 0} item</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Barang aktif terdaftar</small>
-                            </div>
+                <div className="gdg-dash-root">
+                    {/* STAT-BAR */}
+                    <div className="gdg-stat-bar gdg-stat-bar-3">
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Varian Barang</span>
+                            <strong className="gdg-stat-val">
+                                {(stokAkhirData.summary?.total_items || 0).toLocaleString('id-ID')}
+                                <span className="gdg-stat-unit">item</span>
+                            </strong>
+                            <span className="gdg-stat-sub">Barang aktif terdaftar</span>
                         </div>
-                        <div className="gdg-kpi-card amber">
-                            <div className="gdg-kpi-icon">
-                                <Layers size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Unit Fisik Gudang</span>
-                                <strong>{formatQty(stokAkhirData.summary?.total_qty)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Kuantitas stok berjalan</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Unit Fisik Gudang</span>
+                            <strong className="gdg-stat-val">{formatQty(stokAkhirData.summary?.total_qty)}</strong>
+                            <span className="gdg-stat-sub">Kuantitas stok berjalan</span>
                         </div>
-                        <div className="gdg-kpi-card emerald">
-                            <div className="gdg-kpi-icon">
-                                <TrendingUp size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Nilai Aset Persediaan</span>
-                                <strong style={{ fontSize: '1.25rem' }}>{formatRp(stokAkhirData.summary?.total_nilai)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Berdasarkan HPP rata-rata (WMA)</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Nilai Aset Persediaan</span>
+                            <strong className="gdg-stat-val">{formatRp(stokAkhirData.summary?.total_nilai)}</strong>
+                            <span className="gdg-stat-sub">Berdasarkan HPP rata-rata (WMA)</span>
                         </div>
                     </div>
 
@@ -517,6 +571,7 @@ export default function GudangLaporan() {
                     {(stokAkhirData.results || []).length > 0 && (
                         pieModeStok === 'golongan' ? (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataGolongan}
                                 totalValue={stokAkhirData.summary?.total_nilai}
                                 title="Infografis Porsi Valuasi Nilai Persediaan per Golongan"
@@ -547,11 +602,13 @@ export default function GudangLaporan() {
                                     const matched = golonganList.find(g => g.nama === it.name);
                                     if (matched) {
                                         setSelectedGolongan(selectedGolongan === String(matched.id) ? '' : String(matched.id));
+                                        setPage(1);
                                     }
                                 }}
                             />
                         ) : (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataTopBarangStok}
                                 totalValue={stokAkhirData.summary?.total_nilai}
                                 title="Infografis Top Barang Valuasi Tertinggi"
@@ -580,82 +637,72 @@ export default function GudangLaporan() {
                                 onSelectItem={(it) => {
                                     if (it.isOthers) return;
                                     setSearchStok(searchStok === it.name ? '' : it.name);
+                                    setPage(1);
                                 }}
                             />
                         )
                     )}
 
-                    <div className="gdg-card">
-                        <div className="gdg-card-head">
-                            <div className="gdg-card-title">
-                                <h2>Laporan Nilai Persediaan Stok Gudang</h2>
-                                <p>Valuasi aset persediaan logistik non-farmasi RS Siaga Al Munawwarah</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="gdg-btn soft" onClick={handleExportExcel} title="Export data ke spreadsheet Excel">
-                                    <Download size={15} /> Export Excel
-                                </button>
-                                <button className="gdg-btn soft" onClick={handlePrint} title="Cetak laporan">
-                                    <Printer size={15} /> Cetak
-                                </button>
-                                <button className="gdg-btn soft" onClick={fetchStokAkhir} disabled={loading}>
-                                    <RefreshCw size={15} /> Refresh
-                                </button>
-                            </div>
-                        </div>
-
+                    <section className="gdg-dash-section">
                         {/* FILTERS */}
-                        <div className="gdg-toolbar">
-                            <div className="gdg-search" style={{ minWidth: '240px' }}>
-                                <Search size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Cari nama barang, kode..."
-                                    value={searchStok}
-                                    onChange={(e) => setSearchStok(e.target.value)}
-                                />
+                        <div className="gdg-brg-toolbar">
+                            <div className="gdg-brg-toolbar-left">
+                                <div className="gdg-dash-search">
+                                    <Search size={14} className="gdg-dash-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama barang, kode..."
+                                        value={searchStok}
+                                        onChange={(e) => { setSearchStok(e.target.value); setPage(1); }}
+                                    />
+                                </div>
+                                <div className="gdg-ks-select-wrap">
+                                    <select
+                                        value={selectedGolongan}
+                                        onChange={(e) => { setSelectedGolongan(e.target.value); setPage(1); }}
+                                        className="gdg-ks-select gdg-brg-select"
+                                    >
+                                        <option value="">Semua Golongan</option>
+                                        {golonganList.map(g => (
+                                            <option key={g.id} value={g.id}>[{g.kode}] {g.nama}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={13} className="gdg-ks-select-chevron" />
+                                </div>
+                                <div className="gdg-ks-select-wrap">
+                                    <select
+                                        value={selectedStatusStok}
+                                        onChange={(e) => { setSelectedStatusStok(e.target.value); setPage(1); }}
+                                        className="gdg-ks-select gdg-brg-select"
+                                    >
+                                        <option value="">Semua Status Stok</option>
+                                        <option value="aman">Stok Aman (Di Atas Buffer)</option>
+                                        <option value="menipis">Stok Menipis (Buffer)</option>
+                                        <option value="habis">Stok Habis (0)</option>
+                                    </select>
+                                    <ChevronDown size={13} className="gdg-ks-select-chevron" />
+                                </div>
+                                {(searchStok || selectedGolongan || selectedStatusStok) && (
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => {
+                                            setSearchStok('');
+                                            setSelectedGolongan('');
+                                            setSelectedStatusStok('');
+                                            setPage(1);
+                                        }}
+                                        title="Reset filter"
+                                    >
+                                        <X size={13} /> Reset
+                                    </button>
+                                )}
                             </div>
-                            <select
-                                value={selectedGolongan}
-                                onChange={(e) => setSelectedGolongan(e.target.value)}
-                                className="gdg-select-control"
-                                style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                            >
-                                <option value="">Semua Golongan</option>
-                                {golonganList.map(g => (
-                                    <option key={g.id} value={g.id}>[{g.kode}] {g.nama}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={selectedStatusStok}
-                                onChange={(e) => setSelectedStatusStok(e.target.value)}
-                                className="gdg-select-control"
-                                style={{ minWidth: '180px', height: '40px', borderRadius: '8px' }}
-                            >
-                                <option value="">Semua Status Stok</option>
-                                <option value="aman">Stok Aman (Di Atas Buffer)</option>
-                                <option value="menipis">Stok Menipis (Buffer)</option>
-                                <option value="habis">Stok Habis (0)</option>
-                            </select>
-                            {(searchStok || selectedGolongan || selectedStatusStok) && (
-                                <button
-                                    type="button"
-                                    className="gdg-btn soft"
-                                    onClick={() => {
-                                        setSearchStok('');
-                                        setSelectedGolongan('');
-                                        setSelectedStatusStok('');
-                                    }}
-                                    title="Reset filter"
-                                >
-                                    <X size={14} /> Reset
-                                </button>
-                            )}
                         </div>
 
                         {/* TABLE */}
-                        <div className="gdg-table-wrap">
-                            <table className="gdg-table">
+                        <div className="gdg-table-wrap gdg-table-borderless">
+                            <table className="gdg-table gdg-table-stripe">
                                 <thead>
                                     <tr>
                                         <th>KODE</th>
@@ -671,77 +718,84 @@ export default function GudangLaporan() {
                                 <tbody>
                                     {loading ? (
                                         <tr><td colSpan="8" className="gdg-table-empty">Memuat laporan persediaan...</td></tr>
-                                    ) : (stokAkhirData.results || []).length === 0 ? (
+                                    ) : stokPage.total === 0 ? (
                                         <tr><td colSpan="8" className="gdg-table-empty">Tidak ada data barang yang sesuai filter.</td></tr>
                                     ) : (
-                                        stokAkhirData.results.map((r, idx) => (
-                                            <tr key={idx}>
-                                                <td className="gdg-code-cell">{r.kode}</td>
-                                                <td className="gdg-cell-strong">{r.nama}</td>
-                                                <td>{r.golongan_nama}</td>
-                                                <td>{r.satuan}</td>
-                                                <td style={{ textAlign: 'right', color: 'var(--gdg-text-secondary, #64748b)', fontWeight: 600 }}>
-                                                    {formatQty(r.stok_minimum)}
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                                                    {Number(r.qty_fisik) <= 0 ? (
-                                                        <span className="gdg-badge danger" style={{ fontSize: '0.74rem' }}>0 Habis</span>
-                                                    ) : Number(r.qty_fisik) <= Number(r.stok_minimum) ? (
-                                                        <span className="gdg-badge warning" style={{ fontSize: '0.74rem' }}>{formatQty(r.qty_fisik)} Menipis</span>
-                                                    ) : (
-                                                        <span style={{ color: '#0284c7' }}>{formatQty(r.qty_fisik)}</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text-secondary, #475569)' }}>
-                                                    {formatRp(r.avg_cost)}
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
-                                                    {formatRp(r.total_nilai)}
-                                                </td>
-                                            </tr>
-                                        ))
+                                        stokPage.items.map((r, idx) => {
+                                            const qtyNum = Number(r.qty_fisik);
+                                            const minNum = Number(r.stok_minimum);
+                                            const isAlert = qtyNum <= 0 || qtyNum <= minNum;
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="gdg-code-cell">{r.kode}</td>
+                                                    <td className="gdg-cell-strong">{r.nama}</td>
+                                                    <td>{r.golongan_nama}</td>
+                                                    <td>{r.satuan}</td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', color: 'var(--gdg-muted)' }}>
+                                                        {formatQty(r.stok_minimum)}
+                                                    </td>
+                                                    <td
+                                                        className="gdg-num-cell"
+                                                        style={{
+                                                            textAlign: 'right',
+                                                            fontWeight: 600,
+                                                            color: isAlert ? '#f43f5e' : 'var(--gdg-text)'
+                                                        }}
+                                                    >
+                                                        {formatQty(r.qty_fisik)}
+                                                    </td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', color: 'var(--gdg-muted)' }}>
+                                                        {formatRp(r.avg_cost)}
+                                                    </td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text)' }}>
+                                                        {formatRp(r.total_nilai)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                        {stokPage.total > 0 && (
+                            <SimplePagination
+                                className="gdg-dash-pagination"
+                                currentPage={stokPage.curPage}
+                                totalItems={stokPage.total}
+                                itemsPerPage={pageSize}
+                                onPageChange={setPage}
+                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                            />
+                        )}
+                    </section>
                 </div>
             )}
 
             {/* TAB 2: REKAP PERMINTAAN TIAP UNIT */}
             {subTab === 'permintaan' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* KPI CARDS */}
-                    <div className="gdg-kpi-grid">
-                        <div className="gdg-kpi-card blue">
-                            <div className="gdg-kpi-icon">
-                                <FileText size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Permintaan Barang</span>
-                                <strong>{formatQty(permintaanUnitData.summary?.total_permintaan_minta)} item</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>{permintaanUnitData.summary?.total_transaksi || 0} transaksi amprahan unit</small>
-                            </div>
+                <div className="gdg-dash-root">
+                    {/* STAT-BAR */}
+                    <div className="gdg-stat-bar gdg-stat-bar-3">
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Permintaan Barang</span>
+                            <strong className="gdg-stat-val">
+                                {formatQty(permintaanUnitData.summary?.total_permintaan_minta)}
+                                <span className="gdg-stat-unit">item</span>
+                            </strong>
+                            <span className="gdg-stat-sub">{permintaanUnitData.summary?.total_transaksi || 0} transaksi amprahan unit</span>
                         </div>
-                        <div className="gdg-kpi-card emerald">
-                            <div className="gdg-kpi-icon">
-                                <CheckCircle2 size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Kuantitas Disetujui</span>
-                                <strong>{formatQty(permintaanUnitData.summary?.total_permintaan_setuju)} item</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Telah di-ACC petugas gudang</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Kuantitas Disetujui</span>
+                            <strong className="gdg-stat-val">
+                                {formatQty(permintaanUnitData.summary?.total_permintaan_setuju)}
+                                <span className="gdg-stat-unit">item</span>
+                            </strong>
+                            <span className="gdg-stat-sub">Telah di-ACC petugas gudang</span>
                         </div>
-                        <div className="gdg-kpi-card sky">
-                            <div className="gdg-kpi-icon">
-                                <TrendingUp size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Tingkat Pemenuhan (Fulfillment)</span>
-                                <strong style={{ fontSize: '1.25rem' }}>{permintaanUnitData.summary?.fulfillment_rate || 0}%</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>{permintaanUnitData.summary?.total_unit_aktif || 0} unit aktif mengajukan</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Tingkat Pemenuhan (Fulfillment)</span>
+                            <strong className="gdg-stat-val">{permintaanUnitData.summary?.fulfillment_rate || 0}%</strong>
+                            <span className="gdg-stat-sub">{permintaanUnitData.summary?.total_unit_aktif || 0} unit aktif mengajukan</span>
                         </div>
                     </div>
 
@@ -749,6 +803,7 @@ export default function GudangLaporan() {
                     {(permintaanUnitData.results || []).length > 0 && (
                         pieModePermintaan === 'unit' ? (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataPermintaanUnit}
                                 totalValue={permintaanUnitData.summary?.total_permintaan_minta}
                                 title="Infografis Porsi Permintaan Barang Tiap Unit"
@@ -780,6 +835,7 @@ export default function GudangLaporan() {
                             />
                         ) : (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataTopBarangMinta}
                                 totalValue={permintaanUnitData.summary?.total_permintaan_minta}
                                 title="Infografis Top Barang Paling Banyak Diminta"
@@ -807,89 +863,79 @@ export default function GudangLaporan() {
                                 onSelectItem={(it) => {
                                     if (it.isOthers) return;
                                     setSearchPermintaan(searchPermintaan === it.name ? '' : it.name);
+                                    setPage(1);
                                 }}
                             />
                         )
                     )}
 
-                    {/* TABLE CARD */}
-                    <div className="gdg-card">
-                        <div className="gdg-card-head">
-                            <div className="gdg-card-title">
-                                <h2>Rekapitulasi Permintaan Barang Tiap Unit & Pemenuhan</h2>
-                                <p>Daftar porsi permintaan dan rincian pemenuhan barang per departemen rumah sakit</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="gdg-btn soft" onClick={handleExportExcel} title="Export data ke spreadsheet Excel">
-                                    <Download size={15} /> Export Excel
-                                </button>
-                                <button className="gdg-btn soft" onClick={handlePrint} title="Cetak laporan">
-                                    <Printer size={15} /> Cetak
-                                </button>
-                                <button className="gdg-btn soft" onClick={fetchPermintaan} disabled={loading}>
-                                    <RefreshCw size={15} /> Refresh
-                                </button>
-                            </div>
-                        </div>
-
+                    {/* TABLE SECTION */}
+                    <section className="gdg-dash-section">
                         {/* FILTERS */}
-                        <div className="gdg-toolbar">
-                            <div className="gdg-search" style={{ minWidth: '240px' }}>
-                                <Search size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Cari nama unit, barang..."
-                                    value={searchPermintaan}
-                                    onChange={(e) => setSearchPermintaan(e.target.value)}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.84rem', color: 'var(--gdg-text-secondary, #64748b)', fontWeight: 600 }}>Periode:</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={startDate}
-                                        onChange={(val) => setStartDate(val)}
+                        <div className="gdg-brg-toolbar">
+                            <div className="gdg-brg-toolbar-left">
+                                <div className="gdg-dash-search">
+                                    <Search size={14} className="gdg-dash-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama unit, barang..."
+                                        value={searchPermintaan}
+                                        onChange={(e) => { setSearchPermintaan(e.target.value); setPage(1); }}
                                     />
                                 </div>
-                                <span style={{ color: '#64748b' }}>s/d</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={endDate}
-                                        onChange={(val) => setEndDate(val)}
-                                    />
+                                <div className="gdg-lap-period-group">
+                                    <span className="gdg-lap-period-label">Periode:</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={startDate}
+                                            onChange={(val) => { setStartDate(val); setPage(1); }}
+                                        />
+                                    </div>
+                                    <span className="gdg-lap-period-sep">s/d</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={endDate}
+                                            onChange={(val) => { setEndDate(val); setPage(1); }}
+                                        />
+                                    </div>
                                 </div>
+                                <div className="gdg-ks-select-wrap">
+                                    <select
+                                        value={selectedRuangPermintaan}
+                                        onChange={(e) => { setSelectedRuangPermintaan(e.target.value); setPage(1); }}
+                                        className="gdg-ks-select gdg-brg-select"
+                                    >
+                                        <option value="">Semua Unit Ruangan (48 Ruangan)</option>
+                                        {ruangList.map(r => (
+                                            <option key={r.id} value={r.id}>{r.nama}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={13} className="gdg-ks-select-chevron" />
+                                </div>
+                                {(searchPermintaan || selectedRuangPermintaan || startDate !== firstDayStr || endDate !== todayStr) && (
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => {
+                                            setSearchPermintaan('');
+                                            setSelectedRuangPermintaan('');
+                                            setStartDate(firstDayStr);
+                                            setEndDate(todayStr);
+                                            setPage(1);
+                                        }}
+                                        title="Reset filter"
+                                    >
+                                        <X size={13} /> Reset
+                                    </button>
+                                )}
                             </div>
-                            <select
-                                value={selectedRuangPermintaan}
-                                onChange={(e) => setSelectedRuangPermintaan(e.target.value)}
-                                className="gdg-select-control"
-                                style={{ minWidth: '200px', height: '40px', borderRadius: '8px' }}
-                            >
-                                <option value="">Semua Unit Ruangan (48 Ruangan)</option>
-                                {ruangList.map(r => (
-                                    <option key={r.id} value={r.id}>{r.nama}</option>
-                                ))}
-                            </select>
-                            {(searchPermintaan || selectedRuangPermintaan || startDate !== firstDayStr || endDate !== todayStr) && (
-                                <button
-                                    type="button"
-                                    className="gdg-btn soft"
-                                    onClick={() => {
-                                        setSearchPermintaan('');
-                                        setSelectedRuangPermintaan('');
-                                        setStartDate(firstDayStr);
-                                        setEndDate(todayStr);
-                                    }}
-                                    title="Reset filter"
-                                >
-                                    <X size={14} /> Reset
-                                </button>
-                            )}
                         </div>
 
                         {/* TABLE */}
-                        <div className="gdg-table-wrap">
-                            <table className="gdg-table">
+                        <div className="gdg-table-wrap gdg-table-borderless">
+                            <table className="gdg-table gdg-table-stripe">
                                 <thead>
                                     <tr>
                                         <th style={{ width: 45 }}>#</th>
@@ -905,57 +951,37 @@ export default function GudangLaporan() {
                                 <tbody>
                                     {loading ? (
                                         <tr><td colSpan="8" className="gdg-table-empty">Memuat rekap permintaan unit...</td></tr>
-                                    ) : (permintaanUnitData.results || []).length === 0 ? (
+                                    ) : permintaanPage.total === 0 ? (
                                         <tr><td colSpan="8" className="gdg-table-empty">Tidak ada data permintaan unit di periode terpilih.</td></tr>
                                     ) : (
-                                        permintaanUnitData.results.map((u, idx) => {
-                                            const rank = idx + 1;
+                                        permintaanPage.items.map((u, idx) => {
+                                            const rank = (permintaanPage.curPage - 1) * pageSize + idx + 1;
                                             const isExpanded = expandedUnitPermintaan === u.unit_nama;
                                             const pal = MACARON_PALETTE[(rank - 1) % MACARON_PALETTE.length];
-                                            const meta = getLogistikCuteMeta(u.unit_nama, true);
+                                            const dotColor = u.fulfillment_rate >= 90 ? '#10b981' : u.fulfillment_rate >= 60 ? '#f59e0b' : '#f43f5e';
 
                                             return (
                                                 <React.Fragment key={u.unit_nama}>
                                                     <tr
-                                                        style={{ cursor: 'pointer', background: isExpanded ? 'rgba(37, 99, 235, 0.04)' : undefined }}
+                                                        style={{ cursor: 'pointer', background: isExpanded ? 'rgba(99, 91, 255, 0.05)' : undefined }}
                                                         onClick={() => setExpandedUnitPermintaan(isExpanded ? null : u.unit_nama)}
                                                     >
-                                                        <td style={{ fontWeight: 700, color: 'var(--gdg-text-secondary, #64748b)' }}>{rank}</td>
+                                                        <td className="gdg-num-cell" style={{ fontWeight: 600, color: 'var(--gdg-muted)' }}>{rank}</td>
                                                         <td>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <span
-                                                                    style={{
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        width: '32px',
-                                                                        height: '32px',
-                                                                        borderRadius: '9px',
-                                                                        background: pal.bg,
-                                                                        color: pal.text,
-                                                                        border: `1px solid ${pal.border}`,
-                                                                        flexShrink: 0
-                                                                    }}
-                                                                >
-                                                                    <meta.icon size={15} strokeWidth={2.4} />
-                                                                </span>
-                                                                <div>
-                                                                    <div className="gdg-cell-strong">{u.unit_nama}</div>
-                                                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                                                        {u.total_jenis_barang} jenis barang diminta
-                                                                    </div>
-                                                                </div>
+                                                            <div className="gdg-cell-strong">{u.unit_nama}</div>
+                                                            <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)' }}>
+                                                                {u.total_jenis_barang} jenis barang diminta
                                                             </div>
                                                         </td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                                                            {formatQty(u.total_minta)} <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 400 }}>item</span>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                            {formatQty(u.total_minta)} <span style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', fontWeight: 400 }}>item</span>
                                                         </td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#166534' }}>
-                                                            {formatQty(u.total_setuju)} <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 400 }}>item</span>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600, color: '#10b981' }}>
+                                                            {formatQty(u.total_setuju)} <span style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', fontWeight: 400 }}>item</span>
                                                         </td>
                                                         <td>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <div style={{ flex: 1, height: '7px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+                                                                <div style={{ flex: 1, height: '6px', background: 'var(--gdg-border)', borderRadius: '999px', overflow: 'hidden' }}>
                                                                     <div
                                                                         style={{
                                                                             height: '100%',
@@ -965,27 +991,25 @@ export default function GudangLaporan() {
                                                                         }}
                                                                     />
                                                                 </div>
-                                                                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--gdg-text-primary, #0f172a)', minWidth: '46px', textAlign: 'right' }}>
+                                                                <span className="gdg-num-cell" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-text)', minWidth: '44px', textAlign: 'right' }}>
                                                                     {u.persentase}%
                                                                 </span>
                                                             </div>
                                                         </td>
                                                         <td style={{ textAlign: 'center' }}>
-                                                            <span
-                                                                className={`gdg-badge ${u.fulfillment_rate >= 90 ? 'success' : u.fulfillment_rate >= 60 ? 'warning' : 'danger'}`}
-                                                                style={{ fontSize: '0.76rem', fontWeight: 700 }}
-                                                            >
-                                                                {u.fulfillment_rate}%
+                                                            <span className="gdg-status-text" style={{ justifyContent: 'center' }}>
+                                                                <span className="gdg-status-dot" style={{ background: dotColor }} />
+                                                                <span className="gdg-num-cell">{u.fulfillment_rate}%</span>
                                                             </span>
                                                         </td>
-                                                        <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--gdg-text-secondary, #64748b)' }}>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'center', color: 'var(--gdg-muted)' }}>
                                                             {u.total_transaksi}x
                                                         </td>
                                                         <td style={{ textAlign: 'center' }}>
                                                             <button
                                                                 type="button"
-                                                                className={`gdg-btn soft ${isExpanded ? 'active' : ''}`}
-                                                                style={{ padding: '4px 10px', fontSize: '0.76rem', borderRadius: '7px' }}
+                                                                className="gdg-btn-stripe secondary"
+                                                                style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     setExpandedUnitPermintaan(isExpanded ? null : u.unit_nama);
@@ -1055,7 +1079,7 @@ export default function GudangLaporan() {
                                                                                             <span>
                                                                                                 Minta: <strong>{formatQty(bItem.qty_minta)}</strong> {bItem.satuan}
                                                                                             </span>
-                                                                                            <span style={{ color: '#166534', fontWeight: 600 }}>
+                                                                                            <span style={{ color: '#10b981', fontWeight: 600 }}>
                                                                                                 ACC: {formatQty(bItem.qty_setuju)}
                                                                                             </span>
                                                                                         </div>
@@ -1075,43 +1099,41 @@ export default function GudangLaporan() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                        {permintaanPage.total > 0 && (
+                            <SimplePagination
+                                className="gdg-dash-pagination"
+                                currentPage={permintaanPage.curPage}
+                                totalItems={permintaanPage.total}
+                                itemsPerPage={pageSize}
+                                onPageChange={setPage}
+                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                            />
+                        )}
+                    </section>
                 </div>
             )}
 
             {/* TAB 3: REKAP PEMAKAIAN PER RUANGAN */}
             {subTab === 'pemakaian' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="gdg-kpi-grid">
-                        <div className="gdg-kpi-card sky">
-                            <div className="gdg-kpi-icon">
-                                <FileSpreadsheet size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Serah Terima Fisik</span>
-                                <strong>{pemakaianData.summary?.total_transaksi || 0} bon</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Bon pengeluaran disetujui</small>
-                            </div>
+                <div className="gdg-dash-root">
+                    <div className="gdg-stat-bar gdg-stat-bar-3">
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Serah Terima Fisik</span>
+                            <strong className="gdg-stat-val">
+                                {(pemakaianData.summary?.total_transaksi || 0).toLocaleString('id-ID')}
+                                <span className="gdg-stat-unit">bon</span>
+                            </strong>
+                            <span className="gdg-stat-sub">Bon pengeluaran disetujui</span>
                         </div>
-                        <div className="gdg-kpi-card amber">
-                            <div className="gdg-kpi-icon">
-                                <Boxes size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Unit Dikeluarkan</span>
-                                <strong>{formatQty(pemakaianData.summary?.total_qty)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Barang keluar ke ruangan</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Unit Dikeluarkan</span>
+                            <strong className="gdg-stat-val">{formatQty(pemakaianData.summary?.total_qty)}</strong>
+                            <span className="gdg-stat-sub">Barang keluar ke ruangan</span>
                         </div>
-                        <div className="gdg-kpi-card emerald">
-                            <div className="gdg-kpi-icon">
-                                <TrendingUp size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Biaya Pemakaian</span>
-                                <strong style={{ fontSize: '1.25rem' }}>{formatRp(pemakaianData.summary?.total_biaya)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Berdasarkan HPP barang keluar</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Biaya Pemakaian</span>
+                            <strong className="gdg-stat-val">{formatRp(pemakaianData.summary?.total_biaya)}</strong>
+                            <span className="gdg-stat-sub">Berdasarkan HPP barang keluar</span>
                         </div>
                     </div>
 
@@ -1119,10 +1141,11 @@ export default function GudangLaporan() {
                     {(pemakaianData.results || []).length > 0 && (
                         pieModePemakaian === 'ruangan' ? (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataRuang}
                                 totalValue={pemakaianData.summary?.total_biaya}
                                 title="Infografis Porsi Pemakaian per Unit Ruangan"
-                                subtitle="Visualisasi sebaran porsi pengeluaran & biaya logistik antar instalasi / ruangan"                                
+                                subtitle="Visualisasi sebaran porsi pengeluaran & biaya logistik antar instalasi / ruangan"
                                 valuePrefix="Rp "
                                 unitLabel=""
                                 isUnitMode={true}
@@ -1149,11 +1172,13 @@ export default function GudangLaporan() {
                                     const matched = ruangList.find(r => r.nama === it.name);
                                     if (matched) {
                                         setSelectedRuang(selectedRuang === String(matched.id) ? '' : String(matched.id));
+                                        setPage(1);
                                     }
                                 }}
                             />
                         ) : (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataBarangKeluar}
                                 totalValue={pemakaianData.summary?.total_qty}
                                 title="Infografis Barang Paling Banyak Keluar (Dipakai)"
@@ -1182,88 +1207,78 @@ export default function GudangLaporan() {
                                 onSelectItem={(it) => {
                                     if (it.isOthers) return;
                                     setSearchPemakaian(searchPemakaian === it.name ? '' : it.name);
+                                    setPage(1);
                                 }}
                             />
                         )
                     )}
 
-                    <div className="gdg-card">
-                        <div className="gdg-card-head">
-                            <div className="gdg-card-title">
-                                <h2>Rekapitulasi Pemakaian Barang per Unit Ruangan</h2>
-                                <p>Rincian mutasi keluar logistik ke ruangan di periode terpilih</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="gdg-btn soft" onClick={handleExportExcel} title="Export data ke spreadsheet Excel">
-                                    <Download size={15} /> Export Excel
-                                </button>
-                                <button className="gdg-btn soft" onClick={handlePrint} title="Cetak laporan">
-                                    <Printer size={15} /> Cetak
-                                </button>
-                                <button className="gdg-btn soft" onClick={fetchPemakaian} disabled={loading}>
-                                    <RefreshCw size={15} /> Refresh
-                                </button>
-                            </div>
-                        </div>
-
+                    <section className="gdg-dash-section">
                         {/* FILTERS */}
-                        <div className="gdg-toolbar">
-                            <div className="gdg-search" style={{ minWidth: '240px' }}>
-                                <Search size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Cari nama barang, no bon, penerima..."
-                                    value={searchPemakaian}
-                                    onChange={(e) => setSearchPemakaian(e.target.value)}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.84rem', color: 'var(--gdg-text-secondary, #64748b)', fontWeight: 600 }}>Periode:</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={startDate}
-                                        onChange={(val) => setStartDate(val)}
+                        <div className="gdg-brg-toolbar">
+                            <div className="gdg-brg-toolbar-left">
+                                <div className="gdg-dash-search">
+                                    <Search size={14} className="gdg-dash-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama barang, no bon, penerima..."
+                                        value={searchPemakaian}
+                                        onChange={(e) => { setSearchPemakaian(e.target.value); setPage(1); }}
                                     />
                                 </div>
-                                <span style={{ color: '#64748b' }}>s/d</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={endDate}
-                                        onChange={(val) => setEndDate(val)}
-                                    />
+                                <div className="gdg-lap-period-group">
+                                    <span className="gdg-lap-period-label">Periode:</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={startDate}
+                                            onChange={(val) => { setStartDate(val); setPage(1); }}
+                                        />
+                                    </div>
+                                    <span className="gdg-lap-period-sep">s/d</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={endDate}
+                                            onChange={(val) => { setEndDate(val); setPage(1); }}
+                                        />
+                                    </div>
                                 </div>
+                                <div className="gdg-ks-select-wrap">
+                                    <select
+                                        value={selectedRuang}
+                                        onChange={(e) => { setSelectedRuang(e.target.value); setPage(1); }}
+                                        className="gdg-ks-select gdg-brg-select"
+                                    >
+                                        <option value="">Semua Unit Ruangan (48 Ruangan)</option>
+                                        {ruangList.map(r => (
+                                            <option key={r.id} value={r.id}>{r.nama}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={13} className="gdg-ks-select-chevron" />
+                                </div>
+                                {(searchPemakaian || selectedRuang || startDate !== firstDayStr || endDate !== todayStr) && (
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => {
+                                            setSearchPemakaian('');
+                                            setSelectedRuang('');
+                                            setStartDate(firstDayStr);
+                                            setEndDate(todayStr);
+                                            setPage(1);
+                                        }}
+                                        title="Reset filter"
+                                    >
+                                        <X size={13} /> Reset
+                                    </button>
+                                )}
                             </div>
-                            <select
-                                value={selectedRuang}
-                                onChange={(e) => setSelectedRuang(e.target.value)}
-                                className="gdg-select-control"
-                                style={{ minWidth: '200px', height: '40px', borderRadius: '8px' }}
-                            >
-                                <option value="">Semua Unit Ruangan (48 Ruangan)</option>
-                                {ruangList.map(r => (
-                                    <option key={r.id} value={r.id}>{r.nama}</option>
-                                ))}
-                            </select>
-                            {(searchPemakaian || selectedRuang || startDate !== firstDayStr || endDate !== todayStr) && (
-                                <button
-                                    type="button"
-                                    className="gdg-btn soft"
-                                    onClick={() => {
-                                        setSearchPemakaian('');
-                                        setSelectedRuang('');
-                                        setStartDate(firstDayStr);
-                                        setEndDate(todayStr);
-                                    }}
-                                    title="Reset filter"
-                                >
-                                    <X size={14} /> Reset
-                                </button>
-                            )}
                         </div>
 
                         {/* TABLE */}
-                        <div className="gdg-table-wrap">
-                            <table className="gdg-table">
+                        <div className="gdg-table-wrap gdg-table-borderless">
+                            <table className="gdg-table gdg-table-stripe">
                                 <thead>
                                     <tr>
                                         <th>TANGGAL</th>
@@ -1280,24 +1295,25 @@ export default function GudangLaporan() {
                                 <tbody>
                                     {loading ? (
                                         <tr><td colSpan="9" className="gdg-table-empty">Memuat rekap pemakaian...</td></tr>
-                                    ) : (pemakaianData.results || []).length === 0 ? (
+                                    ) : pemakaianPage.total === 0 ? (
                                         <tr><td colSpan="9" className="gdg-table-empty">Tidak ada pemakaian di periode ini.</td></tr>
                                     ) : (
-                                        pemakaianData.results.map((r, idx) => (
+                                        pemakaianPage.items.map((r, idx) => (
                                             <tr key={idx}>
                                                 <td>{r.tanggal}</td>
-                                                <td style={{ color: '#0284c7', fontWeight: 600 }}>{r.nomor_out}</td>
+                                                <td className="gdg-code-cell">{r.nomor_out}</td>
                                                 <td className="gdg-cell-strong">{r.ruang_nama}</td>
                                                 <td>{r.penerima_nama || '-'}</td>
                                                 <td>
-                                                    <span className="gdg-code-cell">[{r.barang_kode}]</span> <span className="gdg-cell-strong">{r.barang_nama}</span>
+                                                    <span className="gdg-code-cell">[{r.barang_kode}]</span>{' '}
+                                                    <span className="gdg-cell-strong">{r.barang_nama}</span>
                                                 </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatQty(r.qty)}</td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>{formatQty(r.qty)}</td>
                                                 <td>{r.satuan}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text-secondary, #475569)' }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', color: 'var(--gdg-muted)' }}>
                                                     {formatRp(r.harga_unit)}
                                                 </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text)' }}>
                                                     {formatRp(r.subtotal)}
                                                 </td>
                                             </tr>
@@ -1306,43 +1322,41 @@ export default function GudangLaporan() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                        {pemakaianPage.total > 0 && (
+                            <SimplePagination
+                                className="gdg-dash-pagination"
+                                currentPage={pemakaianPage.curPage}
+                                totalItems={pemakaianPage.total}
+                                itemsPerPage={pageSize}
+                                onPageChange={setPage}
+                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                            />
+                        )}
+                    </section>
                 </div>
             )}
 
-            {/* TAB 3: REKAP PEMBELIAN PER VENDOR */}
+            {/* TAB 4: REKAP PEMBELIAN PER VENDOR */}
             {subTab === 'pembelian' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div className="gdg-kpi-grid">
-                        <div className="gdg-kpi-card blue">
-                            <div className="gdg-kpi-icon">
-                                <Truck size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Faktur Penerimaan</span>
-                                <strong>{pembelianData.summary?.total_grn || 0} faktur</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Faktur fisik disetujui</small>
-                            </div>
+                <div className="gdg-dash-root">
+                    <div className="gdg-stat-bar gdg-stat-bar-3">
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Faktur Penerimaan</span>
+                            <strong className="gdg-stat-val">
+                                {(pembelianData.summary?.total_grn || 0).toLocaleString('id-ID')}
+                                <span className="gdg-stat-unit">faktur</span>
+                            </strong>
+                            <span className="gdg-stat-sub">Faktur fisik disetujui</span>
                         </div>
-                        <div className="gdg-kpi-card amber">
-                            <div className="gdg-kpi-icon">
-                                <Boxes size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Unit Barang Masuk</span>
-                                <strong>{formatQty(pembelianData.summary?.total_qty_dasar)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Satuan dasar barang</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Unit Barang Masuk</span>
+                            <strong className="gdg-stat-val">{formatQty(pembelianData.summary?.total_qty_dasar)}</strong>
+                            <span className="gdg-stat-sub">Satuan dasar barang</span>
                         </div>
-                        <div className="gdg-kpi-card emerald">
-                            <div className="gdg-kpi-icon">
-                                <TrendingUp size={24} />
-                            </div>
-                            <div className="gdg-kpi-info">
-                                <span>Total Nilai Belanja Logistik</span>
-                                <strong style={{ fontSize: '1.25rem' }}>{formatRp(pembelianData.summary?.total_belanja)}</strong>
-                                <small style={{ color: '#64748b', fontSize: '0.78rem' }}>Total penerimaan rekanan</small>
-                            </div>
+                        <div className="gdg-stat-cell">
+                            <span className="gdg-stat-label">Total Nilai Belanja Logistik</span>
+                            <strong className="gdg-stat-val">{formatRp(pembelianData.summary?.total_belanja)}</strong>
+                            <span className="gdg-stat-sub">Total penerimaan rekanan</span>
                         </div>
                     </div>
 
@@ -1350,6 +1364,7 @@ export default function GudangLaporan() {
                     {(pembelianData.results || []).length > 0 && (
                         pieModePembelian === 'vendor' ? (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataVendor}
                                 totalValue={pembelianData.summary?.total_belanja}
                                 title="Infografis Porsi Belanja per Rekanan / Vendor"
@@ -1378,10 +1393,12 @@ export default function GudangLaporan() {
                                 onSelectItem={(it) => {
                                     if (it.isOthers) return;
                                     setSearchPembelian(searchPembelian === it.name ? '' : it.name);
+                                    setPage(1);
                                 }}
                             />
                         ) : (
                             <LogistikPieInfographic
+                                variant="stripe"
                                 items={pieDataBarangBeli}
                                 totalValue={pembelianData.summary?.total_belanja}
                                 title="Infografis Top Belanja Barang Masuk"
@@ -1410,76 +1427,64 @@ export default function GudangLaporan() {
                                 onSelectItem={(it) => {
                                     if (it.isOthers) return;
                                     setSearchPembelian(searchPembelian === it.name ? '' : it.name);
+                                    setPage(1);
                                 }}
                             />
                         )
                     )}
 
-                    <div className="gdg-card">
-                        <div className="gdg-card-head">
-                            <div className="gdg-card-title">
-                                <h2>Rekapitulasi Pembelian Barang Masuk Rekanan</h2>
-                                <p>Rincian penerimaan barang masuk dari vendor di periode terpilih</p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button className="gdg-btn soft" onClick={handleExportExcel} title="Export data ke spreadsheet Excel">
-                                    <Download size={15} /> Export Excel
-                                </button>
-                                <button className="gdg-btn soft" onClick={handlePrint} title="Cetak laporan">
-                                    <Printer size={15} /> Cetak
-                                </button>
-                                <button className="gdg-btn soft" onClick={fetchPembelian} disabled={loading}>
-                                    <RefreshCw size={15} /> Refresh
-                                </button>
-                            </div>
-                        </div>
-
+                    <section className="gdg-dash-section">
                         {/* FILTERS */}
-                        <div className="gdg-toolbar">
-                            <div className="gdg-search" style={{ minWidth: '240px' }}>
-                                <Search size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Cari vendor, nama barang, no faktur..."
-                                    value={searchPembelian}
-                                    onChange={(e) => setSearchPembelian(e.target.value)}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.84rem', color: 'var(--gdg-text-secondary, #64748b)', fontWeight: 600 }}>Periode:</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={startDate}
-                                        onChange={(val) => setStartDate(val)}
+                        <div className="gdg-brg-toolbar">
+                            <div className="gdg-brg-toolbar-left">
+                                <div className="gdg-dash-search">
+                                    <Search size={14} className="gdg-dash-search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari vendor, nama barang, no faktur..."
+                                        value={searchPembelian}
+                                        onChange={(e) => { setSearchPembelian(e.target.value); setPage(1); }}
                                     />
                                 </div>
-                                <span style={{ color: '#64748b' }}>s/d</span>
-                                <div style={{ width: '140px' }}>
-                                    <DateField
-                                        value={endDate}
-                                        onChange={(val) => setEndDate(val)}
-                                    />
+                                <div className="gdg-lap-period-group">
+                                    <span className="gdg-lap-period-label">Periode:</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={startDate}
+                                            onChange={(val) => { setStartDate(val); setPage(1); }}
+                                        />
+                                    </div>
+                                    <span className="gdg-lap-period-sep">s/d</span>
+                                    <div className="gdg-lap-date-box">
+                                        <DateField
+                                            className="gdg-po-date-field"
+                                            value={endDate}
+                                            onChange={(val) => { setEndDate(val); setPage(1); }}
+                                        />
+                                    </div>
                                 </div>
+                                {(searchPembelian || startDate !== firstDayStr || endDate !== todayStr) && (
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => {
+                                            setSearchPembelian('');
+                                            setStartDate(firstDayStr);
+                                            setEndDate(todayStr);
+                                            setPage(1);
+                                        }}
+                                        title="Reset filter"
+                                    >
+                                        <X size={13} /> Reset
+                                    </button>
+                                )}
                             </div>
-                            {(searchPembelian || startDate !== firstDayStr || endDate !== todayStr) && (
-                                <button
-                                    type="button"
-                                    className="gdg-btn soft"
-                                    onClick={() => {
-                                        setSearchPembelian('');
-                                        setStartDate(firstDayStr);
-                                        setEndDate(todayStr);
-                                    }}
-                                    title="Reset filter"
-                                >
-                                    <X size={14} /> Reset
-                                </button>
-                            )}
                         </div>
 
                         {/* TABLE */}
-                        <div className="gdg-table-wrap">
-                            <table className="gdg-table">
+                        <div className="gdg-table-wrap gdg-table-borderless">
+                            <table className="gdg-table gdg-table-stripe">
                                 <thead>
                                     <tr>
                                         <th>TANGGAL</th>
@@ -1496,28 +1501,29 @@ export default function GudangLaporan() {
                                 <tbody>
                                     {loading ? (
                                         <tr><td colSpan="9" className="gdg-table-empty">Memuat rekap pembelian...</td></tr>
-                                    ) : (pembelianData.results || []).length === 0 ? (
+                                    ) : pembelianPage.total === 0 ? (
                                         <tr><td colSpan="9" className="gdg-table-empty">Tidak ada pembelian di periode ini.</td></tr>
                                     ) : (
-                                        pembelianData.results.map((r, idx) => (
+                                        pembelianPage.items.map((r, idx) => (
                                             <tr key={idx}>
                                                 <td>{r.tanggal}</td>
-                                                <td style={{ color: '#0284c7', fontWeight: 600 }}>{r.nomor_grn}</td>
+                                                <td className="gdg-code-cell">{r.nomor_grn}</td>
                                                 <td>{r.no_faktur}</td>
                                                 <td className="gdg-cell-strong">{r.vendor_nama}</td>
                                                 <td>
-                                                    <span className="gdg-code-cell">[{r.barang_kode}]</span> <span className="gdg-cell-strong">{r.barang_nama}</span>
+                                                    <span className="gdg-code-cell">[{r.barang_kode}]</span>{' '}
+                                                    <span className="gdg-cell-strong">{r.barang_nama}</span>
                                                 </td>
-                                                <td style={{ textAlign: 'right' }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
                                                     {formatQty(r.qty_kemasan)} {r.kemasan}
                                                 </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                     {formatQty(r.qty_dasar)} {r.satuan_dasar}
                                                 </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text-secondary, #475569)' }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', color: 'var(--gdg-muted)' }}>
                                                     {formatRp(r.harga_dasar)}
                                                 </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gdg-text)' }}>
                                                     {formatRp(r.subtotal)}
                                                 </td>
                                             </tr>
@@ -1526,7 +1532,17 @@ export default function GudangLaporan() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                        {pembelianPage.total > 0 && (
+                            <SimplePagination
+                                className="gdg-dash-pagination"
+                                currentPage={pembelianPage.curPage}
+                                totalItems={pembelianPage.total}
+                                itemsPerPage={pageSize}
+                                onPageChange={setPage}
+                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                            />
+                        )}
+                    </section>
                 </div>
             )}
         </div>

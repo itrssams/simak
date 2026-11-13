@@ -284,7 +284,7 @@ export default function GudangIndex() {
                 {activeSection === 'pengeluaran' && <GudangPengeluaran heroActionsTarget={heroActionsEl} />}
                 {activeSection === 'kartu-stok' && <GudangKartuStok />}
                 {activeSection === 'opname' && <GudangOpname heroActionsTarget={heroActionsEl} />}
-                {activeSection === 'laporan' && <GudangLaporan />}
+                {activeSection === 'laporan' && <GudangLaporan heroActionsTarget={heroActionsEl} />}
             </div>
         </div>
     );

@@ -215,6 +215,7 @@ export default function LogistikPieInfographic({
     selectedId = null,
     onSelectItem = null,
     extraActions = null,
+    variant = 'default',
 }) {
     const [chartLimit, setChartLimit] = useState(6);
     const [isSteppedRadius, setIsSteppedRadius] = useState(false);
@@ -297,14 +298,19 @@ export default function LogistikPieInfographic({
 
     const activeItem = hoveredIdx !== null ? slices[hoveredIdx] : null;
 
+    const isStripe = variant === 'stripe';
+    const hasPositiveTotal = Number(totalValue) > 0 && slices.some((s) => Number(s.value) > 0);
+
     return (
-        <div className="lpi-card">
+        <div className={isStripe ? 'lpi-card lpi-stripe' : 'lpi-card'}>
             {/* Header Controls */}
             <div className="lpi-header">
                 <div className="lpi-title-wrap">
-                    <div className="lpi-icon-badge">
-                        <PieChart size={22} strokeWidth={2.4} />
-                    </div>
+                    {!isStripe && (
+                        <div className="lpi-icon-badge">
+                            <PieChart size={22} strokeWidth={2.4} />
+                        </div>
+                    )}
                     <div>
                         <div className="lpi-title-row">
                             <h3>{title}</h3>
@@ -365,41 +371,59 @@ export default function LogistikPieInfographic({
                             </filter>
                         </defs>
 
-                        {/* Slices */}
-                        <g>
-                            {slices.map((s, idx) => {
-                                const isHovered = hoveredIdx === idx;
-                                const isSelected = selectedId && (selectedId === s.id);
-                                const scaleFactor = isHovered || isSelected ? 1.04 : 1;
-                                const transformOrigin = '200px 200px';
+                        {/* Slices or subtle empty track ring */}
+                        {isStripe && !hasPositiveTotal ? (
+                            <circle
+                                cx="200"
+                                cy="200"
+                                r="112"
+                                fill="none"
+                                className="lpi-empty-ring"
+                                strokeWidth="56"
+                            />
+                        ) : (
+                            <g>
+                                {slices.map((s, idx) => {
+                                    const isHovered = hoveredIdx === idx;
+                                    const isSelected = selectedId && (selectedId === s.id);
+                                    const scaleFactor = isHovered || isSelected ? 1.04 : 1;
+                                    const transformOrigin = '200px 200px';
 
-                                return (
-                                    <path
-                                        key={idx}
-                                        d={s.path}
-                                        fill={`url(#lpi-grad-${idx})`}
-                                        stroke="#ffffff"
-                                        strokeWidth="3.5"
-                                        strokeLinejoin="round"
-                                        className="lpi-slice"
-                                        style={{
-                                            transform: `scale(${scaleFactor})`,
-                                            transformOrigin,
-                                            filter: isHovered || isSelected ? 'url(#lpi-shadow)' : 'none',
-                                            cursor: 'pointer',
-                                            transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
-                                            opacity: hoveredIdx !== null && !isHovered ? 0.45 : 1,
-                                        }}
-                                        onMouseEnter={() => setHoveredIdx(idx)}
-                                        onMouseLeave={() => setHoveredIdx(null)}
-                                        onClick={() => onSelectItem && onSelectItem(s)}
-                                    />
-                                );
-                            })}
-                        </g>
+                                    return (
+                                        <path
+                                            key={idx}
+                                            d={s.path}
+                                            fill={`url(#lpi-grad-${idx})`}
+                                            stroke={isStripe ? undefined : '#ffffff'}
+                                            strokeWidth={isStripe ? '2.5' : '3.5'}
+                                            strokeLinejoin="round"
+                                            className="lpi-slice"
+                                            style={{
+                                                transform: `scale(${scaleFactor})`,
+                                                transformOrigin,
+                                                filter: isHovered || isSelected ? 'url(#lpi-shadow)' : 'none',
+                                                cursor: 'pointer',
+                                                transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
+                                                opacity: hoveredIdx !== null && !isHovered ? 0.45 : 1,
+                                            }}
+                                            onMouseEnter={() => setHoveredIdx(idx)}
+                                            onMouseLeave={() => setHoveredIdx(null)}
+                                            onClick={() => onSelectItem && onSelectItem(s)}
+                                        />
+                                    );
+                                })}
+                            </g>
+                        )}
 
                         {/* Donut Center Hole Details */}
-                        <circle cx="200" cy="200" r="78" fill="#ffffff" filter="drop-shadow(0 4px 12px rgba(0,0,0,0.06))" />
+                        <circle
+                            cx="200"
+                            cy="200"
+                            r="78"
+                            className={isStripe ? 'lpi-center-circle' : undefined}
+                            fill={isStripe ? undefined : '#ffffff'}
+                            filter={isStripe ? undefined : 'drop-shadow(0 4px 12px rgba(0,0,0,0.06))'}
+                        />
                         <g className="lpi-center-text">
                             {activeItem ? (
                                 <>
@@ -409,7 +433,7 @@ export default function LogistikPieInfographic({
                                     <text x="200" y="205" textAnchor="middle" className="lpi-center-val" fill={activeItem.pal.color} style={{ fontSize: '22px' }}>
                                         {activeItem.pct}%
                                     </text>
-                                    <text x="200" y="225" textAnchor="middle" className="lpi-center-sub" style={{ fontSize: '11px', fontWeight: 700, fill: '#475569' }}>
+                                    <text x="200" y="225" textAnchor="middle" className="lpi-center-sub" style={{ fontSize: '11px', fontWeight: 700, fill: isStripe ? undefined : '#475569' }}>
                                         {valuePrefix}{fmtNum(activeItem.value)}{unitLabel ? ` ${unitLabel}` : ''}
                                     </text>
                                 </>
@@ -423,11 +447,11 @@ export default function LogistikPieInfographic({
                                         y="204"
                                         textAnchor="middle"
                                         className="lpi-center-val"
-                                        fill="#0f172a"
+                                        fill={isStripe ? undefined : '#0f172a'}
                                     >
                                         {valuePrefix ? (
                                             <>
-                                                <tspan style={{ fontSize: '12px', fontWeight: 600, fill: '#64748b' }}>{valuePrefix}</tspan>
+                                                <tspan className="lpi-center-prefix" style={{ fontSize: '12px', fontWeight: 600, fill: isStripe ? undefined : '#64748b' }}>{valuePrefix}</tspan>
                                                 <tspan style={{ fontSize: String(fmtNum(totalValue)).length > 10 ? '16px' : '18px', fontWeight: 800 }}>
                                                     {fmtNum(totalValue)}
                                                 </tspan>
@@ -452,10 +476,41 @@ export default function LogistikPieInfographic({
                 {/* Legend List */}
                 <div className="lpi-legend-list">
                     {slices.map((s, idx) => {
-                        const meta = getLogistikCuteMeta(s.name, isUnitMode);
                         const isHovered = hoveredIdx === idx;
                         const isSelected = selectedId && (selectedId === s.id);
 
+                        if (isStripe) {
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`lpi-legend-row ${isHovered ? 'hovered' : ''} ${isSelected ? 'selected' : ''}`}
+                                    onMouseEnter={() => setHoveredIdx(idx)}
+                                    onMouseLeave={() => setHoveredIdx(null)}
+                                    onClick={() => onSelectItem && onSelectItem(s)}
+                                >
+                                    <div className="lpi-legend-row-left">
+                                        <span
+                                            className="lpi-legend-dot"
+                                            style={{ backgroundColor: s.pal.color }}
+                                        />
+                                        <div className="lpi-legend-row-text">
+                                            <span className="lpi-legend-name" title={s.name}>
+                                                {s.name}
+                                            </span>
+                                            {s.sublabel && <span className="lpi-subtext">{s.sublabel}</span>}
+                                        </div>
+                                    </div>
+                                    <div className="lpi-legend-row-right">
+                                        <span className="lpi-val-text">
+                                            {valuePrefix}{fmtNum(s.value)}{s.satuan || unitLabel ? ` ${s.satuan || unitLabel}` : ''}
+                                        </span>
+                                        <span className="lpi-pct-text">{s.pct}%</span>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        const meta = getLogistikCuteMeta(s.name, isUnitMode);
                         return (
                             <div
                                 key={idx}
