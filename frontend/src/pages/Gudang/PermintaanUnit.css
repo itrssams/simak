@@ -937,7 +937,7 @@
 }
 
 .pu-modal-meta-row {
-    margin: 5px 0 0;
+    margin: 6px 0 0;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -954,16 +954,19 @@
 .pu-modal-meta-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-variant-numeric: tabular-nums;
+    font-size: 12px;
     font-weight: 600;
     color: #f8fafc;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 
 [data-theme="light"] .pu-modal-meta-code {
     color: #1a1f36;
-}
-
-.pu-modal-meta-sep {
-    opacity: 0.55;
+    background: #f1f5f9;
+    border-color: #e3e8ee;
 }
 
 .pu-modal-desc {

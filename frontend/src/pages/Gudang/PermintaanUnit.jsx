@@ -1274,7 +1274,6 @@ export default function PermintaanUnit() {
                                 </h3>
                                 <div className="pu-modal-meta-row">
                                     <span className="pu-modal-meta-code">{approveTarget.nomor}</span>
-                                    <span className="pu-modal-meta-sep" aria-hidden="true">&bull;</span>
                                     <span>Ruang: <strong>{approveTarget.ruang_nama}</strong></span>
                                 </div>
                             </div>
@@ -1416,9 +1415,10 @@ export default function PermintaanUnit() {
                                 <h3 className="pu-modal-title" style={{ color: '#fb7185' }}>
                                     Tolak Permintaan Barang
                                 </h3>
-                                <p className="pu-modal-subtitle">
-                                    {rejectTarget.nomor} — {rejectTarget.ruang_nama}
-                                </p>
+                                <div className="pu-modal-meta-row">
+                                    <span className="pu-modal-meta-code">{rejectTarget.nomor}</span>
+                                    <span>Ruang: <strong>{rejectTarget.ruang_nama}</strong></span>
+                                </div>
                             </div>
                             <button type="button" className="pu-action-btn" onClick={() => setRejectTarget(null)}>
                                 <X size={16} />
