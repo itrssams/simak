@@ -2287,18 +2287,22 @@
 }
 
 .gdg-btn-stripe {
-    height: 34px;
-    padding: 0 13px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 14px;
     border-radius: 6px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
+    line-height: 1;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     box-sizing: border-box;
+    margin: 0;
 }
 
 .gdg-btn-stripe:disabled {
@@ -2318,18 +2322,26 @@
 }
 
 .gdg-btn-stripe.secondary {
-    background: transparent;
-    border: 1px solid var(--gdg-border-ctrl);
-    color: var(--gdg-text);
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
 }
 
 .gdg-btn-stripe.secondary:hover:not(:disabled) {
-    background: var(--gdg-hover);
+    background: #1e232e;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="light"] .gdg-btn-stripe.secondary {
     background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
     box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
+}
+
+[data-theme="light"] .gdg-btn-stripe.secondary:hover:not(:disabled) {
+    background: #f7fafc;
+    border-color: #cbd5e1;
 }
 
 /* ── Unified Filter Tabs & Search Toolbar ── */

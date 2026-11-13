@@ -264,14 +264,14 @@ export default function GudangDashboard() {
                             onClick={handleRefreshAll}
                             disabled={permintaanLoading}
                         >
-                            <RefreshCw size={14} /> Refresh
+                            <RefreshCw size={14} strokeWidth={1.75} /> Refresh
                         </button>
                         <button
                             type="button"
                             className="gdg-btn-stripe primary"
                             onClick={() => navigate('/gudang/pengeluaran')}
                         >
-                            <Send size={14} /> Buka Pengeluaran Unit
+                            <Send size={14} strokeWidth={1.75} /> Buka Pengeluaran Unit
                         </button>
                     </div>
                 </div>
