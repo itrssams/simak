@@ -4865,3 +4865,96 @@
 .gdg-lap-drilldown-table tbody tr:last-child td {
     border-bottom: none;
 }
+
+/* ============================================================================
+   PRINT OVERRIDE — KARTU STOK & LAPORAN GUDANG
+   (Mengatasi aturan global `body * { visibility: hidden }` dari modul lain)
+   ============================================================================ */
+@media print {
+    html,
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .gdg-module-root {
+        display: block !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .gdg-content-area,
+    .gdg-content-area * {
+        visibility: visible !important;
+    }
+
+    .gdg-sidebar,
+    .topbar,
+    .app-footer,
+    .gdg-page-hero-actions,
+    .gdg-ks-filter-bar,
+    .gdg-brg-toolbar,
+    .gdg-segmented-tabs,
+    .gdg-dash-pagination,
+    .gdg-btn,
+    .gdg-btn-stripe,
+    .gdg-toolbar,
+    .app-switcher-backdrop {
+        display: none !important;
+    }
+
+    .gdg-content-area {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .gdg-page-title h1,
+    .gdg-dash-section-head h2,
+    .gdg-stat-val,
+    .gdg-cell-strong,
+    .gdg-ks-summary-item strong {
+        color: #000000 !important;
+    }
+
+    .gdg-page-title p,
+    .gdg-dash-section-head p,
+    .gdg-stat-label,
+    .gdg-stat-unit,
+    .gdg-stat-sub,
+    .gdg-cell-muted,
+    .gdg-ks-summary-item span {
+        color: #475569 !important;
+    }
+
+    .gdg-stat-bar,
+    .gdg-stat-cell {
+        border-color: #cbd5e1 !important;
+        background: #ffffff !important;
+    }
+
+    .gdg-table.gdg-table-stripe {
+        border: 1px solid #334155 !important;
+        background: #ffffff !important;
+    }
+
+    .gdg-table.gdg-table-stripe th,
+    .gdg-table.gdg-table-stripe td {
+        border: 1px solid #cbd5e1 !important;
+        color: #000000 !important;
+        background: #ffffff !important;
+        padding: 6px 8px !important;
+    }
+
+    .gdg-table.gdg-table-stripe th {
+        background: #f1f5f9 !important;
+    }
+}
