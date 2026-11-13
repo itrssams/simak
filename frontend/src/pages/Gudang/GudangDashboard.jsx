@@ -410,15 +410,14 @@ export default function GudangDashboard() {
                 </div>
 
                 {/* Pagination */}
-                <div style={{ marginTop: '14px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalPermintaan}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalPermintaan}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
             </section>
         </div>
     );

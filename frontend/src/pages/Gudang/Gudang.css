@@ -2609,3 +2609,124 @@
     background: #f1f5f9;
     color: #1a1f36;
 }
+
+/* ── Last row flush with pagination divider ── */
+.gdg-table-stripe tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+.gdg-table-stripe .gdg-code-cell {
+    text-decoration: none;
+    color: var(--gdg-text);
+    font-weight: 600;
+}
+
+/* ── Stripe Clean Enterprise Pagination ── */
+.gdg-dash-pagination.sp-container {
+    padding: 14px 0 0 !important;
+    margin-top: 0;
+    border-top: 1px solid var(--gdg-border);
+    background: transparent !important;
+}
+
+.gdg-dash-pagination .sp-info {
+    font-size: 13px;
+    color: var(--gdg-muted) !important;
+}
+
+.gdg-dash-pagination .sp-info strong {
+    color: var(--gdg-text) !important;
+    font-weight: 600;
+}
+
+.gdg-dash-pagination .sp-controls {
+    gap: 10px;
+}
+
+.gdg-dash-pagination .sp-size-select {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-size-select {
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #1a1f36 !important;
+}
+
+.gdg-dash-pagination .sp-nav-group {
+    height: 32px !important;
+    border-radius: 6px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: none !important;
+    overflow: hidden;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-nav-group {
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
+}
+
+.gdg-dash-pagination .sp-nav-btn {
+    width: 32px !important;
+    height: 30px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-right: 1px solid var(--gdg-border) !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+}
+
+.gdg-dash-pagination .sp-nav-btn:last-child {
+    border-right: none !important;
+}
+
+.gdg-dash-pagination .sp-nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-nav-btn {
+    color: #475569 !important;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-nav-btn:hover:not(:disabled) {
+    background: #f1f5f9 !important;
+    color: #1a1f36 !important;
+}
+
+.gdg-dash-pagination .sp-page-pill {
+    height: 30px !important;
+    padding: 0 12px !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: #94a3b8 !important;
+    border-left: none !important;
+    border-right: 1px solid var(--gdg-border) !important;
+    opacity: 1 !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.gdg-dash-pagination .sp-page-pill strong {
+    color: #f8fafc !important;
+    font-weight: 600 !important;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-page-pill {
+    color: #475569 !important;
+}
+
+[data-theme="light"] .gdg-dash-pagination .sp-page-pill strong {
+    color: #1a1f36 !important;
+}
