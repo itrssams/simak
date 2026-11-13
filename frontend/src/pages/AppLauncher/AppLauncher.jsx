@@ -283,8 +283,7 @@ export default function AppLauncher() {
                 { label: 'Dashboard IMTK', path: '/sdm/rekapitulasi' },
                 { label: 'Struktur Organisasi', path: '/sdm/struktur' },
             ] : [
-                { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja' },
-                { label: 'Roster Saya', path: '/sdm/presensi?tab=roster' },
+                { label: 'Pengajuan IMTK', path: '/sdm/izin-kerja' },
             ],
         },
         {

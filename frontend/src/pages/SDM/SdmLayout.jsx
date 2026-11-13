@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   Users,
@@ -89,9 +89,16 @@ export default function SdmLayout({ children }) {
     }
   };
 
+  // Karyawan non-SDM hanya boleh mengakses halaman Pengajuan / Approval IMTK
+  const isImtkRoute = ['/sdm/izin-kerja', '/sdm/approval', '/sdm/pengajuan-izin'].includes(location.pathname);
+  if (!hasSdmAccess && !isImtkRoute) {
+    return <Navigate to="/sdm/izin-kerja" replace />;
+  }
+
   return (
     <div className="sdm-module-root">
-      {/* ── Dedicated Internal SDM Sidebar ── */}
+      {/* ── Dedicated Internal SDM Sidebar (khusus pemegang hak akses SDM) ── */}
+      {hasSdmAccess && (
       <aside className={`sdm-sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Navigasi Modul SDM">
         {/* Header & Toggle Button */}
         <div className="sdm-sb-head">
@@ -343,6 +350,7 @@ export default function SdmLayout({ children }) {
           {!collapsed && <span className="sdm-sb-foot-ver" style={{ opacity: 0.6, fontSize: '10px' }}>v2.0</span>}
         </div>
       </aside>
+      )}
 
       {/* ── Main Content Workspace Area ── */}
       <div className="sdm-content-area">
