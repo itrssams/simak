@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-    Boxes,
     LayoutDashboard,
     Package,
     Building2,
@@ -105,20 +104,14 @@ export default function GudangIndex() {
     };
 
     const heroInfo = HERO_CONFIG[activeSection] || HERO_CONFIG.dashboard;
-    const HeroIcon = heroInfo.Icon;
 
     return (
         <div className="gdg-module-root">
-            {/* ── Dedicated Internal Gudang Sidebar (SDM Concept) ── */}
+            {/* ── Dedicated Internal Gudang Sidebar ── */}
             <aside className={`gdg-sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Navigasi Modul Gudang Logistik">
                 <div className="gdg-sb-head">
                     {!collapsed && (
-                        <div className="gdg-sb-title-wrap">
-                            <div className="gdg-sb-title-icon" title="Modul Gudang Logistik">
-                                <Boxes size={15} strokeWidth={2.3} />
-                            </div>
-                            <span className="gdg-sb-title-text">Menu Logistik</span>
-                        </div>
+                        <span className="gdg-sb-title-text">Menu Logistik</span>
                     )}
 
                     <button
@@ -127,7 +120,7 @@ export default function GudangIndex() {
                         onClick={toggleCollapse}
                         title={collapsed ? 'Lebarkan Sidebar (Buka)' : 'Ciutkan Sidebar (Lega)'}
                     >
-                        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                        {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
                     </button>
                 </div>
 
@@ -268,16 +261,10 @@ export default function GudangIndex() {
 
             {/* ── Main Content Workspace Area ── */}
             <div className="gdg-content-area">
-                {/* ── Standard SIMAK Hero Header ── */}
+                {/* ── Clean Enterprise Header ── */}
                 <div className="gdg-page-hero">
                     <div className="gdg-page-hero-main">
                         <div className="gdg-page-title">
-                            <span
-                                className="gdg-page-title-icon"
-                                style={{ background: heroInfo.gradient }}
-                            >
-                                <HeroIcon size={24} />
-                            </span>
                             <div>
                                 <h1>{heroInfo.title}</h1>
                                 <p>{heroInfo.subtitle}</p>

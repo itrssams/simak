@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Boxes,
-    PackageCheck,
-    AlertTriangle,
-    BadgePercent,
     RefreshCw,
-    Plus,
     Send,
-    Clock,
-    CheckCircle2,
-    XCircle,
     Search,
-    ArrowRight,
-    Building2,
     Inbox,
     History,
+    Eye,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -24,7 +15,6 @@ import { SimplePagination } from '../../utils/pagination.jsx';
 export default function GudangDashboard() {
     const navigate = useNavigate();
     const toast = useToast();
-    const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         total_item: 0,
         item_ada_stok: 0,
@@ -131,98 +121,92 @@ export default function GudangDashboard() {
         }
     };
 
-    const renderStatusBadge = (status) => {
+    const renderStatusText = (status) => {
         switch (status) {
             case 'MENUNGGU':
                 return (
-                    <span className="gdg-badge amber" title="Menunggu Persetujuan / Review Gudang">
-                        <Clock size={12} /> Menunggu Verifikasi
+                    <span className="gdg-status-text amber" title="Menunggu Persetujuan / Review Gudang">
+                        <span className="gdg-status-dot" /> Menunggu Verifikasi
                     </span>
                 );
             case 'DISETUJUI':
                 return (
-                    <span className="gdg-badge blue" title="Sudah Disetujui, Siap Bon Penyerahan">
-                        <CheckCircle2 size={12} /> Disetujui (Siap Bon)
+                    <span className="gdg-status-text indigo" title="Sudah Disetujui, Siap Bon Penyerahan">
+                        <span className="gdg-status-dot" /> Disetujui (Siap Bon)
                     </span>
                 );
             case 'SELESAI':
                 return (
-                    <span className="gdg-badge emerald" title="Barang Telah Diserahkan Penuh">
-                        <CheckCircle2 size={12} /> Selesai Diserahkan
+                    <span className="gdg-status-text emerald" title="Barang Telah Diserahkan Penuh">
+                        <span className="gdg-status-dot" /> Selesai Diserahkan
                     </span>
                 );
             case 'DITOLAK':
                 return (
-                    <span className="gdg-badge rose" title="Permintaan Ditolak Gudang">
-                        <XCircle size={12} /> Ditolak
+                    <span className="gdg-status-text rose" title="Permintaan Ditolak Gudang">
+                        <span className="gdg-status-dot" /> Ditolak
                     </span>
                 );
             case 'DRAFT':
             default:
-                return <span className="gdg-badge slate">Draft</span>;
+                return (
+                    <span className="gdg-status-text slate">
+                        <span className="gdg-status-dot" /> Draft
+                    </span>
+                );
         }
     };
 
+    const hasLowStock = Number(stats.item_stok_minimum || 0) > 0;
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* KPI GRID */}
-            <div className="gdg-kpi-grid">
-                <div className="gdg-kpi-card blue">
-                    <div className="gdg-kpi-icon">
-                        <Boxes size={24} />
-                    </div>
-                    <div className="gdg-kpi-info">
-                        <span>Total Katalog Barang</span>
-                        <strong>{stats.total_item.toLocaleString('id-ID')} item</strong>
-                    </div>
+        <div className="gdg-dash-root">
+            {/* ── Flat Horizontal KPI Stat-Bar ── */}
+            <div className="gdg-stat-bar">
+                <div className="gdg-stat-cell">
+                    <span className="gdg-stat-label">Total Katalog Barang</span>
+                    <strong className="gdg-stat-val">
+                        {stats.total_item.toLocaleString('id-ID')} <span className="gdg-stat-unit">item</span>
+                    </strong>
                 </div>
 
-                <div className="gdg-kpi-card amber">
-                    <div className="gdg-kpi-icon">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div className="gdg-kpi-info">
-                        <span>Di Bawah Batas Minimum</span>
-                        <strong>{stats.item_stok_minimum.toLocaleString('id-ID')} item</strong>
-                    </div>
+                <div className="gdg-stat-cell">
+                    <span className="gdg-stat-label">Di Bawah Batas Minimum</span>
+                    <strong className={`gdg-stat-val${hasLowStock ? ' is-warning' : ''}`}>
+                        {stats.item_stok_minimum.toLocaleString('id-ID')} <span className="gdg-stat-unit">item</span>
+                    </strong>
                 </div>
 
-                <div className="gdg-kpi-card sky">
-                    <div className="gdg-kpi-icon">
-                        <Inbox size={24} />
-                    </div>
-                    <div className="gdg-kpi-info">
-                        <span>Permintaan Unit Pending</span>
-                        <strong>{pendingCount.toLocaleString('id-ID')} pengajuan</strong>
-                    </div>
+                <div className="gdg-stat-cell">
+                    <span className="gdg-stat-label">Permintaan Unit Pending</span>
+                    <strong className="gdg-stat-val">
+                        {pendingCount.toLocaleString('id-ID')} <span className="gdg-stat-unit">pengajuan</span>
+                    </strong>
                 </div>
 
-                <div className="gdg-kpi-card purple">
-                    <div className="gdg-kpi-icon">
-                        <BadgePercent size={24} />
-                    </div>
-                    <div className="gdg-kpi-info">
-                        <span>Total Nilai Aset Stok</span>
-                        <strong style={{ fontSize: '1.25rem' }}>{formatCurrency(stats.total_nilai_aset_stok)}</strong>
-                    </div>
+                <div className="gdg-stat-cell">
+                    <span className="gdg-stat-label">Total Nilai Aset Stok</span>
+                    <strong className="gdg-stat-val">
+                        {formatCurrency(stats.total_nilai_aset_stok)}
+                    </strong>
                 </div>
             </div>
 
-            {/* STOK MINIMUM ALERT TABLE */}
+            {/* ── Stok Minimum Alert Section (Borderless) ── */}
             {lowStockItems.length > 0 && (
-                <div className="gdg-card">
-                    <div className="gdg-card-head">
-                        <div className="gdg-card-title">
+                <section className="gdg-dash-section">
+                    <div className="gdg-dash-section-head">
+                        <div>
                             <h2>Perhatian: Barang di Bawah Stok Minimum</h2>
                             <p>Segera buatkan Surat Pesanan (PO) ke rekanan untuk item berikut agar tidak terjadi kekosongan fisik</p>
                         </div>
-                        <button className="gdg-btn primary" onClick={() => navigate('/gudang/po')}>
+                        <button className="gdg-btn-stripe primary" onClick={() => navigate('/gudang/po')}>
                             Buat Surat Pesanan (PO)
                         </button>
                     </div>
 
-                    <div className="gdg-table-wrap">
-                        <table className="gdg-table">
+                    <div className="gdg-table-wrap gdg-table-borderless">
+                        <table className="gdg-table gdg-table-stripe">
                             <thead>
                                 <tr>
                                     <th>Kode</th>
@@ -231,7 +215,7 @@ export default function GudangDashboard() {
                                     <th>Stok Fisik</th>
                                     <th>Batas Minimum</th>
                                     <th>Satuan</th>
-                                    <th>Aksi</th>
+                                    <th style={{ textAlign: 'right' }}>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -239,21 +223,23 @@ export default function GudangDashboard() {
                                     <tr key={item.id}>
                                         <td className="gdg-code-cell">{item.kode}</td>
                                         <td><strong>{item.nama}</strong></td>
-                                        <td>{item.golongan?.nama || '-'}</td>
-                                        <td>
-                                            <span className="gdg-badge rose">
-                                                {Number(item.stok_saat_ini || 0).toLocaleString('id-ID')} {item.satuan_dasar?.kode}
-                                            </span>
+                                        <td className="gdg-cell-muted">{item.golongan?.nama || '-'}</td>
+                                        <td className="gdg-num-cell is-danger-text">
+                                            {Number(item.stok_saat_ini || 0).toLocaleString('id-ID')} {item.satuan_dasar?.kode}
                                         </td>
-                                        <td>{Number(item.stok_minimum || 0).toLocaleString('id-ID')} {item.satuan_dasar?.kode}</td>
-                                        <td>{item.satuan_dasar?.nama}</td>
-                                        <td>
+                                        <td className="gdg-num-cell">
+                                            {Number(item.stok_minimum || 0).toLocaleString('id-ID')} {item.satuan_dasar?.kode}
+                                        </td>
+                                        <td className="gdg-cell-muted">{item.satuan_dasar?.nama}</td>
+                                        <td style={{ textAlign: 'right' }}>
                                             <button
-                                                className="gdg-btn soft"
-                                                style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                                                type="button"
+                                                className="gdg-icon-action"
                                                 onClick={() => navigate(`/gudang/kartu-stok?barang=${item.id}`)}
+                                                title="Buka Kartu Stok"
+                                                aria-label="Buka Kartu Stok"
                                             >
-                                                <History size={13} /> Kartu Stok
+                                                <History size={15} />
                                             </button>
                                         </td>
                                     </tr>
@@ -261,30 +247,91 @@ export default function GudangDashboard() {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* INFORMASI PERMINTAAN BARANG DARI UNIT / RUANGAN */}
-            <div className="gdg-card">
-                <div className="gdg-card-head">
-                    <div className="gdg-card-title">
+            {/* ── Informasi & Antrean Permintaan Barang Unit (Borderless) ── */}
+            <section className="gdg-dash-section">
+                <div className="gdg-dash-section-head">
+                    <div>
                         <h2>Informasi & Antrean Permintaan Barang Unit</h2>
                         <p>Ringkasan pengajuan barang dari unit/ruangan. Detail rincian item & realisasi penyerahan fisik dikelola di menu Pengeluaran Unit</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <button className="gdg-btn soft" onClick={handleRefreshAll} disabled={permintaanLoading}>
-                            <RefreshCw size={15} /> Refresh
+                    <div className="gdg-dash-actions">
+                        <button
+                            type="button"
+                            className="gdg-btn-stripe secondary"
+                            onClick={handleRefreshAll}
+                            disabled={permintaanLoading}
+                        >
+                            <RefreshCw size={14} /> Refresh
                         </button>
-                        <button className="gdg-btn primary" onClick={() => navigate('/gudang/pengeluaran')}>
-                            <Send size={15} /> Buka Pengeluaran Unit
+                        <button
+                            type="button"
+                            className="gdg-btn-stripe primary"
+                            onClick={() => navigate('/gudang/pengeluaran')}
+                        >
+                            <Send size={14} /> Buka Pengeluaran Unit
                         </button>
                     </div>
                 </div>
 
-                {/* TOOLBAR FILTER & SEARCH */}
-                <div className="gdg-toolbar">
-                    <div className="gdg-search">
-                        <Search size={16} />
+                {/* Underline Status Tabs */}
+                <div className="gdg-dash-tabs" role="tablist">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={statusFilter === ''}
+                        className={`gdg-dash-tab ${statusFilter === '' ? 'active' : ''}`}
+                        onClick={() => {
+                            setStatusFilter('');
+                            setPage(1);
+                        }}
+                    >
+                        Semua Status
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={statusFilter === 'MENUNGGU'}
+                        className={`gdg-dash-tab ${statusFilter === 'MENUNGGU' ? 'active' : ''}`}
+                        onClick={() => {
+                            setStatusFilter('MENUNGGU');
+                            setPage(1);
+                        }}
+                    >
+                        Menunggu Verifikasi{pendingCount > 0 ? ` (${pendingCount})` : ''}
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={statusFilter === 'DISETUJUI'}
+                        className={`gdg-dash-tab ${statusFilter === 'DISETUJUI' ? 'active' : ''}`}
+                        onClick={() => {
+                            setStatusFilter('DISETUJUI');
+                            setPage(1);
+                        }}
+                    >
+                        Disetujui (Siap Bon)
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={statusFilter === 'SELESAI'}
+                        className={`gdg-dash-tab ${statusFilter === 'SELESAI' ? 'active' : ''}`}
+                        onClick={() => {
+                            setStatusFilter('SELESAI');
+                            setPage(1);
+                        }}
+                    >
+                        Selesai Diserahkan
+                    </button>
+                </div>
+
+                {/* Search Toolbar */}
+                <div className="gdg-dash-toolbar">
+                    <div className="gdg-dash-search">
+                        <Search size={15} />
                         <input
                             type="text"
                             placeholder="Cari nomor permintaan, nama ruangan, atau catatan..."
@@ -295,54 +342,11 @@ export default function GudangDashboard() {
                             }}
                         />
                     </div>
-
-                    <div className="gdg-chips">
-                        <button
-                            type="button"
-                            className={`gdg-chip ${statusFilter === '' ? 'active' : ''}`}
-                            onClick={() => {
-                                setStatusFilter('');
-                                setPage(1);
-                            }}
-                        >
-                            Semua Status
-                        </button>
-                        <button
-                            type="button"
-                            className={`gdg-chip ${statusFilter === 'MENUNGGU' ? 'active' : ''}`}
-                            onClick={() => {
-                                setStatusFilter('MENUNGGU');
-                                setPage(1);
-                            }}
-                        >
-                            Menunggu Verifikasi {pendingCount > 0 ? `(${pendingCount})` : ''}
-                        </button>
-                        <button
-                            type="button"
-                            className={`gdg-chip ${statusFilter === 'DISETUJUI' ? 'active' : ''}`}
-                            onClick={() => {
-                                setStatusFilter('DISETUJUI');
-                                setPage(1);
-                            }}
-                        >
-                            Disetujui (Siap Bon)
-                        </button>
-                        <button
-                            type="button"
-                            className={`gdg-chip ${statusFilter === 'SELESAI' ? 'active' : ''}`}
-                            onClick={() => {
-                                setStatusFilter('SELESAI');
-                                setPage(1);
-                            }}
-                        >
-                            Selesai Diserahkan
-                        </button>
-                    </div>
                 </div>
 
-                {/* TABLE PERMINTAAN */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                {/* Borderless Table */}
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
                                 <th>No. Dokumen</th>
@@ -365,7 +369,7 @@ export default function GudangDashboard() {
                                 <tr>
                                     <td colSpan="7" className="gdg-table-empty">
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                                            <Inbox size={32} className="gdg-icon-muted" />
+                                            <Inbox size={28} className="gdg-icon-muted" />
                                             <span>Tidak ada permohonan barang yang cocok dengan filter.</span>
                                         </div>
                                     </td>
@@ -373,38 +377,30 @@ export default function GudangDashboard() {
                             ) : (
                                 permintaanList.map((req) => (
                                     <tr key={req.id}>
-                                        <td className="gdg-code-cell">
-                                            {req.nomor}
-                                        </td>
-                                        <td>{formatDate(req.tanggal)}</td>
+                                        <td className="gdg-code-cell">{req.nomor}</td>
+                                        <td className="gdg-date-cell">{formatDate(req.tanggal)}</td>
                                         <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <Building2 size={14} className="gdg-icon-muted" />
-                                                <strong>{req.ruang_nama || req.ruang?.nama || '-'}</strong>
-                                            </div>
+                                            <div className="gdg-unit-name">{req.ruang_nama || req.ruang?.nama || '-'}</div>
                                             {req.created_by_nama && (
-                                                <small className="gdg-cell-muted" style={{ display: 'block', fontSize: '0.74rem', marginTop: '2px' }}>
-                                                    Oleh: {req.created_by_nama}
-                                                </small>
+                                                <div className="gdg-unit-by">Oleh: {req.created_by_nama}</div>
                                             )}
                                         </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <span className="gdg-badge slate" style={{ fontWeight: 600 }}>
-                                                {(req.items || []).length} item
-                                            </span>
+                                        <td className="gdg-num-cell" style={{ textAlign: 'center' }}>
+                                            {(req.items || []).length} item
                                         </td>
                                         <td className="gdg-cell-muted" style={{ maxWidth: '280px' }}>
-                                            {req.catatan || '-'}
+                                            {req.catatan || '—'}
                                         </td>
-                                        <td>{renderStatusBadge(req.status)}</td>
+                                        <td>{renderStatusText(req.status)}</td>
                                         <td style={{ textAlign: 'right' }}>
                                             <button
-                                                className="gdg-btn soft"
-                                                style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                                                type="button"
+                                                className="gdg-icon-action"
                                                 onClick={() => navigate('/gudang/pengeluaran')}
                                                 title="Buka rincian & proses di menu Pengeluaran Unit"
+                                                aria-label="Buka rincian permintaan"
                                             >
-                                                Buka Detail <ArrowRight size={13} />
+                                                <Eye size={15} />
                                             </button>
                                         </td>
                                     </tr>
@@ -414,8 +410,8 @@ export default function GudangDashboard() {
                     </table>
                 </div>
 
-                {/* PAGINATION CONTROL */}
-                <div style={{ marginTop: '16px' }}>
+                {/* Pagination */}
+                <div style={{ marginTop: '14px' }}>
                     <SimplePagination
                         page={page}
                         pageSize={pageSize}
@@ -424,7 +420,7 @@ export default function GudangDashboard() {
                         onPageSizeChange={setPageSize}
                     />
                 </div>
-            </div>
+            </section>
         </div>
     );
 }
