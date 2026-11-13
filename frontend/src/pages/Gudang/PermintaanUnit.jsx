@@ -1284,7 +1284,7 @@ export default function PermintaanUnit() {
 
                         <div className="pu-modal-body">
                             <p className="pu-modal-desc">
-                                Anda dapat menyesuaikan kuantitas yang disetujui jika stok gudang terbatas atau sesuai jatah kuota unit:
+                                Sesuaikan kuantitas yang disetujui berdasarkan stok gudang atau kuota unit.
                             </p>
 
                             <div className="pu-table-wrap">
