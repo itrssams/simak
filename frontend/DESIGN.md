@@ -72,3 +72,18 @@ Aturan desain UI untuk frontend SIMAK (CSS kustom per halaman dengan dukungan te
   - Header tabel ringan (`11px`–`12px`, `font-weight: 600`, warna `#697386`, garis bawah `1px solid #e3e8ee`).
   - Pemisah antar baris menggunakan garis horizontal tipis `1px solid #e3e8ee` dengan efek hover lembut (`#f7fafc`).
 - **Status Badges**: Pastel lembut dengan teks kontras tinggi (contoh light mode: `MENUNGGU` `#fef3c7`/`#92400e`, `DISETUJUI` `#d1fae5`/`#065f46`, `SELESAI` `#e0f2fe`/`#075985`, `DITOLAK` `#ffe4e6`/`#9f1239`).
+
+---
+
+## 6. Action Button Color Hierarchy
+- **Ikon Aksi Netral Tabel (`Detail`, `Cetak`, `•••`)**:
+  - Default: `#697386` (light mode) / `#94a3b8` (dark mode).
+  - Hover: teks tegas `#1a1f36` (light mode) / `#f8fafc` (dark mode) dengan latar hover lembut `#f1f5f9` (light mode) / `#1e293b` (dark mode).
+- **Tombol Otorisasi / Setuju (`✓`)**:
+  - Default: hijau zamrud terukur `#059669` (light mode) / `#34d399` (dark mode).
+  - Hover: latar hijau transparan `#ecfdf5` (light mode) / `rgba(16, 185, 129, 0.12)` (dark mode).
+- **Menu Destruktif (`Tolak Permintaan`, `Hapus`)**:
+  - Default: merah peringatan `#dc2626` (light mode) / `#f87171` (dark mode).
+  - Hover: latar merah lembut `#fef2f2` (light mode) / `rgba(239, 68, 68, 0.12)` (dark mode).
+- **Tombol Sekunder (`Batal`, `+ Tambah Baris`, `Reset`)**:
+  - Border tipis netral (`1px solid #d8dee4` light / `rgba(255, 255, 255, 0.12)` dark), tanpa warna aksen mencolok agar tidak bersaing dengan tombol utama `#635bff`.
