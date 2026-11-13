@@ -22,6 +22,7 @@ import {
     FileText,
     ChevronRight,
     Lock,
+    MoreHorizontal,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
@@ -78,6 +79,16 @@ export default function PermintaanUnit() {
     // Modal: Hapus Permintaan
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+    // Row action dropdown menu
+    const [openMenuId, setOpenMenuId] = useState(null);
+
+    useEffect(() => {
+        if (!openMenuId) return;
+        const closeMenu = () => setOpenMenuId(null);
+        document.addEventListener('click', closeMenu);
+        return () => document.removeEventListener('click', closeMenu);
+    }, [openMenuId]);
 
     // ── Fetch Master Data (Ruang & Barang) ──
     useEffect(() => {
@@ -575,50 +586,27 @@ export default function PermintaanUnit() {
                 </button>
             </div>
 
-            {/* ── 1b. Stripe Underline Tabs (Status Filter) ── */}
-            <div className="pu-tabs" role="tablist" aria-label="Filter status permintaan">
+            {/* ── 2. Flat Interactive Stat Bar (Filter Status) ── */}
+            <div className="pu-stat-bar" role="tablist" aria-label="Filter status permintaan">
                 {[
-                    { value: '', label: 'Semua' },
-                    { value: 'MENUNGGU', label: 'Menunggu Otorisasi' },
-                    { value: 'DISETUJUI', label: 'Disetujui' },
-                    { value: 'SELESAI', label: 'Selesai' },
-                    { value: 'DITOLAK', label: 'Ditolak' },
-                ].map(tab => (
+                    { value: '', num: stats.total, label: 'Total Permintaan' },
+                    { value: 'MENUNGGU', num: stats.menunggu, label: 'Menunggu Otorisasi' },
+                    { value: 'DISETUJUI', num: stats.disetujui, label: 'Disetujui (Siap Ambil)' },
+                    { value: 'SELESAI', num: stats.selesai, label: 'Selesai Diserahkan' },
+                    { value: 'DITOLAK', num: stats.ditolak, label: 'Permintaan Ditolak' },
+                ].map(item => (
                     <button
-                        key={tab.value || 'ALL'}
+                        key={item.value || 'ALL'}
                         type="button"
                         role="tab"
-                        aria-selected={filterStatus === tab.value}
-                        className={`pu-tab ${filterStatus === tab.value ? 'active' : ''}`}
-                        onClick={() => { setFilterStatus(tab.value); setPage(1); }}
+                        aria-selected={filterStatus === item.value}
+                        className={`pu-stat-item ${filterStatus === item.value ? 'active' : ''}`}
+                        onClick={() => { setFilterStatus(item.value); setPage(1); }}
                     >
-                        {tab.label}
+                        <span className="pu-stat-num">{item.num}</span>
+                        <span className="pu-stat-label">{item.label}</span>
                     </button>
                 ))}
-            </div>
-
-            {/* ── 2. Flat Unboxed Stat Bar ── */}
-            <div className="pu-stat-bar">
-                <div className="pu-stat-item">
-                    <span className="pu-stat-num">{stats.total}</span>
-                    <span className="pu-stat-label">Total Permintaan</span>
-                </div>
-                <div className="pu-stat-item">
-                    <span className="pu-stat-num">{stats.menunggu}</span>
-                    <span className="pu-stat-label">Menunggu Otorisasi</span>
-                </div>
-                <div className="pu-stat-item">
-                    <span className="pu-stat-num">{stats.disetujui}</span>
-                    <span className="pu-stat-label">Disetujui (Siap Ambil)</span>
-                </div>
-                <div className="pu-stat-item">
-                    <span className="pu-stat-num">{stats.selesai}</span>
-                    <span className="pu-stat-label">Selesai Diserahkan</span>
-                </div>
-                <div className="pu-stat-item">
-                    <span className="pu-stat-num">{stats.ditolak}</span>
-                    <span className="pu-stat-label">Permintaan Ditolak</span>
-                </div>
             </div>
 
             {/* ── 3. Toolbar + Tabel (satu kontainer) ── */}
@@ -773,62 +761,94 @@ export default function PermintaanUnit() {
                                                 )}
                                             </td>
                                             <td>
-                                                <div className="pu-action-btns" style={{ justifyContent: 'flex-end' }}>
-                                                    {/* Lihat Detail & Tracking */}
-                                                    <button
-                                                        type="button"
-                                                        className="pu-action-btn detail"
-                                                        onClick={() => { setSelectedReq(req); setShowDetailModal(true); }}
-                                                        title="Detail & Lacak Status"
-                                                    >
-                                                        <Eye size={15} />
-                                                    </button>
+                                                {(() => {
+                                                    const canReject = req.can_approve && req.status === 'MENUNGGU';
+                                                    const canDelete = (req.status === 'DRAFT' || req.status === 'MENUNGGU') &&
+                                                        (user?.is_superuser || req.created_by === user?.id);
+                                                    const hasMoreActions = canReject || canDelete;
 
-                                                    {/* Cetak SPB */}
-                                                    <button
-                                                        type="button"
-                                                        className="pu-action-btn print"
-                                                        onClick={() => handlePrintSPB(req)}
-                                                        title="Cetak SPB (Surat Permintaan)"
-                                                    >
-                                                        <Printer size={15} />
-                                                    </button>
-
-                                                    {/* Otorisasi Setujui (Mas Febri / Koordinator / Kasi) */}
-                                                    {req.can_approve && req.status === 'MENUNGGU' && (
-                                                        <>
+                                                    return (
+                                                        <div className="pu-action-btns">
+                                                            {/* Lihat Detail & Tracking */}
                                                             <button
                                                                 type="button"
-                                                                className="pu-action-btn approve"
-                                                                onClick={() => handleOpenApproveModal(req)}
-                                                                title="Verifikasi & Setujui (Koordinator)"
+                                                                className="pu-action-btn detail"
+                                                                onClick={() => { setSelectedReq(req); setShowDetailModal(true); }}
+                                                                title="Detail & Lacak Status"
                                                             >
-                                                                <Check size={15} />
+                                                                <Eye size={15} />
                                                             </button>
-                                                            <button
-                                                                type="button"
-                                                                className="pu-action-btn reject"
-                                                                onClick={() => handleOpenRejectModal(req)}
-                                                                title="Tolak Permintaan"
-                                                            >
-                                                                <X size={15} />
-                                                            </button>
-                                                        </>
-                                                    )}
 
-                                                    {/* Hapus / Batalkan jika masih Draft/Menunggu dan milik pembuat */}
-                                                    {(req.status === 'DRAFT' || req.status === 'MENUNGGU') &&
-                                                        (user?.is_superuser || req.created_by === user?.id) && (
+                                                            {/* Cetak SPB */}
                                                             <button
                                                                 type="button"
-                                                                className="pu-action-btn delete"
-                                                                onClick={() => setDeleteTarget(req)}
-                                                                title="Batalkan / Hapus Permintaan"
+                                                                className="pu-action-btn print"
+                                                                onClick={() => handlePrintSPB(req)}
+                                                                title="Cetak SPB (Surat Permintaan)"
                                                             >
-                                                                <Trash2 size={15} />
+                                                                <Printer size={15} />
                                                             </button>
-                                                        )}
-                                                </div>
+
+                                                            {/* Otorisasi Setujui (Mas Febri / Koordinator / Kasi) */}
+                                                            {canReject && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="pu-action-btn approve"
+                                                                    onClick={() => handleOpenApproveModal(req)}
+                                                                    title="Verifikasi & Setujui (Koordinator)"
+                                                                >
+                                                                    <Check size={15} />
+                                                                </button>
+                                                            )}
+
+                                                            {/* Menu dropdown aksi tambahan (Tolak / Hapus) */}
+                                                            {hasMoreActions && (
+                                                                <div className="pu-action-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="pu-action-btn"
+                                                                        aria-haspopup="menu"
+                                                                        aria-expanded={openMenuId === req.id}
+                                                                        onClick={() => setOpenMenuId(openMenuId === req.id ? null : req.id)}
+                                                                        title="Aksi Lainnya"
+                                                                    >
+                                                                        <MoreHorizontal size={15} />
+                                                                    </button>
+                                                                    {openMenuId === req.id && (
+                                                                        <div className="pu-action-menu" role="menu">
+                                                                            {canReject && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    role="menuitem"
+                                                                                    className="pu-action-menu-item danger"
+                                                                                    onClick={() => {
+                                                                                        setOpenMenuId(null);
+                                                                                        handleOpenRejectModal(req);
+                                                                                    }}
+                                                                                >
+                                                                                    <X size={14} /> Tolak Permintaan
+                                                                                </button>
+                                                                            )}
+                                                                            {canDelete && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    role="menuitem"
+                                                                                    className="pu-action-menu-item danger"
+                                                                                    onClick={() => {
+                                                                                        setOpenMenuId(null);
+                                                                                        setDeleteTarget(req);
+                                                                                    }}
+                                                                                >
+                                                                                    <Trash2 size={14} /> Hapus / Batalkan
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                         </tr>
                                     );
