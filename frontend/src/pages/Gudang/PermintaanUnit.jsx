@@ -40,6 +40,7 @@ export default function PermintaanUnit() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
+    const [unfilteredTotal, setUnfilteredTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [pageSize] = useState(15);
 
@@ -80,15 +81,21 @@ export default function PermintaanUnit() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-    // Row action dropdown menu
-    const [openMenuId, setOpenMenuId] = useState(null);
+    // Row action dropdown menu (position: fixed via portal)
+    const [openMenu, setOpenMenu] = useState(null);
 
     useEffect(() => {
-        if (!openMenuId) return;
-        const closeMenu = () => setOpenMenuId(null);
+        if (!openMenu) return;
+        const closeMenu = () => setOpenMenu(null);
         document.addEventListener('click', closeMenu);
-        return () => document.removeEventListener('click', closeMenu);
-    }, [openMenuId]);
+        window.addEventListener('scroll', closeMenu, true);
+        window.addEventListener('resize', closeMenu);
+        return () => {
+            document.removeEventListener('click', closeMenu);
+            window.removeEventListener('scroll', closeMenu, true);
+            window.removeEventListener('resize', closeMenu);
+        };
+    }, [openMenu]);
 
     // ── Fetch Master Data (Ruang & Barang) ──
     useEffect(() => {
@@ -205,12 +212,25 @@ export default function PermintaanUnit() {
 
             const res = await api.get('/gudang/permintaan/', { params });
             const data = res.data;
+            const isUnfiltered = !search.trim() && !filterRuang && !filterStatus;
             if (Array.isArray(data)) {
                 setRequests(data);
                 setTotalCount(data.length);
+                if (isUnfiltered) setUnfilteredTotal(data.length);
             } else {
+                const cnt = data.count || 0;
                 setRequests(data.results || []);
-                setTotalCount(data.count || 0);
+                setTotalCount(cnt);
+                if (isUnfiltered) setUnfilteredTotal(cnt);
+            }
+
+            if (!isUnfiltered) {
+                api.get('/gudang/permintaan/', { params: { page: 1, page_size: 1 } })
+                    .then(r => {
+                        const d = r.data;
+                        setUnfilteredTotal(Array.isArray(d) ? d.length : (d.count || 0));
+                    })
+                    .catch(() => {});
             }
         } catch (err) {
             console.error('Error fetching permintaan', err);
@@ -239,7 +259,7 @@ export default function PermintaanUnit() {
 
     // ── Stats Summary Calculation ──
     const stats = useMemo(() => {
-        let total = totalCount;
+        let total = unfilteredTotal;
         let menunggu = 0;
         let disetujui = 0;
         let selesai = 0;
@@ -253,7 +273,7 @@ export default function PermintaanUnit() {
         });
 
         return { total, menunggu, disetujui, selesai, ditolak };
-    }, [requests, totalCount]);
+    }, [requests, unfilteredTotal]);
 
     // ── Form Permintaan Handlers ──
     const handleOpenCreateModal = () => {
@@ -808,21 +828,38 @@ export default function PermintaanUnit() {
                                                                         type="button"
                                                                         className="pu-action-btn"
                                                                         aria-haspopup="menu"
-                                                                        aria-expanded={openMenuId === req.id}
-                                                                        onClick={() => setOpenMenuId(openMenuId === req.id ? null : req.id)}
+                                                                        aria-expanded={openMenu?.id === req.id}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (openMenu?.id === req.id) {
+                                                                                setOpenMenu(null);
+                                                                            } else {
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                setOpenMenu({
+                                                                                    id: req.id,
+                                                                                    top: rect.bottom + 4,
+                                                                                    right: Math.max(8, window.innerWidth - rect.right),
+                                                                                });
+                                                                            }
+                                                                        }}
                                                                         title="Aksi Lainnya"
                                                                     >
                                                                         <MoreHorizontal size={15} />
                                                                     </button>
-                                                                    {openMenuId === req.id && (
-                                                                        <div className="pu-action-menu" role="menu">
+                                                                    {openMenu?.id === req.id && createPortal(
+                                                                        <div
+                                                                            className="pu-action-menu"
+                                                                            role="menu"
+                                                                            style={{ top: openMenu.top, right: openMenu.right }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
                                                                             {canReject && (
                                                                                 <button
                                                                                     type="button"
                                                                                     role="menuitem"
                                                                                     className="pu-action-menu-item danger"
                                                                                     onClick={() => {
-                                                                                        setOpenMenuId(null);
+                                                                                        setOpenMenu(null);
                                                                                         handleOpenRejectModal(req);
                                                                                     }}
                                                                                 >
@@ -835,14 +872,15 @@ export default function PermintaanUnit() {
                                                                                     role="menuitem"
                                                                                     className="pu-action-menu-item danger"
                                                                                     onClick={() => {
-                                                                                        setOpenMenuId(null);
+                                                                                        setOpenMenu(null);
                                                                                         setDeleteTarget(req);
                                                                                     }}
                                                                                 >
                                                                                     <Trash2 size={14} /> Hapus / Batalkan
                                                                                 </button>
                                                                             )}
-                                                                        </div>
+                                                                        </div>,
+                                                                        document.body
                                                                     )}
                                                                 </div>
                                                             )}
@@ -878,16 +916,11 @@ export default function PermintaanUnit() {
                 <div className="pu-modal-overlay" onClick={() => !saving && setShowCreateModal(false)}>
                     <div className="pu-modal" style={{ maxWidth: '860px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div className="pu-modal-icon-wrap">
-                                    <PackagePlus size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="pu-modal-title">Buat Permintaan Barang Baru</h3>
-                                    <p className="pu-modal-subtitle">
-                                        Ajukan barang operasional ruangan ke gudang logistik RS Siaga
-                                    </p>
-                                </div>
+                            <div>
+                                <h3 className="pu-modal-title">Buat Permintaan Barang Baru</h3>
+                                <p className="pu-modal-subtitle">
+                                    Ajukan barang operasional ruangan ke gudang logistik RS Siaga
+                                </p>
                             </div>
                             <button type="button" className="pu-action-btn" onClick={() => setShowCreateModal(false)}>
                                 <X size={16} />
@@ -900,12 +933,9 @@ export default function PermintaanUnit() {
                                     <div>
                                         <label className="pu-form-label">
                                             <span>Unit / Ruangan Pemohon *</span>
-                                            <span className="pu-badge-pill">
-                                                <Lock size={11} /> Sesuai Akun
-                                            </span>
                                         </label>
                                         <div className="pu-locked-box">
-                                            <Building2 size={16} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                                            <Building2 size={15} style={{ color: '#8792a2', flexShrink: 0 }} />
                                             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 <span className="pu-locked-box-text">
                                                     {userRuang?.nama || userUnitNama || (formRuangId ? (ruangList.find(r => String(r.id) === String(formRuangId))?.nama) : 'Memuat Unit Akun...')}
@@ -916,7 +946,7 @@ export default function PermintaanUnit() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <Lock size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                                            <Lock size={13} style={{ color: '#8792a2', flexShrink: 0 }} />
                                         </div>
                                         {!userRuang && !userUnitNama && (
                                             <span style={{ display: 'block', fontSize: '11px', color: '#f87171', marginTop: '4px' }}>
@@ -927,9 +957,6 @@ export default function PermintaanUnit() {
                                     <div>
                                         <label className="pu-form-label">
                                             <span>Tanggal Permintaan *</span>
-                                            <span className="pu-badge-pill muted">
-                                                <Lock size={11} /> Read Only
-                                            </span>
                                         </label>
                                         <DateField
                                             value={formTanggal}
@@ -947,14 +974,14 @@ export default function PermintaanUnit() {
                                     <input
                                         type="text"
                                         className="pu-form-textarea"
-                                        style={{ height: '42px', minHeight: '42px' }}
+                                        style={{ height: '40px', minHeight: '40px', borderRadius: '6px' }}
                                         placeholder="Contoh: Kebutuhan operasional mingguan, perbaikan arsip..."
                                         value={formCatatan}
                                         onChange={e => setFormCatatan(e.target.value)}
                                     />
                                 </div>
 
-                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+                                <div style={{ borderTop: '1px solid #e3e8ee', paddingTop: '16px' }}>
                                     <div className="pu-items-header">
                                         <span className="pu-section-title">
                                             Daftar Barang yang Diminta
@@ -962,6 +989,16 @@ export default function PermintaanUnit() {
                                         <button type="button" className="pu-btn-add-item" onClick={handleAddItemRow}>
                                             <Plus size={14} /> Tambah Baris
                                         </button>
+                                    </div>
+
+                                    <div className="pu-items-col-headers">
+                                        <span className="pu-col-barang">Barang</span>
+                                        <div className="pu-col-right-group">
+                                            <span className="pu-col-qty">Jumlah</span>
+                                            <span className="pu-col-satuan">Satuan</span>
+                                            <span className="pu-col-catatan">Catatan</span>
+                                            <span className="pu-col-del-spacer" />
+                                        </div>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
