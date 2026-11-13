@@ -2,16 +2,9 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     RefreshCw,
-    FileText,
     Printer,
-    CheckCircle2,
-    AlertTriangle,
     Info,
     X,
-    Package,
-    Boxes,
-    Tag,
-    Wallet,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -193,33 +186,33 @@ export default function GudangKartuStok() {
         }
     };
 
-    const renderJenisBadge = (jenis, row) => {
+    const renderJenisText = (jenis, row) => {
         // Deteksi transaksi Stock Opname
         if (row?.sumber_tipe === 'ADJ_IN' || (row?.sumber_nomor && row.sumber_nomor.startsWith('OPN-') && Number(row.qty_dasar) > 0)) {
-            return <span className="gdg-badge amber">Stock Opname (+)</span>;
+            return <span className="gdg-status-text amber"><span className="gdg-status-dot" /> Stock Opname (+)</span>;
         }
         if (row?.sumber_tipe === 'ADJ_OUT' || (row?.sumber_nomor && row.sumber_nomor.startsWith('OPN-') && Number(row.qty_dasar) < 0)) {
-            return <span className="gdg-badge amber">Stock Opname (-)</span>;
+            return <span className="gdg-status-text amber"><span className="gdg-status-dot" /> Stock Opname (-)</span>;
         }
 
         switch (jenis) {
             case 'INIT':
             case 'SALDO_AWAL':
-                return <span className="gdg-badge blue">Saldo Awal</span>;
+                return <span className="gdg-status-text indigo"><span className="gdg-status-dot" /> Saldo Awal</span>;
             case 'IN':
-                return <span className="gdg-badge emerald">Penerimaan (GRN)</span>;
+                return <span className="gdg-status-text emerald"><span className="gdg-status-dot" /> Penerimaan (GRN)</span>;
             case 'OUT':
-                return <span className="gdg-badge rose">Pengeluaran Unit</span>;
+                return <span className="gdg-status-text rose"><span className="gdg-status-dot" /> Pengeluaran Unit</span>;
             case 'ADJ_PLUS':
-                return <span className="gdg-badge amber">Stock Opname (+)</span>;
+                return <span className="gdg-status-text amber"><span className="gdg-status-dot" /> Stock Opname (+)</span>;
             case 'ADJ_MINUS':
-                return <span className="gdg-badge amber">Stock Opname (-)</span>;
+                return <span className="gdg-status-text amber"><span className="gdg-status-dot" /> Stock Opname (-)</span>;
             case 'REV_IN':
-                return <span className="gdg-badge slate">Batal GRN</span>;
+                return <span className="gdg-status-text slate"><span className="gdg-status-dot" /> Batal GRN</span>;
             case 'REV_OUT':
-                return <span className="gdg-badge slate">Batal Out</span>;
+                return <span className="gdg-status-text slate"><span className="gdg-status-dot" /> Batal Out</span>;
             default:
-                return <span className="gdg-badge slate">{jenis}</span>;
+                return <span className="gdg-status-text slate"><span className="gdg-status-dot" /> {jenis}</span>;
         }
     };
 
@@ -236,17 +229,13 @@ export default function GudangKartuStok() {
         : 0;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* ── CARD 1: PENCARIAN & PROFIL BARANG AKTIF ── */}
-            <div className="gdg-card gdg-stock-profile-card">
-                {/* TOOLBAR PILIH BARANG (SEARCHABLE SELECT) */}
-                <div className="gdg-stock-picker-bar">
-                    <div className="gdg-stock-picker-label">
-                        <Package size={17} />
-                        <span>Pilih Barang:</span>
-                    </div>
+        <div className="gdg-dash-root">
+            {/* ── FLAT SECTION 1: PILIH BARANG & PROFIL BARANG AKTIF ── */}
+            <section className="gdg-ks-top-section">
+                <div className="gdg-ks-picker-bar">
+                    <span className="gdg-ks-picker-label">Pilih Barang</span>
 
-                    <div className="gdg-stock-picker-select">
+                    <div className="gdg-ks-picker-select">
                         <SearchableSelect
                             options={barangOptions}
                             value={selectedBarangId}
@@ -261,124 +250,97 @@ export default function GudangKartuStok() {
 
                     <button
                         type="button"
-                        className="gdg-btn soft"
+                        className="gdg-btn-stripe secondary"
                         onClick={() => fetchStockData(selectedBarangId)}
                         disabled={loading || !selectedBarangId}
                         title="Segarkan data kartu stok"
                     >
-                        <RefreshCw size={15} className={loading ? 'gdg-spin' : ''} />
+                        <RefreshCw size={14} strokeWidth={1.75} className={loading ? 'gdg-spin' : ''} />
                         <span>Refresh</span>
                     </button>
                 </div>
 
-                {/* IDENTITAS BARANG & STATUS BUFFER */}
                 {selectedBarang && (
                     <>
-                        <div className="gdg-stock-header-main">
-                            <div className="gdg-stock-identity">
-                                <div className="gdg-stock-title-row">
-                                    <h2 className="gdg-stock-name">[{selectedBarang.kode}] {selectedBarang.nama}</h2>
-                                    {isStokRendah ? (
-                                        <span className="gdg-badge rose" title="Stok berada di bawah atau sama dengan batas buffer minimum">
-                                            <AlertTriangle size={13} /> Di Bawah Minimum ({Number(selectedBarang.stok_minimum || 0).toLocaleString('id-ID')} {selectedBarang.satuan_dasar?.kode})
-                                        </span>
-                                    ) : (
-                                        <span className="gdg-badge emerald" title="Posisi saldo fisik aman di atas batas minimum">
-                                            <CheckCircle2 size={13} /> Stok Aman
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="gdg-stock-meta-line">
-                                    <span>Golongan: <strong>{selectedBarang.golongan?.nama || 'Umum'}</strong></span>
-                                    {selectedBarang.merk && (
-                                        <>
-                                            <span className="gdg-meta-dot">•</span>
-                                            <span>Merk: <strong>{selectedBarang.merk}</strong></span>
-                                        </>
-                                    )}
-                                    <span className="gdg-meta-dot">•</span>
-                                    <span>Satuan Dasar: <strong>{selectedBarang.satuan_dasar?.kode || selectedBarang.satuan_dasar?.nama}</strong></span>
-                                    {selectedBarang.kemasan_list && selectedBarang.kemasan_list.length > 0 && (
-                                        <>
-                                            <span className="gdg-meta-dot">•</span>
-                                            <span>Konversi: <strong>{selectedBarang.kemasan_list.map((k) => `1 ${k.nama_kemasan} = ${Number(k.isi_per_kemasan)} ${selectedBarang.satuan_dasar?.kode}`).join(', ')}</strong></span>
-                                        </>
-                                    )}
-                                </div>
+                        <div className="gdg-ks-item-header">
+                            <div className="gdg-ks-item-title-row">
+                                <h2 className="gdg-ks-item-name">[{selectedBarang.kode}] {selectedBarang.nama}</h2>
+                                {isStokRendah ? (
+                                    <span className="gdg-status-text rose" title="Stok berada di bawah atau sama dengan batas buffer minimum">
+                                        <span className="gdg-status-dot" /> Di Bawah Minimum ({Number(selectedBarang.stok_minimum || 0).toLocaleString('id-ID')} {selectedBarang.satuan_dasar?.kode})
+                                    </span>
+                                ) : (
+                                    <span className="gdg-status-text emerald" title="Posisi saldo fisik aman di atas batas minimum">
+                                        <span className="gdg-status-dot" /> Stok Aman
+                                    </span>
+                                )}
+                            </div>
+                            <div className="gdg-ks-item-meta">
+                                <span>Golongan: <strong>{selectedBarang.golongan?.nama || 'Umum'}</strong></span>
+                                {selectedBarang.merk && (
+                                    <span>Merk: <strong>{selectedBarang.merk}</strong></span>
+                                )}
+                                <span>Satuan Dasar: <strong>{selectedBarang.satuan_dasar?.kode || selectedBarang.satuan_dasar?.nama}</strong></span>
+                                {selectedBarang.kemasan_list && selectedBarang.kemasan_list.length > 0 && (
+                                    <span>Konversi: <strong>{selectedBarang.kemasan_list.map((k) => `1 ${k.nama_kemasan} = ${Number(k.isi_per_kemasan)} ${selectedBarang.satuan_dasar?.kode}`).join(', ')}</strong></span>
+                                )}
                             </div>
                         </div>
 
-                        {/* 4 MINI KPI METRICS */}
-                        <div className="gdg-metric-grid">
-                            <div className="gdg-metric-box">
-                                <div className="gdg-metric-head">
-                                    <span className="gdg-metric-lbl">Saldo Fisik Saat Ini</span>
-                                    <Boxes size={17} className="gdg-icon-muted" />
-                                </div>
-                                <span
-                                    className="gdg-metric-val"
-                                    style={{ color: isStokRendah ? '#f43f5e' : '#10b981' }}
-                                >
+                        {/* ── FLAT HORIZONTAL STAT-BAR (4 KPI) ── */}
+                        <div className="gdg-stat-bar">
+                            <div className="gdg-stat-cell">
+                                <span className="gdg-stat-label">Saldo Fisik Saat Ini</span>
+                                <strong className={`gdg-stat-val${isStokRendah ? ' is-danger' : ''}`}>
                                     {Number(selectedBarang.stok_saat_ini || 0).toLocaleString('id-ID')}{' '}
-                                    <small style={{ fontSize: '0.82rem', fontWeight: 600 }}>{selectedBarang.satuan_dasar?.kode}</small>
-                                </span>
-                                <span className="gdg-metric-sub" style={{ color: isStokRendah ? '#f43f5e' : '#10b981' }}>
+                                    <span className="gdg-stat-unit">{selectedBarang.satuan_dasar?.kode}</span>
+                                </strong>
+                                <span className="gdg-stat-sub">
                                     {isStokRendah ? 'Perlu Restock PO Segera' : 'Kondisi Stok Cukup'}
                                 </span>
                             </div>
 
-                            <div className="gdg-metric-box">
-                                <div className="gdg-metric-head">
-                                    <span className="gdg-metric-lbl">Batas Buffer Minimum</span>
-                                    <AlertTriangle size={17} className="gdg-icon-muted" />
-                                </div>
-                                <span className="gdg-metric-val">
+                            <div className="gdg-stat-cell">
+                                <span className="gdg-stat-label">Batas Buffer Minimum</span>
+                                <strong className="gdg-stat-val">
                                     {Number(selectedBarang.stok_minimum || 0).toLocaleString('id-ID')}{' '}
-                                    <small style={{ fontSize: '0.82rem', fontWeight: 600 }}>{selectedBarang.satuan_dasar?.kode}</small>
-                                </span>
-                                <span className="gdg-metric-sub">Ambang Batas Peringatan</span>
+                                    <span className="gdg-stat-unit">{selectedBarang.satuan_dasar?.kode}</span>
+                                </strong>
+                                <span className="gdg-stat-sub">Ambang Batas Peringatan</span>
                             </div>
 
-                            <div className="gdg-metric-box">
-                                <div className="gdg-metric-head">
-                                    <span className="gdg-metric-lbl">HPP Satuan (Average)</span>
-                                    <Tag size={17} className="gdg-icon-muted" />
-                                </div>
-                                <span className="gdg-metric-val">
+                            <div className="gdg-stat-cell">
+                                <span className="gdg-stat-label">HPP Satuan (Average)</span>
+                                <strong className="gdg-stat-val">
                                     {formatMoney(selectedBarang.nilai_rata_rata)}
-                                </span>
-                                <span className="gdg-metric-sub">Weighted Moving Average</span>
+                                </strong>
+                                <span className="gdg-stat-sub">Weighted Moving Average</span>
                             </div>
 
-                            <div className="gdg-metric-box">
-                                <div className="gdg-metric-head">
-                                    <span className="gdg-metric-lbl">Total Nilai Persediaan</span>
-                                    <Wallet size={17} className="gdg-icon-muted" />
-                                </div>
-                                <span className="gdg-metric-val">
+                            <div className="gdg-stat-cell">
+                                <span className="gdg-stat-label">Total Nilai Persediaan</span>
+                                <strong className="gdg-stat-val">
                                     {formatMoney(totalNilaiStok)}
-                                </span>
-                                <span className="gdg-metric-sub">Saldo Fisik × HPP Satuan</span>
+                                </strong>
+                                <span className="gdg-stat-sub">Saldo Fisik × HPP Satuan</span>
                             </div>
                         </div>
                     </>
                 )}
-            </div>
+            </section>
 
-            {/* ── CARD 2: BUKU BESAR MUTASI (LEDGER) ── */}
-            <div className="gdg-card">
-                {/* CARD HEAD & ACTIONS / FILTER */}
-                <div className="gdg-card-head" style={{ marginBottom: '18px', gap: '12px' }}>
-                    <div className="gdg-card-title">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <FileText size={18} style={{ color: '#38bdf8' }} />
+            {/* ── FLAT SECTION 2: BUKU BESAR MUTASI (LEDGER) ── */}
+            <section className="gdg-dash-section">
+                <div className="gdg-dash-section-head">
+                    <div>
+                        <div className="gdg-ks-ledger-title-row">
                             <h2>Buku Besar Mutasi Stok (Ledger)</h2>
-                            <span className="gdg-badge slate" style={{ marginLeft: '4px' }}>{totalV2} transaksi</span>
+                            <span className="gdg-ks-tx-count">{totalV2} transaksi</span>
                         </div>
                         <p>Jurnal mutasi kronologis stok fisik dengan metode persediaan Weighted Moving Average</p>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="gdg-ks-filter-bar">
                         <DateRangePicker
                             dari={startDate}
                             sampai={endDate}
@@ -389,11 +351,11 @@ export default function GudangKartuStok() {
                             }}
                             placeholder="Pilih Periode Mutasi"
                             triggerStyle={{
-                                height: '38px',
-                                minHeight: '38px',
-                                maxHeight: '38px',
-                                borderRadius: '8px',
-                                fontSize: '0.86rem',
+                                height: '36px',
+                                minHeight: '36px',
+                                maxHeight: '36px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
                                 fontWeight: 500,
                                 padding: '0 12px',
                                 boxSizing: 'border-box',
@@ -406,17 +368,7 @@ export default function GudangKartuStok() {
                                 setJenisFilter(e.target.value);
                                 setPageV2(1);
                             }}
-                            className="gdg-select-control"
-                            style={{
-                                height: '38px',
-                                minHeight: '38px',
-                                maxHeight: '38px',
-                                borderRadius: '8px',
-                                fontSize: '0.86rem',
-                                fontWeight: 500,
-                                padding: '0 12px',
-                                boxSizing: 'border-box',
-                            }}
+                            className="gdg-ks-select"
                         >
                             <option value="">Semua Jenis Transaksi</option>
                             <option value="INIT">Saldo Awal</option>
@@ -430,16 +382,7 @@ export default function GudangKartuStok() {
                         {(startDate || endDate || jenisFilter) && (
                             <button
                                 type="button"
-                                className="gdg-btn soft"
-                                style={{
-                                    height: '38px',
-                                    minHeight: '38px',
-                                    maxHeight: '38px',
-                                    borderRadius: '8px',
-                                    padding: '0 12px',
-                                    fontSize: '0.82rem',
-                                    boxSizing: 'border-box',
-                                }}
+                                className="gdg-btn-stripe secondary"
                                 onClick={() => {
                                     setStartDate('');
                                     setEndDate('');
@@ -448,33 +391,24 @@ export default function GudangKartuStok() {
                                 }}
                                 title="Reset filter"
                             >
-                                <X size={13} /> Reset Filter
+                                <X size={14} strokeWidth={1.75} /> Reset Filter
                             </button>
                         )}
 
                         <button
                             type="button"
-                            className="gdg-btn soft"
-                            style={{
-                                height: '38px',
-                                minHeight: '38px',
-                                maxHeight: '38px',
-                                borderRadius: '8px',
-                                padding: '0 14px',
-                                fontSize: '0.86rem',
-                                boxSizing: 'border-box',
-                            }}
+                            className="gdg-btn-stripe secondary"
                             onClick={handlePrint}
                             title="Cetak lembar kartu stok resmi"
                         >
-                            <Printer size={15} /> Cetak Kartu Stok
+                            <Printer size={14} strokeWidth={1.75} /> Cetak Kartu Stok
                         </button>
                     </div>
                 </div>
 
-                {/* TABLE V2 LEDGER */}
-                <div className="gdg-table-wrap">
-                    <table className="gdg-table">
+                {/* BORDERLESS TABLE V2 LEDGER */}
+                <div className="gdg-table-wrap gdg-table-borderless">
+                    <table className="gdg-table gdg-table-stripe">
                         <thead>
                             <tr>
                                 <th>Waktu & Tanggal</th>
@@ -512,35 +446,30 @@ export default function GudangKartuStok() {
                                     const isPos = qty > 0;
                                     return (
                                         <tr key={row.id}>
-                                            <td style={{ whiteSpace: 'nowrap' }}>{formatDate(row.tanggal_efektif)}</td>
-                                            <td className="gdg-code-cell">{row.sumber_nomor || '-'}</td>
-                                            <td>{renderJenisBadge(row.jenis, row)}</td>
+                                            <td className="gdg-date-cell">{formatDate(row.tanggal_efektif)}</td>
+                                            <td className="gdg-code-cell">{row.sumber_nomor || '—'}</td>
+                                            <td>{renderJenisText(row.jenis, row)}</td>
                                             <td
-                                                style={{
-                                                    textAlign: 'right',
-                                                    fontWeight: 700,
-                                                    color: isPos ? '#10b981' : '#f43f5e',
-                                                }}
+                                                className={`gdg-num-cell ${isPos ? 'is-pos-text' : 'is-danger-text'}`}
+                                                style={{ textAlign: 'right', fontWeight: 600 }}
                                             >
                                                 {isPos ? `+${qty.toLocaleString('id-ID')}` : qty.toLocaleString('id-ID')}{' '}
-                                                <span style={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                                                <span className="gdg-cell-muted" style={{ fontSize: '12px', fontWeight: 500 }}>
                                                     {selectedBarang?.satuan_dasar?.kode}
                                                 </span>
                                             </td>
-                                            <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                 {Number(row.saldo_qty_setelah || 0).toLocaleString('id-ID')}{' '}
-                                                <span style={{ fontSize: '0.78rem', fontWeight: 500 }}>
+                                                <span className="gdg-cell-muted" style={{ fontSize: '12px', fontWeight: 500 }}>
                                                     {selectedBarang?.satuan_dasar?.kode}
                                                 </span>
                                             </td>
-                                            <td style={{ textAlign: 'right' }}>{formatMoney(row.nilai_unit)}</td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(row.nilai_total)}</td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right' }}>{formatMoney(row.nilai_unit)}</td>
+                                            <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>{formatMoney(row.nilai_total)}</td>
                                             <td>
-                                                <div>{row.keterangan || '-'}</div>
+                                                <div>{row.keterangan || '—'}</div>
                                                 {row.created_by_nama && row.created_by_nama !== '-' && (
-                                                    <small className="gdg-cell-muted" style={{ display: 'block', fontSize: '0.72rem' }}>
-                                                        Oleh: {row.created_by_nama}
-                                                    </small>
+                                                    <div className="gdg-unit-by">Oleh: {row.created_by_nama}</div>
                                                 )}
                                             </td>
                                         </tr>
@@ -551,31 +480,31 @@ export default function GudangKartuStok() {
                     </table>
                 </div>
 
-                {/* MOVEMENT SUMMARY BAR IN VIEW */}
+                {/* MOVEMENT SUMMARY BAR */}
                 {v2Ledger.length > 0 && (
-                    <div className="gdg-movement-bar">
-                        <div className="gdg-movement-item">
-                            <span>Total Masuk (+):</span>
-                            <strong style={{ color: '#10b981' }}>
+                    <div className="gdg-ks-summary-bar">
+                        <div className="gdg-ks-summary-item">
+                            <span>Total Masuk (+)</span>
+                            <strong className="is-pos-text">
                                 +{movementSummary.masuk.toLocaleString('id-ID')} {selectedBarang?.satuan_dasar?.kode}
                             </strong>
                         </div>
-                        <div className="gdg-movement-item">
-                            <span>Total Keluar (-):</span>
-                            <strong style={{ color: '#f43f5e' }}>
+                        <div className="gdg-ks-summary-item">
+                            <span>Total Keluar (-)</span>
+                            <strong className="is-danger-text">
                                 -{movementSummary.keluar.toLocaleString('id-ID')} {selectedBarang?.satuan_dasar?.kode}
                             </strong>
                         </div>
-                        <div className="gdg-movement-item">
-                            <span>Net Mutasi:</span>
-                            <strong style={{ color: movementSummary.net >= 0 ? '#10b981' : '#f43f5e' }}>
-                                {movementSummary.net >= 0 ? `+${movementSummary.net}` : movementSummary.net}{' '}
+                        <div className="gdg-ks-summary-item">
+                            <span>Net Mutasi</span>
+                            <strong className={movementSummary.net >= 0 ? 'is-pos-text' : 'is-danger-text'}>
+                                {movementSummary.net >= 0 ? `+${movementSummary.net.toLocaleString('id-ID')}` : movementSummary.net.toLocaleString('id-ID')}{' '}
                                 {selectedBarang?.satuan_dasar?.kode}
                             </strong>
                         </div>
-                        <div className="gdg-movement-item">
-                            <span>Saldo Berjalan:</span>
-                            <strong style={{ color: '#38bdf8' }}>
+                        <div className="gdg-ks-summary-item">
+                            <span>Saldo Berjalan</span>
+                            <strong>
                                 {Number(selectedBarang?.stok_saat_ini || 0).toLocaleString('id-ID')}{' '}
                                 {selectedBarang?.satuan_dasar?.kode}
                             </strong>
@@ -584,16 +513,15 @@ export default function GudangKartuStok() {
                 )}
 
                 {/* PAGINATION V2 */}
-                <div className="gdg-pagination-wrap">
-                    <SimplePagination
-                        page={pageV2}
-                        pageSize={pageSizeV2}
-                        total={totalV2}
-                        onPageChange={setPageV2}
-                        onPageSizeChange={setPageSizeV2}
-                    />
-                </div>
-            </div>
+                <SimplePagination
+                    className="gdg-dash-pagination"
+                    page={pageV2}
+                    pageSize={pageSizeV2}
+                    total={totalV2}
+                    onPageChange={setPageV2}
+                    onPageSizeChange={setPageSizeV2}
+                />
+            </section>
         </div>
     );
 }

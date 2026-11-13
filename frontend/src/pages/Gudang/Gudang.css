@@ -2764,3 +2764,194 @@
 [data-theme="light"] .gdg-dash-pagination .sp-page-pill strong {
     color: #1a1f36 !important;
 }
+
+/* ==========================================================================
+   KARTU STOK & BUKU BESAR (LEDGER) — STRIPE CLEAN ENTERPRISE
+   ========================================================================== */
+
+.gdg-ks-top-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.gdg-ks-picker-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--gdg-border);
+}
+
+.gdg-ks-picker-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--gdg-muted);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gdg-ks-picker-select {
+    flex: 1;
+    min-width: 260px;
+}
+
+.gdg-ks-picker-select .ss-trigger,
+.gdg-ks-picker-select button {
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+}
+
+.gdg-ks-item-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gdg-ks-item-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.gdg-ks-item-name {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--gdg-text);
+    letter-spacing: -0.015em;
+}
+
+.gdg-ks-item-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 12.5px;
+    color: var(--gdg-muted);
+}
+
+.gdg-ks-item-meta strong {
+    color: var(--gdg-text);
+    font-weight: 600;
+}
+
+.gdg-stat-val.is-danger {
+    color: #f87171;
+}
+
+[data-theme="light"] .gdg-stat-val.is-danger {
+    color: #dc2626;
+}
+
+.gdg-stat-sub {
+    font-size: 11.5px;
+    color: var(--gdg-faint);
+    margin-top: 2px;
+}
+
+.gdg-ks-ledger-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.gdg-ks-tx-count {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--gdg-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.gdg-ks-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gdg-ks-filter-bar .drp-trigger {
+    height: 36px !important;
+    min-height: 36px !important;
+    border-radius: 6px !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .gdg-ks-filter-bar .drp-trigger {
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #1a1f36 !important;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06) !important;
+}
+
+.gdg-ks-select {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 6px;
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.gdg-ks-select:focus {
+    border-color: #635bff;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18);
+}
+
+[data-theme="light"] .gdg-ks-select {
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
+}
+
+.is-pos-text {
+    color: #34d399 !important;
+}
+
+[data-theme="light"] .is-pos-text {
+    color: #059669 !important;
+}
+
+.gdg-ks-summary-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--gdg-border);
+}
+
+.gdg-ks-summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12.5px;
+}
+
+.gdg-ks-summary-item span {
+    color: var(--gdg-muted);
+    font-weight: 500;
+}
+
+.gdg-ks-summary-item strong {
+    color: var(--gdg-text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
