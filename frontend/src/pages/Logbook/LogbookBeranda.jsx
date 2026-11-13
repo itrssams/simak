@@ -7,20 +7,11 @@ import {
     Trash2,
     X,
     ClipboardList,
-    Clock,
-    CheckCircle2,
-    AlertCircle,
-    CalendarCheck,
-    Hourglass,
-    ShieldCheck,
-    ArrowRight,
-    Target,
-    Calendar,
-    ChevronLeft,
-    ChevronRight
+    CalendarCheck
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
+import { SimplePagination } from '../../utils/pagination.jsx';
 import './MyLogbook.css';
 
 export default function LogbookBeranda() {
@@ -157,243 +148,192 @@ export default function LogbookBeranda() {
 
     // Pagination Uraian Tugas
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(5);
+    const [pageSize, setPageSize] = useState(10);
 
     const totalItems = activeUraianTugas.length;
-    const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : Number(pageSize);
-    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
-
-    useEffect(() => {
-        if (page > totalPages) {
-            setPage(totalPages);
-        }
-    }, [page, totalPages]);
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const curPage = Math.min(page, totalPages);
 
     const paginatedUraianTugas = useMemo(() => {
-        if (pageSize === 'all') return activeUraianTugas;
-        const start = (page - 1) * effectivePageSize;
-        return activeUraianTugas.slice(start, start + effectivePageSize);
-    }, [activeUraianTugas, page, pageSize, effectivePageSize]);
-
-    const pageNumbers = useMemo(() => {
-        if (totalPages <= 5) {
-            return Array.from({ length: totalPages }, (_, i) => i + 1);
-        }
-        if (page <= 3) {
-            return [1, 2, 3, 4, '...', totalPages];
-        }
-        if (page >= totalPages - 2) {
-            return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-        }
-        return [1, '...', page - 1, page, page + 1, '...', totalPages];
-    }, [page, totalPages]);
+        const start = (curPage - 1) * pageSize;
+        return activeUraianTugas.slice(start, start + pageSize);
+    }, [activeUraianTugas, curPage, pageSize]);
 
     return (
-        <div className="logbook-page">
-            {/* ════════════════ HERO HEADER ════════════════ */}
-            <div className="logbook-hero">
-                <div className="logbook-title">
-                    <span><ClipboardList size={24} /></span>
-                    <div>
-                        <h1>Beranda Logbook</h1>
-                        <p>Ringkasan aktivitas kerja harian, status verifikasi, dan manajemen uraian tugas pokok</p>
-                    </div>
+        <div className="logbook-page lb-stripe-beranda">
+            {/* ════════════════ HERO HEADER (STRIPE CLEAN) ════════════════ */}
+            <div className="lb-hero">
+                <div className="lb-hero-text">
+                    <h1>Beranda Logbook</h1>
+                    <p>Ringkasan aktivitas kerja harian, status verifikasi, dan manajemen uraian tugas pokok</p>
                 </div>
+                <button
+                    type="button"
+                    className="lb-btn primary"
+                    onClick={() => navigate('/logbook/aktivitas?action=new')}
+                >
+                    <Plus size={15} />
+                    <span>Catat Aktivitas</span>
+                </button>
             </div>
 
-            {/* ════════════════ STATS CARDS ════════════════ */}
-            <div className="logbook-stats-grid">
-                {/* Card Utama (Featured): Status Verifikasi Bulan Ini */}
-                <div className="logbook-stat-card featured">
-                    <div className="logbook-stat-top">
-                        <span className="logbook-stat-title">
-                            <ShieldCheck size={16} className="logbook-stat-icon-inline" />
-                            Status Verifikasi Bulan Ini
+            {/* ════════════════ HORIZONTAL STAT-BAR KPI ════════════════ */}
+            <div className="lb-stat-bar">
+                <div className="lb-stat-cell">
+                    <span className="lb-stat-label">Status Verifikasi Bulan Ini</span>
+                    <strong className="lb-stat-val">
+                        {loadingStats ? '...' : stats.month_count}
+                        {!loadingStats && <span className="lb-stat-unit">Total</span>}
+                    </strong>
+                    <div className="lb-stat-meta-row">
+                        <span className="lb-stat-meta-item" title="Disetujui oleh atasan">
+                            <span className="lb-dot" style={{ background: '#10b981' }} />
+                            <span>{stats.month_disetujui} Disetujui</span>
                         </span>
-                        <span className="logbook-stat-badge-context">Approval</span>
-                    </div>
-                    <div className="logbook-stat-featured-body">
-                        <div className="logbook-stat-main-metric">
-                            <div className="logbook-stat-value">
-                                {loadingStats ? '...' : `${stats.month_count} Total`}
-                            </div>
-                        </div>
-                        <div className="logbook-stat-pills">
-                            <span className="logbook-stat-pill success" title="Disetujui oleh atasan">
-                                <CheckCircle2 size={12} /> {stats.month_disetujui} Disetujui
-                            </span>
-                            <span className="logbook-stat-pill warning" title="Menunggu verifikasi atasan">
-                                <Clock size={12} /> {stats.month_perlu_verifikasi} Menunggu
-                            </span>
-                            {stats.month_ditolak > 0 && (
-                                <span className="logbook-stat-pill danger" title="Perlu perbaikan / ditolak">
-                                    <AlertCircle size={12} /> {stats.month_ditolak} Ditolak
+                        <span className="lb-meta-sep">•</span>
+                        <span className="lb-stat-meta-item" title="Menunggu verifikasi atasan">
+                            <span className="lb-dot" style={{ background: '#f59e0b' }} />
+                            <span>{stats.month_perlu_verifikasi} Menunggu</span>
+                        </span>
+                        {stats.month_ditolak > 0 && (
+                            <>
+                                <span className="lb-meta-sep">•</span>
+                                <span className="lb-stat-meta-item" title="Perlu perbaikan / ditolak">
+                                    <span className="lb-dot" style={{ background: '#f43f5e' }} />
+                                    <span>{stats.month_ditolak} Ditolak</span>
                                 </span>
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
-                {/* Card 2: Aktivitas Hari Ini */}
-                <div className="logbook-stat-card">
-                    <div className="logbook-stat-top">
-                        <span className="logbook-stat-title">
-                            <CalendarCheck size={16} className="logbook-stat-icon-inline" />
-                            Aktivitas Hari Ini
-                        </span>
-                    </div>
-                    <div className="logbook-stat-body">
-                        <div className="logbook-stat-value">
-                            {loadingStats ? '...' : `${stats.today_count} Aktivitas`}
-                        </div>
-                        <p className="logbook-stat-subtext">
-                            <Clock size={13} style={{ opacity: 0.8 }} />
-                            <span>Durasi kerja: <strong>{loadingStats ? '...' : stats.today_durasi_format}</strong></span>
-                        </p>
-                    </div>
+                <div className="lb-stat-cell">
+                    <span className="lb-stat-label">Aktivitas Hari Ini</span>
+                    <strong className="lb-stat-val">
+                        {loadingStats ? '...' : stats.today_count}
+                        {!loadingStats && <span className="lb-stat-unit">Aktivitas</span>}
+                    </strong>
+                    <span className="lb-stat-sub">
+                        Durasi kerja: <strong>{loadingStats ? '...' : stats.today_durasi_format}</strong>
+                    </span>
                 </div>
 
-                {/* Card 3: Jam Kerja Bulan Ini */}
-                <div className="logbook-stat-card">
-                    <div className="logbook-stat-top">
-                        <span className="logbook-stat-title">
-                            <Hourglass size={16} className="logbook-stat-icon-inline" />
-                            Jam Kerja Bulan Ini
-                        </span>
-                    </div>
-                    <div className="logbook-stat-body">
-                        <div className="logbook-stat-value">
-                            {loadingStats ? '...' : stats.month_durasi_format}
-                        </div>
-                        <p className="logbook-stat-subtext">
-                            <span>Akumulasi dari <strong>{loadingStats ? '...' : stats.month_count}</strong> logbook</span>
-                        </p>
-                    </div>
+                <div className="lb-stat-cell">
+                    <span className="lb-stat-label">Jam Kerja Bulan Ini</span>
+                    <strong className="lb-stat-val">
+                        {loadingStats ? '...' : stats.month_durasi_format}
+                    </strong>
+                    <span className="lb-stat-sub">
+                        Akumulasi dari <strong>{loadingStats ? '...' : stats.month_count}</strong> logbook
+                    </span>
                 </div>
 
-                {/* Card 4: Uraian Tugas Terdaftar */}
-                <div className="logbook-stat-card">
-                    <div className="logbook-stat-top">
-                        <span className="logbook-stat-title">
-                            <ClipboardList size={16} className="logbook-stat-icon-inline" />
-                            Uraian Tugas Pokok
-                        </span>
-                    </div>
-                    <div className="logbook-stat-body">
-                        <div className="logbook-stat-value">
-                            {loadingUraian ? '...' : `${activeUraianTugas.length} Job Desc`}
-                        </div>
-                        <p className="logbook-stat-subtext">
-                            <span>Tugas pokok acuan kinerja aktif</span>
-                        </p>
-                    </div>
+                <div className="lb-stat-cell">
+                    <span className="lb-stat-label">Uraian Tugas Pokok</span>
+                    <strong className="lb-stat-val">
+                        {loadingUraian ? '...' : activeUraianTugas.length}
+                        {!loadingUraian && <span className="lb-stat-unit">Job Desc</span>}
+                    </strong>
+                    <span className="lb-stat-sub">Tugas pokok acuan kinerja aktif</span>
                 </div>
             </div>
 
-            {/* ════════════════ 2-COLUMN MAIN CONTENT ════════════════ */}
-            <div className="logbook-dashboard-content">
+            {/* ════════════════ 2-COLUMN SPLIT (1.6fr : 1fr) ════════════════ */}
+            <div className="lb-two-col">
                 {/* ── SISI KIRI: AKTIVITAS TERKINI ── */}
-                <div className="logbook-card">
-                    <div className="logbook-card-head">
-                        <div className="logbook-card-title">
+                <section className="lb-col-section lb-col-left">
+                    <div className="lb-section-head">
+                        <div>
                             <h2>Aktivitas Terkini</h2>
                             <p>Catatan logbook terbaru Anda</p>
                         </div>
                         <button
-                            className="logbook-btn-view-act"
+                            type="button"
+                            className="lb-btn-sm secondary"
                             onClick={() => navigate('/logbook/aktivitas')}
                             title="Buka halaman seluruh riwayat aktivitas"
                         >
-                            <span>Lihat Semua</span>
-                            <ArrowRight size={14} />
+                            Lihat Semua
                         </button>
                     </div>
 
-                    <div className="logbook-card-body">
+                    <div className="lb-col-body">
                         {loadingStats ? (
-                            <div className="logbook-loading-box">
-                                <p>Memuat aktivitas...</p>
-                            </div>
+                            <div className="lb-empty-flat">Memuat aktivitas...</div>
                         ) : !stats.recent_activities || stats.recent_activities.length === 0 ? (
-                            <div className="logbook-empty-box" style={{ padding: '36px 20px' }}>
-                                <div className="logbook-empty-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
-                                    <CalendarCheck size={30} />
-                                </div>
+                            <div className="lb-empty-flat">
+                                <CalendarCheck size={28} strokeWidth={1.5} className="lb-icon-muted" />
                                 <h3>Belum Ada Aktivitas Tercatat</h3>
                                 <p>Mulai hari kerja Anda dengan mencatat pekerjaan yang dilakukan agar terpantau dengan baik.</p>
                                 <button
-                                    className="logbook-btn-primary"
+                                    type="button"
+                                    className="lb-btn primary"
                                     onClick={() => navigate('/logbook/aktivitas?action=new')}
-                                    style={{ marginTop: '14px' }}
                                 >
-                                    <Plus size={15} /> Catat Aktivitas Sekarang
+                                    <Plus size={15} />
+                                    <span>Catat Aktivitas Sekarang</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="logbook-feed-list">
+                            <div className="lb-feed-list">
                                 {stats.recent_activities.map((act) => {
-                                    const statusClass = `status-${act.status || 'perlu_verifikasi'}`;
+                                    const dotColor =
+                                        act.status === 'disetujui'
+                                            ? '#10b981'
+                                            : act.status === 'ditolak'
+                                                ? '#f43f5e'
+                                                : '#f59e0b';
+                                    const statusLabel =
+                                        act.status === 'disetujui'
+                                            ? 'Disetujui'
+                                            : act.status === 'ditolak'
+                                                ? 'Ditolak'
+                                                : 'Menunggu Verifikasi';
+
                                     return (
-                                        <div key={act.id} className={`logbook-feed-item ${statusClass}`}>
-                                            <div className="logbook-feed-top">
-                                                <div className="logbook-feed-time">
-                                                    <Clock size={13} />
+                                        <div key={act.id} className="lb-feed-row">
+                                            <div className="lb-feed-row-top">
+                                                <div className="lb-feed-time">
                                                     <span>
-                                                        {act.jam_mulai ? act.jam_mulai.substring(0, 5) : '-'} - {act.jam_selesai ? act.jam_selesai.substring(0, 5) : '-'}
+                                                        {act.jam_mulai ? act.jam_mulai.substring(0, 5) : '-'} – {act.jam_selesai ? act.jam_selesai.substring(0, 5) : '-'}
                                                     </span>
                                                     {act.durasi_format && act.durasi_format !== '0 mnt' && (
-                                                        <span style={{ opacity: 0.8, fontWeight: 600 }}>
-                                                            ({act.durasi_format})
-                                                        </span>
+                                                        <>
+                                                            <span className="lb-meta-sep">•</span>
+                                                            <span>{act.durasi_format}</span>
+                                                        </>
                                                     )}
                                                 </div>
 
-                                                {/* Status Pill */}
-                                                <div>
-                                                    {act.status === 'disetujui' && (
-                                                        <span className="status-badge status-badge-green" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                                                            <CheckCircle2 size={12} /> Disetujui
-                                                        </span>
-                                                    )}
-                                                    {act.status === 'ditolak' && (
-                                                        <span className="status-badge status-badge-red" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                                                            <AlertCircle size={12} /> Ditolak
-                                                        </span>
-                                                    )}
-                                                    {act.status !== 'disetujui' && act.status !== 'ditolak' && (
-                                                        <span className="status-badge status-badge-yellow" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                                                            <Clock size={12} /> Menunggu Verifikasi
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                <span className="lb-status-text">
+                                                    <span className="lb-dot" style={{ background: dotColor }} />
+                                                    <span>{statusLabel}</span>
+                                                </span>
                                             </div>
 
-                                            <h4 className="logbook-feed-title">
+                                            <h4 className="lb-feed-title">
                                                 {act.nama_aktivitas || act.deskripsi || '-'}
                                             </h4>
 
                                             {act.nama_aktivitas && act.deskripsi && act.deskripsi !== act.nama_aktivitas && (
-                                                <p className="logbook-feed-desc">
-                                                    {act.deskripsi}
-                                                </p>
+                                                <p className="lb-feed-desc">{act.deskripsi}</p>
                                             )}
 
-                                            <div className="logbook-feed-meta">
-                                                <span className="logbook-jobdesc-tag" title={act.tanggal}>
-                                                    <Calendar size={12} style={{ opacity: 0.7 }} />
-                                                    <span>{act.tanggal}</span>
-                                                </span>
+                                            <div className="lb-feed-meta">
+                                                <span>{act.tanggal}</span>
                                                 {act.uraian_tugas_text && (
-                                                    <span className="logbook-jobdesc-tag" title={act.uraian_tugas_text}>
-                                                        <ClipboardList size={12} style={{ opacity: 0.7 }} />
-                                                        <span>{act.uraian_tugas_text}</span>
-                                                    </span>
+                                                    <>
+                                                        <span className="lb-meta-sep">•</span>
+                                                        <span className="lb-feed-jobdesc" title={act.uraian_tugas_text}>
+                                                            {act.uraian_tugas_text}
+                                                        </span>
+                                                    </>
                                                 )}
                                                 {Number(act.nilai_output) > 0 && (
-                                                    <span className="logbook-output-tag">
-                                                        <Target size={12} style={{ opacity: 0.8 }} />
+                                                    <>
+                                                        <span className="lb-meta-sep">•</span>
                                                         <span>Output: {act.nilai_output} {act.satuan_output || ''}</span>
-                                                    </span>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
@@ -402,70 +342,64 @@ export default function LogbookBeranda() {
                             </div>
                         )}
                     </div>
-                </div>
+                </section>
 
-                {/* ── SISI KANAN: DAFTAR URAIAN TUGAS (JOB DESC) ── */}
-                <div className="logbook-card">
-                    <div className="logbook-card-head">
-                        <div className="logbook-card-title">
+                {/* ── SISI KANAN: DAFTAR URAIAN TUGAS POKOK ── */}
+                <section className="lb-col-section lb-col-right">
+                    <div className="lb-section-head">
+                        <div>
                             <h2>Uraian Tugas Pokok</h2>
                             <p>{activeUraianTugas.length} job desc terdaftar</p>
                         </div>
                         <button
-                            className="logbook-btn-primary"
+                            type="button"
+                            className="lb-btn-sm primary"
                             onClick={() => openModal()}
-                            style={{ padding: '6px 14px', fontSize: '12.5px' }}
                             title="Tambah uraian tugas baru"
                         >
-                            <Plus size={14} /> Tambah
+                            <Plus size={14} />
+                            <span>Tambah</span>
                         </button>
                     </div>
 
-                    <div className="logbook-card-body">
+                    <div className="lb-col-body">
                         {loadingUraian ? (
-                            <div className="logbook-loading-box">
-                                <p>Memuat uraian tugas...</p>
-                            </div>
+                            <div className="lb-empty-flat">Memuat uraian tugas...</div>
                         ) : activeUraianTugas.length === 0 ? (
-                            <div className="logbook-empty-box" style={{ padding: '36px 20px' }}>
-                                <div className="logbook-empty-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706' }}>
-                                    <ClipboardList size={30} />
-                                </div>
+                            <div className="lb-empty-flat">
+                                <ClipboardList size={28} strokeWidth={1.5} className="lb-icon-muted" />
                                 <h3>Belum Ada Uraian Tugas</h3>
                                 <p>Daftarkan uraian tugas / job description harian Anda sebagai acuan pencatatan logbook.</p>
                                 <button
-                                    className="logbook-btn-primary"
+                                    type="button"
+                                    className="lb-btn primary"
                                     onClick={() => openModal()}
-                                    style={{ marginTop: '14px' }}
                                 >
-                                    <Plus size={15} /> Tambah Uraian Tugas
+                                    <Plus size={15} />
+                                    <span>Tambah Uraian Tugas</span>
                                 </button>
                             </div>
                         ) : (
                             <>
-                                <div className="logbook-jobdesc-list">
+                                <div className="lb-jobdesc-list">
                                     {paginatedUraianTugas.map((item, idx) => {
-                                        const itemIndex = pageSize === 'all' ? (idx + 1) : ((page - 1) * effectivePageSize + idx + 1);
+                                        const itemIndex = (curPage - 1) * pageSize + idx + 1;
                                         return (
-                                            <div key={item.id} className="logbook-jobdesc-card">
-                                                <div className="logbook-jobdesc-num">
-                                                    {itemIndex}
-                                                </div>
-                                                <div className="logbook-jobdesc-content">
-                                                    <p className="logbook-jobdesc-text">
-                                                        {item.deskripsi}
-                                                    </p>
-                                                </div>
-                                                <div className="logbook-jobdesc-actions">
+                                            <div key={item.id} className="lb-jobdesc-row">
+                                                <span className="lb-jobdesc-num">{itemIndex}.</span>
+                                                <p className="lb-jobdesc-text">{item.deskripsi}</p>
+                                                <div className="lb-jobdesc-actions">
                                                     <button
-                                                        className="logbook-btn-icon logbook-text-blue"
+                                                        type="button"
+                                                        className="lb-ghost-icon"
                                                         onClick={() => openModal(item)}
                                                         title="Edit Uraian Tugas"
                                                     >
                                                         <Edit2 size={14} />
                                                     </button>
                                                     <button
-                                                        className="logbook-btn-icon logbook-text-red"
+                                                        type="button"
+                                                        className="lb-ghost-icon danger"
                                                         onClick={() => confirmDelete(item)}
                                                         title="Hapus Uraian Tugas"
                                                     >
@@ -477,118 +411,60 @@ export default function LogbookBeranda() {
                                     })}
                                 </div>
 
-                                {/* Pagination Uraian Tugas */}
-                                {totalItems > 5 && (
-                                    <div className="logbook-card-pagination">
-                                        <div className="logbook-pagination-info">
-                                            {pageSize === 'all' ? (
-                                                <span>Total <strong>{totalItems}</strong> job desc</span>
-                                            ) : (
-                                                <span>
-                                                    <strong>{Math.min((page - 1) * effectivePageSize + 1, totalItems)}–{Math.min(page * effectivePageSize, totalItems)}</strong> dari <strong>{totalItems}</strong>
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="logbook-pagination-controls">
-                                            <div className="logbook-pagination-size">
-                                                <select
-                                                    value={pageSize}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
-                                                        setPageSize(val);
-                                                        setPage(1);
-                                                    }}
-                                                    className="logbook-select-sm"
-                                                    title="Jumlah data per halaman"
-                                                >
-                                                    <option value={5}>5 / hal</option>
-                                                    <option value={10}>10 / hal</option>
-                                                    <option value={15}>15 / hal</option>
-                                                    <option value="all">Semua</option>
-                                                </select>
-                                            </div>
-
-                                            {pageSize !== 'all' && totalPages > 1 && (
-                                                <div className="logbook-pagination-nav">
-                                                    <button
-                                                        type="button"
-                                                        className="logbook-page-btn"
-                                                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                                                        disabled={page === 1}
-                                                        title="Halaman sebelumnya"
-                                                    >
-                                                        <ChevronLeft size={14} />
-                                                    </button>
-
-                                                    {pageNumbers.map((p, idx) => (
-                                                        p === '...' ? (
-                                                            <span key={`dots-${idx}`} className="logbook-page-ellipsis">…</span>
-                                                        ) : (
-                                                            <button
-                                                                key={p}
-                                                                type="button"
-                                                                className={`logbook-page-btn ${p === page ? 'active' : ''}`}
-                                                                onClick={() => setPage(p)}
-                                                            >
-                                                                {p}
-                                                            </button>
-                                                        )
-                                                    ))}
-
-                                                    <button
-                                                        type="button"
-                                                        className="logbook-page-btn"
-                                                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                                                        disabled={page === totalPages}
-                                                        title="Halaman berikutnya"
-                                                    >
-                                                        <ChevronRight size={14} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                {totalItems > 0 && (
+                                    <SimplePagination
+                                        className="lb-dash-pagination"
+                                        page={curPage}
+                                        totalCount={totalItems}
+                                        pageSize={pageSize}
+                                        onPageChange={setPage}
+                                        onPageSizeChange={(n) => {
+                                            setPageSize(n);
+                                            setPage(1);
+                                        }}
+                                    />
                                 )}
                             </>
                         )}
                     </div>
-                </div>
+                </section>
             </div>
 
             {/* ════════════════ MODAL FORM URAIAN TUGAS ════════════════ */}
             {isModalOpen && createPortal(
-                <div className="logbook-modal-overlay" onClick={closeModal}>
-                    <div className="logbook-modal-card" onClick={(e) => e.stopPropagation()}>
-                        <div className="logbook-modal-header">
+                <div className="lb-modal-overlay" onClick={closeModal}>
+                    <div className="lb-modal-card" onClick={(e) => e.stopPropagation()}>
+                        <div className="lb-modal-header">
                             <h3>{editingItem ? 'Edit Uraian Tugas' : 'Tambah Uraian Tugas'}</h3>
-                            <button className="logbook-modal-close-btn" onClick={closeModal}>
+                            <button type="button" className="lb-modal-close-btn" onClick={closeModal}>
                                 <X size={18} />
                             </button>
                         </div>
                         <form onSubmit={handleSubmit}>
-                            <div className="logbook-modal-body">
-                                <div className="logbook-field-group">
-                                    <label>Deskripsi Uraian Tugas / Job Description <span style={{ color: '#ef4444' }}>*</span></label>
+                            <div className="lb-modal-body">
+                                <div className="lb-field-group">
+                                    <label>
+                                        Deskripsi Uraian Tugas / Job Description <span className="lb-req">*</span>
+                                    </label>
                                     <textarea
                                         rows={4}
                                         value={formData.deskripsi}
                                         onChange={(e) => setFormData({ deskripsi: e.target.value })}
-                                        className="logbook-textarea"
+                                        className="lb-textarea"
                                         placeholder="Tuliskan tugas pokok pekerjaan Anda, contoh: Menyusun rekonsiliasi kas dan pelaporan harian..."
                                         autoFocus
                                         required
                                     />
-                                    <small style={{ color: '#64748b', fontSize: '11.5px', marginTop: '4px', display: 'block' }}>
+                                    <span className="lb-field-hint">
                                         Uraian ini akan muncul sebagai opsi pilihan saat Anda mencatat logbook harian.
-                                    </small>
+                                    </span>
                                 </div>
                             </div>
-                            <div className="logbook-modal-footer">
-                                <button type="button" className="logbook-btn-cancel" onClick={closeModal} disabled={submitting}>
+                            <div className="lb-modal-footer">
+                                <button type="button" className="lb-btn secondary" onClick={closeModal} disabled={submitting}>
                                     Batal
                                 </button>
-                                <button type="submit" className="logbook-btn-primary" disabled={submitting}>
+                                <button type="submit" className="lb-btn primary" disabled={submitting}>
                                     {submitting ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Tambah Tugas')}
                                 </button>
                             </div>
@@ -600,26 +476,28 @@ export default function LogbookBeranda() {
 
             {/* ════════════════ MODAL DELETE CONFIRMATION ════════════════ */}
             {deleteItem && createPortal(
-                <div className="logbook-modal-overlay" onClick={closeDeleteConfirm}>
-                    <div className="logbook-modal-card sm" onClick={(e) => e.stopPropagation()}>
-                        <div className="logbook-modal-header">
+                <div className="lb-modal-overlay" onClick={closeDeleteConfirm}>
+                    <div className="lb-modal-card sm" onClick={(e) => e.stopPropagation()}>
+                        <div className="lb-modal-header">
                             <h3>Hapus Uraian Tugas</h3>
-                            <button className="logbook-modal-close-btn" onClick={closeDeleteConfirm}>
+                            <button type="button" className="lb-modal-close-btn" onClick={closeDeleteConfirm}>
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="logbook-delete-body">
-                            <p>Apakah Anda yakin ingin menghapus uraian tugas ini dari daftar aktif?</p>
-                            <div className="logbook-delete-item-preview">
+                        <div className="lb-modal-body">
+                            <p className="lb-delete-prompt">
+                                Apakah Anda yakin ingin menghapus uraian tugas ini dari daftar aktif?
+                            </p>
+                            <div className="lb-delete-preview">
                                 <small>Deskripsi Tugas:</small>
                                 <div>"{deleteItem.deskripsi}"</div>
                             </div>
                         </div>
-                        <div className="logbook-modal-footer">
-                            <button type="button" className="logbook-btn-cancel" onClick={closeDeleteConfirm} disabled={deleting}>
+                        <div className="lb-modal-footer">
+                            <button type="button" className="lb-btn secondary" onClick={closeDeleteConfirm} disabled={deleting}>
                                 Batal
                             </button>
-                            <button type="button" className="logbook-btn-danger" onClick={handleDelete} disabled={deleting}>
+                            <button type="button" className="lb-btn danger" onClick={handleDelete} disabled={deleting}>
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
                             </button>
                         </div>
