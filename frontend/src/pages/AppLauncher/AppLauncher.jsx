@@ -34,13 +34,32 @@ const resolveMediaUrl = (url) => {
     return url;
 };
 
+const getUserInitials = (user) => {
+    const first = (user?.first_name || '').trim();
+    const last = (user?.last_name || '').trim();
+    if (first && last) {
+        return `${first[0]}${last[0]}`.toUpperCase();
+    }
+    const full = (first || user?.username || 'U').trim();
+    const parts = full.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return full.slice(0, 2).toUpperCase();
+};
+
 export default function AppLauncher() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
+    const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('simak_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark');
     });
+
+    const avatarSrc = resolveMediaUrl(user?.foto);
+    const userInitials = getUserInitials(user);
+    const showAvatarImg = Boolean(avatarSrc && failedAvatarUrl !== avatarSrc);
 
     // PWA Desktop Installation Support
     const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -478,10 +497,15 @@ export default function AppLauncher() {
                         tabIndex={0}
                     >
                         <div className="odoo-avatar">
-                            {user?.foto ? (
-                                <img src={resolveMediaUrl(user.foto)} alt={user?.username} className="odoo-avatar-img" />
+                            {showAvatarImg ? (
+                                <img
+                                    src={avatarSrc}
+                                    alt={user?.username || 'User'}
+                                    className="odoo-avatar-img"
+                                    onError={() => setFailedAvatarUrl(avatarSrc)}
+                                />
                             ) : (
-                                user?.first_name ? user.first_name[0].toUpperCase() : user?.username?.[0]?.toUpperCase() || 'U'
+                                userInitials
                             )}
                             <span className="odoo-online-dot"></span>
                         </div>
@@ -515,24 +539,17 @@ export default function AppLauncher() {
                                 onClick={() => handleAppClick(app)}
                             >
                                 <div className="odoo-app-tile-wrapper">
-                                    <div
-                                        className="odoo-app-tile"
-                                        style={{
-                                            '--glow-color': app.glowColor,
-                                            '--glass-glow': app.glassGlow,
-                                            '--glass-glow-light': app.glassGlowLight,
-                                        }}
-                                    >
-                                        <div className="odoo-tile-shine"></div>
+                                    <div className={`odoo-app-tile mod-${app.id}`}>
                                         <IconComponent
-                                            size={38}
-                                            color={app.color}
-                                            strokeWidth={2.1}
+                                            size={20}
+                                            strokeWidth={1.85}
                                             className="odoo-tile-icon"
                                         />
                                     </div>
-                                    <span className="odoo-app-name">{app.name}</span>
-                                    <span className="odoo-app-sub">{app.subtitle}</span>
+                                    <div className="odoo-app-text">
+                                        <span className="odoo-app-name">{app.name}</span>
+                                        <span className="odoo-app-sub">{app.subtitle}</span>
+                                    </div>
                                 </div>
                             </div>
                         );
