@@ -550,15 +550,15 @@ export default function PermintaanUnit() {
     const renderStatusBadge = (status) => {
         switch (status) {
             case 'MENUNGGU':
-                return <span className="pu-badge amber"><Clock size={12} /> Menunggu Otorisasi</span>;
+                return <span className="pu-badge amber"><span className="pu-status-dot" /> Menunggu Otorisasi</span>;
             case 'DISETUJUI':
-                return <span className="pu-badge emerald"><CheckCircle2 size={12} /> Disetujui (Siap Diambil)</span>;
+                return <span className="pu-badge emerald"><span className="pu-status-dot" /> Disetujui (Siap Diambil)</span>;
             case 'SELESAI':
-                return <span className="pu-badge sky"><PackageCheck size={12} /> Selesai Diserahkan</span>;
+                return <span className="pu-badge sky"><span className="pu-status-dot" /> Selesai Diserahkan</span>;
             case 'DITOLAK':
-                return <span className="pu-badge rose"><XCircle size={12} /> Ditolak</span>;
+                return <span className="pu-badge rose"><span className="pu-status-dot" /> Ditolak</span>;
             default:
-                return <span className="pu-badge slate">{status}</span>;
+                return <span className="pu-badge slate"><span className="pu-status-dot" /> {status}</span>;
         }
     };
 
@@ -741,13 +741,14 @@ export default function PermintaanUnit() {
                                             <td>
                                                 <div className="pu-items-preview">
                                                     {previewItems.map(it => (
-                                                        <span key={it.id} className="pu-item-pill">
-                                                            {it.barang_nama} ({Number(it.qty_minta)} {it.satuan})
-                                                        </span>
+                                                        <div key={it.id} className="pu-item-line">
+                                                            <span className="pu-item-name">{it.barang_nama}</span>{' '}
+                                                            <span className="pu-item-qty">({Number(it.qty_minta)} {it.satuan})</span>
+                                                        </div>
                                                     ))}
                                                     {remainingCount > 0 && (
-                                                        <span className="pu-item-pill more">
-                                                            +{remainingCount} lainnya
+                                                        <span className="pu-item-more">
+                                                            +{remainingCount} item lainnya
                                                         </span>
                                                     )}
                                                 </div>
@@ -756,15 +757,19 @@ export default function PermintaanUnit() {
                                                 {renderStatusBadge(req.status)}
                                             </td>
                                             <td>
-                                                <small style={{ color: '#94a3b8' }}>{req.created_by_nama || '-'}</small>
+                                                {req.created_by_nama ? (
+                                                    <span className="pu-cell-muted">{req.created_by_nama}</span>
+                                                ) : (
+                                                    <span className="pu-cell-empty">—</span>
+                                                )}
                                             </td>
                                             <td>
                                                 {req.approved_by_nama ? (
-                                                    <small style={{ color: '#34d399', fontWeight: 600 }}>{req.approved_by_nama}</small>
+                                                    <span className="pu-approver-ok">{req.approved_by_nama}</span>
                                                 ) : req.status === 'DITOLAK' ? (
-                                                    <small style={{ color: '#fb7185' }}>Ditolak</small>
+                                                    <span className="pu-approver-no">Ditolak</span>
                                                 ) : (
-                                                    <small style={{ color: '#64748b' }}>-</small>
+                                                    <span className="pu-cell-empty">—</span>
                                                 )}
                                             </td>
                                             <td>
