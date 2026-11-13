@@ -759,11 +759,11 @@ export default function GudangLaporan({ heroActionsTarget = null }) {
                         {stokPage.total > 0 && (
                             <SimplePagination
                                 className="gdg-dash-pagination"
-                                currentPage={stokPage.curPage}
-                                totalItems={stokPage.total}
-                                itemsPerPage={pageSize}
+                                page={stokPage.curPage}
+                                totalCount={stokPage.total}
+                                pageSize={pageSize}
                                 onPageChange={setPage}
-                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                                onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
                             />
                         )}
                     </section>
@@ -1076,11 +1076,11 @@ export default function GudangLaporan({ heroActionsTarget = null }) {
                         {permintaanPage.total > 0 && (
                             <SimplePagination
                                 className="gdg-dash-pagination"
-                                currentPage={permintaanPage.curPage}
-                                totalItems={permintaanPage.total}
-                                itemsPerPage={pageSize}
+                                page={permintaanPage.curPage}
+                                totalCount={permintaanPage.total}
+                                pageSize={pageSize}
                                 onPageChange={setPage}
-                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                                onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
                             />
                         )}
                     </section>
@@ -1299,11 +1299,11 @@ export default function GudangLaporan({ heroActionsTarget = null }) {
                         {pemakaianPage.total > 0 && (
                             <SimplePagination
                                 className="gdg-dash-pagination"
-                                currentPage={pemakaianPage.curPage}
-                                totalItems={pemakaianPage.total}
-                                itemsPerPage={pageSize}
+                                page={pemakaianPage.curPage}
+                                totalCount={pemakaianPage.total}
+                                pageSize={pageSize}
                                 onPageChange={setPage}
-                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                                onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
                             />
                         )}
                     </section>
@@ -1509,11 +1509,11 @@ export default function GudangLaporan({ heroActionsTarget = null }) {
                         {pembelianPage.total > 0 && (
                             <SimplePagination
                                 className="gdg-dash-pagination"
-                                currentPage={pembelianPage.curPage}
-                                totalItems={pembelianPage.total}
-                                itemsPerPage={pageSize}
+                                page={pembelianPage.curPage}
+                                totalCount={pembelianPage.total}
+                                pageSize={pageSize}
                                 onPageChange={setPage}
-                                onItemsPerPageChange={(n) => { setPageSize(n); setPage(1); }}
+                                onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
                             />
                         )}
                     </section>

@@ -612,7 +612,7 @@ export default function IzinMeninggalkanKerja() {
       default:
         return {
           title: hasSdmAccess ? 'Pengajuan Izin Meninggalkan Tempat Kerja' : 'Izin Meninggalkan Tempat Kerja',
-          subtitle: 'Pencatatan izin dinas luar & urusan pribadi, status persetujuan atasan, dan kepatuhan waktu',
+          subtitle: 'Pengajuan dan riwayat izin meninggalkan tempat kerja sementara pada jam dinas',
           Icon: LogOut,
         };
     }
@@ -842,11 +842,11 @@ export default function IzinMeninggalkanKerja() {
             {izinSaya.length > 0 && (
               <SimplePagination
                 className="imtk-pagination"
-                currentPage={sayaPage}
-                totalItems={izinSaya.length}
-                itemsPerPage={sayaPageSize}
+                page={sayaPage}
+                totalCount={izinSaya.length}
+                pageSize={sayaPageSize}
                 onPageChange={setSayaPage}
-                onItemsPerPageChange={(n) => { setSayaPageSize(n); setSayaPage(1); }}
+                onPageSizeChange={(n) => { setSayaPageSize(n); setSayaPage(1); }}
               />
             )}
           </section>

@@ -3028,56 +3028,114 @@
 }
 
 /* ── Pagination (Identik dengan Modul Gudang: 32px, radius 6px) ── */
-.imtk-pagination {
-  margin-top: 12px;
-  padding: 12px 0 4px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+.imtk-pagination.sp-container {
+  padding: 14px 0 0 !important;
+  margin-top: 0;
+  border-top: 1px solid var(--imtk-border);
+  background: transparent !important;
 }
 
-.imtk-pagination .pg-info {
-  font-size: 12.5px;
-  color: var(--imtk-muted);
+.imtk-pagination .sp-info {
+  font-size: 13px;
+  color: var(--imtk-muted) !important;
   font-variant-numeric: tabular-nums;
 }
 
-.imtk-pagination .pg-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.imtk-pagination .sp-info strong {
+  color: var(--imtk-text) !important;
+  font-weight: 600;
 }
 
-.imtk-pagination .pg-btn,
-.imtk-pagination .pg-select {
-  height: 32px;
-  min-width: 32px;
-  padding: 0 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
-  background: var(--imtk-surface);
-  border: 1px solid var(--imtk-border);
-  color: var(--imtk-text);
-  cursor: pointer;
+.imtk-pagination .sp-controls {
+  gap: 10px;
 }
 
-.imtk-pagination .pg-btn:hover:not(:disabled) {
-  border-color: #635bff;
-  color: #818cf8;
+.imtk-pagination .sp-size-select {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  background: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
 }
 
-.imtk-pagination .pg-btn.active {
-  background: #635bff;
-  border-color: #635bff;
-  color: #ffffff;
+[data-theme="light"] .imtk-pagination .sp-size-select {
+  background: #ffffff !important;
+  border-color: #d8dee4 !important;
+  color: #1a1f36 !important;
 }
 
-.imtk-pagination .pg-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.imtk-pagination .sp-nav-group {
+  height: 32px !important;
+  border-radius: 6px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  background: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+[data-theme="light"] .imtk-pagination .sp-nav-group {
+  background: #ffffff !important;
+  border-color: #d8dee4 !important;
+}
+
+.imtk-pagination .sp-nav-btn {
+  width: 32px !important;
+  height: 30px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 1px solid var(--imtk-border) !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+.imtk-pagination .sp-nav-btn:last-child {
+  border-right: none !important;
+}
+
+.imtk-pagination .sp-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] .imtk-pagination .sp-nav-btn {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .imtk-pagination .sp-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #1a1f36 !important;
+}
+
+.imtk-pagination .sp-page-pill {
+  height: 30px !important;
+  padding: 0 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #94a3b8 !important;
+  border-left: none !important;
+  border-right: 1px solid var(--imtk-border) !important;
+  opacity: 1 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.imtk-pagination .sp-page-pill strong {
+  color: #f8fafc !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="light"] .imtk-pagination .sp-page-pill {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .imtk-pagination .sp-page-pill strong {
+  color: #1a1f36 !important;
 }
 
 /* ── Modals (Overlay Bersih Tanpa Blur, Permukaan #111318 / #ffffff, Kontrol 36px) ── */
