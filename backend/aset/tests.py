@@ -38,36 +38,36 @@ TEMP_MEDIA_DIR = tempfile.mkdtemp()
 class AsetAndPerbaikanTests(APITestCase):
     def setUp(self):
         User = get_user_model()
-        self.unit = Unit.objects.create(nama='Instalasi Farmasi')
+        self.unit = Unit.objects.create(nama='Unit Test Aset')
         self.admin = User.objects.create_user(
-            username='admin_aset',
+            username='admin_aset_test',
             password='password123',
             unit=self.unit,
             is_superuser=True,
             is_staff=True,
         )
         self.staff = User.objects.create_user(
-            username='staff_unit',
+            username='staff_unit_test',
             password='password123',
             unit=self.unit,
         )
 
         self.kelompok = AsetKelompok.objects.create(
-            kode='GOL1',
-            nama='Kelompok 1 (4 Tahun)',
+            kode='TST_GOL1',
+            nama='Kelompok 1 Test (4 Tahun)',
             masa_manfaat_tahun=4,
             masa_manfaat_bulan=48,
             tarif_garis_lurus=Decimal('25.00'),
         )
-        self.kategori = AsetKategori.objects.create(kode='AM', nama='Alat Kesehatan Medis')
+        self.kategori = AsetKategori.objects.create(kode='TST_AM', nama='Alkes Test')
         self.jenis = AsetJenis.objects.create(
             kategori=self.kategori,
-            kode='USG',
-            nama='Mesin USG',
+            kode='TST_USG',
+            nama='Mesin USG Test',
             kelompok_default=self.kelompok,
         )
         self.ruangan = AsetRuangan.objects.create(
-            nama='Ruang Poli Kandungan',
+            nama='Ruang Poli Test',
             unit=self.unit,
             lantai_gedung='Lantai 2',
         )
@@ -252,11 +252,11 @@ class AsetAndPerbaikanTests(APITestCase):
         )
         self.assertEqual(ok_progres.status_code, status.HTTP_200_OK)
 
-        # 5. Finish pop-up -> isi kondisi setelah perbaikan, update kelayakan, dan biaya riil
+        # 5. Finish pop-up -> isi kondisi setelah perbaikan (teks), update kelayakan, dan biaya riil
         finish_res = self.client.post(
             f'/api/aset/perbaikan/{tiket_id}/finish/',
             {
-                'kondisi_setelah_perbaikan': 'berfungsi_normal',
+                'kondisi_ringkas': 'Menyala normal, suhu stabil dan tidak ada kebocoran',
                 'status_kelayakan_baru': 'B',
                 'biaya_riil': '1350000',
                 'catatan_penutupan': 'Unit diuji 2 jam dan berjalan normal',
@@ -282,6 +282,7 @@ class AsetAndPerbaikanTests(APITestCase):
         self.assertIn('Hasil Inspeksi: Kabel probe longgar & board power lemah', logs[2].tindakan)
         self.assertIn('Tindak Lanjut: Penggantian board power unit', logs[2].tindakan)
         self.assertEqual(logs[3].tindakan, 'Sparepart board power tiba dan sedang dipasang oleh teknisi')
+        self.assertIn('Menyala normal, suhu stabil', logs[4].tindakan)
         self.assertEqual(logs[4].biaya_riil, Decimal('1350000.00'))
         self.assertEqual(logs[4].kondisi_setelah_perbaikan, 'berfungsi_normal')
 

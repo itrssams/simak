@@ -11,7 +11,6 @@ import {
     Eye,
     X,
     Save,
-    RotateCcw,
     User,
     Calendar,
     ArrowRight,
@@ -139,10 +138,9 @@ export default function AsetPerbaikan() {
     // Modal Dedicated Finish / Selesaikan Perbaikan
     const [finishTicket, setFinishTicket] = useState(null);
     const [finishForm, setFinishForm] = useState({
-        kondisi_setelah_perbaikan: 'berfungsi_normal',
+        kondisi_ringkas: '',
         status_kelayakan_baru: 'A',
         biaya_riil: 0,
-        tindak_lanjut_berikutnya: '',
         catatan_penutupan: '',
         tanggal_selesai: new Date().toISOString().split('T')[0],
     });
@@ -398,10 +396,9 @@ export default function AsetPerbaikan() {
         setFinishTicket(ticket);
         const biayaAwal = Number(ticket.biaya_perbaikan) || Number(ticket.estimasi_biaya) || 0;
         setFinishForm({
-            kondisi_setelah_perbaikan: ticket.kondisi_setelah_perbaikan || 'berfungsi_normal',
+            kondisi_ringkas: '',
             status_kelayakan_baru: ticket.status_kelayakan || 'A',
             biaya_riil: biayaAwal,
-            tindak_lanjut_berikutnya: ticket.tindak_lanjut_berikutnya || '',
             catatan_penutupan: '',
             tanggal_selesai: ticket.tanggal_selesai || new Date().toISOString().split('T')[0],
         });
@@ -429,18 +426,18 @@ export default function AsetPerbaikan() {
     // Submit Finish Perbaikan
     const handleSubmitFinish = async (e) => {
         e.preventDefault();
-        if (finishForm.kondisi_setelah_perbaikan === 'masih_bermasalah' && !finishForm.tindak_lanjut_berikutnya.trim()) {
-            toast.error('Wajib mengisi Tindak Lanjut Berikutnya (RTL) karena kondisi barang dilaporkan masih bermasalah!');
+        if (!finishForm.kondisi_ringkas.trim()) {
+            toast.error('Wajib mengisi Kondisi Setelah Perbaikan sebelum menyelesaikan tiket.');
             return;
         }
 
         setFinishing(true);
         try {
             const formData = new FormData();
-            formData.append('kondisi_setelah_perbaikan', finishForm.kondisi_setelah_perbaikan);
+            formData.append('kondisi_setelah_perbaikan', 'berfungsi_normal');
+            formData.append('kondisi_ringkas', finishForm.kondisi_ringkas.trim());
             formData.append('status_kelayakan_baru', finishForm.status_kelayakan_baru);
             formData.append('biaya_riil', finishForm.biaya_riil || 0);
-            formData.append('tindak_lanjut_berikutnya', finishForm.tindak_lanjut_berikutnya);
             formData.append('catatan_penutupan', finishForm.catatan_penutupan);
             formData.append('tanggal_selesai', finishForm.tanggal_selesai);
             if (finishFotoFile) {
@@ -470,8 +467,7 @@ export default function AsetPerbaikan() {
         const inspeksi = perbaikanList.filter(p => p.status_perbaikan === 'inspeksi').length;
         const dalamProses = perbaikanList.filter(p => p.status_perbaikan === 'dalam_proses').length;
         const selesai = perbaikanList.filter(p => p.status_perbaikan === 'selesai').length;
-        const bermasalah = perbaikanList.filter(p => p.kondisi_setelah_perbaikan === 'masih_bermasalah').length;
-        return { total, belumMulai, inspeksi, dalamProses, selesai, bermasalah };
+        return { total, belumMulai, inspeksi, dalamProses, selesai };
     }, [perbaikanList, totalCount]);
 
     const formatRp = (val) => {
@@ -545,20 +541,9 @@ export default function AsetPerbaikan() {
                         <CheckCircle2 size={20} />
                     </div>
                     <div className="aset-stat-info">
-                        <div className="aset-stat-label">Selesai Normal</div>
+                        <div className="aset-stat-label">Selesai</div>
                         <div className="aset-stat-value" style={{ color: '#34d399' }}>{kpiSummary.selesai}</div>
-                        <div className="aset-stat-subtext">Berfungsi normal</div>
-                    </div>
-                </div>
-
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#f472b6' }}>
-                        <RotateCcw size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Masih Bermasalah</div>
-                        <div className="aset-stat-value" style={{ color: '#f472b6' }}>{kpiSummary.bermasalah}</div>
-                        <div className="aset-stat-subtext">Perlu tindak lanjut RTL</div>
+                        <div className="aset-stat-subtext">Tuntas diperbaiki</div>
                     </div>
                 </div>
             </div>
@@ -1539,59 +1524,18 @@ export default function AsetPerbaikan() {
                                     </div>
                                 </div>
 
-                                {/* 1. Kondisi Setelah Perbaikan */}
+                                {/* 1. Input Kondisi Setelah Perbaikan */}
                                 <div className="aset-form-group" style={{ marginBottom: '14px' }}>
                                     <label className="aset-form-label">Kondisi Setelah Perbaikan *</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                        {[
-                                            { id: 'berfungsi_normal', label: '✅ Berfungsi Normal', desc: 'Kondisi baik & normal, aset siap digunakan kembali', color: '#10b981' },
-                                            { id: 'masih_bermasalah', label: '⚠️ Masih Bermasalah', desc: 'Masih ada kendala, butuh tindak lanjut berikutnya', color: '#ec4899' },
-                                        ].map(opt => {
-                                            const isSel = finishForm.kondisi_setelah_perbaikan === opt.id;
-                                            return (
-                                                <div
-                                                    key={opt.id}
-                                                    onClick={() => setFinishForm({ ...finishForm, kondisi_setelah_perbaikan: opt.id })}
-                                                    className={`aset-choice-card ${isSel ? `selected kondisi-${opt.id}` : ''}`}
-                                                    role="button"
-                                                    tabIndex={0}
-                                                    style={{ padding: '10px 12px' }}
-                                                >
-                                                    <div style={{ fontSize: '12px', fontWeight: 700, color: isSel ? opt.color : 'inherit' }}>
-                                                        {opt.label}
-                                                    </div>
-                                                    <div style={{ fontSize: '10.5px', opacity: 0.75, marginTop: '3px', lineHeight: '1.25' }}>
-                                                        {opt.desc}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                    <input
+                                        type="text"
+                                        className="aset-form-input"
+                                        placeholder="Contoh: Unit menyala normal, suhu dingin stabil, fungsi normal..."
+                                        value={finishForm.kondisi_ringkas}
+                                        onChange={e => setFinishForm({ ...finishForm, kondisi_ringkas: e.target.value })}
+                                        required
+                                    />
                                 </div>
-
-                                {/* RTL jika Masih Bermasalah */}
-                                {finishForm.kondisi_setelah_perbaikan === 'masih_bermasalah' && (
-                                    <div style={{
-                                        background: 'rgba(236, 72, 153, 0.08)',
-                                        border: '1.5px solid #ec4899',
-                                        borderRadius: '8px',
-                                        padding: '12px',
-                                        marginBottom: '14px'
-                                    }}>
-                                        <label className="aset-form-label" style={{ color: '#ec4899', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <AlertTriangle size={13} color="#ec4899" /> Tindak Lanjut Berikutnya (Wajib Diisi karena Masih Bermasalah) *
-                                        </label>
-                                        <textarea
-                                            className="aset-form-textarea"
-                                            rows="2"
-                                            placeholder="Jelaskan langkah lanjutan (contoh: Menunggu kedatangan komponen IC board distributor, usulan penggantian unit)..."
-                                            value={finishForm.tindak_lanjut_berikutnya}
-                                            onChange={e => setFinishForm({ ...finishForm, tindak_lanjut_berikutnya: e.target.value })}
-                                            required
-                                            style={{ borderColor: '#ec4899' }}
-                                        />
-                                    </div>
-                                )}
 
                                 {/* 2. Update Penetapan Status Kelayakan Fisik Aset Pasca Servis */}
                                 <div className="aset-form-group" style={{ marginBottom: '14px' }}>

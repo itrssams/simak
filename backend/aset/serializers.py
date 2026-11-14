@@ -560,7 +560,12 @@ class AsetPerbaikanFinishSerializer(serializers.Serializer):
     - Tindak lanjut berikutnya (jika masih bermasalah)
     - Foto bukti & tanggal selesai
     """
-    kondisi_setelah_perbaikan = serializers.ChoiceField(choices=AsetPerbaikan.KONDISI_SETELAH_CHOICES)
+    kondisi_setelah_perbaikan = serializers.ChoiceField(
+        choices=AsetPerbaikan.KONDISI_SETELAH_CHOICES,
+        required=False,
+        default='berfungsi_normal',
+    )
+    kondisi_ringkas = serializers.CharField(required=False, allow_blank=True)
     status_kelayakan_baru = serializers.ChoiceField(choices=Aset.STATUS_KELAYAKAN_CHOICES)
     biaya_riil = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=Decimal('0'))
     tindak_lanjut_berikutnya = serializers.CharField(required=False, allow_blank=True)
@@ -569,11 +574,7 @@ class AsetPerbaikanFinishSerializer(serializers.Serializer):
     foto_setelah_perbaikan = serializers.ImageField(required=False, allow_null=True)
 
     def validate(self, data):
-        kondisi = data.get('kondisi_setelah_perbaikan')
-        tindak_lanjut_berikutnya = data.get('tindak_lanjut_berikutnya')
-        if kondisi == 'masih_bermasalah' and not (tindak_lanjut_berikutnya and tindak_lanjut_berikutnya.strip()):
-            raise serializers.ValidationError({
-                'tindak_lanjut_berikutnya': 'Wajib mengisi tindak lanjut berikutnya jika kondisi setelah perbaikan masih bermasalah.'
-            })
+        if not data.get('kondisi_setelah_perbaikan'):
+            data['kondisi_setelah_perbaikan'] = 'berfungsi_normal'
         return data
 

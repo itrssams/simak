@@ -540,7 +540,8 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
-        kondisi = data['kondisi_setelah_perbaikan']
+        kondisi = data.get('kondisi_setelah_perbaikan') or 'berfungsi_normal'
+        kondisi_ringkas = (data.get('kondisi_ringkas') or '').strip()
         status_kelayakan_baru = data['status_kelayakan_baru']
         biaya_riil = data['biaya_riil']
         tindak_lanjut_berikutnya = data.get('tindak_lanjut_berikutnya', '')
@@ -564,15 +565,12 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
         aset = perbaikan.aset
         kelayakan_lama = aset.status_kelayakan
         aset.status_kelayakan = status_kelayakan_baru
-
-        if kondisi == 'berfungsi_normal':
-            aset.status_aset = 'aktif'
-        else:
-            aset.status_aset = 'dalam_perbaikan'
+        aset.status_aset = 'aktif'
         aset.save(update_fields=['status_kelayakan', 'status_aset', 'updated_at'])
 
         # Catat Log Riwayat Kronologis Perbaikan
-        tindakan_log = f'Perbaikan selesai. Kondisi: {perbaikan.get_kondisi_setelah_perbaikan_display()}.'
+        kondisi_desc = kondisi_ringkas or perbaikan.get_kondisi_setelah_perbaikan_display()
+        tindakan_log = f'Perbaikan selesai. Kondisi setelah perbaikan: {kondisi_desc}.'
         if catatan_penutupan:
             tindakan_log += f' Catatan: {catatan_penutupan}'
         if tindak_lanjut_berikutnya:
