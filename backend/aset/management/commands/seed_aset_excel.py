@@ -128,8 +128,8 @@ LOKASI_TO_UNIT_RUANGAN = {
     'OK': ('Kamar Bedah', 'Ruang OK'),
     'Ruang Radiologi': ('Radiologi', 'Ruang Radiologi'),
     'Radiologi': ('Radiologi', 'Ruang Radiologi'),
-    'Ruang Perina': ('Kebidanan', 'Ruang Perinatologi'),
-    'Perinatologi': ('Kebidanan', 'Ruang Perinatologi'),
+    'Ruang Perina': ('Perinatologi', 'Ruang Perinatologi'),
+    'Perinatologi': ('Perinatologi', 'Ruang Perinatologi'),
     'Ruang VK Bidan': ('Kebidanan', 'Ruang VK Bidan'),
     'VK': ('Kebidanan', 'Ruang VK Bidan'),
     'Ruang Kls 2 Bidan': ('Kebidanan', 'Ruang Kelas 2 Bidan'),
@@ -177,8 +177,8 @@ LOKASI_TO_UNIT_RUANGAN = {
     'Ruang Kls 3 Wanita': ('Rawat Inap', 'Ruang Kelas 3 Wanita'),
     'Kls 3 Wanita': ('Rawat Inap', 'Ruang Kelas 3 Wanita'),
     'Isolasi': ('Rawat Inap', 'Ruang Isolasi'),
-    'Ruang HCU': ('Rawat Inap', 'Ruang HCU'),
-    'Depan pintu msk HCU': ('Rawat Inap', 'Depan Pintu Masuk HCU'),
+    'Ruang HCU': ('HCU', 'Ruang HCU'),
+    'Depan pintu msk HCU': ('HCU', 'Depan Pintu Masuk HCU'),
     'Nurses Station': ('Rawat Inap', 'Nurses Station'),
     'R.Istrhat Perawat Ranap': ('Rawat Inap', 'Ruang Istirahat Perawat Ranap'),
     'Ruang Dokter': ('Rawat Inap', 'Ruang Dokter'),
@@ -421,8 +421,26 @@ class Command(BaseCommand):
             f'[OK] AsetJenis selesai: {jenis_created} dibuat, {jenis_updated} diperbarui (total DB: {AsetJenis.objects.count()}).'
         ))
 
-        # 4. Preload Units
+        # 4. Preload & pastikan seluruh Unit yang dibutuhkan tersedia di Manajemen User
         unit_by_name = {u.nama.lower(): u for u in Unit.objects.all()}
+        missing_units_config = [
+            ('HCU', 'unit', 'Rawat Inap'),
+            ('Perinatologi', 'unit', 'Kebidanan'),
+        ]
+        units_created = 0
+        for u_nama, u_kat, parent_nama in missing_units_config:
+            if u_nama.lower() not in unit_by_name:
+                parent_obj = unit_by_name.get(parent_nama.lower()) if parent_nama else None
+                u_obj = Unit.objects.create(
+                    nama=u_nama,
+                    kategori=u_kat,
+                    parent=parent_obj,
+                    is_active=True,
+                )
+                unit_by_name[u_nama.lower()] = u_obj
+                units_created += 1
+        if units_created:
+            self.stdout.write(self.style.SUCCESS(f'[OK] Unit baru ditambahkan ke Manajemen User: {units_created} unit.'))
         default_unit = unit_by_name.get('umum') or Unit.objects.first()
 
         # 5. Seed Daftar Aset dari Excel
