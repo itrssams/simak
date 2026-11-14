@@ -74,18 +74,15 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
         <div className="aset-modal-overlay" onClick={onClose}>
             <div className="aset-modal-content aset-modal-lg aset-modal-detail" onClick={e => e.stopPropagation()}>
                 <div className="aset-modal-header">
-                    <h3>
-                        <Info size={18} color="#818cf8" />
-                        Detail Aset: {data?.kode_aset || 'Memuat...'}
-                    </h3>
+                    <h3>Detail Aset: {data?.kode_aset || 'Memuat...'}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {data && (
                             <button
-                                className="btn-aset btn-aset-secondary"
-                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                                type="button"
+                                className="aset-btn-ghost"
                                 onClick={() => onOpenQr && onOpenQr(data)}
                             >
-                                <QrCode size={13} /> Label QR
+                                <QrCode size={13} style={{ marginRight: '5px' }} /> Label QR
                             </button>
                         )}
                         <button className="aset-modal-close" onClick={onClose}><X size={18} /></button>
@@ -150,11 +147,11 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     <div className="aset-form-grid-2" style={{ marginBottom: '14px' }}>
                                         <div>
                                             <label className="aset-form-label">Deskripsi & Nama Barang:</label>
-                                            <div style={{ color: '#f8fafc', fontWeight: 600 }}>{data.deskripsi}</div>
+                                            <div style={{ color: 'var(--gdg-text)', fontWeight: 600 }}>{data.deskripsi}</div>
                                         </div>
                                         <div>
                                             <label className="aset-form-label">Merek & Spesifikasi:</label>
-                                            <div style={{ color: '#cbd5e1' }}>
+                                            <div style={{ color: 'var(--gdg-muted)' }}>
                                                 {data.merk || '-'} {data.spesifikasi ? `(${data.spesifikasi})` : ''}
                                             </div>
                                         </div>
@@ -192,11 +189,11 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     <div className="aset-form-grid-2" style={{ marginBottom: '14px' }}>
                                         <div>
                                             <label className="aset-form-label">Unit Penanggung Jawab:</label>
-                                            <span className="badge-unit">{data.unit_nama}</span>
+                                            <div style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{data.unit_nama}</div>
                                         </div>
                                         <div>
                                             <label className="aset-form-label">Ruangan / Lokasi Fisik:</label>
-                                            <div style={{ color: '#f8fafc' }}>
+                                            <div style={{ color: 'var(--gdg-text)' }}>
                                                 {data.lokasi_teks || data.ruangan_nama || '-'}
                                             </div>
                                         </div>
@@ -280,7 +277,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                 <div className="aset-file-preview-card" style={{ display: 'block', textAlign: 'center', padding: '10px' }}>
                                                     <div style={{ fontSize: '11px', fontWeight: 600, opacity: 0.8, marginBottom: '6px' }}>
                                                         1. Kondisi Saat Registrasi Awal
-                                                     </div>
+                                                    </div>
                                                     {(data.foto_awal || data.foto) ? (
                                                         <img
                                                             src={resolveMediaUrl(data.foto_awal || data.foto)}
@@ -333,17 +330,17 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                 <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
                                                     Metode Garis Lurus (PMK No. 72/2023) &bull; Tarif: <strong>{jadwal.tarif_persen}% / thn</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
                                                     <button
                                                         className={`btn-aset ${jadwalView === 'tahunan' ? 'btn-aset-primary' : 'btn-aset-secondary'}`}
-                                                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                                                        style={{ height: '30px', minHeight: '30px', padding: '0 10px', fontSize: '12px' }}
                                                         onClick={() => setJadwalView('tahunan')}
                                                     >
                                                         Ringkasan Tahunan
                                                     </button>
                                                     <button
                                                         className={`btn-aset ${jadwalView === 'bulanan' ? 'btn-aset-primary' : 'btn-aset-secondary'}`}
-                                                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                                                        style={{ height: '30px', minHeight: '30px', padding: '0 10px', fontSize: '12px' }}
                                                         onClick={() => setJadwalView('bulanan')}
                                                     >
                                                         Rincian Bulanan
@@ -352,9 +349,9 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                             </div>
 
                                             {/* Table Schedule */}
-                                            <div className="aset-table-wrapper" style={{ maxHeight: '340px' }}>
+                                            <div className="aset-table-wrapper aset-table-borderless" style={{ maxHeight: '340px' }}>
                                                 {jadwalView === 'tahunan' ? (
-                                                    <table className="aset-table">
+                                                    <table className="aset-table aset-table-stripe">
                                                         <thead>
                                                             <tr>
                                                                 <th>Tahun Pajak</th>
@@ -368,18 +365,18 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                         <tbody>
                                                             {jadwal.jadwal_tahunan.map((row) => (
                                                                 <tr key={row.tahun}>
-                                                                    <td style={{ fontWeight: 600, color: '#f8fafc' }}>{row.tahun}</td>
-                                                                    <td>{row.porsi} ({row.bulan_dihitung} bln)</td>
-                                                                    <td>{row.tarif_persen}%</td>
-                                                                    <td>{formatRp(row.beban_penyusutan)}</td>
-                                                                    <td style={{ color: '#fb923c' }}>{formatRp(row.akumulasi_penyusutan)}</td>
-                                                                    <td style={{ fontWeight: 600, color: '#34d399' }}>{formatRp(row.nilai_buku_akhir)}</td>
+                                                                    <td className="aset-num-cell" style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{row.tahun}</td>
+                                                                    <td className="aset-num-cell">{row.porsi} ({row.bulan_dihitung} bln)</td>
+                                                                    <td className="aset-num-cell">{row.tarif_persen}%</td>
+                                                                    <td className="aset-num-cell">{formatRp(row.beban_penyusutan)}</td>
+                                                                    <td className="aset-num-cell is-warning">{formatRp(row.akumulasi_penyusutan)}</td>
+                                                                    <td className="aset-num-cell is-success">{formatRp(row.nilai_buku_akhir)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
                                                     </table>
                                                 ) : (
-                                                    <table className="aset-table">
+                                                    <table className="aset-table aset-table-stripe">
                                                         <thead>
                                                             <tr>
                                                                 <th>Bulan Ke</th>
@@ -392,11 +389,11 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                         <tbody>
                                                             {jadwal.jadwal_bulanan.map((row) => (
                                                                 <tr key={row.bulan_ke}>
-                                                                    <td>{row.bulan_ke}</td>
-                                                                    <td style={{ fontWeight: 600 }}>{row.periode}</td>
-                                                                    <td>{formatRp(row.beban_bulan)}</td>
-                                                                    <td style={{ color: '#fb923c' }}>{formatRp(row.akumulasi_penyusutan)}</td>
-                                                                    <td style={{ fontWeight: 600, color: '#34d399' }}>{formatRp(row.nilai_buku)}</td>
+                                                                    <td className="aset-num-cell">{row.bulan_ke}</td>
+                                                                    <td style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{row.periode}</td>
+                                                                    <td className="aset-num-cell">{formatRp(row.beban_bulan)}</td>
+                                                                    <td className="aset-num-cell is-warning">{formatRp(row.akumulasi_penyusutan)}</td>
+                                                                    <td className="aset-num-cell is-success">{formatRp(row.nilai_buku)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
@@ -414,7 +411,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     {(!data.riwayat_list || data.riwayat_list.length === 0) ? (
                                         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
                                             <History size={36} color="#475569" style={{ margin: '0 auto 10px', display: 'block' }} />
-                                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#cbd5e1' }}>Belum Ada Riwayat Perubahan Fisik</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gdg-text)' }}>Belum Ada Riwayat Perubahan Fisik</div>
                                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                                                 Perubahan status kelayakan fisik atau mutasi ruangan akan tercatat otomatis di sini.
                                             </div>
@@ -425,7 +422,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                 <div className="aset-timeline-item" key={item.id}>
                                                     <div className="aset-timeline-dot" />
                                                     <div className="aset-timeline-header">
-                                                        <strong style={{ color: '#f8fafc' }}>{item.aksi_label}</strong>
+                                                        <strong style={{ color: 'var(--gdg-text)' }}>{item.aksi_label}</strong>
                                                         <span>{new Date(item.created_at).toLocaleString('id-ID')}</span>
                                                     </div>
                                                     <div className="aset-timeline-content">
@@ -471,7 +468,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     {(!data.perbaikan_list || data.perbaikan_list.length === 0) ? (
                                         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
                                             <Wrench size={36} color="#475569" style={{ margin: '0 auto 10px', display: 'block' }} />
-                                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#cbd5e1' }}>Kondisi Normal / Belum Ada Tiket Perbaikan</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gdg-text)' }}>Kondisi Normal / Belum Ada Tiket Perbaikan</div>
                                             <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                                                 Laporan kerusakan dan tindak lanjut servis teknisi untuk unit ini akan tercatat di sini.
                                             </div>

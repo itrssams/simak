@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileSpreadsheet, Printer, Download, Building2, Calculator, Layers, Search, DollarSign, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
@@ -314,10 +314,7 @@ export default function AsetLaporan() {
         <div className="aset-container">
             <div className="aset-header">
                 <div className="aset-title-area">
-                    <h1>
-                        <FileSpreadsheet size={22} color="#818cf8" />
-                        Laporan &amp; Kartu Inventaris Ruangan (KIR)
-                    </h1>
+                    <h1>Laporan &amp; Kartu Inventaris Ruangan (KIR)</h1>
                     <p className="aset-subtitle">
                         Rekapitulasi beban penyusutan fiskal &amp; dokumen inventaris resmi ruangan RS
                     </p>
@@ -327,70 +324,62 @@ export default function AsetLaporan() {
             {/* Tabs */}
             <div className="aset-tabs">
                 <button
+                    type="button"
                     className={`aset-tab-btn ${tab === 'rekap' ? 'active' : ''}`}
                     onClick={() => setTab('rekap')}
                 >
-                    <Calculator size={14} /> Rekapitulasi Penyusutan per Kategori
+                    Rekapitulasi Penyusutan per Kategori
                 </button>
                 <button
+                    type="button"
                     className={`aset-tab-btn ${tab === 'kir' ? 'active' : ''}`}
                     onClick={() => setTab('kir')}
                 >
-                    <Building2 size={14} /> Cetak Kartu Inventaris Ruangan (KIR)
+                    Cetak Kartu Inventaris Ruangan (KIR)
                 </button>
             </div>
 
             {/* TAB 1: REKAPITULASI PENYUSUTAN */}
             {tab === 'rekap' && (
-                <div>
-                    {/* Ringkasan Eksekutif Finansial Aset */}
-                    <div className="aset-stats-grid" style={{ marginBottom: '16px' }}>
-                        <div className="aset-stat-card">
-                            <div className="aset-stat-header">
-                                <span className="aset-stat-title">Total Unit Aset</span>
-                                <Layers size={16} color="#818cf8" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Ringkasan Eksekutif Finansial Aset — Flat Horizontal Stat-Bar (4 Metrik) */}
+                    <div className="aset-stat-bar is-four">
+                        <div className="aset-stat-cell">
+                            <span className="aset-stat-label">Total Unit Aset</span>
+                            <div className="aset-stat-val">
+                                {Number(grandTotals.count || 0).toLocaleString('id-ID')} <span className="aset-stat-unit">unit</span>
                             </div>
-                            <div className="aset-stat-value">{grandTotals.count} <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>unit</span></div>
-                            <div className="aset-stat-sub">Terdata dalam {rekapData.length} kategori aktif</div>
+                            <span className="aset-stat-sub">Terdata dalam {rekapData.length} kategori aktif</span>
                         </div>
 
-                        <div className="aset-stat-card">
-                            <div className="aset-stat-header">
-                                <span className="aset-stat-title">Total Nilai Perolehan</span>
-                                <DollarSign size={16} color="#38bdf8" />
-                            </div>
-                            <div className="aset-stat-value" style={{ fontSize: '18px', color: '#f8fafc' }}>
+                        <div className="aset-stat-cell">
+                            <span className="aset-stat-label">Total Nilai Perolehan</span>
+                            <div className="aset-stat-val">
                                 {formatRp(grandTotals.total_harga)}
                             </div>
-                            <div className="aset-stat-sub">Harga perolehan awal aset RS</div>
+                            <span className="aset-stat-sub">Harga perolehan awal aset RS</span>
                         </div>
 
-                        <div className="aset-stat-card">
-                            <div className="aset-stat-header">
-                                <span className="aset-stat-title">Akumulasi Penyusutan</span>
-                                <TrendingDown size={16} color="#fb923c" />
-                            </div>
-                            <div className="aset-stat-value" style={{ fontSize: '18px', color: '#fb923c' }}>
+                        <div className="aset-stat-cell">
+                            <span className="aset-stat-label">Akumulasi Penyusutan</span>
+                            <div className="aset-stat-val is-warning">
                                 {formatRp(grandTotals.akumulasi_penyusutan)}
                             </div>
-                            <div className="aset-stat-sub">Beban penyusutan per {tahun} (PMK 72/2023)</div>
+                            <span className="aset-stat-sub">Beban penyusutan per {tahun} (PMK 72/2023)</span>
                         </div>
 
-                        <div className="aset-stat-card">
-                            <div className="aset-stat-header">
-                                <span className="aset-stat-title">Nilai Buku Bersih (NBV)</span>
-                                <CheckCircle2 size={16} color="#34d399" />
-                            </div>
-                            <div className="aset-stat-value" style={{ fontSize: '18px', color: '#34d399' }}>
+                        <div className="aset-stat-cell">
+                            <span className="aset-stat-label">Nilai Buku Bersih (NBV)</span>
+                            <div className="aset-stat-val is-success">
                                 {formatRp(grandTotals.nilai_buku)}
                             </div>
-                            <div className="aset-stat-sub">Sisa nilai buku di neraca RS</div>
+                            <span className="aset-stat-sub">Sisa nilai buku di neraca RS</span>
                         </div>
                     </div>
 
                     <div className="aset-filter-bar" style={{ justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Posisi Tahun Pajak:</span>
+                            <span className="aset-cell-muted" style={{ fontSize: '13px', fontWeight: 500 }}>Posisi Tahun Pajak:</span>
                             <select
                                 className="aset-select"
                                 value={tahun}
@@ -401,13 +390,13 @@ export default function AsetLaporan() {
                                 ))}
                             </select>
                         </div>
-                        <button className="btn-aset btn-aset-primary" onClick={exportRekapExcel}>
-                            <Download size={14} /> Download Rekap Excel
+                        <button type="button" className="btn-aset btn-aset-primary" onClick={exportRekapExcel}>
+                            <Download size={14} strokeWidth={1.75} /> Download Rekap Excel
                         </button>
                     </div>
 
-                    <div className="aset-table-wrapper">
-                        <table className="aset-table">
+                    <div className="aset-table-borderless">
+                        <table className="aset-table-stripe">
                             <thead>
                                 <tr>
                                     <th style={{ width: '45px' }}>No</th>
@@ -415,33 +404,31 @@ export default function AsetLaporan() {
                                     <th>Jumlah Unit</th>
                                     <th>Total Nilai Perolehan</th>
                                     <th>Akumulasi Penyusutan</th>
-                                    <th>Nilai Buku Bersih (NBV)</th>
+                                    <th style={{ textAlign: 'right' }}>Nilai Buku Bersih (NBV)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                        <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                             Menghitung rekapitulasi...
                                         </td>
                                     </tr>
                                 ) : rekapData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                        <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                             Tidak ada data perolehan aset.
                                         </td>
                                     </tr>
                                 ) : (
                                     rekapData.map((row, idx) => (
                                         <tr key={row.kategori}>
-                                            <td style={{ color: '#64748b' }}>{idx + 1}</td>
-                                            <td style={{ fontWeight: 600, color: '#f8fafc' }}>{row.kategori}</td>
-                                            <td>
-                                                <span className="badge-unit">{row.count} unit</span>
-                                            </td>
-                                            <td style={{ fontWeight: 500, color: '#f1f5f9' }}>{formatRp(row.total_harga)}</td>
-                                            <td style={{ color: '#fb923c' }}>{formatRp(row.akumulasi_penyusutan)}</td>
-                                            <td style={{ fontWeight: 700, color: '#34d399' }}>{formatRp(row.nilai_buku)}</td>
+                                            <td className="aset-num-cell aset-cell-muted" style={{ fontSize: '12px' }}>{idx + 1}</td>
+                                            <td className="aset-cell-title">{row.kategori}</td>
+                                            <td className="aset-num-cell">{Number(row.count || 0).toLocaleString('id-ID')} unit</td>
+                                            <td className="aset-num-cell" style={{ fontWeight: 500 }}>{formatRp(row.total_harga)}</td>
+                                            <td className="aset-num-cell is-warning">{formatRp(row.akumulasi_penyusutan)}</td>
+                                            <td className="aset-num-cell is-success" style={{ textAlign: 'right' }}>{formatRp(row.nilai_buku)}</td>
                                         </tr>
                                     ))
                                 )}
@@ -449,21 +436,19 @@ export default function AsetLaporan() {
                             {rekapData.length > 0 && (
                                 <tfoot>
                                     <tr className="aset-table-total-row">
-                                        <td colSpan={2} style={{ textAlign: 'right', padding: '12px 14px' }}>
+                                        <td colSpan={2} style={{ textAlign: 'right' }}>
                                             TOTAL KESELURUHAN:
                                         </td>
-                                        <td>
-                                            <span className="badge-unit">
-                                                {grandTotals.count} unit
-                                            </span>
+                                        <td className="aset-num-cell">
+                                            {Number(grandTotals.count || 0).toLocaleString('id-ID')} unit
                                         </td>
-                                        <td style={{ fontWeight: 700 }}>
+                                        <td className="aset-num-cell">
                                             {formatRp(grandTotals.total_harga)}
                                         </td>
-                                        <td style={{ color: '#fb923c', fontWeight: 700 }}>
+                                        <td className="aset-num-cell is-warning">
                                             {formatRp(grandTotals.akumulasi_penyusutan)}
                                         </td>
-                                        <td style={{ color: '#34d399', fontWeight: 700 }}>
+                                        <td className="aset-num-cell is-success" style={{ textAlign: 'right' }}>
                                             {formatRp(grandTotals.nilai_buku)}
                                         </td>
                                     </tr>
@@ -476,18 +461,15 @@ export default function AsetLaporan() {
 
             {/* TAB 2: CETAK KIR RUANGAN */}
             {tab === 'kir' && (
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div className="aset-filter-bar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Building2 size={15} color="#818cf8" />
-                                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>Pilih Ruangan:</span>
-                            </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <span className="aset-cell-muted" style={{ fontSize: '13px', fontWeight: 500 }}>Pilih Ruangan:</span>
                             <select
                                 className="aset-select"
                                 value={selectedRuanganId}
                                 onChange={e => setSelectedRuanganId(e.target.value)}
-                                style={{ minWidth: '260px' }}
+                                style={{ minWidth: '280px', maxWidth: '380px' }}
                             >
                                 {ruanganList.map(r => (
                                     <option key={r.id} value={r.id}>
@@ -495,19 +477,12 @@ export default function AsetLaporan() {
                                     </option>
                                 ))}
                             </select>
-                            <span style={{
-                                fontSize: '12px',
-                                color: '#38bdf8',
-                                background: 'rgba(56, 189, 248, 0.1)',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(56, 189, 248, 0.2)'
-                            }}>
-                                <strong>{kirAssets.length}</strong> unit aset terdata
+                            <span className="aset-cell-muted" style={{ fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>
+                                <strong style={{ color: 'var(--gdg-text)', fontWeight: 600 }}>{kirAssets.length}</strong> unit aset terdata
                             </span>
                         </div>
-                        <button className="btn-aset btn-aset-primary" onClick={handlePrintKIR} disabled={kirAssets.length === 0}>
-                            <Printer size={15} /> Cetak Lembar KIR
+                        <button type="button" className="btn-aset btn-aset-primary" onClick={handlePrintKIR} disabled={kirAssets.length === 0}>
+                            <Printer size={14} strokeWidth={1.75} /> Cetak Lembar KIR
                         </button>
                     </div>
 
@@ -563,7 +538,7 @@ export default function AsetLaporan() {
                             </div>
 
                             {/* Tabel Daftar Barang Fisik */}
-                            <table className="kir-table">
+                            <table className="kir-table aset-kir-table-clean">
                                 <thead>
                                     <tr>
                                         <th style={{ width: '32px' }}>NO</th>

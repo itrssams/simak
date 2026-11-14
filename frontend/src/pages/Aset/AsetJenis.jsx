@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Layers, Plus, Search, Edit2, Trash2, X, Save, Sparkles, Check, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Sparkles, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination';
@@ -295,17 +295,14 @@ export default function AsetJenis() {
             {/* Header */}
             <div className="aset-header">
                 <div className="aset-title-area">
-                    <h1>
-                        <Layers size={22} color="#818cf8" />
-                        Master Jenis Aset &amp; Kelas Pajak
-                    </h1>
+                    <h1>Master Jenis Aset &amp; Kelas Pajak</h1>
                     <p className="aset-subtitle">
                         Kelola katalog jenis barang inventaris RS Siaga Al Munawwarah &bull; Menentukan otomatis kategori dan kelas aset penyusutan (PMK 72/2023) saat pendaftaran aset baru.
                     </p>
                 </div>
                 <div className="aset-actions">
-                    <button className="btn-aset btn-aset-primary" onClick={handleOpenAdd}>
-                        <Plus size={15} /> Tambah Jenis Barang
+                    <button type="button" className="btn-aset btn-aset-primary" onClick={handleOpenAdd}>
+                        <Plus size={14} strokeWidth={1.75} /> Tambah Jenis Barang
                     </button>
                 </div>
             </div>
@@ -341,8 +338,8 @@ export default function AsetJenis() {
             </div>
 
             {/* Tabel Data Master Jenis */}
-            <div className="aset-table-wrapper">
-                <table className="aset-table">
+            <div className="aset-table-borderless">
+                <table className="aset-table-stripe">
                     <thead>
                         <tr>
                             <th style={{ width: '45px' }}>No</th>
@@ -351,66 +348,68 @@ export default function AsetJenis() {
                             <th>Kategori Aset</th>
                             <th>Kelas Aset (PMK 72/2023)</th>
                             <th style={{ textAlign: 'center', width: '140px' }}>Masa Manfaat</th>
-                            <th style={{ textAlign: 'center', width: '90px' }}>Aksi</th>
+                            <th className="aset-col-aksi" style={{ width: '90px' }}>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                     Memuat daftar master jenis aset...
                                 </td>
                             </tr>
                         ) : filteredList.length === 0 ? (
                             <tr>
-                                <td colSpan="7" style={{ textAlign: 'center', padding: '35px', color: '#94a3b8' }}>
+                                <td colSpan="7" style={{ textAlign: 'center', padding: '35px' }} className="aset-cell-muted">
                                     Tidak ada master jenis barang yang cocok dengan pencarian.
                                 </td>
                             </tr>
                         ) : (
                             paginatedList.map((item, idx) => (
                                 <tr key={item.id}>
-                                    <td style={{ color: '#64748b', fontSize: '11px' }}>
+                                    <td className="aset-num-cell aset-cell-muted" style={{ fontSize: '12px' }}>
                                         {(page - 1) * pageSize + idx + 1}
                                     </td>
                                     <td>
-                                        <span className="badge-prefix">
+                                        <span className="aset-code-mono">
                                             {item.kode}
                                         </span>
                                     </td>
-                                    <td className="aset-text-main">
+                                    <td className="aset-cell-title">
                                         {item.nama}
                                     </td>
-                                    <td>
-                                        <span className="aset-text-muted">
-                                            {item.kategori_nama || '-'} [{item.kategori_kode || '-'}]
-                                        </span>
+                                    <td className="aset-cell-muted">
+                                        {item.kategori_nama || '—'} [{item.kategori_kode || '—'}]
                                     </td>
                                     <td>
-                                        <span className="aset-text-highlight">
+                                        <span style={{ fontWeight: 500 }}>
                                             {item.kelompok_nama || 'Non-Depresiasi'}
                                         </span>
                                     </td>
-                                    <td className="aset-text-muted" style={{ textAlign: 'center' }}>
+                                    <td className="aset-num-cell aset-cell-muted" style={{ textAlign: 'center' }}>
                                         {item.masa_manfaat_bulan
                                             ? `${Math.round(item.masa_manfaat_bulan / 12)} Thn (${item.masa_manfaat_bulan} bln)`
-                                            : '-'}
+                                            : '—'}
                                     </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                    <td className="aset-col-aksi">
+                                        <div style={{ display: 'inline-flex', gap: '2px' }}>
                                             <button
-                                                className="btn-action edit"
+                                                type="button"
+                                                className="aset-icon-action"
                                                 onClick={() => handleOpenEdit(item)}
                                                 title="Edit Jenis Barang"
+                                                aria-label="Edit Jenis Barang"
                                             >
-                                                <Edit2 size={13} color="#38bdf8" />
+                                                <Edit2 size={14} />
                                             </button>
                                             <button
-                                                className="btn-action delete"
+                                                type="button"
+                                                className="aset-icon-action is-danger"
                                                 onClick={() => setDeleteTarget(item)}
                                                 title="Hapus Jenis Barang"
+                                                aria-label="Hapus Jenis Barang"
                                             >
-                                                <Trash2 size={13} color="#f87171" />
+                                                <Trash2 size={14} />
                                             </button>
                                         </div>
                                     </td>
@@ -423,18 +422,17 @@ export default function AsetJenis() {
 
             {/* Pagination */}
             {filteredList.length > 0 && (
-                <div style={{ marginTop: '14px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={filteredList.length}
-                        onPageChange={setPage}
-                        onPageSizeChange={(newSize) => {
-                            setPageSize(newSize);
-                            setPage(1);
-                        }}
-                    />
-                </div>
+                <SimplePagination
+                    className="aset-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={filteredList.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={(newSize) => {
+                        setPageSize(newSize);
+                        setPage(1);
+                    }}
+                />
             )}
 
             {/* Modal Tambah / Edit Jenis Barang */}
@@ -443,10 +441,9 @@ export default function AsetJenis() {
                     <div className="aset-modal-content" style={{ maxWidth: '580px' }} onClick={e => e.stopPropagation()}>
                         <div className="aset-modal-header">
                             <h3>
-                                <Layers size={18} color="#6366f1" />
                                 {editItem ? `Edit Jenis Barang: ${editItem.nama}` : 'Tambah Jenis Barang Baru'}
                             </h3>
-                            <button className="aset-modal-close" onClick={() => setIsModalOpen(false)}>
+                            <button type="button" className="aset-modal-close" onClick={() => setIsModalOpen(false)}>
                                 <X size={18} />
                             </button>
                         </div>
@@ -458,11 +455,11 @@ export default function AsetJenis() {
                                     <label className="aset-form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span>Nama Jenis Barang *</span>
                                         {loadingSuggest ? (
-                                            <span style={{ fontSize: '11px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                                                <Loader2 size={12} className="aset-spin" /> Menganalisis dengan Gemini AI...
+                                            <span style={{ fontSize: '11px', color: '#635bff', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}>
+                                                <Loader2 size={12} className="aset-spin" /> Menganalisis...
                                             </span>
                                         ) : (
-                                            <span style={{ fontSize: '10.5px', color: '#a855f7', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                            <span style={{ fontSize: '11px', color: 'var(--gdg-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                 <Sparkles size={11} /> Rekomendasi Baku Gemini AI
                                             </span>
                                         )}
@@ -483,20 +480,6 @@ export default function AsetJenis() {
                                             onClick={handleTriggerAiSuggest}
                                             disabled={loadingSuggest}
                                             className="btn-aset btn-aset-secondary"
-                                            style={{
-                                                padding: '0 12px',
-                                                height: '38px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                fontSize: '12px',
-                                                fontWeight: 600,
-                                                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%)',
-                                                borderColor: '#8b5cf6',
-                                                color: '#c084fc',
-                                                whiteSpace: 'nowrap',
-                                                cursor: 'pointer',
-                                            }}
                                             title="Hit API AI Rekomendasi Jenis & Kelompok Aset"
                                         >
                                             {loadingSuggest ? (
@@ -639,8 +622,8 @@ export default function AsetJenis() {
                         </div>
 
                         <div className="aset-modal-body" style={{ padding: '20px' }}>
-                            <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.6, margin: '0 0 14px' }}>
-                                Apakah Anda yakin ingin menghapus master jenis barang <strong style={{ color: '#f8fafc' }}>{deleteTarget.nama}</strong>?
+                            <p style={{ color: 'var(--gdg-muted)', fontSize: '13px', lineHeight: 1.6, margin: '0 0 14px' }}>
+                                Apakah Anda yakin ingin menghapus master jenis barang <strong style={{ color: 'var(--gdg-text)' }}>{deleteTarget.nama}</strong>?
                             </p>
                             <div style={{
                                 background: 'rgba(239, 68, 68, 0.08)',
@@ -648,14 +631,14 @@ export default function AsetJenis() {
                                 borderRadius: '8px',
                                 padding: '12px 14px',
                                 fontSize: '12px',
-                                color: '#fca5a5',
+                                color: 'var(--gdg-muted)',
                                 lineHeight: 1.5,
                                 display: 'flex',
                                 gap: '10px'
                             }}>
-                                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px', color: '#f87171' }} />
+                                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px', color: '#ef4444' }} />
                                 <div>
-                                    Kode prefix <code className="badge-prefix" style={{ padding: '2px 6px', borderRadius: '4px' }}>{deleteTarget.kode}</code>.
+                                    Kode prefix <code className="aset-code-mono">{deleteTarget.kode}</code>.
                                     Jika jenis ini telah digunakan oleh unit fisik aset terdaftar, sistem akan menolak penghapusan demi menjaga keutuhan data.
                                 </div>
                             </div>

@@ -480,71 +480,43 @@ export default function AsetPerbaikan() {
             {/* Header */}
             <div className="aset-header">
                 <div className="aset-title-area">
-                    <h1>
-                        <Wrench size={22} color="#f59e0b" />
-                        Monitoring Kerusakan &amp; Tindak Lanjut Perbaikan
-                    </h1>
+                    <h1>Monitoring Kerusakan &amp; Tindak Lanjut Perbaikan</h1>
                     <p className="aset-subtitle">
                         Panel monitoring tiket laporan kerusakan aset, progress penanganan teknisi, dan evaluasi hasil perbaikan alkes &amp; fasilitas &bull; {totalCount} total tiket tercatat
                     </p>
                 </div>
             </div>
 
-            {/* KPI Cards Ringkasan */}
-            <div className="aset-stats-grid">
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
-                        <Wrench size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Total Laporan</div>
-                        <div className="aset-stat-value">{kpiSummary.total}</div>
-                        <div className="aset-stat-subtext">Seluruh unit RS</div>
-                    </div>
+            {/* Stat-Bar KPI Ringkasan */}
+            <div className="aset-stat-bar is-five">
+                <div className="aset-stat-cell">
+                    <div className="aset-stat-label">Total Laporan</div>
+                    <div className="aset-stat-val">{kpiSummary.total}</div>
+                    <div className="aset-stat-sub">Seluruh unit RS</div>
                 </div>
 
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
-                        <AlertTriangle size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Belum Mulai</div>
-                        <div className="aset-stat-value" style={{ color: '#f87171' }}>{kpiSummary.belumMulai}</div>
-                        <div className="aset-stat-subtext">Menunggu teknisi</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <div className="aset-stat-label">Belum Mulai</div>
+                    <div className="aset-stat-val is-danger">{kpiSummary.belumMulai}</div>
+                    <div className="aset-stat-sub">Menunggu teknisi</div>
                 </div>
 
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                        <Clock size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Inspeksi Teknisi</div>
-                        <div className="aset-stat-value" style={{ color: '#38bdf8' }}>{kpiSummary.inspeksi}</div>
-                        <div className="aset-stat-subtext">Pengecekan alkes</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <div className="aset-stat-label">Inspeksi Teknisi</div>
+                    <div className="aset-stat-val is-info">{kpiSummary.inspeksi}</div>
+                    <div className="aset-stat-sub">Pengecekan alkes</div>
                 </div>
 
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}>
-                        <Clock size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Dalam Proses</div>
-                        <div className="aset-stat-value" style={{ color: '#fbbf24' }}>{kpiSummary.dalamProses}</div>
-                        <div className="aset-stat-subtext">Servis &amp; sparepart</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <div className="aset-stat-label">Dalam Proses</div>
+                    <div className="aset-stat-val is-warning">{kpiSummary.dalamProses}</div>
+                    <div className="aset-stat-sub">Servis &amp; sparepart</div>
                 </div>
 
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
-                        <CheckCircle2 size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Selesai</div>
-                        <div className="aset-stat-value" style={{ color: '#34d399' }}>{kpiSummary.selesai}</div>
-                        <div className="aset-stat-subtext">Tuntas diperbaiki</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <div className="aset-stat-label">Selesai</div>
+                    <div className="aset-stat-val is-success">{kpiSummary.selesai}</div>
+                    <div className="aset-stat-sub">Tuntas diperbaiki</div>
                 </div>
             </div>
 
@@ -590,208 +562,165 @@ export default function AsetPerbaikan() {
             </form>
 
             {/* Tabel Tiket Kerusakan & Perbaikan */}
-            <div className="aset-table-wrapper">
-                <table className="aset-table">
+            <div className="aset-table-wrapper aset-table-borderless">
+                <table className="aset-table aset-table-stripe">
                     <thead>
                         <tr>
-                            <th style={{ width: '110px' }}>No. Tiket</th>
-                            <th style={{ width: '100px' }}>Tgl Lapor</th>
+                            <th style={{ width: '125px' }}>No. Tiket</th>
+                            <th style={{ width: '110px' }}>Tgl Lapor</th>
                             <th>Nama Barang &amp; Kode</th>
                             <th>Unit &amp; Lokasi</th>
-                            <th style={{ textAlign: 'center', width: '90px' }}>Tingkat</th>
+                            <th style={{ width: '110px' }}>Tingkat</th>
                             <th>Rincian Kerusakan</th>
-                            <th style={{ textAlign: 'center', width: '120px' }}>Status</th>
-                            <th style={{ textAlign: 'center', width: '80px' }}>Aksi</th>
+                            <th style={{ width: '135px' }}>Status</th>
+                            <th style={{ textAlign: 'right', width: '96px' }}>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--gdg-muted)' }}>
                                     Memuat daftar tiket kerusakan &amp; perbaikan...
                                 </td>
                             </tr>
                         ) : perbaikanList.length === 0 ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: 'center', padding: '35px', color: '#94a3b8' }}>
+                                <td colSpan="8" style={{ textAlign: 'center', padding: '35px', color: 'var(--gdg-muted)' }}>
                                     Belum ada laporan kerusakan atau tidak ada data yang cocok dengan filter.
                                 </td>
                             </tr>
                         ) : (
-                            perbaikanList.map(item => (
-                                <tr key={item.id}>
-                                    <td>
-                                        <span style={{
-                                            fontFamily: 'monospace',
-                                            fontWeight: 700,
-                                            fontSize: '11.5px',
-                                            color: '#818cf8'
-                                        }}>
-                                            {item.nomor_tiket}
-                                        </span>
-                                    </td>
-                                    <td style={{ fontSize: '11.5px', color: '#cbd5e1' }}>
-                                        {item.tanggal_laporan}
-                                        {item.tanggal_kerusakan && item.tanggal_kerusakan !== item.tanggal_laporan && (
-                                            <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                                                Rusak: {item.tanggal_kerusakan}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td>
-                                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>
-                                            {item.aset_nama} {item.aset_merk ? `(${item.aset_merk})` : ''}
-                                        </div>
-                                        <div style={{ fontSize: '10.5px', fontFamily: 'monospace', color: '#94a3b8' }}>
-                                            {item.aset_kode}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{ fontSize: '12px', color: '#e2e8f0' }}>{item.unit_nama || '-'}</div>
-                                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                            {item.ruangan_nama || item.lokasi_teks || '-'}
-                                        </div>
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '2px 8px',
-                                            borderRadius: '4px',
-                                            fontSize: '10.5px',
-                                            fontWeight: 700,
-                                            background: item.tingkat_kerusakan === 'berat'
-                                                ? 'rgba(239, 68, 68, 0.2)'
-                                                : item.tingkat_kerusakan === 'sedang'
-                                                    ? 'rgba(245, 158, 11, 0.2)'
-                                                    : 'rgba(56, 189, 248, 0.2)',
-                                            color: item.tingkat_kerusakan === 'berat'
-                                                ? '#f87171'
-                                                : item.tingkat_kerusakan === 'sedang'
-                                                    ? '#fbbf24'
-                                                    : '#38bdf8',
-                                            border: '1px solid rgba(255,255,255,0.08)'
-                                        }}>
-                                            {item.tingkat_kerusakan_label}
-                                        </span>
-                                    </td>
-                                    <td style={{ maxWidth: '240px', fontSize: '11.5px', color: '#cbd5e1' }}>
-                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.rincian_kerusakan}>
-                                            {item.rincian_kerusakan}
-                                        </div>
-                                        {item.pelapor_nama && (
-                                            <div style={{ fontSize: '10px', color: '#64748b' }}>
-                                                Pelapor: {item.pelapor_nama}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '3px 8px',
-                                            borderRadius: '5px',
-                                            fontSize: '10.5px',
-                                            fontWeight: 700,
-                                            background: item.status_perbaikan === 'selesai'
-                                                ? 'rgba(16, 185, 129, 0.2)'
-                                                : item.status_perbaikan === 'dalam_proses'
-                                                    ? 'rgba(245, 158, 11, 0.2)'
-                                                    : item.status_perbaikan === 'inspeksi'
-                                                        ? 'rgba(56, 189, 248, 0.2)'
-                                                        : 'rgba(239, 68, 68, 0.18)',
-                                            color: item.status_perbaikan === 'selesai'
-                                                ? '#34d399'
-                                                : item.status_perbaikan === 'dalam_proses'
-                                                    ? '#fbbf24'
-                                                    : item.status_perbaikan === 'inspeksi'
-                                                        ? '#38bdf8'
-                                                        : '#f87171',
-                                            border: '1px solid rgba(255,255,255,0.06)'
-                                        }}>
-                                            {item.status_perbaikan_label}
-                                        </span>
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                            <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
-                                                onClick={() => setDetailTicket(item)}
-                                                title="Lihat Detail &amp; Riwayat Tiket"
-                                            >
-                                                <Eye size={14} color="#a855f7" />
-                                            </button>
-                                            {isAsetAdmin && (
-                                                <>
-                                                    {/* Tahap 2: Tugaskan Teknisi */}
-                                                    {item.status_perbaikan === 'belum_mulai' && (
-                                                        <button
-                                                            className="btn-aset btn-aset-secondary"
-                                                            style={{
-                                                                padding: '5px 7px',
-                                                                minWidth: '28px',
-                                                                height: '28px',
-                                                                justifyContent: 'center',
-                                                                borderColor: 'rgba(56, 189, 248, 0.4)',
-                                                                background: 'rgba(56, 189, 248, 0.12)'
-                                                            }}
-                                                            onClick={() => handleOpenUpdate(item)}
-                                                            title="Tahap 2: Tugaskan Teknisi &amp; Mulai Inspeksi"
-                                                        >
-                                                            <UserCheck size={14} color="#38bdf8" />
-                                                        </button>
-                                                    )}
+                            perbaikanList.map(item => {
+                                const tingkatTone = item.tingkat_kerusakan === 'berat'
+                                    ? 'rose'
+                                    : item.tingkat_kerusakan === 'sedang'
+                                        ? 'amber'
+                                        : 'sky';
+                                const statusTone = item.status_perbaikan === 'selesai'
+                                    ? 'emerald'
+                                    : item.status_perbaikan === 'dalam_proses'
+                                        ? 'amber'
+                                        : item.status_perbaikan === 'inspeksi'
+                                            ? 'sky'
+                                            : 'rose';
 
-                                                    {/* Tahap 3: Input Hasil Inspeksi & Mulai Servis */}
-                                                    {item.status_perbaikan === 'inspeksi' && (
-                                                        <button
-                                                            className="btn-aset btn-aset-secondary"
-                                                            style={{
-                                                                padding: '5px 7px',
-                                                                minWidth: '28px',
-                                                                height: '28px',
-                                                                justifyContent: 'center',
-                                                                borderColor: 'rgba(245, 158, 11, 0.4)',
-                                                                background: 'rgba(245, 158, 11, 0.12)'
-                                                            }}
-                                                            onClick={() => handleOpenUpdate(item)}
-                                                            title="Tahap 3: Input Hasil Inspeksi &amp; Mulai Servis"
-                                                        >
-                                                            <Wrench size={14} color="#fbbf24" />
-                                                        </button>
-                                                    )}
-
-                                                    {/* Tahap 3 (Progres) & Tahap 4 (Finish) */}
-                                                    {item.status_perbaikan === 'dalam_proses' && (
-                                                        <>
-                                                            <button
-                                                                className="btn-aset btn-aset-secondary"
-                                                                style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
-                                                                onClick={() => handleOpenUpdate(item)}
-                                                                title="Update Catatan Progres Pengerjaan"
-                                                            >
-                                                                <Edit3 size={14} color="#38bdf8" />
-                                                            </button>
-                                                            <button
-                                                                className="btn-aset btn-aset-secondary"
-                                                                style={{
-                                                                    padding: '5px 7px',
-                                                                    minWidth: '28px',
-                                                                    height: '28px',
-                                                                    justifyContent: 'center',
-                                                                    borderColor: 'rgba(16, 185, 129, 0.5)',
-                                                                    background: 'rgba(16, 185, 129, 0.12)'
-                                                                }}
-                                                                onClick={() => handleOpenFinish(item)}
-                                                                title="Tahap 4: Selesaikan Perbaikan (Finish)"
-                                                            >
-                                                                <CheckCircle2 size={14} color="#34d399" />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </>
+                                return (
+                                    <tr key={item.id}>
+                                        <td>
+                                            <span className="aset-code-mono">
+                                                {item.nomor_tiket}
+                                            </span>
+                                        </td>
+                                        <td className="aset-num-cell" style={{ fontSize: '12px', color: 'var(--gdg-muted)' }}>
+                                            <div>{item.tanggal_laporan}</div>
+                                            {item.tanggal_kerusakan && item.tanggal_kerusakan !== item.tanggal_laporan && (
+                                                <div className="aset-cell-sub">
+                                                    Rusak: {item.tanggal_kerusakan}
+                                                </div>
                                             )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
+                                        </td>
+                                        <td>
+                                            <div className="aset-cell-title">
+                                                {item.aset_nama} {item.aset_merk ? `(${item.aset_merk})` : ''}
+                                            </div>
+                                            <div className="aset-cell-sub" style={{ fontFamily: 'monospace' }}>
+                                                {item.aset_kode}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="aset-cell-title" style={{ fontWeight: 500 }}>
+                                                {item.unit_nama || '-'}
+                                            </div>
+                                            <div className="aset-cell-sub">
+                                                {item.ruangan_nama || item.lokasi_teks || '-'}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={`aset-status-text ${tingkatTone}`}>
+                                                <span className="aset-status-dot" />
+                                                <span>{item.tingkat_kerusakan_label}</span>
+                                            </span>
+                                        </td>
+                                        <td style={{ maxWidth: '240px', fontSize: '12.5px' }}>
+                                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--gdg-text)' }} title={item.rincian_kerusakan}>
+                                                {item.rincian_kerusakan}
+                                            </div>
+                                            {item.pelapor_nama && (
+                                                <div className="aset-cell-sub">
+                                                    Pelapor: {item.pelapor_nama}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className={`aset-status-text ${statusTone}`}>
+                                                <span className="aset-status-dot" />
+                                                <span>{item.status_perbaikan_label}</span>
+                                            </span>
+                                        </td>
+                                        <td style={{ textAlign: 'right' }}>
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                                                <button
+                                                    type="button"
+                                                    className="aset-icon-action"
+                                                    onClick={() => setDetailTicket(item)}
+                                                    title="Lihat Detail &amp; Riwayat Tiket"
+                                                >
+                                                    <Eye size={14} />
+                                                </button>
+                                                {isAsetAdmin && (
+                                                    <>
+                                                        {/* Tahap 2: Tugaskan Teknisi */}
+                                                        {item.status_perbaikan === 'belum_mulai' && (
+                                                            <button
+                                                                type="button"
+                                                                className="aset-icon-action is-info"
+                                                                onClick={() => handleOpenUpdate(item)}
+                                                                title="Tahap 2: Tugaskan Teknisi &amp; Mulai Inspeksi"
+                                                            >
+                                                                <UserCheck size={14} />
+                                                            </button>
+                                                        )}
+
+                                                        {/* Tahap 3: Input Hasil Inspeksi & Mulai Servis */}
+                                                        {item.status_perbaikan === 'inspeksi' && (
+                                                            <button
+                                                                type="button"
+                                                                className="aset-icon-action is-warning"
+                                                                onClick={() => handleOpenUpdate(item)}
+                                                                title="Tahap 3: Input Hasil Inspeksi &amp; Mulai Servis"
+                                                            >
+                                                                <Wrench size={14} />
+                                                            </button>
+                                                        )}
+
+                                                        {/* Tahap 3 (Progres) & Tahap 4 (Finish) */}
+                                                        {item.status_perbaikan === 'dalam_proses' && (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    className="aset-icon-action is-info"
+                                                                    onClick={() => handleOpenUpdate(item)}
+                                                                    title="Update Catatan Progres Pengerjaan"
+                                                                >
+                                                                    <Edit3 size={14} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="aset-icon-action is-success"
+                                                                    onClick={() => handleOpenFinish(item)}
+                                                                    title="Tahap 4: Selesaikan Perbaikan (Finish)"
+                                                                >
+                                                                    <CheckCircle2 size={14} />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
@@ -799,15 +728,14 @@ export default function AsetPerbaikan() {
 
             {/* Pagination Controls */}
             {totalCount > 0 && (
-                <div style={{ marginTop: '14px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
+                <SimplePagination
+                    className="aset-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
             )}
 
             {/* MODAL DETAIL TIKET PERBAIKAN */}
@@ -815,29 +743,13 @@ export default function AsetPerbaikan() {
                 <div className="aset-modal-overlay" onClick={() => setDetailTicket(null)}>
                     <div className="aset-modal-content" style={{ maxWidth: '640px', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                         <div className="aset-modal-header">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Wrench size={18} color="#f59e0b" />
-                                <span style={{ fontWeight: 700, fontSize: '15px', color: '#f8fafc' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <span className="aset-modal-title-text">
                                     Detail Tiket: {detailTicket.nomor_tiket}
                                 </span>
-                                <span style={{
-                                    padding: '2px 8px',
-                                    borderRadius: '5px',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    background: detailTicket.status_perbaikan === 'selesai'
-                                        ? 'rgba(16, 185, 129, 0.2)'
-                                        : detailTicket.status_perbaikan === 'dalam_proses'
-                                            ? 'rgba(245, 158, 11, 0.2)'
-                                            : 'rgba(239, 68, 68, 0.18)',
-                                    color: detailTicket.status_perbaikan === 'selesai'
-                                        ? '#34d399'
-                                        : detailTicket.status_perbaikan === 'dalam_proses'
-                                            ? '#fbbf24'
-                                            : '#f87171',
-                                    border: '1px solid rgba(255,255,255,0.06)'
-                                }}>
-                                    {detailTicket.status_perbaikan_label}
+                                <span className={`aset-status-text ${detailTicket.status_perbaikan === 'selesai' ? 'emerald' : detailTicket.status_perbaikan === 'dalam_proses' ? 'amber' : detailTicket.status_perbaikan === 'inspeksi' ? 'sky' : 'rose'}`}>
+                                    <span className="aset-status-dot" />
+                                    <span>{detailTicket.status_perbaikan_label}</span>
                                 </span>
                             </div>
                             <button className="aset-modal-close" onClick={() => setDetailTicket(null)}>
@@ -853,67 +765,52 @@ export default function AsetPerbaikan() {
                             <div className="aset-form-section" style={{ padding: '12px 14px', marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                                     <div>
-                                        <div style={{ fontSize: '13.5px', fontWeight: 700 }}>
+                                        <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--gdg-text)' }}>
                                             {detailTicket.aset_nama} {detailTicket.aset_merk ? `(${detailTicket.aset_merk})` : ''}
                                         </div>
-                                        <div style={{ fontSize: '11.5px', color: '#6366f1', fontFamily: 'monospace', fontWeight: 600, marginTop: '2px' }}>
+                                        <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', fontFamily: 'monospace', fontWeight: 600, marginTop: '2px' }}>
                                             {detailTicket.aset_kode}
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <span className="badge-unit">{detailTicket.unit_nama || '-'}</span>
-                                        <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '3px' }}>
+                                        <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--gdg-text)' }}>{detailTicket.unit_nama || '-'}</div>
+                                        <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', marginTop: '2px' }}>
                                             {detailTicket.ruangan_nama || detailTicket.lokasi_teks || '-'}
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(148, 163, 184, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
-                                    <span style={{ opacity: 0.75 }}>Status Kelayakan Fisik Aset:</span>
-                                    <span className={`badge-kelayakan grade-${detailTicket.status_kelayakan || 'A'}`} style={{ padding: '2px 8px', fontSize: '11px' }}>
-                                        {detailTicket.status_kelayakan_label || `Grade ${detailTicket.status_kelayakan || 'A'}`}
+                                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--gdg-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                                    <span style={{ color: 'var(--gdg-muted)' }}>Status Kelayakan Fisik Aset:</span>
+                                    <span className={`aset-status-text ${detailTicket.status_kelayakan === 'A' ? 'emerald' : detailTicket.status_kelayakan === 'B' ? 'sky' : detailTicket.status_kelayakan === 'C' ? 'amber' : detailTicket.status_kelayakan === 'D' ? 'orange' : 'rose'}`}>
+                                        <span className="aset-status-dot" />
+                                        <span>{detailTicket.status_kelayakan_label || `Grade ${detailTicket.status_kelayakan || 'A'}`}</span>
                                     </span>
                                 </div>
                             </div>
 
                             {/* Section 1: Laporan & Kerusakan */}
                             <div className="aset-form-section" style={{ padding: '12px 14px', marginBottom: '14px' }}>
-                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#f59e0b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <AlertTriangle size={14} /> Data Laporan Kerusakan
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--gdg-text)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <AlertTriangle size={14} color="#f59e0b" /> Data Laporan Kerusakan
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
                                     <div>
-                                        <div style={{ opacity: 0.75, fontSize: '10.5px' }}>Tanggal Laporan</div>
-                                        <div style={{ fontWeight: 600 }}>{detailTicket.tanggal_laporan || '-'}</div>
+                                        <div style={{ color: 'var(--gdg-muted)', fontSize: '11px' }}>Tanggal Laporan</div>
+                                        <div style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{detailTicket.tanggal_laporan || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style={{ opacity: 0.75, fontSize: '10.5px' }}>Tanggal Kejadian Rusak</div>
-                                        <div style={{ fontWeight: 600 }}>{detailTicket.tanggal_kerusakan || detailTicket.tanggal_laporan || '-'}</div>
+                                        <div style={{ color: 'var(--gdg-muted)', fontSize: '11px' }}>Tanggal Kejadian Rusak</div>
+                                        <div style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{detailTicket.tanggal_kerusakan || detailTicket.tanggal_laporan || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style={{ opacity: 0.75, fontSize: '10.5px' }}>Pelapor</div>
-                                        <div style={{ fontWeight: 600 }}>{detailTicket.pelapor_nama || '-'}</div>
+                                        <div style={{ color: 'var(--gdg-muted)', fontSize: '11px' }}>Pelapor</div>
+                                        <div style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>{detailTicket.pelapor_nama || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style={{ opacity: 0.75, fontSize: '10.5px' }}>Tingkat Kerusakan</div>
-                                        <span style={{
-                                            display: 'inline-block',
-                                            padding: '2px 7px',
-                                            borderRadius: '4px',
-                                            fontSize: '10.5px',
-                                            fontWeight: 700,
-                                            marginTop: '2px',
-                                            background: detailTicket.tingkat_kerusakan === 'berat'
-                                                ? 'rgba(239, 68, 68, 0.2)'
-                                                : detailTicket.tingkat_kerusakan === 'sedang'
-                                                    ? 'rgba(245, 158, 11, 0.2)'
-                                                    : 'rgba(56, 189, 248, 0.2)',
-                                            color: detailTicket.tingkat_kerusakan === 'berat'
-                                                ? '#f87171'
-                                                : detailTicket.tingkat_kerusakan === 'sedang'
-                                                    ? '#fbbf24'
-                                                    : '#38bdf8',
-                                        }}>
-                                            {detailTicket.tingkat_kerusakan_label}
+                                        <div style={{ color: 'var(--gdg-muted)', fontSize: '11px' }}>Tingkat Kerusakan</div>
+                                        <span className={`aset-status-text ${detailTicket.tingkat_kerusakan === 'berat' ? 'rose' : detailTicket.tingkat_kerusakan === 'sedang' ? 'amber' : 'sky'}`} style={{ marginTop: '2px' }}>
+                                            <span className="aset-status-dot" />
+                                            <span>{detailTicket.tingkat_kerusakan_label}</span>
                                         </span>
                                     </div>
                                 </div>
@@ -1031,7 +928,7 @@ export default function AsetPerbaikan() {
                                                                 : '#94a3b8'
                                                 }} />
                                                 <div className="aset-timeline-header">
-                                                    <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                                                    <span style={{ fontWeight: 600, color: 'var(--gdg-text)' }}>
                                                         {logItem.status_sesudah_label}
                                                     </span>
                                                     <span>{new Date(logItem.created_at).toLocaleString('id-ID')}</span>
@@ -1079,7 +976,6 @@ export default function AsetPerbaikan() {
                                         <button
                                             type="button"
                                             className="btn-aset btn-aset-primary"
-                                            style={{ background: '#0284c7', borderColor: '#0284c7' }}
                                             onClick={() => {
                                                 const t = detailTicket;
                                                 setDetailTicket(null);
@@ -1093,7 +989,6 @@ export default function AsetPerbaikan() {
                                         <button
                                             type="button"
                                             className="btn-aset btn-aset-primary"
-                                            style={{ background: '#d97706', borderColor: '#d97706' }}
                                             onClick={() => {
                                                 const t = detailTicket;
                                                 setDetailTicket(null);
@@ -1114,12 +1009,11 @@ export default function AsetPerbaikan() {
                                                     handleOpenUpdate(t);
                                                 }}
                                             >
-                                                <Edit3 size={14} color="#38bdf8" /> Update Progres
+                                                <Edit3 size={14} /> Update Progres
                                             </button>
                                             <button
                                                 type="button"
                                                 className="btn-aset btn-aset-primary"
-                                                style={{ background: '#10b981', borderColor: '#059669' }}
                                                 onClick={() => {
                                                     const t = detailTicket;
                                                     setDetailTicket(null);
@@ -1145,28 +1039,19 @@ export default function AsetPerbaikan() {
                         <div className="aset-modal-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {selectedTicket.status_perbaikan === 'belum_mulai' ? (
-                                    <>
-                                        <UserCheck size={18} color="#38bdf8" />
-                                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#f8fafc' }}>
-                                            Tahap 2: Penugasan Teknisi &amp; Mulai Inspeksi
-                                        </span>
-                                    </>
+                                    <span className="aset-modal-title-text">
+                                        Tahap 2: Penugasan Teknisi &amp; Mulai Inspeksi
+                                    </span>
                                 ) : selectedTicket.status_perbaikan === 'inspeksi' ? (
-                                    <>
-                                        <Wrench size={18} color="#fbbf24" />
-                                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#f8fafc' }}>
-                                            Tahap 3: Input Hasil Inspeksi &amp; Mulai Servis
-                                        </span>
-                                    </>
+                                    <span className="aset-modal-title-text">
+                                        Tahap 3: Input Hasil Inspeksi &amp; Mulai Servis
+                                    </span>
                                 ) : (
-                                    <>
-                                        <Clock size={18} color="#818cf8" />
-                                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#f8fafc' }}>
-                                            Update Catatan Progres Servis
-                                        </span>
-                                    </>
+                                    <span className="aset-modal-title-text">
+                                        Update Catatan Progres Servis
+                                    </span>
                                 )}
-                                <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace' }}>
+                                <span style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', fontFamily: 'monospace' }}>
                                     ({selectedTicket.nomor_tiket})
                                 </span>
                             </div>
@@ -1204,14 +1089,14 @@ export default function AsetPerbaikan() {
                                             <div style={{ fontSize: '12px', fontWeight: 700, color: '#34d399' }}>
                                                 Pengerjaan Servis Sudah Selesai Tuntas?
                                             </div>
-                                            <div style={{ fontSize: '10.5px', color: '#cbd5e1', marginTop: '2px' }}>
+                                            <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', marginTop: '2px' }}>
                                                 Klik untuk input evaluasi kondisi, biaya aktual riil, dan pembaruan kelayakan fisik.
                                             </div>
                                         </div>
                                         <button
                                             type="button"
                                             className="btn-aset btn-aset-primary"
-                                            style={{ background: '#10b981', borderColor: '#059669', padding: '5px 12px', fontSize: '11.5px' }}
+                                            style={{ height: '30px', minHeight: '30px', padding: '0 12px', fontSize: '12px' }}
                                             onClick={() => {
                                                 const t = selectedTicket;
                                                 setIsUpdateModalOpen(false);
@@ -1227,35 +1112,20 @@ export default function AsetPerbaikan() {
                                 <div className="aset-form-section" style={{ padding: '12px 14px', marginBottom: '14px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                                         <div>
-                                            <div style={{ fontSize: '13.5px', fontWeight: 700 }}>
+                                            <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--gdg-text)' }}>
                                                 {selectedTicket.aset_nama} {selectedTicket.aset_merk ? `(${selectedTicket.aset_merk})` : ''}
                                             </div>
-                                            <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ color: '#6366f1', fontFamily: 'monospace', fontWeight: 600 }}>{selectedTicket.aset_kode}</span>
+                                            <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{ color: 'var(--gdg-text)', fontFamily: 'monospace', fontWeight: 600 }}>{selectedTicket.aset_kode}</span>
                                                 <span>&bull;</span>
                                                 <span>Unit: {selectedTicket.unit_nama || '-'}</span>
                                                 <span>&bull;</span>
                                                 <span>Lokasi: {selectedTicket.lokasi_teks || selectedTicket.ruangan_nama || '-'}</span>
                                             </div>
                                         </div>
-                                        <span style={{
-                                            padding: '2px 8px',
-                                            borderRadius: '4px',
-                                            fontSize: '11px',
-                                            fontWeight: 700,
-                                            background: selectedTicket.tingkat_kerusakan === 'berat'
-                                                ? 'rgba(239, 68, 68, 0.18)'
-                                                : selectedTicket.tingkat_kerusakan === 'sedang'
-                                                    ? 'rgba(245, 158, 11, 0.18)'
-                                                    : 'rgba(56, 189, 248, 0.18)',
-                                            color: selectedTicket.tingkat_kerusakan === 'berat'
-                                                ? '#f87171'
-                                                : selectedTicket.tingkat_kerusakan === 'sedang'
-                                                    ? '#fbbf24'
-                                                    : '#38bdf8',
-                                            border: '1px solid rgba(255,255,255,0.08)'
-                                        }}>
-                                            Kerusakan {selectedTicket.tingkat_kerusakan_label}
+                                        <span className={`aset-status-text ${selectedTicket.tingkat_kerusakan === 'berat' ? 'rose' : selectedTicket.tingkat_kerusakan === 'sedang' ? 'amber' : 'sky'}`}>
+                                            <span className="aset-status-dot" />
+                                            <span>Kerusakan {selectedTicket.tingkat_kerusakan_label}</span>
                                         </span>
                                     </div>
                                     <div className="aset-readonly-box" style={{ marginTop: '10px', padding: '8px 10px', height: 'auto', whiteSpace: 'normal', fontSize: '11.5px', lineHeight: '1.4' }}>
@@ -1360,7 +1230,7 @@ export default function AsetPerbaikan() {
                                 {/* FORM TAHAP 3 (BERJALAN): UPDATE CATATAN PROGRES */}
                                 {selectedTicket.status_perbaikan === 'dalam_proses' && (
                                     <>
-                                        <div className="aset-form-section" style={{ padding: '10px 12px', marginBottom: '14px', background: 'rgba(0,0,0,0.18)' }}>
+                                        <div className="aset-form-section" style={{ padding: '10px 12px', marginBottom: '14px' }}>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', fontSize: '11.5px' }}>
                                                 <div>
                                                     <span style={{ opacity: 0.7 }}>Teknisi:</span> <strong>{selectedTicket.teknisi || '-'}</strong>
@@ -1458,12 +1328,6 @@ export default function AsetPerbaikan() {
                                 <button
                                     type="submit"
                                     className="btn-aset btn-aset-primary"
-                                    style={{
-                                        background: selectedTicket.status_perbaikan === 'belum_mulai' ? '#0284c7' :
-                                            selectedTicket.status_perbaikan === 'inspeksi' ? '#d97706' : '#2563eb',
-                                        borderColor: selectedTicket.status_perbaikan === 'belum_mulai' ? '#0284c7' :
-                                            selectedTicket.status_perbaikan === 'inspeksi' ? '#d97706' : '#2563eb'
-                                    }}
                                     disabled={saving}
                                 >
                                     {saving ? (
@@ -1488,12 +1352,9 @@ export default function AsetPerbaikan() {
                 <div className="aset-modal-overlay" onClick={() => setFinishTicket(null)}>
                     <div className="aset-modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
                         <div className="aset-modal-header">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CheckCircle2 size={18} color="#10b981" />
-                                <span style={{ fontWeight: 700, fontSize: '15px', color: '#f8fafc' }}>
-                                    Selesaikan Perbaikan: {finishTicket.nomor_tiket}
-                                </span>
-                            </div>
+                            <span className="aset-modal-title-text">
+                                Selesaikan Perbaikan: {finishTicket.nomor_tiket}
+                            </span>
                             <button className="aset-modal-close" onClick={() => setFinishTicket(null)}>
                                 <X size={18} />
                             </button>
@@ -1688,7 +1549,6 @@ export default function AsetPerbaikan() {
                                 <button
                                     type="submit"
                                     className="btn-aset btn-aset-primary"
-                                    style={{ background: '#10b981', borderColor: '#059669' }}
                                     disabled={finishing}
                                 >
                                     {finishing ? (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Building2, Plus, Edit2, Trash2, Printer, Search, X, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, Save } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -126,17 +126,14 @@ export default function AsetRuangan() {
         <div className="aset-container">
             <div className="aset-header">
                 <div className="aset-title-area">
-                    <h1>
-                        <Building2 size={20} color="#818cf8" />
-                        Master Ruangan & Lokasi Aset
-                    </h1>
+                    <h1>Master Ruangan &amp; Lokasi Aset</h1>
                     <p className="aset-subtitle">
                         Daftar ruangan fisik terstruktur berdasarkan Unit Penanggung Jawab &bull; {filteredRooms.length} ruangan
                     </p>
                 </div>
                 <div className="aset-actions">
-                    <button className="btn-aset btn-aset-primary" onClick={() => handleOpenModal()}>
-                        <Plus size={14} /> Tambah Ruangan
+                    <button type="button" className="btn-aset btn-aset-primary" onClick={() => handleOpenModal()}>
+                        <Plus size={14} strokeWidth={1.75} /> Tambah Ruangan
                     </button>
                 </div>
             </div>
@@ -166,8 +163,8 @@ export default function AsetRuangan() {
             </div>
 
             {/* Table */}
-            <div className="aset-table-wrapper">
-                <table className="aset-table">
+            <div className="aset-table-borderless">
+                <table className="aset-table-stripe">
                     <thead>
                         <tr>
                             <th style={{ width: '40px' }}>No</th>
@@ -175,54 +172,56 @@ export default function AsetRuangan() {
                             <th>Unit Penanggung Jawab</th>
                             <th>Lantai / Gedung</th>
                             <th>Jumlah Aset</th>
-                            <th style={{ textAlign: 'center' }}>Aksi</th>
+                            <th className="aset-col-aksi">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                     Memuat ruangan...
                                 </td>
                             </tr>
                         ) : filteredRooms.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                     Tidak ada ruangan terdaftar.
                                 </td>
                             </tr>
                         ) : (
                             paginatedRooms.map((item, idx) => (
                                 <tr key={item.id}>
-                                    <td style={{ color: '#64748b' }}>{(page - 1) * pageSize + idx + 1}</td>
-                                    <td className="aset-text-main">{item.nama}</td>
-                                    <td>
-                                        <span className="badge-unit">{item.unit_nama}</span>
+                                    <td className="aset-num-cell aset-cell-muted" style={{ fontSize: '12px' }}>
+                                        {(page - 1) * pageSize + idx + 1}
                                     </td>
-                                    <td className="aset-text-muted">{item.lantai_gedung || '-'}</td>
+                                    <td className="aset-cell-title">{item.nama}</td>
+                                    <td>{item.unit_nama || '—'}</td>
+                                    <td className="aset-cell-muted">{item.lantai_gedung || '—'}</td>
                                     <td>
-                                        <span style={{ fontWeight: 700 }} className={item.aset_count > 0 ? "aset-text-highlight" : "aset-text-muted"}>
-                                            {item.aset_count} unit aset
+                                        <span className="aset-num-cell" style={{ fontWeight: item.aset_count > 0 ? 600 : 400 }}>
+                                            {Number(item.aset_count || 0).toLocaleString('id-ID')} unit aset
                                         </span>
                                     </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                    <td className="aset-col-aksi">
+                                        <div style={{ display: 'inline-flex', gap: '2px' }}>
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '3px 6px' }}
+                                                type="button"
+                                                className="aset-icon-action"
                                                 onClick={() => handleOpenModal(item)}
                                                 title="Edit Ruangan"
+                                                aria-label="Edit Ruangan"
                                             >
-                                                <Edit2 size={12} color="#38bdf8" />
+                                                <Edit2 size={14} />
                                             </button>
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '3px 6px' }}
+                                                type="button"
+                                                className="aset-icon-action is-danger"
                                                 onClick={() => handleDelete(item)}
                                                 title="Hapus Ruangan"
+                                                aria-label="Hapus Ruangan"
                                                 disabled={item.aset_count > 0}
                                             >
-                                                <Trash2 size={12} color={item.aset_count > 0 ? '#475569' : '#f87171'} />
+                                                <Trash2 size={14} />
                                             </button>
                                         </div>
                                     </td>
@@ -235,15 +234,14 @@ export default function AsetRuangan() {
 
             {/* Pagination */}
             {filteredRooms.length > 0 && (
-                <div style={{ marginTop: '14px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={filteredRooms.length}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
+                <SimplePagination
+                    className="aset-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={filteredRooms.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
             )}
 
             {/* Modal Tambah/Edit Ruangan */}
@@ -252,10 +250,9 @@ export default function AsetRuangan() {
                     <div className="aset-modal-content" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
                         <div className="aset-modal-header">
                             <h3>
-                                <Building2 size={18} color="#6366f1" />
                                 {editData ? 'Edit Ruangan' : 'Tambah Ruangan Baru'}
                             </h3>
-                            <button className="aset-modal-close" onClick={() => setIsModalOpen(false)}>
+                            <button type="button" className="aset-modal-close" onClick={() => setIsModalOpen(false)}>
                                 <X size={18} />
                             </button>
                         </div>

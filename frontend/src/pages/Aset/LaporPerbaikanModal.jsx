@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Wrench, AlertTriangle, Calendar, Upload, Save, Camera, Trash2 } from 'lucide-react';
+import { X, Calendar, Save, Camera, Trash2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import DateField from '../../components/DateField';
@@ -75,10 +75,7 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
         <div className="aset-modal-overlay" onClick={onClose}>
             <div className="aset-modal-content" style={{ maxWidth: '580px' }} onClick={e => e.stopPropagation()}>
                 <div className="aset-modal-header">
-                    <h3>
-                        <Wrench size={18} color="#f59e0b" />
-                        Lapor Kerusakan / Permintaan Perbaikan
-                    </h3>
+                    <h3>Lapor Kerusakan / Permintaan Perbaikan</h3>
                     <button className="aset-modal-close" onClick={onClose}><X size={18} /></button>
                 </div>
 
@@ -210,10 +207,10 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                                         style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #334155' }}
                                     />
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                             {fotoKerusakan?.name || 'Foto Kerusakan'}
                                         </div>
-                                        <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>
+                                        <div style={{ fontSize: '10.5px', color: 'var(--gdg-muted)' }}>
                                             {fotoKerusakan ? `${(fotoKerusakan.size / 1024).toFixed(0)} KB` : ''}
                                         </div>
                                     </div>
@@ -237,15 +234,7 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                         </button>
                         <button
                             type="submit"
-                            className="btn-aset"
-                            style={{
-                                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                                color: '#ffffff',
-                                fontWeight: 600,
-                                border: 'none',
-                                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)',
-                                padding: '7px 16px',
-                            }}
+                            className="btn-aset btn-aset-primary"
                             disabled={loading}
                         >
                             <Save size={14} /> {loading ? 'Mengirim...' : 'Kirim Laporan Perbaikan'}

@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-    Package,
     Search,
     Plus,
-    Filter,
     Download,
     Eye,
     CheckCircle,
     Edit3,
     Trash2,
     QrCode,
-    RefreshCw,
-    Building2,
-    SlidersHorizontal,
     Wrench
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -193,6 +188,22 @@ export default function AsetList() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
     };
 
+    const getKelayakanTone = (grade) => {
+        switch (grade) {
+            case 'A': return 'emerald';
+            case 'B': return 'sky';
+            case 'C': return 'amber';
+            case 'D': return 'orange';
+            case 'E': return 'rose';
+            default: return 'slate';
+        }
+    };
+
+    const formatKelayakanText = (label) => {
+        if (!label) return '-';
+        return String(label).replace(/\s+-\s+/, ' • ');
+    };
+
     const filteredRuangan = selectedUnit
         ? ruanganList.filter(r => String(r.unit) === String(selectedUnit))
         : ruanganList;
@@ -202,10 +213,7 @@ export default function AsetList() {
             {/* Header */}
             <div className="aset-header">
                 <div className="aset-title-area">
-                    <h1>
-                        <Package size={22} color="#818cf8" />
-                        Daftar Inventaris & Aset
-                    </h1>
+                    <h1>Daftar Inventaris &amp; Aset</h1>
                     <p className="aset-subtitle">
                         {!isAsetAdmin && user?.unit_nama ? (
                             <>Menampilkan inventaris khusus unit <strong>{user.unit_nama}</strong></>
@@ -216,12 +224,12 @@ export default function AsetList() {
                     </p>
                 </div>
                 <div className="aset-actions">
-                    <button className="btn-aset btn-aset-secondary" onClick={exportToExcel} title="Export ke Excel">
-                        <Download size={14} /> Export Excel
+                    <button type="button" className="btn-aset btn-aset-secondary" onClick={exportToExcel} title="Export ke Excel">
+                        <Download size={14} strokeWidth={1.75} /> Export Excel
                     </button>
                     {isAsetAdmin && (
-                        <button className="btn-aset btn-aset-primary" onClick={() => { setEditData(null); setIsFormOpen(true); }}>
-                            <Plus size={14} /> Tambah Aset
+                        <button type="button" className="btn-aset btn-aset-primary" onClick={() => { setEditData(null); setIsFormOpen(true); }}>
+                            <Plus size={14} strokeWidth={1.75} /> Tambah Aset
                         </button>
                     )}
                 </div>
@@ -308,8 +316,8 @@ export default function AsetList() {
 
                 {(search || selectedUnit || selectedRuangan || selectedKategori || selectedKelayakan || selectedStatusData) && (
                     <button
+                        type="button"
                         className="btn-aset btn-aset-secondary"
-                        style={{ padding: '6px 8px', fontSize: '11px' }}
                         onClick={() => {
                             setSearch('');
                             setSelectedUnit('');
@@ -326,160 +334,161 @@ export default function AsetList() {
             </div>
 
             {/* Table */}
-            <div className="aset-table-wrapper">
-                <table className="aset-table">
+            <div className="aset-table-borderless">
+                <table className="aset-table-stripe">
                     <thead>
                         <tr>
                             <th style={{ width: '40px' }}>No</th>
                             <th>Kode Aset</th>
-                            <th>Deskripsi & Spesifikasi</th>
+                            <th>Deskripsi &amp; Spesifikasi</th>
                             <th>Unit Penanggung Jawab</th>
                             <th>Ruangan / Lokasi</th>
                             <th>Kelayakan Fisik</th>
                             {isFinancialViewer && <th>Harga Beli</th>}
                             {isFinancialViewer && <th>Nilai Buku Bersih</th>}
-                            <th style={{ textAlign: 'center' }}>Aksi</th>
+                            <th className="aset-col-aksi">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={isFinancialViewer ? 9 : 7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan={isFinancialViewer ? 9 : 7} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                     Memuat daftar aset...
                                 </td>
                             </tr>
                         ) : assets.length === 0 ? (
                             <tr>
-                                <td colSpan={isFinancialViewer ? 9 : 7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan={isFinancialViewer ? 9 : 7} style={{ textAlign: 'center', padding: '30px' }} className="aset-cell-muted">
                                     Tidak ada data aset yang cocok dengan filter pencarian.
                                 </td>
                             </tr>
                         ) : (
                             assets.map((item, index) => (
                                 <tr key={item.id}>
-                                    <td style={{ color: '#64748b', fontSize: '11px' }}>
+                                    <td className="aset-num-cell aset-cell-muted" style={{ fontSize: '12px' }}>
                                         {(page - 1) * pageSize + index + 1}
                                     </td>
                                     <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ fontWeight: 700, color: '#818cf8', letterSpacing: '0.02em' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span className="aset-code-mono">
                                                 {item.kode_aset}
                                             </span>
                                             <button
-                                                className="aset-modal-close"
-                                                style={{ padding: '2px' }}
+                                                type="button"
+                                                className="aset-icon-action"
                                                 onClick={() => setQrTarget(item)}
                                                 title="Lihat & Cetak QR"
+                                                aria-label="Lihat dan cetak QR"
                                             >
-                                                <QrCode size={12} color="#94a3b8" />
+                                                <QrCode size={13} />
                                             </button>
                                         </div>
                                         {item.status_data === 'belum_lengkap' && (
-                                            <span className="badge-belum-lengkap" style={{ display: 'inline-block', marginTop: '2px' }}>
+                                            <span className="aset-status-warn-text">
                                                 Belum Lengkap
                                             </span>
                                         )}
                                     </td>
                                     <td>
-                                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{item.deskripsi}</div>
-                                        <div style={{ fontSize: '11px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                                        <div className="aset-cell-title">{item.deskripsi}</div>
+                                        <div className="aset-cell-sub">
                                             <span>{item.merk ? `Merek: ${item.merk}` : 'Tanpa Merek'} {item.spesifikasi ? `(${item.spesifikasi})` : ''}</span>
                                             {item.nomor_registrasi && (
-                                                <span className="badge-prefix" style={{ fontSize: '10px', padding: '1px 5px' }}>
-                                                    Reg: {item.nomor_registrasi}
-                                                </span>
+                                                <span> &bull; Reg: {item.nomor_registrasi}</span>
                                             )}
                                             {item.perlu_kalibrasi && (
-                                                <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
-                                                    ⚡ Wajib Kalibrasi
-                                                </span>
+                                                <span> &bull; Wajib Kalibrasi</span>
                                             )}
                                         </div>
                                     </td>
                                     <td>
-                                        <span className="badge-unit">{item.unit_nama}</span>
+                                        <span className="aset-cell-title" style={{ fontWeight: 500 }}>{item.unit_nama || '—'}</span>
+                                    </td>
+                                    <td className="aset-cell-muted">
+                                        {item.lokasi_teks || item.ruangan_nama || '—'}
                                     </td>
                                     <td>
-                                        <div style={{ color: '#cbd5e1' }}>
-                                            {item.lokasi_teks || item.ruangan_nama || '-'}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className={`badge-kelayakan badge-kelayakan-${item.status_kelayakan}`}>
-                                            {item.status_kelayakan_label}
+                                        <span className={`aset-status-text ${getKelayakanTone(item.status_kelayakan)}`}>
+                                            <span className="aset-status-dot" />
+                                            {formatKelayakanText(item.status_kelayakan_label)}
                                         </span>
                                     </td>
                                     {isFinancialViewer && (
                                         <td>
-                                            <div style={{ fontWeight: 500, color: '#f1f5f9' }}>
+                                            <div className="aset-num-cell" style={{ fontWeight: 500 }}>
                                                 {formatRp(item.harga_perolehan)}
                                             </div>
-                                            <div style={{ fontSize: '10.5px', color: '#64748b' }}>
-                                                {item.bulan_perolehan ? item.bulan_perolehan.slice(0, 7) : '-'}
+                                            <div className="aset-cell-sub">
+                                                {item.bulan_perolehan ? item.bulan_perolehan.slice(0, 7) : '—'}
                                             </div>
                                         </td>
                                     )}
                                     {isFinancialViewer && (
                                         <td>
                                             {item.penyusutan?.is_calculable ? (
-                                                <div style={{ fontWeight: 600, color: '#34d399' }}>
+                                                <span className="aset-num-cell is-success">
                                                     {formatRp(item.penyusutan.nilai_buku)}
-                                                </div>
+                                                </span>
                                             ) : (
-                                                <span style={{ color: '#64748b', fontSize: '11px' }}>-</span>
+                                                <span className="aset-cell-muted">—</span>
                                             )}
                                         </td>
                                     )}
-                                    <td style={{ textAlign: 'center' }}>
-                                        <div style={{ display: 'inline-flex', gap: '5px', alignItems: 'center' }}>
+                                    <td className="aset-col-aksi">
+                                        <div style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
                                             {/* Update Kelayakan (untuk User Unit & Admin) */}
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
+                                                type="button"
+                                                className="aset-icon-action is-success"
                                                 onClick={() => setKelayakanTarget(item)}
                                                 title="Update Kondisi / Kelayakan"
+                                                aria-label="Update Kondisi"
                                             >
-                                                <CheckCircle size={14} color="#34d399" />
+                                                <CheckCircle size={14} />
                                             </button>
 
                                             {/* Lapor Perbaikan Kerusakan */}
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center', borderColor: 'rgba(245, 158, 11, 0.35)' }}
+                                                type="button"
+                                                className="aset-icon-action is-warning"
                                                 onClick={() => setPerbaikanTarget(item)}
                                                 title="Lapor Kerusakan / Permintaan Perbaikan"
+                                                aria-label="Lapor Kerusakan"
                                             >
-                                                <Wrench size={14} color="#f59e0b" />
+                                                <Wrench size={14} />
                                             </button>
 
                                             {/* Detail Inspector */}
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
+                                                type="button"
+                                                className="aset-icon-action"
                                                 onClick={() => setDetailTargetId(item.id)}
                                                 title="Lihat Detail & Riwayat"
+                                                aria-label="Lihat Detail"
                                             >
-                                                <Eye size={14} color="#94a3b8" />
+                                                <Eye size={14} />
                                             </button>
 
                                             {/* Admin Actions */}
                                             {isAsetAdmin && (
                                                 <>
                                                     <button
-                                                        className="btn-aset btn-aset-secondary"
-                                                        style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
+                                                        type="button"
+                                                        className="aset-icon-action is-info"
                                                         onClick={() => { setEditData(item); setIsFormOpen(true); }}
                                                         title="Edit Aset"
+                                                        aria-label="Edit Aset"
                                                     >
-                                                        <Edit3 size={14} color="#38bdf8" />
+                                                        <Edit3 size={14} />
                                                     </button>
                                                     <button
-                                                        className="btn-aset btn-aset-secondary"
-                                                        style={{ padding: '5px 7px', minWidth: '28px', height: '28px', justifyContent: 'center' }}
+                                                        type="button"
+                                                        className="aset-icon-action is-danger"
                                                         onClick={() => handleDelete(item)}
                                                         title="Hapus Aset"
+                                                        aria-label="Hapus Aset"
                                                     >
-                                                        <Trash2 size={14} color="#f87171" />
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </>
                                             )}
@@ -494,15 +503,14 @@ export default function AsetList() {
 
             {/* Pagination Controls */}
             {totalCount > 0 && (
-                <div style={{ marginTop: '14px' }}>
-                    <SimplePagination
-                        page={page}
-                        pageSize={pageSize}
-                        total={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                    />
-                </div>
+                <SimplePagination
+                    className="aset-pagination"
+                    page={page}
+                    pageSize={pageSize}
+                    total={totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                />
             )}
 
             {/* Modal Update Kelayakan */}
