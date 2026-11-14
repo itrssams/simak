@@ -318,7 +318,9 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = AsetPerbaikan.objects.select_related('aset', 'aset__unit', 'aset__ruangan', 'pelapor').all()
+        qs = AsetPerbaikan.objects.select_related(
+            'aset', 'aset__unit', 'aset__ruangan', 'pelapor'
+        ).prefetch_related('log_list', 'log_list__dibuat_oleh').all()
 
         # Jika bukan admin/kasi umum, batasi hanya melihat laporan di unitnya
         if not is_financial_viewer(user):
@@ -362,7 +364,7 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        perbaikan = serializer.save(pelapor=user)
+        perbaikan = serializer.save(pelapor=user, tanggal_laporan=timezone.now().date())
 
         # Ubah status operasional aset menjadi dalam_perbaikan.
         # Catatan: status_kelayakan fisik (Grade A-E) sengaja tidak diturunkan
@@ -434,6 +436,9 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
         user = self.request.user
         instance = self.get_object()
         status_sebelum = instance.status_perbaikan
+        old_teknisi = instance.teknisi
+        old_hasil = instance.hasil_inspeksi
+        old_tindak_lanjut = instance.tindak_lanjut
 
         perbaikan = serializer.save()
         aset = perbaikan.aset
@@ -452,8 +457,32 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
                 aset.status_aset = 'dalam_perbaikan'
                 aset.save(update_fields=['status_aset', 'updated_at'])
 
-        # Catat Log Riwayat Kronologis Perbaikan
-        tindakan_text = perbaikan.hasil_inspeksi or perbaikan.tindak_lanjut or f'Pembaruan status tiket ke {perbaikan.get_status_perbaikan_display()}'
+        # Catat Log Riwayat Kronologis Perbaikan secara akurat per tahapan / progres terbaru
+        if status_sebelum == 'belum_mulai' and perbaikan.status_perbaikan == 'inspeksi':
+            parts = [f'Penugasan teknisi: {perbaikan.teknisi}']
+            if perbaikan.tindak_lanjut and perbaikan.tindak_lanjut != old_tindak_lanjut:
+                parts.append(f'Catatan awal: {perbaikan.tindak_lanjut}')
+            tindakan_text = ' • '.join(parts)
+        elif status_sebelum != 'dalam_proses' and perbaikan.status_perbaikan == 'dalam_proses':
+            parts = []
+            if perbaikan.hasil_inspeksi:
+                parts.append(f'Hasil Inspeksi: {perbaikan.hasil_inspeksi}')
+            if perbaikan.tindak_lanjut:
+                parts.append(f'Tindak Lanjut: {perbaikan.tindak_lanjut}')
+            tindakan_text = ' • '.join(parts) or 'Memulai proses perbaikan'
+        elif perbaikan.tindak_lanjut and perbaikan.tindak_lanjut != old_tindak_lanjut:
+            tindakan_text = perbaikan.tindak_lanjut
+        elif perbaikan.hasil_inspeksi and perbaikan.hasil_inspeksi != old_hasil:
+            tindakan_text = f'Hasil Inspeksi diperbarui: {perbaikan.hasil_inspeksi}'
+        elif perbaikan.teknisi and perbaikan.teknisi != old_teknisi:
+            tindakan_text = f'Teknisi diperbarui: {perbaikan.teknisi}'
+        else:
+            tindakan_text = (
+                perbaikan.tindak_lanjut
+                or perbaikan.hasil_inspeksi
+                or f'Pembaruan status tiket ke {perbaikan.get_status_perbaikan_display()}'
+            )
+
         AsetPerbaikanLog.objects.create(
             perbaikan=perbaikan,
             status_sebelum=status_sebelum,

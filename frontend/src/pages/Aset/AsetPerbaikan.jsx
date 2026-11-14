@@ -116,7 +116,6 @@ export default function AsetPerbaikan() {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterTingkat, setFilterTingkat] = useState('');
-    const [filterKondisi, setFilterKondisi] = useState('');
 
     // Modal Detail Tiket
     const [detailTicket, setDetailTicket] = useState(null);
@@ -162,7 +161,7 @@ export default function AsetPerbaikan() {
 
     useEffect(() => {
         loadTickets();
-    }, [page, pageSize, filterStatus, filterTingkat, filterKondisi]);
+    }, [page, pageSize, filterStatus, filterTingkat]);
 
     const loadTickets = async () => {
         setLoading(true);
@@ -174,7 +173,6 @@ export default function AsetPerbaikan() {
             if (search) params.q = search;
             if (filterStatus) params.status_perbaikan = filterStatus;
             if (filterTingkat) params.tingkat_kerusakan = filterTingkat;
-            if (filterKondisi) params.kondisi_setelah_perbaikan = filterKondisi;
 
             const res = await api.get('/aset/perbaikan/', { params });
             const data = res.data;
@@ -185,7 +183,7 @@ export default function AsetPerbaikan() {
                 setPerbaikanList(data);
                 setTotalCount(data.length);
             }
-        } catch (err) {
+        } catch {
             toast.error('Gagal memuat data kerusakan & perbaikan.');
         } finally {
             setLoading(false);
@@ -601,16 +599,6 @@ export default function AsetPerbaikan() {
                     <option value="berat">Tingkat: Berat</option>
                 </select>
 
-                <select
-                    className="aset-select"
-                    value={filterKondisi}
-                    onChange={e => { setFilterKondisi(e.target.value); setPage(1); }}
-                >
-                    <option value="">Semua Kondisi Pasca</option>
-                    <option value="berfungsi_normal">Berfungsi Normal</option>
-                    <option value="masih_bermasalah">Masih Bermasalah</option>
-                </select>
-
                 <button type="submit" className="btn-aset btn-aset-secondary">
                     Terapkan Filter
                 </button>
@@ -628,20 +616,19 @@ export default function AsetPerbaikan() {
                             <th style={{ textAlign: 'center', width: '90px' }}>Tingkat</th>
                             <th>Rincian Kerusakan</th>
                             <th style={{ textAlign: 'center', width: '120px' }}>Status</th>
-                            <th style={{ textAlign: 'center', width: '130px' }}>Kondisi Pasca</th>
                             <th style={{ textAlign: 'center', width: '80px' }}>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
                                     Memuat daftar tiket kerusakan &amp; perbaikan...
                                 </td>
                             </tr>
                         ) : perbaikanList.length === 0 ? (
                             <tr>
-                                <td colSpan="9" style={{ textAlign: 'center', padding: '35px', color: '#94a3b8' }}>
+                                <td colSpan="8" style={{ textAlign: 'center', padding: '35px', color: '#94a3b8' }}>
                                     Belum ada laporan kerusakan atau tidak ada data yang cocok dengan filter.
                                 </td>
                             </tr>
@@ -735,26 +722,6 @@ export default function AsetPerbaikan() {
                                         }}>
                                             {item.status_perbaikan_label}
                                         </span>
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        {item.kondisi_setelah_perbaikan ? (
-                                            <span style={{
-                                                padding: '2px 7px',
-                                                borderRadius: '4px',
-                                                fontSize: '10.5px',
-                                                fontWeight: 700,
-                                                background: item.kondisi_setelah_perbaikan === 'berfungsi_normal'
-                                                    ? 'rgba(16, 185, 129, 0.18)'
-                                                    : 'rgba(236, 72, 153, 0.18)',
-                                                color: item.kondisi_setelah_perbaikan === 'berfungsi_normal'
-                                                    ? '#34d399'
-                                                    : '#f472b6',
-                                            }}>
-                                                {item.kondisi_setelah_perbaikan_label}
-                                            </span>
-                                        ) : (
-                                            <span style={{ color: '#64748b', fontSize: '11px' }}>-</span>
-                                        )}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>

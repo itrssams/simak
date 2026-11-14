@@ -13,7 +13,7 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
     const toast = useToast();
     const today = new Date().toISOString().split('T')[0];
 
-    const [tanggalLaporan, setTanggalLaporan] = useState(today);
+    const [tanggalLaporan] = useState(today);
     const [tanggalKerusakan, setTanggalKerusakan] = useState(today);
     const [tingkatKerusakan, setTingkatKerusakan] = useState('ringan');
     const [rincianKerusakan, setRincianKerusakan] = useState('');

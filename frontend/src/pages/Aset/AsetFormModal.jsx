@@ -64,6 +64,29 @@ const parseRupiahRaw = (displayStr) => {
     return intPart;
 };
 
+const KELAYAKAN_OPTIONS = [
+    { value: 'A', label: 'Sangat Layak (A)', subtext: 'Kondisi prima, siap pakai penuh' },
+    { value: 'B', label: 'Layak (B)', subtext: 'Berfungsi baik dengan pemakaian normal' },
+    { value: 'C', label: 'Cukup Layak (C)', subtext: 'Perlu pemantauan / servis ringan' },
+    { value: 'D', label: 'Kurang Layak (D)', subtext: 'Membutuhkan perbaikan signifikan' },
+    { value: 'E', label: 'Tidak Layak (E)', subtext: 'Rusak berat / rekomendasi afkir' },
+];
+
+const STATUS_ASET_OPTIONS = [
+    { value: 'aktif', label: 'Aktif', subtext: 'Aset beroperasi di unit' },
+    { value: 'dalam_perbaikan', label: 'Dalam Perbaikan', subtext: 'Sedang ditangani teknisi' },
+    { value: 'tidak_digunakan', label: 'Tidak Digunakan', subtext: 'Standby / belum dimanfaatkan' },
+    { value: 'afkir', label: 'Afkir / Dihapuskan', subtext: 'Sudah tidak digunakan permanen' },
+];
+
+const KEPEMILIKAN_OPTIONS = [
+    { value: 'milik_sendiri', label: 'Milik Sendiri', subtext: 'Aset inventaris milik RS' },
+    { value: 'sewa', label: 'Sewa', subtext: 'Aset sewa pihak ketiga' },
+    { value: 'pinjam_pakai', label: 'Pinjam Pakai', subtext: 'Kerja sama pinjam pakai' },
+    { value: 'hibah', label: 'Hibah', subtext: 'Penerimaan hibah' },
+    { value: 'kso', label: 'KSO', subtext: 'Kerja Sama Operasional' },
+];
+
 export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData = null }) {
     const toast = useToast();
     const isEdit = Boolean(initialData);
@@ -110,6 +133,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     const fotoTerkiniInputRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiSuggestions, setAiSuggestions] = useState([]);
     const [showAiPopover, setShowAiPopover] = useState(false);
@@ -184,6 +208,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             }
             setFotoAwalFile(null);
             setFotoTerkiniFile(null);
+            setAiEnabled(false);
             setShowAiPopover(false);
             setAiSuggestions([]);
         }
@@ -201,7 +226,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             setKelompokList(kRes.data.results || kRes.data || []);
             setUnitList(uRes.data.results || uRes.data || []);
             setRuanganList(rRes.data.results || rRes.data || []);
-        } catch (err) {
+        } catch {
             toast.error('Gagal memuat master data aset.');
         }
     };
@@ -254,11 +279,11 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
         }));
     };
 
-    // Hit API Bantuan AI Rekomendasi Alkes & Jenis Aset
-    const handleTriggerAi = async () => {
+    // Hit API Bantuan AI Rekomendasi Alkes & Jenis Aset (HANYA saat diklik)
+    const fetchAiSuggestions = async () => {
         const query = (formData.deskripsi || '').trim();
         if (query.length < 2) {
-            toast.error('Ketik nama barang / deskripsi (minimal 2 karakter) terlebih dahulu untuk meminta bantuan AI.');
+            toast.info('Ketik nama barang / deskripsi (minimal 2 karakter), lalu klik tombol Bantuan AI / Cari AI.');
             return;
         }
 
@@ -273,10 +298,21 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                 setAiSuggestions(results);
                 setShowAiPopover(true);
             }
-        } catch (err) {
+        } catch {
             toast.error('Gagal mengambil rekomendasi AI.');
         } finally {
             setAiLoading(false);
+        }
+    };
+
+    const handleToggleAi = () => {
+        if (aiLoading) return;
+        const nextEnabled = !aiEnabled;
+        setAiEnabled(nextEnabled);
+        if (nextEnabled) {
+            fetchAiSuggestions();
+        } else {
+            setShowAiPopover(false);
         }
     };
 
@@ -370,20 +406,22 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             toast.error('Foto Kondisi Awal (Saat Registrasi) wajib diunggah saat pendaftaran aset baru.');
             return;
         }
+        if (!formData.rekomendasi_tindakan.trim()) {
+            toast.error('Rekomendasi Tindakan wajib diisi.');
+            return;
+        }
+        if (!formData.catatan.trim()) {
+            toast.error('Catatan Tambahan wajib diisi.');
+            return;
+        }
 
         setLoading(true);
         try {
             const data = new FormData();
-            // Field teks yang harus tetap dikirim meskipun string kosong ""
-            // agar bisa dikosongkan/direset oleh pengguna saat edit (misal rekomendasi tindakan)
+            // Kolom opsional yang boleh dikirim kosong agar dapat direset saat edit
             const textFieldsAllowedBlank = [
-                'rekomendasi_tindakan',
-                'catatan',
-                'spesifikasi',
                 'nomor_seri',
                 'nomor_registrasi',
-                'lokasi_teks',
-                'merk',
             ];
 
             Object.keys(formData).forEach(key => {
@@ -432,13 +470,13 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
         }
     };
 
-    if (!isOpen) return null;
+    // Hitung options SEBELUM early return agar hook order selalu konsisten
+    const filteredRuangan = useMemo(() => {
+        return formData.unit
+            ? ruanganList.filter(r => String(r.unit) === String(formData.unit))
+            : ruanganList;
+    }, [ruanganList, formData.unit]);
 
-    const filteredRuangan = formData.unit
-        ? ruanganList.filter(r => String(r.unit) === String(formData.unit))
-        : ruanganList;
-
-    // Options untuk SearchableSelect
     const jenisOptions = useMemo(() => {
         return jenisList.map(j => ({
             value: j.id,
@@ -462,6 +500,8 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             subtext: r.lantai_gedung ? `Lantai / Gedung: ${r.lantai_gedung}` : 'Ruangan Unit',
         }));
     }, [filteredRuangan]);
+
+    if (!isOpen) return null;
 
     // Temukan objek kelas aset terpilih untuk display read-only
     const selectedJenis = jenisList.find(j => String(j.id) === String(formData.jenis));
@@ -511,30 +551,83 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 2: Deskripsi, Merek, Spesifikasi */}
                         <div className="aset-form-grid-3">
                             <div className="aset-form-group" style={{ position: 'relative' }} ref={aiPopoverRef}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '6px' }}>
                                     <label className="aset-form-label" style={{ margin: 0 }}>Deskripsi / Nama Barang *</label>
-                                    <button
-                                        type="button"
-                                        onClick={handleTriggerAi}
-                                        disabled={aiLoading}
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '11px',
-                                            fontWeight: 600,
-                                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%)',
-                                            border: '1px solid #8b5cf6',
-                                            color: '#c084fc',
-                                            cursor: 'pointer',
-                                        }}
-                                        title="Hit API AI Rekomendasi Jenis & Kelompok Aset"
-                                    >
-                                        {aiLoading ? <Loader2 size={11} className="aset-spin" /> : <Sparkles size={11} />}
-                                        <span>Bantuan AI</span>
-                                    </button>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                        {aiEnabled && (
+                                            <button
+                                                type="button"
+                                                onClick={fetchAiSuggestions}
+                                                disabled={aiLoading}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '3px',
+                                                    padding: '2px 7px',
+                                                    borderRadius: '5px',
+                                                    fontSize: '10.5px',
+                                                    fontWeight: 600,
+                                                    background: 'rgba(99, 102, 241, 0.14)',
+                                                    border: '1px solid rgba(99, 102, 241, 0.45)',
+                                                    color: '#818cf8',
+                                                    cursor: aiLoading ? 'wait' : 'pointer',
+                                                }}
+                                                title="Cari saran AI berdasarkan deskripsi saat ini"
+                                            >
+                                                {aiLoading ? <Loader2 size={10} className="aset-spin" /> : <Sparkles size={10} />}
+                                                <span>Cari AI</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={aiEnabled}
+                                            onClick={handleToggleAi}
+                                            disabled={aiLoading}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                padding: '2px 8px 2px 7px',
+                                                borderRadius: '999px',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                background: aiEnabled
+                                                    ? 'rgba(139, 92, 246, 0.18)'
+                                                    : 'rgba(148, 163, 184, 0.12)',
+                                                border: aiEnabled
+                                                    ? '1px solid #8b5cf6'
+                                                    : '1px solid rgba(148, 163, 184, 0.35)',
+                                                color: aiEnabled ? '#c084fc' : '#94a3b8',
+                                                cursor: aiLoading ? 'wait' : 'pointer',
+                                                transition: 'all 0.15s ease',
+                                            }}
+                                            title={aiEnabled ? 'Matikan Bantuan AI' : 'Aktifkan & Hit API Bantuan AI'}
+                                        >
+                                            {aiLoading ? <Loader2 size={11} className="aset-spin" /> : <Sparkles size={11} />}
+                                            <span>Bantuan AI</span>
+                                            <span style={{
+                                                width: '24px',
+                                                height: '13px',
+                                                borderRadius: '999px',
+                                                background: aiEnabled ? '#8b5cf6' : '#475569',
+                                                position: 'relative',
+                                                display: 'inline-block',
+                                                transition: 'background 0.15s ease',
+                                            }}>
+                                                <span style={{
+                                                    position: 'absolute',
+                                                    top: '1.5px',
+                                                    left: aiEnabled ? '12.5px' : '1.5px',
+                                                    width: '10px',
+                                                    height: '10px',
+                                                    borderRadius: '50%',
+                                                    background: '#ffffff',
+                                                    transition: 'left 0.15s ease',
+                                                }} />
+                                            </span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div style={{ position: 'relative' }}>
                                     <input
@@ -688,47 +781,36 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         <div className="aset-form-grid-3">
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Tingkat Kelayakan *</label>
-                                <select
-                                    className="aset-form-select"
+                                <SearchableSelect
+                                    options={KELAYAKAN_OPTIONS}
                                     value={formData.status_kelayakan}
-                                    onChange={e => setFormData({ ...formData, status_kelayakan: e.target.value })}
+                                    onChange={val => setFormData({ ...formData, status_kelayakan: val })}
+                                    placeholder="-- Pilih Kelayakan --"
+                                    searchPlaceholder="Cari tingkat kelayakan..."
                                     required
-                                >
-                                    <option value="A">Sangat Layak (A)</option>
-                                    <option value="B">Layak (B)</option>
-                                    <option value="C">Cukup Layak (C)</option>
-                                    <option value="D">Kurang Layak (D)</option>
-                                    <option value="E">Tidak Layak (E)</option>
-                                </select>
+                                />
                             </div>
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Status Operasional *</label>
-                                <select
-                                    className="aset-form-select"
+                                <SearchableSelect
+                                    options={STATUS_ASET_OPTIONS}
                                     value={formData.status_aset}
-                                    onChange={e => setFormData({ ...formData, status_aset: e.target.value })}
+                                    onChange={val => setFormData({ ...formData, status_aset: val })}
+                                    placeholder="-- Pilih Status Operasional --"
+                                    searchPlaceholder="Cari status operasional..."
                                     required
-                                >
-                                    <option value="aktif">Aktif</option>
-                                    <option value="dalam_perbaikan">Dalam Perbaikan</option>
-                                    <option value="tidak_digunakan">Tidak Digunakan</option>
-                                    <option value="afkir">Afkir / Dihapuskan</option>
-                                </select>
+                                />
                             </div>
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Status Kepemilikan *</label>
-                                <select
-                                    className="aset-form-select"
+                                <SearchableSelect
+                                    options={KEPEMILIKAN_OPTIONS}
                                     value={formData.status_kepemilikan}
-                                    onChange={e => setFormData({ ...formData, status_kepemilikan: e.target.value })}
+                                    onChange={val => setFormData({ ...formData, status_kepemilikan: val })}
+                                    placeholder="-- Pilih Kepemilikan --"
+                                    searchPlaceholder="Cari status kepemilikan..."
                                     required
-                                >
-                                    <option value="milik_sendiri">Milik Sendiri</option>
-                                    <option value="sewa">Sewa</option>
-                                    <option value="pinjam_pakai">Pinjam Pakai</option>
-                                    <option value="hibah">Hibah</option>
-                                    <option value="kso">KSO</option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -899,23 +981,25 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 7: Catatan & Rekomendasi */}
                         <div className="aset-form-grid-2" style={{ marginTop: '12px' }}>
                             <div className="aset-form-group" style={{ margin: 0 }}>
-                                <label className="aset-form-label">Rekomendasi Tindakan</label>
+                                <label className="aset-form-label">Rekomendasi Tindakan *</label>
                                 <textarea
                                     className="aset-form-input"
                                     rows="2"
                                     placeholder="Contoh: Perlu pembersihan filter rutin tiap 3 bulan"
                                     value={formData.rekomendasi_tindakan}
                                     onChange={e => setFormData({ ...formData, rekomendasi_tindakan: e.target.value })}
+                                    required
                                 />
                             </div>
                             <div className="aset-form-group" style={{ margin: 0 }}>
-                                <label className="aset-form-label">Catatan Tambahan</label>
+                                <label className="aset-form-label">Catatan Tambahan *</label>
                                 <textarea
                                     className="aset-form-input"
                                     rows="2"
                                     placeholder="Catatan inventaris ruangan / keterangan garansi"
                                     value={formData.catatan}
                                     onChange={e => setFormData({ ...formData, catatan: e.target.value })}
+                                    required
                                 />
                             </div>
                         </div>

@@ -236,7 +236,7 @@ class AsetInputSerializer(serializers.ModelSerializer):
     def validate(self, data):
         errors = {}
 
-        # 1. Validasi Kolom Mandatori (Wajib semua KECUALI nomor_seri, nomor_registrasi, foto_terkini, kode_aset, rekomendasi_tindakan, catatan)
+        # 1. Validasi Kolom Mandatori (Wajib semua KECUALI nomor_seri, nomor_registrasi, foto_terkini, dan kode_aset auto-generate)
         required_fields = {
             'jenis': 'Jenis barang',
             'deskripsi': 'Deskripsi / nama barang',
@@ -249,6 +249,8 @@ class AsetInputSerializer(serializers.ModelSerializer):
             'status_aset': 'Status operasional',
             'status_kepemilikan': 'Status kepemilikan',
             'bulan_perolehan': 'Tanggal perolehan',
+            'rekomendasi_tindakan': 'Rekomendasi tindakan',
+            'catatan': 'Catatan tambahan',
         }
 
         # Jika sedang edit (instance ada), gunakan value eksisting jika tidak dikirim dalam data partial
@@ -497,7 +499,7 @@ class AsetPerbaikanSerializer(serializers.ModelSerializer):
             'log_list',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['nomor_tiket', 'created_at', 'updated_at']
+        read_only_fields = ['nomor_tiket', 'tanggal_laporan', 'created_at', 'updated_at']
 
     def get_pelapor_nama(self, obj):
         if obj.pelapor:
@@ -527,11 +529,13 @@ class AsetPerbaikanSerializer(serializers.ModelSerializer):
                 'teknisi': 'Untuk memindahkan status ke "Inspeksi / Penugasan Teknisi", wajib mengisi nama Teknisi.'
             })
 
-        # 2. Pindah ke dalam_proses: wajib mengisi hasil inspeksi/tindak lanjut dan estimasi biaya
+        # 2. Pindah ke dalam_proses: wajib mengisi hasil inspeksi, tindak lanjut, dan estimasi biaya
         if status_baru == 'dalam_proses':
             errors = {}
-            if not (hasil_inspeksi and hasil_inspeksi.strip()) and not (tindak_lanjut and tindak_lanjut.strip()):
-                errors['hasil_inspeksi'] = 'Wajib mengisi hasil inspeksi teknisi atau rencana tindak lanjut untuk memulai proses perbaikan.'
+            if not (hasil_inspeksi and hasil_inspeksi.strip()):
+                errors['hasil_inspeksi'] = 'Wajib mengisi hasil inspeksi teknisi untuk memulai proses perbaikan.'
+            if not (tindak_lanjut and tindak_lanjut.strip()):
+                errors['tindak_lanjut'] = 'Wajib mengisi rencana tindak lanjut servis untuk memulai proses perbaikan.'
             if estimasi_biaya is None or Decimal(str(estimasi_biaya)) < 0:
                 errors['estimasi_biaya'] = 'Wajib mencantumkan estimasi biaya perbaikan (bisa Rp 0 jika tanpa biaya/garansi).'
             if errors:
