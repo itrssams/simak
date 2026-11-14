@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Info, Calculator, History, FileText, QrCode, Image as ImageIcon, Wrench, Camera } from 'lucide-react';
+import { X, Info, Calculator, History, FileText, QrCode, Image as ImageIcon, Wrench, Camera, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import useBodyScrollLock from './useBodyScrollLock';
 import resolveMediaUrl from '../../utils/resolveMediaUrl';
@@ -16,16 +16,22 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
     const [jadwalView, setJadwalView] = useState('tahunan'); // 'tahunan' | 'bulanan'
     const [loading, setLoading] = useState(false);
     const [loadingJadwal, setLoadingJadwal] = useState(false);
+    const [expandedRepairIds, setExpandedRepairIds] = useState({});
 
     useEffect(() => {
         if (isOpen && asetId) {
             setTab('info');
+            setExpandedRepairIds({});
             loadDetail();
             if (isFinancialViewer) {
                 loadJadwal();
             }
         }
     }, [isOpen, asetId]);
+
+    const toggleRepairExpand = (pbkId) => {
+        setExpandedRepairIds(prev => ({ ...prev, [pbkId]: !prev[pbkId] }));
+    };
 
     useEffect(() => {
         if (bodyRef.current) {
@@ -472,51 +478,156 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                         </div>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                            {data.perbaikan_list.map((pbk) => (
-                                                <div key={pbk.id} className="aset-form-section" style={{
-                                                    padding: '12px 14px',
-                                                    marginBottom: 0
-                                                }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#818cf8', fontSize: '12px' }}>
-                                                                {pbk.nomor_tiket}
-                                                            </span>
-                                                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                                                {pbk.tanggal_laporan}
-                                                            </span>
+                                            {data.perbaikan_list.map((pbk) => {
+                                                const logs = pbk.log_list || [];
+                                                const isExpanded = Boolean(expandedRepairIds[pbk.id]);
+                                                const badgeColors = pbk.status_perbaikan === 'selesai'
+                                                    ? { bg: 'rgba(16,185,129,0.2)', fg: '#34d399' }
+                                                    : pbk.status_perbaikan === 'dalam_proses'
+                                                        ? { bg: 'rgba(245,158,11,0.2)', fg: '#fbbf24' }
+                                                        : pbk.status_perbaikan === 'inspeksi'
+                                                            ? { bg: 'rgba(56,189,248,0.2)', fg: '#38bdf8' }
+                                                            : { bg: 'rgba(239,68,68,0.18)', fg: '#f87171' };
+
+                                                return (
+                                                    <div key={pbk.id} className="aset-form-section" style={{
+                                                        padding: '12px 14px',
+                                                        marginBottom: 0
+                                                    }}>
+                                                        <div
+                                                            onClick={() => toggleRepairExpand(pbk.id)}
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRepairExpand(pbk.id); } }}
+                                                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                                                            title={isExpanded ? 'Klik untuk tutup log perbaikan' : 'Klik untuk lihat log perbaikan'}
+                                                        >
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                    <span style={{ display: 'inline-flex', alignItems: 'center', color: '#818cf8' }}>
+                                                                        {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                                                                    </span>
+                                                                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#818cf8', fontSize: '12px' }}>
+                                                                        {pbk.nomor_tiket}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                                                        {pbk.tanggal_laporan}
+                                                                    </span>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <span style={{
+                                                                        fontSize: '10.5px',
+                                                                        fontWeight: 600,
+                                                                        padding: '2px 7px',
+                                                                        borderRadius: '4px',
+                                                                        background: 'rgba(99, 102, 241, 0.14)',
+                                                                        color: '#818cf8',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px',
+                                                                    }}>
+                                                                        <Clock size={11} /> {logs.length} Log
+                                                                    </span>
+                                                                    <span style={{
+                                                                        fontSize: '10.5px',
+                                                                        fontWeight: 700,
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '4px',
+                                                                        background: badgeColors.bg,
+                                                                        color: badgeColors.fg,
+                                                                    }}>
+                                                                        {pbk.status_perbaikan_label}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontSize: '12px', marginBottom: '4px', paddingLeft: '23px' }}>
+                                                                <strong>Keluhan:</strong> {pbk.rincian_kerusakan}
+                                                            </div>
+                                                            {pbk.tindak_lanjut && (
+                                                                <div style={{ fontSize: '12px', color: '#38bdf8', marginBottom: '4px', paddingLeft: '23px' }}>
+                                                                    <strong>Tindak Lanjut:</strong> {pbk.tindak_lanjut}
+                                                                </div>
+                                                            )}
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '11px', color: '#94a3b8', marginTop: '4px', paddingLeft: '23px' }}>
+                                                                {pbk.teknisi && <span>Teknisi: <strong>{pbk.teknisi}</strong></span>}
+                                                                {isFinancialViewer && Number(pbk.estimasi_biaya) > 0 && (
+                                                                    <span>Est: <strong>{formatRp(pbk.estimasi_biaya)}</strong></span>
+                                                                )}
+                                                                {isFinancialViewer && Number(pbk.biaya_perbaikan) > 0 && (
+                                                                    <span style={{ color: '#34d399' }}>Biaya Riil: <strong>{formatRp(pbk.biaya_perbaikan)}</strong></span>
+                                                                )}
+                                                                <span style={{ color: '#818cf8', fontWeight: 600 }}>
+                                                                    {isExpanded ? 'Sembunyikan log ▲' : 'Lihat log perbaikan ▼'}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        <span style={{
-                                                            fontSize: '10.5px',
-                                                            fontWeight: 700,
-                                                            padding: '2px 8px',
-                                                            borderRadius: '4px',
-                                                            background: pbk.status_perbaikan === 'selesai' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
-                                                            color: pbk.status_perbaikan === 'selesai' ? '#34d399' : '#fbbf24'
-                                                        }}>
-                                                            {pbk.status_perbaikan_label}
-                                                        </span>
+
+                                                        {/* Accordion Expand: Kronologis Log Perbaikan */}
+                                                        {isExpanded && (
+                                                            <div style={{
+                                                                marginTop: '12px',
+                                                                paddingTop: '12px',
+                                                                paddingLeft: '8px',
+                                                                borderTop: '1px dashed rgba(148, 163, 184, 0.25)',
+                                                            }}>
+                                                                {logs.length === 0 ? (
+                                                                    <div style={{ fontSize: '11.5px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                                        Belum ada catatan log kronologis untuk tiket ini.
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="aset-timeline">
+                                                                        {logs.map((logItem, idx) => (
+                                                                            <div key={logItem.id || idx} className="aset-timeline-item">
+                                                                                <div className="aset-timeline-dot" style={{
+                                                                                    background: logItem.status_sesudah === 'selesai'
+                                                                                        ? '#10b981'
+                                                                                        : logItem.status_sesudah === 'dalam_proses'
+                                                                                            ? '#fbbf24'
+                                                                                            : logItem.status_sesudah === 'inspeksi'
+                                                                                                ? '#38bdf8'
+                                                                                                : '#94a3b8'
+                                                                                }} />
+                                                                                <div className="aset-timeline-header">
+                                                                                    <span style={{ fontWeight: 600 }}>
+                                                                                        {logItem.status_sesudah_label}
+                                                                                    </span>
+                                                                                    <span>{new Date(logItem.created_at).toLocaleString('id-ID')}</span>
+                                                                                </div>
+                                                                                <div className="aset-timeline-content" style={{ marginTop: '4px' }}>
+                                                                                    <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+                                                                                        {logItem.tindakan}
+                                                                                    </div>
+                                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px', fontSize: '11px', opacity: 0.85 }}>
+                                                                                        {logItem.teknisi && <span>Teknisi: <strong>{logItem.teknisi}</strong></span>}
+                                                                                        {isFinancialViewer && Number(logItem.estimasi_biaya) > 0 && (
+                                                                                            <span>Est: <strong>{formatRp(logItem.estimasi_biaya)}</strong></span>
+                                                                                        )}
+                                                                                        {isFinancialViewer && Number(logItem.biaya_riil) > 0 && (
+                                                                                            <span style={{ color: '#34d399' }}>Biaya Riil: <strong>{formatRp(logItem.biaya_riil)}</strong></span>
+                                                                                        )}
+                                                                                        <span>Dicatat oleh: <strong>{logItem.dibuat_oleh_nama}</strong></span>
+                                                                                    </div>
+                                                                                    {logItem.foto && (
+                                                                                        <div style={{ marginTop: '8px' }}>
+                                                                                            <img
+                                                                                                src={resolveMediaUrl(logItem.foto)}
+                                                                                                alt="Lampiran Log Perbaikan"
+                                                                                                style={{ maxHeight: '75px', borderRadius: '4px', border: '1px solid #334155', cursor: 'pointer' }}
+                                                                                                onClick={() => window.open(resolveMediaUrl(logItem.foto), '_blank')}
+                                                                                                title="Klik untuk membuka foto ukuran penuh"
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
-                                                        <strong>Keluhan:</strong> {pbk.rincian_kerusakan}
-                                                    </div>
-                                                    {pbk.tindak_lanjut && (
-                                                        <div style={{ fontSize: '12px', color: '#38bdf8', marginBottom: '4px' }}>
-                                                            <strong>Tindak Lanjut:</strong> {pbk.tindak_lanjut}
-                                                        </div>
-                                                    )}
-                                                    {pbk.tindak_lanjut_berikutnya && (
-                                                        <div style={{ fontSize: '11.5px', color: '#f472b6' }}>
-                                                            <strong>Tindak Lanjut Lanjutan:</strong> {pbk.tindak_lanjut_berikutnya}
-                                                        </div>
-                                                    )}
-                                                    {pbk.teknisi && (
-                                                        <div style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '4px' }}>
-                                                            Teknisi: {pbk.teknisi}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

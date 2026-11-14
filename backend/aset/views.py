@@ -111,6 +111,12 @@ class AsetViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = Aset.objects.select_related('jenis', 'jenis__kategori', 'unit', 'ruangan', 'kelompok').all()
+        if self.action == 'retrieve':
+            qs = qs.prefetch_related(
+                'riwayat_list__dilakukan_oleh',
+                'perbaikan_list__pelapor',
+                'perbaikan_list__log_list__dibuat_oleh',
+            )
 
         # Jika user BUKAN admin aset / financial viewer, batasi HANYA melihat unit miliknya
         if not is_financial_viewer(user):

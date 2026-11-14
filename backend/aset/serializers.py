@@ -178,7 +178,7 @@ class AsetDetailSerializer(serializers.ModelSerializer):
     perbaikan_list = serializers.SerializerMethodField()
 
     def get_perbaikan_list(self, obj):
-        return AsetPerbaikanSerializer(obj.perbaikan_list.all()[:10], many=True).data
+        return AsetPerbaikanSerializer(obj.perbaikan_list.all()[:10], many=True, context=self.context).data
 
     class Meta:
         model = Aset
