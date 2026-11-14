@@ -549,11 +549,11 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         </div>
 
                         {/* Baris 2: Deskripsi, Merek, Spesifikasi */}
-                        <div className="aset-form-grid-3">
+                        <div className="aset-form-grid-3" style={{ gridTemplateColumns: '1.25fr 1fr 1fr' }}>
                             <div className="aset-form-group" style={{ position: 'relative' }} ref={aiPopoverRef}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '6px' }}>
-                                    <label className="aset-form-label" style={{ margin: 0 }}>Deskripsi / Nama Barang *</label>
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <div className="aset-label-row">
+                                    <label className="aset-form-label" title="Deskripsi / Nama Barang">Deskripsi / Nama *</label>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                                         {aiEnabled && (
                                             <button
                                                 type="button"
@@ -563,10 +563,11 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                                     display: 'inline-flex',
                                                     alignItems: 'center',
                                                     gap: '3px',
-                                                    padding: '2px 7px',
-                                                    borderRadius: '5px',
-                                                    fontSize: '10.5px',
+                                                    padding: '1px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '10px',
                                                     fontWeight: 600,
+                                                    whiteSpace: 'nowrap',
                                                     background: 'rgba(99, 102, 241, 0.14)',
                                                     border: '1px solid rgba(99, 102, 241, 0.45)',
                                                     color: '#818cf8',
@@ -587,11 +588,13 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                             style={{
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
-                                                gap: '6px',
-                                                padding: '2px 8px 2px 7px',
+                                                gap: '5px',
+                                                padding: '1px 6px',
                                                 borderRadius: '999px',
-                                                fontSize: '11px',
+                                                fontSize: '10.5px',
                                                 fontWeight: 600,
+                                                whiteSpace: 'nowrap',
+                                                lineHeight: '16px',
                                                 background: aiEnabled
                                                     ? 'rgba(139, 92, 246, 0.18)'
                                                     : 'rgba(148, 163, 184, 0.12)',
@@ -604,23 +607,24 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                             }}
                                             title={aiEnabled ? 'Matikan Bantuan AI' : 'Aktifkan & Hit API Bantuan AI'}
                                         >
-                                            {aiLoading ? <Loader2 size={11} className="aset-spin" /> : <Sparkles size={11} />}
+                                            {aiLoading ? <Loader2 size={10} className="aset-spin" /> : <Sparkles size={10} />}
                                             <span>Bantuan AI</span>
                                             <span style={{
-                                                width: '24px',
-                                                height: '13px',
+                                                width: '20px',
+                                                height: '11px',
                                                 borderRadius: '999px',
                                                 background: aiEnabled ? '#8b5cf6' : '#475569',
                                                 position: 'relative',
                                                 display: 'inline-block',
+                                                flexShrink: 0,
                                                 transition: 'background 0.15s ease',
                                             }}>
                                                 <span style={{
                                                     position: 'absolute',
                                                     top: '1.5px',
-                                                    left: aiEnabled ? '12.5px' : '1.5px',
-                                                    width: '10px',
-                                                    height: '10px',
+                                                    left: aiEnabled ? '10.5px' : '1.5px',
+                                                    width: '8px',
+                                                    height: '8px',
                                                     borderRadius: '50%',
                                                     background: '#ffffff',
                                                     transition: 'left 0.15s ease',
@@ -837,7 +841,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                     <input
                                         type="text"
                                         className="aset-form-input"
-                                        style={{ height: '38px', fontWeight: 600, letterSpacing: '0.02em' }}
+                                        style={{ fontWeight: 600, letterSpacing: '0.02em' }}
                                         placeholder="Rp 0"
                                         value={hargaDisplay}
                                         onChange={handleHargaChange}

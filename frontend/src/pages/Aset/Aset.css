@@ -417,7 +417,7 @@ body:has(.aset-modal-overlay) {
 }
 
 .aset-modal-lg {
-    max-width: 860px;
+    max-width: 920px;
 }
 
 /* Modal Detail Aset: Konsisten, tetap tegak, ukuran stabil tanpa melompat saat ganti tab */
@@ -509,11 +509,30 @@ body:has(.aset-modal-overlay) {
 }
 
 .aset-form-label {
-    display: block;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 20px;
     font-size: 11.5px;
     font-weight: 500;
     color: #94a3b8;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+}
+
+.aset-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 20px;
+    margin-bottom: 5px;
+}
+
+.aset-label-row .aset-form-label {
+    min-height: 0;
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
 .aset-form-input,
@@ -528,6 +547,65 @@ body:has(.aset-modal-overlay) {
     font-size: 12px;
     outline: none;
     box-sizing: border-box;
+}
+
+.aset-modal-content input.aset-form-input,
+.aset-modal-content .aset-form-select {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 11px;
+}
+
+/* Samakan tinggi, radius & permukaan SearchableSelect serta DateField dengan input di dalam modal */
+.aset-modal-content .searchable-select-trigger,
+[data-theme="dark"] .aset-modal-content .searchable-select-trigger {
+    height: 38px;
+    min-height: 38px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 11px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #f1f5f9;
+}
+
+.aset-modal-content .searchable-select-trigger:hover:not(.disabled),
+[data-theme="dark"] .aset-modal-content .searchable-select-trigger:hover:not(.disabled) {
+    border-color: #475569;
+    background: #0f172a;
+}
+
+.aset-modal-content .searchable-select-trigger:focus,
+.aset-modal-content .searchable-select-trigger.open,
+[data-theme="dark"] .aset-modal-content .searchable-select-trigger:focus,
+[data-theme="dark"] .aset-modal-content .searchable-select-trigger.open {
+    border-color: #6366f1;
+    box-shadow: none;
+}
+
+.aset-modal-content .df-wrap {
+    width: 100%;
+    display: block;
+}
+
+.aset-modal-content .df-input,
+[data-theme="dark"] .aset-modal-content .df-input {
+    width: 100%;
+    height: 38px;
+    min-height: 38px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 11px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #f1f5f9;
+    box-sizing: border-box;
+}
+
+.aset-modal-content .df-input:focus,
+[data-theme="dark"] .aset-modal-content .df-input:focus {
+    border-color: #6366f1;
+    box-shadow: none;
 }
 
 .aset-form-input:focus,
@@ -1897,7 +1975,9 @@ body:has(.aset-modal-overlay) {
 
 [data-theme="light"] .aset-modal-content .aset-form-input,
 [data-theme="light"] .aset-modal-content .aset-form-select,
-[data-theme="light"] .aset-modal-content .aset-form-textarea {
+[data-theme="light"] .aset-modal-content .aset-form-textarea,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger,
+[data-theme="light"] .aset-modal-content .df-input {
     background: #ffffff !important;
     border-color: #cbd5e1 !important;
     color: #0f172a !important;
@@ -1905,7 +1985,10 @@ body:has(.aset-modal-overlay) {
 
 [data-theme="light"] .aset-modal-content .aset-form-input:focus,
 [data-theme="light"] .aset-modal-content .aset-form-select:focus,
-[data-theme="light"] .aset-modal-content .aset-form-textarea:focus {
+[data-theme="light"] .aset-modal-content .aset-form-textarea:focus,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger:focus,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger.open,
+[data-theme="light"] .aset-modal-content .df-input:focus {
     border-color: #4f46e5 !important;
     box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1) !important;
 }
