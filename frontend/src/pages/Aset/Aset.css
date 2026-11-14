@@ -2635,12 +2635,14 @@ body:has(.aset-modal-overlay) {
     color: var(--gdg-muted);
 }
 
-.aset-table-borderless {
+.aset-table-borderless,
+.aset-table-wrapper.aset-table-borderless,
+[data-theme="light"] .aset-table-wrapper.aset-table-borderless {
     overflow-x: auto;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .aset-table-stripe {
@@ -2786,12 +2788,22 @@ body:has(.aset-modal-overlay) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     cursor: pointer;
     white-space: nowrap;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.14);
     color: #e2e8f0;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.aset-btn-ghost.aset-btn-qr {
+    height: 32px;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
 }
 
 .aset-btn-ghost:hover {
@@ -3333,23 +3345,38 @@ body:has(.aset-modal-overlay) {
 
 /* ── Underline Tabs (Laporan & Modal Detail) ── */
 .aset-container .aset-tabs,
-.aset-modal-content .aset-tabs {
+.aset-modal-content .aset-tabs,
+[data-theme="light"] .aset-modal-detail .aset-tabs {
     display: flex;
     gap: 20px;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
     border-bottom: 1px solid var(--gdg-border) !important;
     margin-bottom: 0;
 }
 
+.aset-modal-detail .aset-tabs {
+    padding: 0 20px !important;
+    margin-top: 0 !important;
+}
+
 .aset-container .aset-tab-btn,
-.aset-modal-content .aset-tab-btn {
-    padding: 8px 2px 11px;
+.aset-modal-content .aset-tab-btn,
+[data-theme="light"] .aset-container .aset-tab-btn,
+[data-theme="light"] .aset-modal-content .aset-tab-btn {
+    padding: 10px 2px 11px !important;
     margin-bottom: -1px;
     background: transparent !important;
+    background-color: transparent !important;
     border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
     border-bottom: 2px solid transparent !important;
     color: var(--gdg-muted) !important;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 13px !important;
+    font-weight: 500 !important;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -3358,21 +3385,39 @@ body:has(.aset-modal-overlay) {
 }
 
 .aset-container .aset-tab-btn:hover,
-.aset-modal-content .aset-tab-btn:hover {
+.aset-modal-content .aset-tab-btn:hover,
+.aset-container .aset-tab-btn:focus,
+.aset-modal-content .aset-tab-btn:focus,
+.aset-container .aset-tab-btn:focus-visible,
+.aset-modal-content .aset-tab-btn:focus-visible,
+[data-theme="light"] .aset-container .aset-tab-btn:hover,
+[data-theme="light"] .aset-modal-content .aset-tab-btn:hover {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
     color: var(--gdg-text) !important;
 }
 
 .aset-container .aset-tab-btn.active,
 .aset-modal-content .aset-tab-btn.active {
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     color: #f8fafc !important;
     border-bottom: 2px solid #635bff !important;
-    font-weight: 600;
+    font-weight: 600 !important;
 }
 
 [data-theme="light"] .aset-container .aset-tab-btn.active,
 [data-theme="light"] .aset-modal-content .aset-tab-btn.active {
-    color: #635bff !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #1a1f36 !important;
     border-bottom: 2px solid #635bff !important;
+    font-weight: 600 !important;
 }
 
 /* ── Uniform Rectangular Pagination (height: 32px; radius: 6px) ── */
