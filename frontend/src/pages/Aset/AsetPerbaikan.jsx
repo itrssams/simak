@@ -1545,26 +1545,34 @@ export default function AsetPerbaikan() {
                                     </label>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
                                         {[
-                                            { code: 'A', label: 'Grade A', desc: '90-100%' },
-                                            { code: 'B', label: 'Grade B', desc: '70-89%' },
-                                            { code: 'C', label: 'Grade C', desc: '50-69%' },
-                                            { code: 'D', label: 'Grade D', desc: '30-49%' },
-                                            { code: 'E', label: 'Grade E', desc: '<30%' },
+                                            { code: 'A', label: 'Grade A', desc: '90-100%', color: '#10b981' },
+                                            { code: 'B', label: 'Grade B', desc: '70-89%', color: '#38bdf8' },
+                                            { code: 'C', label: 'Grade C', desc: '50-69%', color: '#eab308' },
+                                            { code: 'D', label: 'Grade D', desc: '30-49%', color: '#f97316' },
+                                            { code: 'E', label: 'Grade E', desc: '<30%', color: '#ef4444' },
                                         ].map(gr => {
                                             const isSel = finishForm.status_kelayakan_baru === gr.code;
                                             return (
                                                 <div
                                                     key={gr.code}
                                                     onClick={() => setFinishForm({ ...finishForm, status_kelayakan_baru: gr.code })}
-                                                    className={`aset-choice-card ${isSel ? 'selected' : ''}`}
-                                                    style={{ textAlign: 'center', padding: '8px 4px' }}
+                                                    className={`aset-choice-card ${isSel ? `selected grade-card-${gr.code}` : ''}`}
+                                                    style={{ textAlign: 'center', padding: '9px 4px', position: 'relative' }}
                                                     role="button"
+                                                    aria-pressed={isSel}
                                                     tabIndex={0}
                                                 >
+                                                    {isSel && (
+                                                        <CheckCircle2
+                                                            size={13}
+                                                            color={gr.color}
+                                                            style={{ position: 'absolute', top: '5px', right: '5px' }}
+                                                        />
+                                                    )}
                                                     <span className={`badge-kelayakan grade-${gr.code}`} style={{ fontSize: '11px', padding: '2px 6px', display: 'inline-block' }}>
                                                         {gr.label}
                                                     </span>
-                                                    <div style={{ fontSize: '9.5px', opacity: 0.75, marginTop: '4px' }}>{gr.desc}</div>
+                                                    <div style={{ fontSize: '9.5px', opacity: isSel ? 0.95 : 0.7, fontWeight: isSel ? 600 : 400, marginTop: '4px' }}>{gr.desc}</div>
                                                 </div>
                                             );
                                         })}

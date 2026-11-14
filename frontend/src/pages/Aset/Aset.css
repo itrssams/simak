@@ -703,8 +703,53 @@ body:has(.aset-modal-overlay) {
 }
 
 /* Specific Active/Selected States for Choice Cards (Immune to Global Dark/Light Theme Overrides) */
-.aset-choice-card.selected {
+.aset-choice-card.selected,
+[data-theme="dark"] .aset-choice-card.selected,
+[data-theme="light"] .aset-choice-card.selected {
     font-weight: 700;
+    border-color: #635bff !important;
+    background: rgba(99, 91, 255, 0.16) !important;
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, 0.35) !important;
+}
+
+.aset-choice-card.grade-card-A,
+[data-theme="dark"] .aset-choice-card.grade-card-A,
+[data-theme="light"] .aset-choice-card.grade-card-A {
+    border-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.18) !important;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4) !important;
+}
+
+.aset-choice-card.grade-card-B,
+[data-theme="dark"] .aset-choice-card.grade-card-B,
+[data-theme="light"] .aset-choice-card.grade-card-B {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.18) !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4) !important;
+}
+
+.aset-choice-card.grade-card-C,
+[data-theme="dark"] .aset-choice-card.grade-card-C,
+[data-theme="light"] .aset-choice-card.grade-card-C {
+    border-color: #eab308 !important;
+    background: rgba(234, 179, 8, 0.18) !important;
+    box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.4) !important;
+}
+
+.aset-choice-card.grade-card-D,
+[data-theme="dark"] .aset-choice-card.grade-card-D,
+[data-theme="light"] .aset-choice-card.grade-card-D {
+    border-color: #f97316 !important;
+    background: rgba(249, 115, 22, 0.18) !important;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.4) !important;
+}
+
+.aset-choice-card.grade-card-E,
+[data-theme="dark"] .aset-choice-card.grade-card-E,
+[data-theme="light"] .aset-choice-card.grade-card-E {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.2) !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4) !important;
 }
 
 .aset-choice-card.active-ringan,
