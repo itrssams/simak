@@ -82,27 +82,26 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                 <form onSubmit={handleSubmit}>
                     <div className="aset-modal-body">
                         {/* Info Aset Singkat */}
-                        <div className="aset-form-section" style={{
+                        <div className="aset-detail-section" style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            gap: '12px',
-                            padding: '12px 14px',
-                            marginBottom: '16px'
+                            gap: '12px'
                         }}>
                             <div>
-                                <div style={{ fontSize: '10.5px', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600 }}>
+                                <div className="aset-detail-label" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                     Unit Fisik Aset
                                 </div>
-                                <div style={{ fontSize: '14.5px', fontWeight: 700, marginTop: '2px' }}>
+                                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gdg-text)', marginTop: '2px' }}>
                                     {aset.deskripsi} {aset.merk ? `(${aset.merk})` : ''}
                                 </div>
-                                <div style={{ fontSize: '11.5px', color: '#6366f1', marginTop: '2px', fontFamily: 'monospace' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--gdg-muted)', marginTop: '2px', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
                                     {aset.kode_aset} &bull; {aset.unit_nama || '-'} {aset.lokasi_teks ? `• ${aset.lokasi_teks}` : ''}
                                 </div>
                             </div>
-                            <span className={`badge-kelayakan badge-kelayakan-${aset.status_kelayakan || 'A'}`} style={{ padding: '4px 10px', fontSize: '12px', fontWeight: 600 }}>
-                                Grade {aset.status_kelayakan || 'A'}
+                            <span className={`aset-status-text ${aset.status_kelayakan === 'A' ? 'emerald' : aset.status_kelayakan === 'B' ? 'sky' : aset.status_kelayakan === 'C' ? 'amber' : aset.status_kelayakan === 'D' ? 'orange' : 'rose'}`}>
+                                <span className="aset-status-dot" />
+                                <span>Grade {aset.status_kelayakan || 'A'}</span>
                             </span>
                         </div>
 
@@ -111,13 +110,13 @@ export default function LaporPerbaikanModal({ isOpen, onClose, onSuccess, aset }
                             <div className="aset-form-group" style={{ marginBottom: 0 }}>
                                 <label className="aset-form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <span>Tanggal Pelaporan</span>
-                                    <span style={{ fontSize: '10px', color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                                        Hari Ini (Terkunci)
+                                    <span style={{ fontSize: '11px', color: 'var(--gdg-muted)', fontWeight: 400 }}>
+                                        Terkunci otomatis
                                     </span>
                                 </label>
-                                <div className="aset-readonly-box" style={{ height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>
-                                    <span style={{ fontWeight: 600 }}>{tanggalLaporan}</span>
-                                    <Calendar size={14} color="#94a3b8" />
+                                <div className="aset-readonly-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px' }}>
+                                    <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{tanggalLaporan}</span>
+                                    <Calendar size={14} color="var(--gdg-muted)" />
                                 </div>
                             </div>
                             <div className="aset-form-group" style={{ marginBottom: 0 }}>

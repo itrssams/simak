@@ -3549,12 +3549,114 @@ body:has(.aset-modal-overlay) {
 .aset-modal-content input.aset-form-input,
 .aset-modal-content .aset-form-select,
 .aset-modal-content .searchable-select-trigger,
-.aset-modal-content .df-input {
+.aset-modal-content .df-input,
+[data-theme="dark"] .aset-modal-content input.aset-form-input,
+[data-theme="dark"] .aset-modal-content .aset-form-select,
+[data-theme="dark"] .aset-modal-content .searchable-select-trigger,
+[data-theme="dark"] .aset-modal-content .df-input {
     height: 36px !important;
     min-height: 36px !important;
     border-radius: 6px !important;
     font-size: 13px !important;
+    font-weight: 400 !important;
+    background-color: #181b23 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+}
+
+.aset-modal-content textarea.aset-form-textarea,
+[data-theme="dark"] .aset-modal-content textarea.aset-form-textarea {
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    background-color: #181b23 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+}
+
+.aset-modal-content .aset-form-input:focus,
+.aset-modal-content .aset-form-select:focus,
+.aset-modal-content .aset-form-textarea:focus,
+.aset-modal-content .searchable-select-trigger:focus,
+.aset-modal-content .searchable-select-trigger.open,
+.aset-modal-content .df-input:focus {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+[data-theme="light"] .aset-modal-content input.aset-form-input,
+[data-theme="light"] .aset-modal-content .aset-form-select,
+[data-theme="light"] .aset-modal-content textarea.aset-form-textarea,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger,
+[data-theme="light"] .aset-modal-content .df-input {
+    background-color: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #1a1f36 !important;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06) !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-form-input:focus,
+[data-theme="light"] .aset-modal-content .aset-form-select:focus,
+[data-theme="light"] .aset-modal-content .aset-form-textarea:focus,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger:focus,
+[data-theme="light"] .aset-modal-content .searchable-select-trigger.open,
+[data-theme="light"] .aset-modal-content .df-input:focus {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.14) !important;
+}
+
+.aset-modal-content .aset-readonly-box,
+[data-theme="dark"] .aset-modal-content .aset-readonly-box {
+    height: 36px !important;
+    background-color: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 6px !important;
+    color: #f8fafc !important;
+    font-size: 13px !important;
     font-weight: 500 !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-readonly-box {
+    background-color: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #1a1f36 !important;
+}
+
+.aset-modal-content .aset-file-dropzone,
+[data-theme="dark"] .aset-modal-content .aset-file-dropzone {
+    background: #181b23 !important;
+    border: 1px dashed rgba(255, 255, 255, 0.18) !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-file-dropzone {
+    background: #ffffff !important;
+    border: 1px dashed #cbd5e1 !important;
+}
+
+.aset-modal-content .aset-file-preview-card,
+[data-theme="dark"] .aset-modal-content .aset-file-preview-card {
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-file-preview-card {
+    background: #f8fafc !important;
+    border: 1px solid #e3e8ee !important;
+}
+
+.aset-modal-content .aset-choice-card {
+    background: transparent !important;
+    border: 1px solid var(--gdg-border-ctrl) !important;
+    border-radius: 6px !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-choice-card {
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
 }
 
 .aset-modal-content .aset-form-section {
@@ -3566,6 +3668,167 @@ body:has(.aset-modal-overlay) {
 [data-theme="light"] .aset-modal-content .aset-form-section {
     background: #f8fafc !important;
     border: 1px solid #e3e8ee !important;
+}
+
+/* ── Flat Stepper & Flat Sections inside Ticket / Repair Modals (No Box-in-a-Box) ── */
+.aset-modal-content .aset-steps {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 2px 0 18px 0 !important;
+    margin: 0 0 18px 0 !important;
+    border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+.aset-modal-content .aset-step-line {
+    height: 1.5px;
+    background: var(--gdg-border-ctrl) !important;
+}
+
+.aset-modal-content .aset-step-line.completed {
+    background: #10b981 !important;
+}
+
+.aset-modal-content .aset-step-dot {
+    background: #181b23 !important;
+    border: 1.5px solid var(--gdg-border-ctrl) !important;
+    color: var(--gdg-muted) !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .aset-modal-content .aset-step-dot {
+    background: #ffffff !important;
+    border-color: #d8dee4 !important;
+    color: #697386 !important;
+}
+
+.aset-modal-content .aset-step-dot.completed,
+.aset-modal-content .aset-step-dot.active-step-1,
+.aset-modal-content .aset-step-dot.active-step-2,
+.aset-modal-content .aset-step-dot.active-step-3 {
+    box-shadow: none !important;
+}
+
+.aset-modal-content .aset-detail-section {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 0 16px 0 !important;
+    margin: 0 0 16px 0 !important;
+    border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+.aset-modal-content .aset-detail-section:last-child {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+.aset-detail-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gdg-text) !important;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.01em;
+}
+
+.aset-detail-label {
+    font-size: 11.5px;
+    color: var(--gdg-muted);
+    margin-bottom: 3px;
+}
+
+.aset-detail-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gdg-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.aset-detail-prose {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--gdg-text);
+    white-space: pre-wrap;
+}
+
+.aset-detail-rtl {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--gdg-text);
+    border-left: 2px solid #ec4899;
+    padding: 2px 0 2px 10px;
+}
+
+/* Flat Timeline inside Detail Tiket */
+.aset-timeline.aset-timeline-flat {
+    padding-left: 18px;
+    border-left: 1px solid var(--gdg-border) !important;
+    margin-left: 5px;
+}
+
+.aset-timeline-flat .aset-timeline-item {
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--gdg-border);
+}
+
+.aset-timeline-flat .aset-timeline-item:last-child {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.aset-timeline-flat .aset-timeline-dot {
+    left: -23px;
+    top: 4px;
+    width: 9px;
+    height: 9px;
+    border: 2px solid #111318 !important;
+}
+
+[data-theme="light"] .aset-timeline-flat .aset-timeline-dot {
+    border-color: #ffffff !important;
+}
+
+.aset-timeline-flat .aset-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--gdg-muted);
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.aset-timeline-flat .aset-timeline-content {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    color: var(--gdg-text) !important;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.aset-timeline-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: var(--gdg-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.aset-modal-footer .btn-aset {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 16px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
 }
 
 .aset-modal-title-text {
