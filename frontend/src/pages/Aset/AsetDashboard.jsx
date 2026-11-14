@@ -91,50 +91,50 @@ export default function AsetDashboard() {
             <div className={`aset-stat-bar${!isFinancialViewer ? ' is-compact' : ''}`}>
                 <div className="aset-stat-cell">
                     <span className="aset-stat-label">Total Unit Aset</span>
-                    <strong className="aset-stat-val">
+                    <div className="aset-stat-val">
                         {totalAsetCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
-                    </strong>
+                    </div>
                 </div>
 
                 {isFinancialViewer && (
                     <div className="aset-stat-cell">
                         <span className="aset-stat-label">Total Nilai Perolehan</span>
-                        <strong className="aset-stat-val" title={formatRp(summary?.total_harga_perolehan)}>
+                        <div className="aset-stat-val" title={formatRp(summary?.total_harga_perolehan)}>
                             {formatRp(summary?.total_harga_perolehan)}
-                        </strong>
+                        </div>
                     </div>
                 )}
 
                 {isFinancialViewer && (
                     <div className="aset-stat-cell">
                         <span className="aset-stat-label">Akumulasi Penyusutan</span>
-                        <strong className="aset-stat-val" title={formatRp(summary?.total_akumulasi_penyusutan)}>
+                        <div className="aset-stat-val" title={formatRp(summary?.total_akumulasi_penyusutan)}>
                             {formatRp(summary?.total_akumulasi_penyusutan)}
-                        </strong>
+                        </div>
                     </div>
                 )}
 
                 {isFinancialViewer && (
                     <div className="aset-stat-cell">
                         <span className="aset-stat-label">Nilai Buku Bersih (NBV)</span>
-                        <strong className="aset-stat-val" title={formatRp(summary?.total_nilai_buku)}>
+                        <div className="aset-stat-val" title={formatRp(summary?.total_nilai_buku)}>
                             {formatRp(summary?.total_nilai_buku)}
-                        </strong>
+                        </div>
                     </div>
                 )}
 
                 <div className="aset-stat-cell">
                     <span className="aset-stat-label">Perlu Tindakan / Servis</span>
-                    <strong className={`aset-stat-val${perluTindakanCount > 0 ? ' is-danger' : ''}`}>
+                    <div className={`aset-stat-val${perluTindakanCount > 0 ? ' is-danger' : ''}`}>
                         {perluTindakanCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
-                    </strong>
+                    </div>
                 </div>
 
                 <div className="aset-stat-cell">
                     <span className="aset-stat-label">Data Belum Lengkap</span>
-                    <strong className={`aset-stat-val${belumLengkapCount > 0 ? ' is-warning' : ''}`}>
+                    <div className={`aset-stat-val${belumLengkapCount > 0 ? ' is-warning' : ''}`}>
                         {belumLengkapCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
-                    </strong>
+                    </div>
                 </div>
             </div>
 
@@ -227,7 +227,7 @@ export default function AsetDashboard() {
                                     <th>Unit &amp; Ruangan</th>
                                     <th>Status Kelayakan</th>
                                     <th>Rekomendasi Tindakan</th>
-                                    <th style={{ textAlign: 'right' }}>Aksi</th>
+                                    <th className="aset-col-aksi">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -251,7 +251,7 @@ export default function AsetDashboard() {
                                         <td className="aset-cell-muted">
                                             {item.rekomendasi_tindakan || '—'}
                                         </td>
-                                        <td style={{ textAlign: 'right' }}>
+                                        <td className="aset-col-aksi">
                                             <button
                                                 type="button"
                                                 className="aset-btn-ghost"
