@@ -2210,3 +2210,573 @@ body:has(.aset-modal-overlay) {
     color: #059669;
 }
 
+/* ==========================================================================
+   ASET DASHBOARD — STRIPE CLEAN ENTERPRISE (LIGHT & DARK MODE)
+   ========================================================================== */
+
+.aset-dash-root {
+    --gdg-border: rgba(255, 255, 255, 0.1);
+    --gdg-border-ctrl: rgba(255, 255, 255, 0.12);
+    --gdg-surface: #0b0f17;
+    --gdg-surface-2: #161b24;
+    --gdg-text: #f8fafc;
+    --gdg-muted: #94a3b8;
+    --gdg-faint: #64748b;
+    --gdg-accent: #635bff;
+    --gdg-hover: rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    color: var(--gdg-text);
+    font-size: 13px;
+}
+
+[data-theme="light"] .aset-dash-root {
+    --gdg-border: #e3e8ee;
+    --gdg-border-ctrl: #d8dee4;
+    --gdg-surface: #ffffff;
+    --gdg-surface-2: #f7fafc;
+    --gdg-text: #1a1f36;
+    --gdg-muted: #697386;
+    --gdg-faint: #8792a2;
+    --gdg-accent: #635bff;
+    --gdg-hover: #f7fafc;
+}
+
+/* ── Clean Page Header ── */
+.aset-dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.aset-dash-title-area h1 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--gdg-text);
+}
+
+.aset-dash-title-area p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--gdg-muted);
+    max-width: 720px;
+}
+
+.aset-dash-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.aset-btn-stripe {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.aset-btn-stripe.primary {
+    background: #635bff;
+    border: 1px solid #635bff;
+    color: #ffffff;
+}
+
+.aset-btn-stripe.primary:hover:not(:disabled) {
+    background: #544dc9;
+    border-color: #544dc9;
+}
+
+.aset-btn-stripe.secondary {
+    background: #181b23;
+    border: 1px solid var(--gdg-border-ctrl);
+    color: #e2e8f0;
+}
+
+.aset-btn-stripe.secondary:hover:not(:disabled) {
+    background: #1e232e;
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+[data-theme="light"] .aset-btn-stripe.secondary {
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #1a1f36;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
+}
+
+[data-theme="light"] .aset-btn-stripe.secondary:hover:not(:disabled) {
+    background: #f7fafc;
+    border-color: #cbd5e1;
+    color: #1a1f36;
+}
+
+/* ── Flat Horizontal KPI Stat-Bar (6 Metrik / 3 Metrik) ── */
+.aset-stat-bar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    border-top: 1px solid var(--gdg-border);
+    border-bottom: 1px solid var(--gdg-border);
+    background: transparent;
+}
+
+.aset-stat-bar.is-compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.aset-stat-cell {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.aset-stat-cell:first-child {
+    padding-left: 0;
+}
+
+.aset-stat-cell:last-child {
+    padding-right: 0;
+}
+
+.aset-stat-cell + .aset-stat-cell {
+    border-left: 1px solid var(--gdg-border);
+}
+
+.aset-dash-root .aset-stat-bar .aset-stat-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--gdg-muted) !important;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aset-stat-val {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gdg-text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aset-stat-val.is-danger {
+    color: #f87171;
+}
+
+[data-theme="light"] .aset-stat-val.is-danger {
+    color: #dc2626;
+}
+
+.aset-stat-val.is-warning {
+    color: #fbbf24;
+}
+
+[data-theme="light"] .aset-stat-val.is-warning {
+    color: #d97706;
+}
+
+.aset-stat-unit {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gdg-muted);
+}
+
+@media (max-width: 1200px) {
+    .aset-stat-bar:not(.is-compact) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .aset-stat-bar:not(.is-compact) .aset-stat-cell:nth-child(3n + 1) {
+        padding-left: 0;
+        border-left: none;
+    }
+    .aset-stat-bar:not(.is-compact) .aset-stat-cell:nth-child(3n) {
+        padding-right: 0;
+    }
+    .aset-stat-bar:not(.is-compact) .aset-stat-cell:nth-child(n + 4) {
+        border-top: 1px solid var(--gdg-border);
+    }
+}
+
+@media (max-width: 720px) {
+    .aset-stat-bar,
+    .aset-stat-bar.is-compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .aset-stat-bar .aset-stat-cell:nth-child(odd) {
+        padding-left: 0;
+        border-left: none;
+    }
+    .aset-stat-bar .aset-stat-cell:nth-child(even) {
+        padding-right: 0;
+        border-left: 1px solid var(--gdg-border);
+    }
+    .aset-stat-bar .aset-stat-cell:nth-child(n + 3) {
+        border-top: 1px solid var(--gdg-border);
+    }
+}
+
+@media (max-width: 480px) {
+    .aset-stat-bar,
+    .aset-stat-bar.is-compact {
+        grid-template-columns: 1fr;
+    }
+    .aset-stat-bar .aset-stat-cell {
+        padding: 12px 0;
+        border-left: none !important;
+    }
+    .aset-stat-bar .aset-stat-cell + .aset-stat-cell {
+        border-top: 1px solid var(--gdg-border);
+    }
+}
+
+/* ── Flat 2-Column Split Grid (Kelayakan & Sebaran Unit) ── */
+.aset-split-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+}
+
+.aset-split-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0 28px 0 0;
+}
+
+.aset-split-col + .aset-split-col {
+    padding: 0 0 0 28px;
+    border-left: 1px solid var(--gdg-border);
+}
+
+.aset-split-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gdg-border);
+}
+
+.aset-split-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gdg-text);
+    letter-spacing: -0.015em;
+}
+
+.aset-split-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gdg-muted);
+    white-space: nowrap;
+}
+
+.aset-split-link {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #818cf8;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+
+.aset-split-link:hover {
+    color: #a5b4fc;
+}
+
+[data-theme="light"] .aset-split-link {
+    color: #635bff;
+}
+
+[data-theme="light"] .aset-split-link:hover {
+    color: #544dc9;
+}
+
+.aset-flat-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.aset-flat-list.is-scrollable {
+    max-height: 265px;
+    overflow-y: auto;
+}
+
+.aset-flat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 4px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gdg-border);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s ease;
+}
+
+.aset-flat-row:hover {
+    background: var(--gdg-hover);
+}
+
+.aset-flat-row-left {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.aset-flat-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gdg-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aset-flat-row-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.aset-flat-pct {
+    font-size: 12px;
+    color: var(--gdg-muted);
+    min-width: 46px;
+    text-align: right;
+}
+
+.aset-flat-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gdg-text);
+    font-variant-numeric: tabular-nums;
+    min-width: 58px;
+    text-align: right;
+}
+
+@media (max-width: 860px) {
+    .aset-split-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+    .aset-split-col,
+    .aset-split-col + .aset-split-col {
+        padding: 0;
+        border-left: none;
+    }
+    .aset-split-col + .aset-split-col {
+        padding-top: 20px;
+        border-top: 1px solid var(--gdg-border);
+    }
+}
+
+/* ── Borderless Urgent Assets Section & Table ── */
+.aset-dash-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 4px;
+}
+
+.aset-dash-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.aset-dash-section-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gdg-text);
+    letter-spacing: -0.015em;
+}
+
+.aset-dash-section-sub {
+    font-size: 12.5px;
+    color: var(--gdg-muted);
+}
+
+.aset-table-borderless {
+    overflow-x: auto;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.aset-table-stripe {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+    background: transparent;
+}
+
+.aset-table-stripe thead th {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gdg-border);
+    padding: 10px 14px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gdg-muted);
+    white-space: nowrap;
+}
+
+.aset-table-stripe tbody td {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--gdg-border);
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--gdg-text);
+    vertical-align: middle;
+}
+
+.aset-table-stripe thead th:first-child,
+.aset-table-stripe tbody td:first-child {
+    padding-left: 0;
+}
+
+.aset-table-stripe thead th:last-child,
+.aset-table-stripe tbody td:last-child {
+    padding-right: 0;
+}
+
+.aset-table-stripe tbody tr:hover td {
+    background: var(--gdg-hover);
+}
+
+.aset-table-stripe tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.aset-code-cell {
+    font-weight: 600;
+    color: var(--gdg-text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.aset-cell-title {
+    font-weight: 600;
+    color: var(--gdg-text);
+}
+
+.aset-cell-sub {
+    font-size: 11.5px;
+    color: var(--gdg-muted);
+    margin-top: 2px;
+}
+
+.aset-cell-muted {
+    font-size: 12.5px;
+    color: var(--gdg-muted);
+}
+
+/* ── 6px Status Dot + Text ── */
+.aset-status-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--gdg-text);
+    white-space: nowrap;
+}
+
+.aset-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.aset-status-text.rose .aset-status-dot {
+    background: #ef4444;
+}
+
+.aset-status-text.amber .aset-status-dot {
+    background: #f97316;
+}
+
+/* ── Compact Ghost/Secondary Row Action Button ── */
+.aset-btn-ghost {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e2e8f0;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.aset-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.24);
+    color: #ffffff;
+}
+
+[data-theme="light"] .aset-btn-ghost {
+    background: #ffffff;
+    border: 1px solid #d8dee4;
+    color: #1a1f36;
+    box-shadow: 0 1px 2px rgba(26, 31, 54, 0.05);
+}
+
+[data-theme="light"] .aset-btn-ghost:hover {
+    background: #f7fafc;
+    border-color: #cbd5e1;
+    color: #1a1f36;
+}
+
+

@@ -1,19 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-    Boxes,
-    Package,
-    TrendingDown,
-    DollarSign,
-    AlertTriangle,
-    FileQuestion,
-    Plus,
-    List,
-    Building2,
-    CheckCircle2,
-    AlertCircle,
-    ArrowRight
-} from 'lucide-react';
+import { Plus, List } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import './Aset.css';
@@ -65,134 +52,101 @@ export default function AsetDashboard() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
     };
 
+    const formatKelayakanText = (label) => {
+        if (!label) return '-';
+        return String(label).replace(/\s+-\s+/, ' • ');
+    };
+
+    const totalAsetCount = Number(summary?.total_aset || 0);
+    const perluTindakanCount = Number(summary?.perlu_tindakan_count || 0);
+    const belumLengkapCount = Number(summary?.belum_lengkap_count || 0);
+
     return (
-        <div className="aset-container">
-            {/* Header */}
-            <div className="aset-header">
-                <div className="aset-title-area">
-                    <h1>
-                        <Boxes size={22} color="#818cf8" />
-                        Dashboard Manajemen Aset
-                    </h1>
-                    <p className="aset-subtitle">
+        <div className="aset-dash-root" aria-busy={loading}>
+            {/* ── Clean Enterprise Page Header ── */}
+            <div className="aset-dash-header">
+                <div className="aset-dash-title-area">
+                    <h1>Dashboard Manajemen Aset</h1>
+                    <p>
                         Monitoring inventaris fisik, kondisi kelayakan unit, dan kalkulasi penyusutan PMK 72/2023.
                     </p>
                 </div>
-                <div className="aset-actions">
-                    <Link to="/aset/daftar" className="btn-aset btn-aset-secondary">
-                        <List size={14} /> Buka Daftar Aset
+                <div className="aset-dash-actions">
+                    <Link to="/aset/daftar" className="aset-btn-stripe secondary">
+                        <List size={14} strokeWidth={1.75} /> Buka Daftar Aset
                     </Link>
                     {isAsetAdmin && (
-                        <button className="btn-aset btn-aset-primary" onClick={() => setIsFormOpen(true)}>
-                            <Plus size={14} /> Tambah Aset
+                        <button
+                            type="button"
+                            className="aset-btn-stripe primary"
+                            onClick={() => setIsFormOpen(true)}
+                        >
+                            <Plus size={14} strokeWidth={1.75} /> Tambah Aset
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Stat Cards Grid */}
-            <div className="aset-stats-grid">
-                {/* 1. Total Aset */}
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
-                        <Package size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Total Unit Aset</div>
-                        <div className="aset-stat-value">{summary?.total_aset || 0} Unit</div>
-                        <div className="aset-stat-subtext">Inventaris aktif terdaftar</div>
-                    </div>
+            {/* ── Flat Horizontal KPI Stat-Bar (6 Metrik) ── */}
+            <div className={`aset-stat-bar${!isFinancialViewer ? ' is-compact' : ''}`}>
+                <div className="aset-stat-cell">
+                    <span className="aset-stat-label">Total Unit Aset</span>
+                    <strong className="aset-stat-val">
+                        {totalAsetCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
+                    </strong>
                 </div>
 
-                {/* 2. Total Nilai Perolehan (Finansial) */}
                 {isFinancialViewer && (
-                    <div className="aset-stat-card">
-                        <div className="aset-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
-                            <DollarSign size={20} />
-                        </div>
-                        <div className="aset-stat-info">
-                            <div className="aset-stat-label">Total Nilai Perolehan</div>
-                            <div className="aset-stat-value" style={{ fontSize: '15px' }}>
-                                {formatRp(summary?.total_harga_perolehan)}
-                            </div>
-                            <div className="aset-stat-subtext">Akumulasi harga beli aset</div>
-                        </div>
+                    <div className="aset-stat-cell">
+                        <span className="aset-stat-label">Total Nilai Perolehan</span>
+                        <strong className="aset-stat-val" title={formatRp(summary?.total_harga_perolehan)}>
+                            {formatRp(summary?.total_harga_perolehan)}
+                        </strong>
                     </div>
                 )}
 
-                {/* 3. Akumulasi Penyusutan (Finansial) */}
                 {isFinancialViewer && (
-                    <div className="aset-stat-card">
-                        <div className="aset-stat-icon" style={{ background: 'rgba(249, 115, 22, 0.15)', color: '#fb923c' }}>
-                            <TrendingDown size={20} />
-                        </div>
-                        <div className="aset-stat-info">
-                            <div className="aset-stat-label">Akumulasi Penyusutan</div>
-                            <div className="aset-stat-value" style={{ fontSize: '15px' }}>
-                                {formatRp(summary?.total_akumulasi_penyusutan)}
-                            </div>
-                            <div className="aset-stat-subtext">Garis lurus s/d bulan ini</div>
-                        </div>
+                    <div className="aset-stat-cell">
+                        <span className="aset-stat-label">Akumulasi Penyusutan</span>
+                        <strong className="aset-stat-val" title={formatRp(summary?.total_akumulasi_penyusutan)}>
+                            {formatRp(summary?.total_akumulasi_penyusutan)}
+                        </strong>
                     </div>
                 )}
 
-                {/* 4. Nilai Buku Bersih (Finansial) */}
                 {isFinancialViewer && (
-                    <div className="aset-stat-card">
-                        <div className="aset-stat-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                            <Boxes size={20} />
-                        </div>
-                        <div className="aset-stat-info">
-                            <div className="aset-stat-label">Nilai Buku Bersih (NBV)</div>
-                            <div className="aset-stat-value" style={{ fontSize: '15px', color: '#38bdf8' }}>
-                                {formatRp(summary?.total_nilai_buku)}
-                            </div>
-                            <div className="aset-stat-subtext">Sisa nilai buku aktif</div>
-                        </div>
+                    <div className="aset-stat-cell">
+                        <span className="aset-stat-label">Nilai Buku Bersih (NBV)</span>
+                        <strong className="aset-stat-val" title={formatRp(summary?.total_nilai_buku)}>
+                            {formatRp(summary?.total_nilai_buku)}
+                        </strong>
                     </div>
                 )}
 
-                {/* 5. Perlu Tindakan (Kondisi D & E) */}
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}>
-                        <AlertTriangle size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Perlu Tindakan / Servis</div>
-                        <div className="aset-stat-value" style={{ color: '#f87171' }}>
-                            {summary?.perlu_tindakan_count || 0} Unit
-                        </div>
-                        <div className="aset-stat-subtext">Kondisi Kurang / Tidak Layak</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <span className="aset-stat-label">Perlu Tindakan / Servis</span>
+                    <strong className={`aset-stat-val${perluTindakanCount > 0 ? ' is-danger' : ''}`}>
+                        {perluTindakanCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
+                    </strong>
                 </div>
 
-                {/* 6. Data Belum Lengkap */}
-                <div className="aset-stat-card">
-                    <div className="aset-stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}>
-                        <FileQuestion size={20} />
-                    </div>
-                    <div className="aset-stat-info">
-                        <div className="aset-stat-label">Data Belum Lengkap</div>
-                        <div className="aset-stat-value" style={{ color: '#fbbf24' }}>
-                            {summary?.belum_lengkap_count || 0} Unit
-                        </div>
-                        <div className="aset-stat-subtext">Belum ada harga / tgl beli</div>
-                    </div>
+                <div className="aset-stat-cell">
+                    <span className="aset-stat-label">Data Belum Lengkap</span>
+                    <strong className={`aset-stat-val${belumLengkapCount > 0 ? ' is-warning' : ''}`}>
+                        {belumLengkapCount.toLocaleString('id-ID')} <span className="aset-stat-unit">Unit</span>
+                    </strong>
                 </div>
             </div>
 
-            {/* Grid 2 Kolom: Distribusi Kelayakan & Distribusi Unit */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px', marginBottom: '18px' }}>
-                {/* Kartu Status Kelayakan */}
-                <div className="aset-dashboard-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h3 className="aset-dashboard-card-title">
-                            Status Kelayakan Fisik
-                        </h3>
-                        <span className="aset-dashboard-card-sub">Standar Grade A - E</span>
+            {/* ── Flat 2-Column Split: Status Kelayakan Fisik & Sebaran Aset per Unit ── */}
+            <div className="aset-split-grid">
+                <div className="aset-split-col">
+                    <div className="aset-split-head">
+                        <h2>Status Kelayakan Fisik</h2>
+                        <span className="aset-split-sub">Standar Grade A - E</span>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="aset-flat-list">
                         {[
                             { grade: 'A', label: 'Sangat Layak (A)', color: '#10b981', count: summary?.kelayakan_counts?.A || 0 },
                             { grade: 'B', label: 'Layak (B)', color: '#38bdf8', count: summary?.kelayakan_counts?.B || 0 },
@@ -200,110 +154,107 @@ export default function AsetDashboard() {
                             { grade: 'D', label: 'Kurang Layak (D)', color: '#f97316', count: summary?.kelayakan_counts?.D || 0 },
                             { grade: 'E', label: 'Tidak Layak (E)', color: '#ef4444', count: summary?.kelayakan_counts?.E || 0 },
                         ].map(item => {
-                            const pct = summary?.total_aset ? ((item.count / summary.total_aset) * 100).toFixed(1) : 0;
+                            const pct = summary?.total_aset ? ((item.count / summary.total_aset) * 100).toFixed(1) : '0.0';
                             return (
-                                <div
+                                <button
+                                    type="button"
                                     key={item.grade}
-                                    className="aset-kelayakan-item"
+                                    className="aset-flat-row"
                                     onClick={() => navigate(`/aset/daftar?status_kelayakan=${item.grade}`)}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }} />
-                                        <span className="aset-kelayakan-label">{item.label}</span>
+                                    <div className="aset-flat-row-left">
+                                        <span className="aset-status-dot" style={{ background: item.color }} />
+                                        <span className="aset-flat-label">{item.label}</span>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className="aset-dashboard-card-sub">{pct}%</span>
-                                        <span style={{ fontWeight: 700, fontSize: '12.5px', color: item.color }}>
-                                            {item.count} unit
+                                    <div className="aset-flat-row-right">
+                                        <span className="aset-flat-pct">{pct}%</span>
+                                        <span className="aset-flat-count">
+                                            {Number(item.count || 0).toLocaleString('id-ID')} unit
                                         </span>
                                     </div>
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* Kartu Sebaran per Unit */}
-                <div className="aset-dashboard-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h3 className="aset-dashboard-card-title">
-                            Sebaran Aset per Unit
-                        </h3>
-                        <Link to="/aset/daftar" className="aset-link-all">
+                <div className="aset-split-col">
+                    <div className="aset-split-head">
+                        <h2>Sebaran Aset per Unit</h2>
+                        <Link to="/aset/daftar" className="aset-split-link">
                             Semua Unit &rarr;
                         </Link>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '230px', overflowY: 'auto' }}>
+                    <div className="aset-flat-list is-scrollable">
                         {summary?.unit_counts?.slice(0, 7).map(u => (
-                            <div
+                            <button
+                                type="button"
                                 key={u.unit__id}
-                                className="aset-sebaran-item"
+                                className="aset-flat-row"
                                 onClick={() => navigate(`/aset/daftar?unit_id=${u.unit__id}`)}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Building2 size={13} color="#94a3b8" />
-                                    <span className="aset-sebaran-label">{u.unit__nama}</span>
+                                <div className="aset-flat-row-left">
+                                    <span className="aset-flat-label">{u.unit__nama}</span>
                                 </div>
-                                <span className="badge-unit" style={{ fontWeight: 700 }}>
-                                    {u.total} unit
-                                </span>
-                            </div>
+                                <div className="aset-flat-row-right">
+                                    <span className="aset-flat-count">
+                                        {Number(u.total || 0).toLocaleString('id-ID')} unit
+                                    </span>
+                                </div>
+                            </button>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Tabel Aset Memerlukan Perhatian */}
+            {/* ── Borderless Urgent Assets Table (Grade D & E) ── */}
             {urgentAssets.length > 0 && (
-                <div className="aset-dashboard-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <h3 className="aset-dashboard-card-title danger" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <AlertCircle size={16} /> Aset Memerlukan Perhatian (Grade D & E)
-                        </h3>
-                        <span className="aset-dashboard-card-sub">
+                <section className="aset-dash-section">
+                    <div className="aset-dash-section-head">
+                        <h2>Aset Memerlukan Perhatian (Grade D &amp; E)</h2>
+                        <span className="aset-dash-section-sub">
                             {urgentAssets.length} unit aset dilaporkan sering rusak / tidak layak
                         </span>
                     </div>
 
-                    <div className="aset-table-wrapper">
-                        <table className="aset-table">
+                    <div className="aset-table-borderless">
+                        <table className="aset-table-stripe">
                             <thead>
                                 <tr>
                                     <th>Kode Aset</th>
                                     <th>Deskripsi / Merk</th>
-                                    <th>Unit & Ruangan</th>
+                                    <th>Unit &amp; Ruangan</th>
                                     <th>Status Kelayakan</th>
                                     <th>Rekomendasi Tindakan</th>
-                                    <th>Aksi</th>
+                                    <th style={{ textAlign: 'right' }}>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {urgentAssets.map(item => (
                                     <tr key={item.id}>
-                                        <td style={{ fontWeight: 700, color: '#818cf8' }}>{item.kode_aset}</td>
+                                        <td className="aset-code-cell">{item.kode_aset}</td>
                                         <td>
-                                            <div className="aset-table-item-title">{item.deskripsi}</div>
-                                            <div className="aset-table-item-sub">{item.merk} {item.spesifikasi}</div>
+                                            <div className="aset-cell-title">{item.deskripsi}</div>
+                                            <div className="aset-cell-sub">{item.merk} {item.spesifikasi}</div>
                                         </td>
                                         <td>
-                                            <span className="badge-unit">{item.unit_nama}</span>
-                                            <div className="aset-table-item-sub" style={{ marginTop: '2px' }}>
-                                                {item.lokasi_teks || item.ruangan_nama}
-                                            </div>
+                                            <div className="aset-cell-title">{item.unit_nama}</div>
+                                            <div className="aset-cell-sub">{item.lokasi_teks || item.ruangan_nama || '—'}</div>
                                         </td>
                                         <td>
-                                            <span className={`badge-kelayakan badge-kelayakan-${item.status_kelayakan}`}>
-                                                {item.status_kelayakan_label}
+                                            <span className={`aset-status-text ${item.status_kelayakan === 'E' ? 'rose' : 'amber'}`}>
+                                                <span className="aset-status-dot" />
+                                                {formatKelayakanText(item.status_kelayakan_label)}
                                             </span>
                                         </td>
-                                        <td style={{ color: '#d97706', fontSize: '11.5px', fontWeight: 600 }}>
-                                            {item.rekomendasi_tindakan || '-'}
+                                        <td className="aset-cell-muted">
+                                            {item.rekomendasi_tindakan || '—'}
                                         </td>
-                                        <td>
+                                        <td style={{ textAlign: 'right' }}>
                                             <button
-                                                className="btn-aset btn-aset-secondary"
-                                                style={{ padding: '3px 8px', fontSize: '11px' }}
+                                                type="button"
+                                                className="aset-btn-ghost"
                                                 onClick={() => setSelectedAsetForUpdate(item)}
                                             >
                                                 Update Kondisi
@@ -314,7 +265,7 @@ export default function AsetDashboard() {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </section>
             )}
 
             {/* Modal Tambah Aset */}
@@ -334,4 +285,5 @@ export default function AsetDashboard() {
         </div>
     );
 }
+
 
