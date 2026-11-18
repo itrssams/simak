@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
     Send,
     Plus,
@@ -15,7 +16,8 @@ import {
     DownloadCloud,
     AlertCircle,
     PackageCheck,
-    ChevronDown
+    ChevronDown,
+    Clock,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -24,6 +26,9 @@ import { useAuth } from '../../context/AuthContext';
 import DateField from '../../components/DateField';
 
 export default function GudangPengeluaran({ heroActionsTarget = null }) {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialStatusParam = searchParams.get('status') || '';
+    const initialPermintaanId = searchParams.get('permintaan') || '';
     const toast = useToast();
     const { user } = useAuth();
     const isSuper = Boolean(user?.is_superuser || user?.username === 'super' || user?.role === 'superadmin' || user?.role === 'direktur');
@@ -43,7 +48,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState(initialStatusParam);
 
     // Masters
     const [ruangList, setRuangList] = useState([]);
@@ -67,11 +72,22 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const [serahItems, setSerahItems] = useState([]);
     const [serahSubmitting, setSerahSubmitting] = useState(false);
 
-    // Modal: Verifikasi & Persetujuan Permintaan (Tentukan Qty Disetujui)
+    // Modal: Verifikasi & Persetujuan Permintaan (Tentukan Qty Disetujui / Pengadaan / Tolak)
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [approveTargetReq, setApproveTargetReq] = useState(null);
     const [approveItems, setApproveItems] = useState([]);
     const [approveSubmitting, setApproveSubmitting] = useState(false);
+
+    // Modal: Verifikasi Susulan (ACC Mas Febri setelah stok SEDANG_DIAJUKAN masuk)
+    const [showFollowupModal, setShowFollowupModal] = useState(false);
+    const [followupTargetReq, setFollowupTargetReq] = useState(null);
+    const [followupItems, setFollowupItems] = useState([]);
+    const [followupSubmitting, setFollowupSubmitting] = useState(false);
+
+    // Modal: Tutup / Batalkan Pengadaan Item
+    const [closeItemTarget, setCloseItemTarget] = useState(null);
+    const [closeItemAlasan, setCloseItemAlasan] = useState('');
+    const [closeItemSubmitting, setCloseItemSubmitting] = useState(false);
 
     // Modal: Tolak Permintaan (Kasi)
     const [showRejectModal, setShowRejectModal] = useState(false);
@@ -147,6 +163,27 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
     }, []);
 
     useEffect(() => {
+        if (initialPermintaanId) {
+            api.get(`/gudang/permintaan/${initialPermintaanId}/`)
+                .then((res) => {
+                    const req = res.data;
+                    if (!req) return;
+                    if (req.can_followup_approve) {
+                        handleOpenFollowupModal(req);
+                    } else {
+                        setSelectedReq(req);
+                        setShowDetailReqModal(true);
+                    }
+                    const nextParams = new URLSearchParams(searchParams);
+                    nextParams.delete('permintaan');
+                    setSearchParams(nextParams, { replace: true });
+                })
+                .catch(() => {});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialPermintaanId]);
+
+    useEffect(() => {
         if (subTab === 'permintaan') {
             fetchPermintaan();
         } else {
@@ -183,14 +220,18 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
         setShowCreateReqModal(true);
     };
 
-    // Open Penyerahan Barang Modal (Done)
+    // Open Penyerahan Barang Modal (Done) — hanya item berstatus DISETUJUI dengan sisa > 0
     const handleOpenSerahkanModal = (req) => {
         setSerahkanTargetReq(req);
         setSerahPenerima('');
         setSerahTanggal(new Date().toISOString().slice(0, 10));
         setSerahCatatan(`Realisasi Permintaan ${req.nomor}`);
         const items = (req.items || [])
-            .filter(it => Number(it.qty_disetujui) > 0)
+            .filter(it => {
+                const isReadyStatus = !it.status || it.status === 'DISETUJUI';
+                const remaining = Number(it.qty_disetujui || 0) - Number(it.qty_dikeluarkan || 0);
+                return isReadyStatus && Number(it.qty_disetujui) > 0 && remaining > 0;
+            })
             .map(it => {
                 const targetQty = Number(it.qty_disetujui);
                 const remaining = Math.max(0, targetQty - Number(it.qty_dikeluarkan || 0));
@@ -268,12 +309,17 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
         }
     };
 
-    // Open Approve Modal (Approver menentukan kuantitas disetujui)
+    // Open Approve Modal (Approver menentukan Keputusan: SETUJUI / AJUKAN / TOLAK & Qty Disetujui)
     const handleOpenApproveModal = (req) => {
         setApproveTargetReq(req);
         const items = (req.items || []).map(it => {
             const minta = Number(it.qty_minta || 0);
+            const stok = Number(it.stok_tersedia || 0);
+            const defaultDecision = stok > 0 ? 'SETUJUI' : 'AJUKAN';
             const disetujui = Number(it.qty_disetujui || 0);
+            const initialQty = defaultDecision === 'SETUJUI'
+                ? (disetujui > 0 ? Math.min(disetujui, stok) : Math.min(minta, stok))
+                : 0;
             return {
                 id: it.id,
                 barang_id: it.barang,
@@ -281,8 +327,10 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                 barang_kode: it.barang_kode,
                 satuan: it.satuan || it.satuan_dasar_kode || 'PCS',
                 qty_minta: minta,
-                stok_tersedia: Number(it.stok_tersedia || 0),
-                qty_disetujui: disetujui > 0 ? disetujui : minta,
+                stok_tersedia: stok,
+                keputusan: defaultDecision,
+                qty_disetujui: initialQty,
+                catatan_verif: it.alasan_tolak || '',
                 keterangan: it.keterangan || ''
             };
         });
@@ -297,52 +345,202 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
         setApproveItems(next);
     };
 
+    const handleApproveDecisionChange = (idx, keputusan) => {
+        const next = [...approveItems];
+        const cur = next[idx];
+        cur.keputusan = keputusan;
+        if (keputusan === 'SETUJUI') {
+            const maxAvail = Number(cur.stok_tersedia || 0);
+            if (!Number(cur.qty_disetujui) || Number(cur.qty_disetujui) <= 0) {
+                cur.qty_disetujui = Math.min(Number(cur.qty_minta || 0), maxAvail);
+            }
+        } else if (keputusan === 'AJUKAN' || keputusan === 'TOLAK') {
+            cur.qty_disetujui = 0;
+        }
+        setApproveItems(next);
+    };
+
+    const handleApproveAlasanChange = (idx, val) => {
+        const next = [...approveItems];
+        next[idx].catatan_verif = val;
+        setApproveItems(next);
+    };
+
     const handleApproveSetAllMax = () => {
-        const next = approveItems.map(it => ({
-            ...it,
-            qty_disetujui: it.qty_minta
-        }));
+        const next = approveItems.map(it => {
+            const stok = Number(it.stok_tersedia || 0);
+            if (stok > 0) {
+                return {
+                    ...it,
+                    keputusan: 'SETUJUI',
+                    qty_disetujui: Math.min(Number(it.qty_minta || 0), stok),
+                };
+            }
+            return {
+                ...it,
+                keputusan: 'AJUKAN',
+                qty_disetujui: 0,
+            };
+        });
         setApproveItems(next);
     };
 
     const handleExecuteApprove = async (e) => {
         e.preventDefault();
-        let hasApproved = false;
         for (const it of approveItems) {
-            const qtyApp = Number(it.qty_disetujui || 0);
-            if (qtyApp < 0) {
-                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh bernilai negatif.`);
-                return;
-            }
-            if (qtyApp > 0) {
-                hasApproved = true;
+            if (it.keputusan === 'SETUJUI') {
+                const qtyApp = Number(it.qty_disetujui || 0);
+                if (qtyApp <= 0) {
+                    toast.error(`Qty disetujui untuk '${it.barang_nama}' harus > 0 jika memilih Setujui.`);
+                    return;
+                }
                 if (qtyApp > it.stok_tersedia) {
                     toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
+                    return;
+                }
+            } else if (it.keputusan === 'TOLAK') {
+                if (!String(it.catatan_verif || '').trim()) {
+                    toast.error(`Keterangan / alasan penolakan untuk '${it.barang_nama}' wajib diisi.`);
                     return;
                 }
             }
         }
 
-        if (!hasApproved) {
-            toast.error('Minimal satu barang harus disetujui dengan kuantitas > 0. Jika seluruh barang ditolak, gunakan tombol Tolak Permintaan.');
-            return;
-        }
-
         setApproveSubmitting(true);
         try {
-            await api.post(`/gudang/permintaan/${approveTargetReq.id}/approve/`, {
+            const res = await api.post(`/gudang/permintaan/${approveTargetReq.id}/approve/`, {
                 items: approveItems.map(it => ({
                     id: it.id,
-                    qty_disetujui: Number(it.qty_disetujui || 0)
+                    keputusan: it.keputusan,
+                    qty_disetujui: it.keputusan === 'SETUJUI' ? Number(it.qty_disetujui || 0) : 0,
+                    alasan_tolak: it.keputusan === 'TOLAK' ? String(it.catatan_verif || '').trim() : '',
+                    keterangan: it.keputusan !== 'TOLAK' ? String(it.catatan_verif || '').trim() : '',
                 }))
             });
-            toast.success(`Permintaan ${approveTargetReq.nomor} telah disetujui.`);
+            const hasProcurement = approveItems.some(it => it.keputusan === 'AJUKAN');
+            toast.success(
+                res.data?.status === 'DITOLAK'
+                    ? `Permintaan ${approveTargetReq.nomor} ditolak.`
+                    : hasProcurement
+                        ? `Persetujuan disimpan. Item stok siap dapat langsung diserahkan, sedangkan item stok 0 masuk antrean Pengadaan.`
+                        : `Permintaan ${approveTargetReq.nomor} telah disetujui.`
+            );
             setShowApproveModal(false);
             fetchPermintaan();
         } catch (err) {
             toast.error(err.response?.data?.error || err.message || 'Gagal menyetujui permintaan.');
         } finally {
             setApproveSubmitting(false);
+        }
+    };
+
+    // Open Verifikasi Susulan Modal (Item SEDANG_DIAJUKAN setelah stok masuk)
+    const handleOpenFollowupModal = (req) => {
+        setFollowupTargetReq(req);
+        const pendingItems = (req.items || [])
+            .filter(it => it.status === 'SEDANG_DIAJUKAN')
+            .map(it => {
+                const stok = Number(it.stok_tersedia || 0);
+                const minta = Number(it.qty_minta || 0);
+                return {
+                    id: it.id,
+                    barang_id: it.barang,
+                    barang_nama: it.barang_nama,
+                    barang_kode: it.barang_kode,
+                    satuan: it.satuan || it.satuan_dasar_kode || 'PCS',
+                    qty_minta: minta,
+                    stok_tersedia: stok,
+                    keputusan: stok > 0 ? 'SETUJUI' : 'AJUKAN',
+                    qty_disetujui: stok > 0 ? Math.min(minta, stok) : 0,
+                    alasan_tolak: '',
+                };
+            });
+        setFollowupItems(pendingItems);
+        setShowDetailReqModal(false);
+        setShowFollowupModal(true);
+    };
+
+    const handleFollowupDecisionChange = (idx, keputusan) => {
+        const next = [...followupItems];
+        const cur = next[idx];
+        cur.keputusan = keputusan;
+        if (keputusan === 'SETUJUI') {
+            const maxAvail = Number(cur.stok_tersedia || 0);
+            if (!Number(cur.qty_disetujui) || Number(cur.qty_disetujui) <= 0) {
+                cur.qty_disetujui = Math.min(Number(cur.qty_minta || 0), maxAvail);
+            }
+            cur.alasan_tolak = '';
+        } else {
+            cur.qty_disetujui = 0;
+        }
+        setFollowupItems(next);
+    };
+
+    const handleExecuteFollowup = async (e) => {
+        e.preventDefault();
+        const actionable = followupItems.filter(it => it.keputusan !== 'AJUKAN');
+        if (!actionable.length) {
+            toast.error('Pilih minimal satu item untuk Disetujui, Ditolak, atau Ditutup Pengadaannya.');
+            return;
+        }
+        for (const it of actionable) {
+            if (it.keputusan === 'SETUJUI') {
+                const q = Number(it.qty_disetujui || 0);
+                if (q <= 0 || q > it.stok_tersedia) {
+                    toast.error(`Qty disetujui susulan '${it.barang_nama}' harus > 0 dan <= stok (${it.stok_tersedia}).`);
+                    return;
+                }
+            } else if (it.keputusan === 'TOLAK' && !String(it.alasan_tolak || '').trim()) {
+                toast.error(`Alasan penolakan untuk '${it.barang_nama}' wajib diisi.`);
+                return;
+            }
+        }
+
+        setFollowupSubmitting(true);
+        try {
+            await api.post(`/gudang/permintaan/${followupTargetReq.id}/approve-followup/`, {
+                items: followupItems.map(it => ({
+                    id: it.id,
+                    keputusan: it.keputusan,
+                    qty_disetujui: it.keputusan === 'SETUJUI' ? Number(it.qty_disetujui || 0) : 0,
+                    alasan_tolak: (it.keputusan === 'TOLAK' || it.keputusan === 'BATAL_PENGADAAN') ? String(it.alasan_tolak || '').trim() : '',
+                }))
+            });
+            toast.success(`Verifikasi susulan untuk ${followupTargetReq.nomor} berhasil disimpan.`);
+            setShowFollowupModal(false);
+            fetchPermintaan();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal menyimpan verifikasi susulan.');
+        } finally {
+            setFollowupSubmitting(false);
+        }
+    };
+
+    // Tutup / Batalkan Pengadaan Item Tunggal
+    const handleOpenCloseItemModal = (req, item) => {
+        setCloseItemTarget({ req, item });
+        setCloseItemAlasan('');
+    };
+
+    const handleExecuteCloseItem = async (e) => {
+        e.preventDefault();
+        if (!closeItemTarget) return;
+        setCloseItemSubmitting(true);
+        try {
+            const res = await api.post(`/gudang/permintaan/${closeItemTarget.req.id}/close-item/`, {
+                item_id: closeItemTarget.item.id,
+                alasan: closeItemAlasan.trim() || 'Pengadaan item ditutup / tidak dilanjutkan',
+            });
+            toast.success(`Item pengadaan '${closeItemTarget.item.barang_nama}' telah ditutup.`);
+            if (selectedReq && selectedReq.id === closeItemTarget.req.id && res.data) {
+                setSelectedReq(res.data);
+            }
+            setCloseItemTarget(null);
+            fetchPermintaan();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal menutup item pengadaan.');
+        } finally {
+            setCloseItemSubmitting(false);
         }
     };
 
@@ -663,6 +861,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     <option value="">Semua Status Permintaan</option>
                                     <option value="MENUNGGU">Menunggu Persetujuan</option>
                                     <option value="DISETUJUI">Disetujui (Siap Serah Fisik)</option>
+                                    <option value="PROSES_SEBAGIAN">Menunggu Pengadaan / Sebagian</option>
                                     <option value="SELESAI">Selesai (Sudah Diserahkan)</option>
                                     <option value="DITOLAK">Ditolak</option>
                                 </select>
@@ -729,11 +928,13 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                         const statusTone =
                                             req.status === 'SELESAI' ? 'emerald' :
                                             req.status === 'DISETUJUI' ? 'indigo' :
+                                            req.status === 'PROSES_SEBAGIAN' ? 'cyan' :
                                             req.status === 'MENUNGGU' ? 'amber' :
                                             req.status === 'DITOLAK' ? 'rose' : 'slate';
                                         const statusLabel =
                                             req.status === 'MENUNGGU' ? 'Menunggu Persetujuan' :
                                             req.status === 'DISETUJUI' ? 'Disetujui (Siap Serah)' :
+                                            req.status === 'PROSES_SEBAGIAN' ? 'Dalam Proses / Pengadaan' :
                                             req.status === 'SELESAI' ? 'Selesai (Diserahkan)' :
                                             req.status === 'DITOLAK' ? 'Ditolak' : req.status;
 
@@ -755,6 +956,11 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                         <span className="gdg-status-dot" />
                                                         <span>{statusLabel}</span>
                                                     </span>
+                                                    {req.item_status_counts?.ready_followup > 0 && (
+                                                        <span style={{ display: 'block', fontSize: '11px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>
+                                                            {req.item_status_counts.ready_followup} item stok masuk (siap ACC)
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="gdg-po-meta-cell">{req.created_by_nama || 'Unit Ruangan'}</td>
                                                 <td className="gdg-po-meta-cell">
@@ -778,7 +984,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                                 <button
                                                                     type="button"
                                                                     className="gdg-brg-icon-btn success"
-                                                                    title="Verifikasi & Tentukan Kuantitas yang Disetujui"
+                                                                    title="Verifikasi & Tentukan Keputusan per Item"
                                                                     onClick={() => handleOpenApproveModal(req)}
                                                                 >
                                                                     <Check size={14} />
@@ -794,18 +1000,29 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                             </>
                                                         )}
 
-                                                        {req.status === 'DISETUJUI' && (
+                                                        {req.can_followup_approve && (
+                                                            <button
+                                                                type="button"
+                                                                className="gdg-brg-icon-btn indigo"
+                                                                title="Verifikasi Susulan Item Pengadaan (Mas Febri)"
+                                                                onClick={() => handleOpenFollowupModal(req)}
+                                                            >
+                                                                <Clock size={14} />
+                                                            </button>
+                                                        )}
+
+                                                        {req.can_issue && (
                                                             <button
                                                                 type="button"
                                                                 className="gdg-brg-icon-btn success"
-                                                                title="Serahkan Fisik Barang & Selesaikan (Done)"
+                                                                title="Serahkan Fisik Barang"
                                                                 onClick={() => handleOpenSerahkanModal(req)}
                                                             >
                                                                 <PackageCheck size={14} />
                                                             </button>
                                                         )}
 
-                                                        {req.status === 'SELESAI' && (
+                                                        {(req.status === 'SELESAI' || (req.pengeluaran_list && req.pengeluaran_list.length > 0)) && (
                                                             <button
                                                                 type="button"
                                                                 className="gdg-brg-icon-btn"
@@ -1311,50 +1528,126 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                             <th>Nama Barang</th>
                                             <th style={{ textAlign: 'right' }}>Diminta</th>
                                             <th style={{ textAlign: 'right' }}>Disetujui</th>
-                                            <th style={{ textAlign: 'right' }}>Tersedia Gudang</th>
-                                            <th>Satuan</th>
+                                            <th style={{ textAlign: 'right' }}>Diserahkan</th>
+                                            <th style={{ textAlign: 'right' }}>Stok Gudang</th>
+                                            <th>Status Item</th>
+                                            {hasLogistikAccess && <th style={{ textAlign: 'right' }}>Aksi</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(selectedReq.items || []).map((it, idx) => (
-                                            <tr key={idx}>
-                                                <td className="gdg-code-cell">{it.barang_kode}</td>
-                                                <td className="gdg-po-vendor-name">{it.barang_nama}</td>
-                                                <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
-                                                    {Number(it.qty_minta).toLocaleString('id-ID')}
-                                                </td>
-                                                <td
-                                                    className="gdg-num-cell"
-                                                    style={{
-                                                        textAlign: 'right',
-                                                        color: Number(it.qty_disetujui) > 0
-                                                            ? '#10b981'
-                                                            : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : 'var(--gdg-muted)'),
-                                                        fontWeight: 600
-                                                    }}
-                                                >
-                                                    {selectedReq.status === 'MENUNGGU' || selectedReq.status === 'DRAFT'
-                                                        ? '-'
-                                                        : Number(it.qty_disetujui) > 0
-                                                            ? Number(it.qty_disetujui).toLocaleString('id-ID')
-                                                            : '0 (Ditolak)'}
-                                                </td>
-                                                <td
-                                                    className="gdg-num-cell"
-                                                    style={{
-                                                        textAlign: 'right',
-                                                        color: it.stok_tersedia < it.qty_minta ? '#f43f5e' : 'var(--gdg-text)',
-                                                        fontWeight: 600
-                                                    }}
-                                                >
-                                                    {Number(it.stok_tersedia).toLocaleString('id-ID')}
-                                                </td>
-                                                <td className="gdg-po-meta-cell">{it.satuan}</td>
-                                            </tr>
-                                        ))}
+                                        {(selectedReq.items || []).map((it, idx) => {
+                                            const itemStatus = it.status || 'MENUNGGU';
+                                            const badgeTone =
+                                                itemStatus === 'SELESAI' ? 'emerald' :
+                                                itemStatus === 'DISETUJUI' ? 'indigo' :
+                                                itemStatus === 'SEDANG_DIAJUKAN' ? 'cyan' :
+                                                itemStatus === 'DITOLAK' || itemStatus === 'BATAL_PENGADAAN' ? 'rose' : 'amber';
+                                            const badgeText =
+                                                it.status_label || (
+                                                    itemStatus === 'SEDANG_DIAJUKAN' ? 'Sedang Diajukan' :
+                                                    itemStatus === 'DISETUJUI' ? 'Siap Diambil' :
+                                                    itemStatus === 'SELESAI' ? 'Sudah Diserahkan' :
+                                                    itemStatus === 'DITOLAK' ? 'Ditolak' :
+                                                    itemStatus === 'BATAL_PENGADAAN' ? 'Pengadaan Ditutup' : 'Menunggu ACC'
+                                                );
+
+                                            return (
+                                                <tr key={idx}>
+                                                    <td className="gdg-code-cell">{it.barang_kode}</td>
+                                                    <td>
+                                                        <div className="gdg-po-vendor-name">{it.barang_nama}</div>
+                                                        {it.keterangan && (
+                                                            <div style={{ fontSize: '11.5px', color: 'var(--gdg-muted)', marginTop: '2px' }}>
+                                                                Ket: {it.keterangan}
+                                                            </div>
+                                                        )}
+                                                        {it.alasan_tolak && (
+                                                            <div style={{ fontSize: '11.5px', color: '#f43f5e', marginTop: '2px' }}>
+                                                                Alasan: {it.alasan_tolak}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                        {Number(it.qty_minta).toLocaleString('id-ID')} {it.satuan}
+                                                    </td>
+                                                    <td
+                                                        className="gdg-num-cell"
+                                                        style={{
+                                                            textAlign: 'right',
+                                                            color: Number(it.qty_disetujui) > 0 ? '#10b981' : 'var(--gdg-muted)',
+                                                            fontWeight: 600
+                                                        }}
+                                                    >
+                                                        {itemStatus === 'MENUNGGU'
+                                                            ? '-'
+                                                            : `${Number(it.qty_disetujui || 0).toLocaleString('id-ID')} ${it.satuan}`}
+                                                    </td>
+                                                    <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
+                                                        {Number(it.qty_dikeluarkan || 0).toLocaleString('id-ID')} {it.satuan}
+                                                    </td>
+                                                    <td
+                                                        className="gdg-num-cell"
+                                                        style={{
+                                                            textAlign: 'right',
+                                                            color: it.stok_tersedia <= 0 ? '#f43f5e' : 'var(--gdg-text)',
+                                                            fontWeight: 600
+                                                        }}
+                                                    >
+                                                        {Number(it.stok_tersedia || 0).toLocaleString('id-ID')}
+                                                    </td>
+                                                    <td>
+                                                        <span className={`gdg-status-text ${badgeTone}`}>
+                                                            <span className="gdg-status-dot" />
+                                                            <span>{badgeText}</span>
+                                                        </span>
+                                                    </td>
+                                                    {hasLogistikAccess && (
+                                                        <td style={{ textAlign: 'right' }}>
+                                                            {itemStatus === 'SEDANG_DIAJUKAN' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="gdg-btn-stripe secondary"
+                                                                    style={{ height: '26px', padding: '0 8px', fontSize: '11px' }}
+                                                                    onClick={() => handleOpenCloseItemModal(selectedReq, it)}
+                                                                    title="Tutup / Batalkan antrean pengadaan item ini"
+                                                                >
+                                                                    Tutup Pengadaan
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+
+                            {selectedReq.pengeluaran_list && selectedReq.pengeluaran_list.length > 0 && (
+                                <div className="gdg-detail-divider">
+                                    <span className="gdg-detail-section-title" style={{ display: 'block', marginBottom: '6px' }}>
+                                        Riwayat Bon Penyerahan Fisik ({selectedReq.pengeluaran_list.length})
+                                    </span>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {selectedReq.pengeluaran_list.map((bon) => (
+                                            <div
+                                                key={bon.id}
+                                                style={{
+                                                    padding: '6px 10px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid var(--gdg-border)',
+                                                    background: 'var(--gdg-surface-elevated, var(--gdg-surface))',
+                                                    fontSize: '12px',
+                                                }}
+                                            >
+                                                <strong className="gdg-code-cell">{bon.nomor}</strong>
+                                                {' · '}{bon.tanggal}
+                                                {bon.penerima_nama ? ` · Penerima: ${bon.penerima_nama}` : ''}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="gdg-modal-foot gdg-po-modal-foot-split">
                             <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowDetailReqModal(false)}>Tutup</button>
@@ -1371,13 +1664,19 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                         </button>
                                     </>
                                 )}
-                                {selectedReq.status === 'DISETUJUI' && (
-                                    <button type="button" className="gdg-btn-stripe primary" onClick={() => handleOpenSerahkanModal(selectedReq)}>
-                                        <PackageCheck size={14} />
-                                        <span>Serahkan Barang (Done)</span>
+                                {selectedReq.can_followup_approve && (
+                                    <button type="button" className="gdg-btn-stripe primary" onClick={() => handleOpenFollowupModal(selectedReq)}>
+                                        <Clock size={14} />
+                                        <span>Verifikasi Susulan (ACC Stok Masuk)</span>
                                     </button>
                                 )}
-                                {selectedReq.status === 'SELESAI' && (
+                                {selectedReq.can_issue && (
+                                    <button type="button" className="gdg-btn-stripe success" onClick={() => handleOpenSerahkanModal(selectedReq)}>
+                                        <PackageCheck size={14} />
+                                        <span>Serahkan Barang</span>
+                                    </button>
+                                )}
+                                {(selectedReq.status === 'SELESAI' || (selectedReq.pengeluaran_list && selectedReq.pengeluaran_list.length > 0)) && (
                                     <button type="button" className="gdg-btn-stripe secondary" onClick={() => handlePrintFromReq(selectedReq)}>
                                         <Printer size={14} />
                                         <span>Cetak Bukti Serah Terima</span>
@@ -1471,7 +1770,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
             {/* MODAL: VERIFIKASI & PERSETUJUAN PERMINTAAN (TENTUKAN JUMLAH YANG DISETUJUI) */}
             {showApproveModal && approveTargetReq && createPortal(
                 <div className="gdg-modal-backdrop" onClick={() => !approveSubmitting && setShowApproveModal(false)}>
-                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '1040px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="gdg-modal-head">
                             <div className="gdg-modal-header-text">
                                 <h3>Persetujuan Permintaan Barang</h3>
@@ -1492,106 +1791,148 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
 
                         <form onSubmit={handleExecuteApprove}>
                             <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                <div className="gdg-form-row">
-                                    <div className="gdg-form-group">
-                                        <label>Unit / Ruangan Pemohon</label>
-                                        <input
-                                            type="text"
-                                            value={approveTargetReq.ruang_nama}
-                                            readOnly
-                                            className="gdg-po-readonly-input"
-                                        />
+                                <div className="gdg-modal-meta-strip">
+                                    <div className="gdg-modal-meta-cell">
+                                        <span className="gdg-modal-meta-label">Unit / Ruangan Pemohon</span>
+                                        <span className="gdg-modal-meta-value" title={approveTargetReq.ruang_nama}>{approveTargetReq.ruang_nama}</span>
                                     </div>
-                                    <div className="gdg-form-group">
-                                        <label>Tanggal Pengajuan</label>
-                                        <input
-                                            type="text"
-                                            value={approveTargetReq.tanggal}
-                                            readOnly
-                                            className="gdg-po-readonly-input gdg-num-cell"
-                                        />
+                                    <div className="gdg-modal-meta-cell">
+                                        <span className="gdg-modal-meta-label">Tanggal Pengajuan</span>
+                                        <span className="gdg-modal-meta-value gdg-num-cell">{approveTargetReq.tanggal}</span>
+                                    </div>
+                                    <div className="gdg-modal-meta-cell">
+                                        <span className="gdg-modal-meta-label">Catatan dari Ruangan</span>
+                                        <span className="gdg-modal-meta-value" title={approveTargetReq.catatan || '—'} style={{ fontWeight: approveTargetReq.catatan ? 500 : 400 }}>
+                                            {approveTargetReq.catatan || '—'}
+                                        </span>
                                     </div>
                                 </div>
 
-                                {approveTargetReq.catatan && (
-                                    <div className="gdg-form-group">
-                                        <label>Catatan dari Ruangan</label>
-                                        <div className="gdg-readonly-box">
-                                            {approveTargetReq.catatan}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="gdg-detail-divider">
+                                <div>
                                     <div className="gdg-po-items-head">
-                                        <span className="gdg-detail-section-title">Tentukan Kuantitas yang Disetujui (ACC)</span>
+                                        <span className="gdg-detail-section-title">Keputusan &amp; Kuantitas per Baris Barang</span>
                                         <button
                                             type="button"
                                             className="gdg-btn-stripe secondary"
                                             onClick={handleApproveSetAllMax}
                                         >
-                                            Setujui Penuh Semua
+                                            Sesuaikan Semua dengan Stok
                                         </button>
                                     </div>
                                     <div className="gdg-table-wrap gdg-table-borderless">
                                         <table className="gdg-table gdg-table-stripe">
                                             <thead>
                                                 <tr>
-                                                    <th>Kode</th>
-                                                    <th>Nama Barang</th>
-                                                    <th style={{ textAlign: 'right' }}>Diminta</th>
-                                                    <th style={{ textAlign: 'right' }}>Stok Gudang</th>
-                                                    <th style={{ textAlign: 'right', width: '140px' }}>Qty Disetujui *</th>
-                                                    <th>Satuan</th>
+                                                    <th>Barang</th>
+                                                    <th style={{ textAlign: 'right' }}>Minta</th>
+                                                    <th style={{ textAlign: 'right' }}>Stok</th>
+                                                    <th style={{ width: '168px' }}>Keputusan</th>
+                                                    <th style={{ textAlign: 'right', width: '140px' }}>Qty ACC</th>
+                                                    <th style={{ width: '210px' }}>Keterangan</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {approveItems.map((item, idx) => {
-                                                    const qtyVal = Number(item.qty_disetujui || 0);
                                                     const stokVal = Number(item.stok_tersedia || 0);
-                                                    const isOverStock = qtyVal > stokVal;
-                                                    const isZeroOrLess = !item.qty_disetujui || qtyVal <= 0;
+                                                    const qtyVal = Number(item.qty_disetujui || 0);
+                                                    const isApprove = item.keputusan === 'SETUJUI';
+                                                    const isAjukan = item.keputusan === 'AJUKAN';
+                                                    const isTolak = item.keputusan === 'TOLAK';
+                                                    const isOverStock = isApprove && qtyVal > stokVal;
+                                                    const isBadZero = isApprove && qtyVal <= 0;
+                                                    const isMissingReason = isTolak && !String(item.catatan_verif || '').trim();
                                                     return (
                                                         <tr key={idx}>
-                                                            <td className="gdg-code-cell">{item.barang_kode}</td>
-                                                            <td className="gdg-po-vendor-name">{item.barang_nama}</td>
+                                                            <td>
+                                                                <div className="gdg-po-vendor-name">{item.barang_nama}</div>
+                                                                <span className="gdg-code-cell" style={{ fontSize: '11px' }}>{item.barang_kode}</span>
+                                                            </td>
                                                             <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
-                                                                {Number(item.qty_minta).toLocaleString('id-ID')}
+                                                                {Number(item.qty_minta).toLocaleString('id-ID')} {item.satuan}
                                                             </td>
                                                             <td
                                                                 className="gdg-num-cell"
                                                                 style={{
                                                                     textAlign: 'right',
-                                                                    color: item.stok_tersedia <= 0 ? '#f43f5e' : 'var(--gdg-text)',
+                                                                    color: stokVal <= 0 ? '#f43f5e' : 'var(--gdg-text)',
                                                                     fontWeight: 600
                                                                 }}
                                                             >
-                                                                {Number(item.stok_tersedia).toLocaleString('id-ID')}
-                                                                {item.stok_tersedia <= 0 && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10px' }}>Habis</small>}
+                                                                {stokVal.toLocaleString('id-ID')} {item.satuan}
+                                                            </td>
+                                                            <td>
+                                                                <div className="gdg-decision-group">
+                                                                    {stokVal > 0 ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`gdg-decision-btn setuju ${isApprove ? 'active' : ''}`}
+                                                                            title="Setujui dengan qty terkontrol"
+                                                                            onClick={() => handleApproveDecisionChange(idx, 'SETUJUI')}
+                                                                        >
+                                                                            Setujui
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`gdg-decision-btn ajukan ${isAjukan ? 'active' : ''}`}
+                                                                            title="Masukkan ke antrean pengadaan karena stok kosong (0)"
+                                                                            onClick={() => handleApproveDecisionChange(idx, 'AJUKAN')}
+                                                                        >
+                                                                            Pengadaan
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`gdg-decision-btn tolak ${isTolak ? 'active' : ''}`}
+                                                                        title="Tolak item dengan alasan jelas"
+                                                                        onClick={() => handleApproveDecisionChange(idx, 'TOLAK')}
+                                                                    >
+                                                                        Tolak
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                             <td style={{ textAlign: 'right' }}>
+                                                                <div className="gdg-acc-qty-cell">
+                                                                    <input
+                                                                        type="number"
+                                                                        min={isApprove ? '0.001' : '0'}
+                                                                        max={isApprove ? stokVal : undefined}
+                                                                        step="any"
+                                                                        disabled={!isApprove}
+                                                                        value={isApprove ? item.qty_disetujui : 0}
+                                                                        onChange={(e) => handleApproveItemQtyChange(idx, e.target.value)}
+                                                                        required={isApprove}
+                                                                        className="gdg-inline-input gdg-num-cell gdg-acc-qty-input"
+                                                                        style={{
+                                                                            color: isApprove
+                                                                                ? ((isOverStock || isBadZero) ? '#f43f5e' : '#10b981')
+                                                                                : undefined,
+                                                                            borderColor: (isOverStock || isBadZero) ? '#f43f5e' : undefined
+                                                                        }}
+                                                                    />
+                                                                    <span className="gdg-acc-qty-unit">{item.satuan}</span>
+                                                                </div>
+                                                                {isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px', marginTop: '3px' }}>Melebihi stok!</small>}
+                                                                {isBadZero && !isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px', marginTop: '3px' }}>Harus &gt; 0</small>}
+                                                            </td>
+                                                            <td>
                                                                 <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max={item.stok_tersedia || 0}
-                                                                    step="any"
-                                                                    value={item.qty_disetujui}
-                                                                    onChange={(e) => handleApproveItemQtyChange(idx, e.target.value)}
-                                                                    required
-                                                                    className="gdg-inline-input gdg-num-cell"
+                                                                    type="text"
+                                                                    placeholder={isTolak ? 'Alasan ditolak (wajib)...' : 'Keterangan (opsional)...'}
+                                                                    value={item.catatan_verif}
+                                                                    onChange={(e) => handleApproveAlasanChange(idx, e.target.value)}
+                                                                    required={isTolak}
+                                                                    className="gdg-inline-input"
                                                                     style={{
                                                                         width: '100%',
-                                                                        height: '34px',
-                                                                        textAlign: 'right',
-                                                                        fontWeight: 600,
-                                                                        color: isOverStock ? '#f43f5e' : isZeroOrLess ? 'var(--gdg-muted)' : '#10b981',
-                                                                        borderColor: isOverStock ? '#f43f5e' : undefined
+                                                                        height: '36px',
+                                                                        minHeight: '36px',
+                                                                        borderRadius: '6px',
+                                                                        fontSize: '12.5px',
+                                                                        borderColor: isMissingReason ? '#f43f5e' : undefined,
                                                                     }}
                                                                 />
-                                                                {isOverStock && <small style={{ display: 'block', color: '#f43f5e', fontSize: '10.5px' }}>Melebihi stok!</small>}
-                                                                {isZeroOrLess && !isOverStock && <small style={{ display: 'block', color: 'var(--gdg-muted)', fontSize: '10.5px' }}>Tidak disetujui (0)</small>}
                                                             </td>
-                                                            <td className="gdg-po-meta-cell">{item.satuan}</td>
                                                         </tr>
                                                     );
                                                 })}
@@ -1600,24 +1941,14 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     </div>
                                 </div>
 
-                                <div className="gdg-out-banner info">
-                                    <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                                    <span>
-                                        Anda dapat menyesuaikan kuantitas yang disetujui jika stok fisik gudang terbatas atau sesuai jatah kuota ruangan. Barang yang diisi 0 berarti tidak disetujui.
-                                    </span>
+                                <div className="gdg-callout-neutral">
+                                    Pengurangan qty yang disetujui (mis. minta 10, disetujui 4) langsung selesai tanpa membuat utang sisa. Item stok kosong dapat dipilih <strong>Pengadaan</strong> agar tetap tercatat menunggu stok masuk.
                                 </div>
 
-                                {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
+                                {approveItems.some(it => it.keputusan === 'SETUJUI' && (Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0) || Number(it.qty_disetujui || 0) <= 0)) && (
                                     <div className="gdg-out-banner danger">
                                         <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                                        <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
-                                    </div>
-                                )}
-
-                                {approveItems.every(it => Number(it.qty_disetujui || 0) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                    <div className="gdg-out-banner warning">
-                                        <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                                        <span>Seluruh kuantitas bernilai 0. Minimal harus ada 1 barang yang disetujui (&gt; 0). Jika seluruh barang ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                                        <span>Pastikan setiap item yang dipilih <strong>Setujui</strong> memiliki kuantitas &gt; 0 dan tidak melebihi stok gudang.</span>
                                     </div>
                                 )}
                             </div>
@@ -1626,6 +1957,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                 <button
                                     type="button"
                                     className="gdg-btn-stripe danger"
+                                    style={{ height: '36px', borderRadius: '6px' }}
                                     onClick={() => {
                                         const target = approveTargetReq;
                                         setShowApproveModal(false);
@@ -1633,26 +1965,221 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     }}
                                     disabled={approveSubmitting}
                                 >
-                                    <X size={14} />
-                                    <span>Tolak Permintaan</span>
+                                    Tolak Semua
                                 </button>
                                 <div className="gdg-po-foot-group">
-                                    <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowApproveModal(false)} disabled={approveSubmitting}>
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        style={{ height: '36px', borderRadius: '6px' }}
+                                        onClick={() => setShowApproveModal(false)}
+                                        disabled={approveSubmitting}
+                                    >
                                         Batal
                                     </button>
                                     <button
                                         type="submit"
-                                        className="gdg-btn-stripe success"
+                                        className="gdg-btn-stripe primary"
+                                        style={{ height: '36px', borderRadius: '6px' }}
                                         disabled={
                                             approveSubmitting ||
-                                            approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                            approveItems.every(it => Number(it.qty_disetujui || 0) <= 0)
+                                            approveItems.some(it => it.keputusan === 'SETUJUI' && (Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0) || Number(it.qty_disetujui || 0) <= 0)) ||
+                                            approveItems.some(it => it.keputusan === 'TOLAK' && !String(it.catatan_verif || '').trim())
                                         }
                                     >
-                                        <Check size={14} />
-                                        <span>{approveSubmitting ? 'Menyimpan...' : 'Setujui & Terbitkan Izin Penyerahan'}</span>
+                                        {approveSubmitting ? 'Menyimpan...' : 'Simpan Keputusan Verifikasi'}
                                     </button>
                                 </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* MODAL: VERIFIKASI SUSULAN (MAS FEBRI ACC ITEM SEDANG_DIAJUKAN SETELAH STOK MASUK) */}
+            {showFollowupModal && followupTargetReq && createPortal(
+                <div className="gdg-modal-backdrop" onClick={() => !followupSubmitting && setShowFollowupModal(false)}>
+                    <div className="gdg-modal gdg-po-modal-wide" style={{ maxWidth: '880px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="gdg-modal-head">
+                            <div className="gdg-modal-header-text">
+                                <h3>Verifikasi Susulan Antrean Pengadaan</h3>
+                                <p>
+                                    Permintaan: <span className="gdg-code-cell">{followupTargetReq.nomor}</span> · {followupTargetReq.ruang_nama}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="gdg-brg-icon-btn"
+                                onClick={() => !followupSubmitting && setShowFollowupModal(false)}
+                                disabled={followupSubmitting}
+                                title="Tutup Modal"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleExecuteFollowup}>
+                            <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div className="gdg-callout-neutral">
+                                    Tentukan kuantitas yang disetujui untuk item pengadaan setelah stok baru masuk gudang, atau tutup/tolak jika pengadaan tidak dilanjutkan.
+                                </div>
+
+                                <div className="gdg-table-wrap gdg-table-borderless">
+                                    <table className="gdg-table gdg-table-stripe">
+                                        <thead>
+                                            <tr>
+                                                <th>Barang</th>
+                                                <th style={{ textAlign: 'right' }}>Minta</th>
+                                                <th style={{ textAlign: 'right' }}>Stok Masuk Kini</th>
+                                                <th style={{ width: '260px' }}>Keputusan</th>
+                                                <th style={{ textAlign: 'right', width: '150px' }}>Qty ACC</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {followupItems.map((it, idx) => {
+                                                const stok = Number(it.stok_tersedia || 0);
+                                                const isSetuju = it.keputusan === 'SETUJUI';
+                                                const isTolakOrTutup = it.keputusan === 'TOLAK' || it.keputusan === 'BATAL_PENGADAAN';
+                                                return (
+                                                    <tr key={it.id}>
+                                                        <td>
+                                                            <div className="gdg-po-vendor-name">{it.barang_nama}</div>
+                                                            <span className="gdg-code-cell" style={{ fontSize: '11px' }}>{it.barang_kode}</span>
+                                                        </td>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
+                                                            {Number(it.qty_minta).toLocaleString('id-ID')} {it.satuan}
+                                                        </td>
+                                                        <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600, color: stok > 0 ? '#10b981' : '#f43f5e' }}>
+                                                            {stok.toLocaleString('id-ID')} {it.satuan}
+                                                        </td>
+                                                        <td>
+                                                            <div className="gdg-decision-group">
+                                                                {stok > 0 ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`gdg-decision-btn setuju ${isSetuju ? 'active' : ''}`}
+                                                                        onClick={() => handleFollowupDecisionChange(idx, 'SETUJUI')}
+                                                                    >
+                                                                        Setujui
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`gdg-decision-btn ajukan ${it.keputusan === 'AJUKAN' ? 'active' : ''}`}
+                                                                        onClick={() => handleFollowupDecisionChange(idx, 'AJUKAN')}
+                                                                    >
+                                                                        Tunggu
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    className={`gdg-decision-btn tolak ${it.keputusan === 'BATAL_PENGADAAN' ? 'active' : ''}`}
+                                                                    onClick={() => handleFollowupDecisionChange(idx, 'BATAL_PENGADAAN')}
+                                                                >
+                                                                    Tutup
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className={`gdg-decision-btn tolak ${it.keputusan === 'TOLAK' ? 'active' : ''}`}
+                                                                    onClick={() => handleFollowupDecisionChange(idx, 'TOLAK')}
+                                                                >
+                                                                    Tolak
+                                                                </button>
+                                                            </div>
+                                                            {isTolakOrTutup && (
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder={it.keputusan === 'TOLAK' ? 'Alasan penolakan (wajib)...' : 'Catatan penutupan (opsional)...'}
+                                                                    value={it.alasan_tolak}
+                                                                    onChange={(e) => {
+                                                                        const next = [...followupItems];
+                                                                        next[idx].alasan_tolak = e.target.value;
+                                                                        setFollowupItems(next);
+                                                                    }}
+                                                                    className="gdg-inline-input"
+                                                                    style={{ height: '32px', fontSize: '12px', marginTop: '6px' }}
+                                                                />
+                                                            )}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right' }}>
+                                                            <div className="gdg-acc-qty-cell">
+                                                                <input
+                                                                    type="number"
+                                                                    min={isSetuju ? '0.001' : '0'}
+                                                                    max={isSetuju ? stok : undefined}
+                                                                    step="any"
+                                                                    disabled={!isSetuju}
+                                                                    value={isSetuju ? it.qty_disetujui : 0}
+                                                                    onChange={(e) => {
+                                                                        const next = [...followupItems];
+                                                                        next[idx].qty_disetujui = e.target.value;
+                                                                        setFollowupItems(next);
+                                                                    }}
+                                                                    className="gdg-inline-input gdg-num-cell gdg-acc-qty-input"
+                                                                />
+                                                                <span className="gdg-acc-qty-unit">{it.satuan}</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="gdg-modal-foot">
+                                <button type="button" className="gdg-btn-stripe secondary" style={{ height: '36px', borderRadius: '6px' }} onClick={() => setShowFollowupModal(false)} disabled={followupSubmitting}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="gdg-btn-stripe primary" style={{ height: '36px', borderRadius: '6px' }} disabled={followupSubmitting}>
+                                    {followupSubmitting ? 'Menyimpan...' : 'Simpan Verifikasi Susulan'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* MODAL: TUTUP / BATALKAN PENGADAAN ITEM TUNGGAL */}
+            {closeItemTarget && createPortal(
+                <div className="gdg-modal-backdrop" onClick={() => !closeItemSubmitting && setCloseItemTarget(null)}>
+                    <div className="gdg-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="gdg-modal-head">
+                            <div className="gdg-modal-header-text">
+                                <h3>Tutup Antrean Pengadaan Item</h3>
+                                <p>{closeItemTarget.req.nomor} · {closeItemTarget.item.barang_nama}</p>
+                            </div>
+                            <button type="button" className="gdg-brg-icon-btn" onClick={() => !closeItemSubmitting && setCloseItemTarget(null)}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleExecuteCloseItem}>
+                            <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div className="gdg-out-banner warning">
+                                    <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                                    <span>Item ini tidak lagi menunggu stok. Jika seluruh item lain sudah selesai, status dokumen otomatis menjadi <strong>Selesai</strong>.</span>
+                                </div>
+                                <div className="gdg-form-group">
+                                    <label>Alasan Penutupan Pengadaan (Opsional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Contoh: Item tidak dilanjutkan pengadaannya / unit sudah tidak membutuhkan"
+                                        value={closeItemAlasan}
+                                        onChange={(e) => setCloseItemAlasan(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                            <div className="gdg-modal-foot">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setCloseItemTarget(null)} disabled={closeItemSubmitting}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="gdg-btn-stripe danger" disabled={closeItemSubmitting}>
+                                    {closeItemSubmitting ? 'Menutup...' : 'Tutup Pengadaan Item'}
+                                </button>
                             </div>
                         </form>
                     </div>

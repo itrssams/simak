@@ -23,6 +23,7 @@ import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import TableSkeleton from '../../components/TableSkeleton';
 import './AlokasiPembiayaan.css';
+import './PenagihanClean.css';
 
 const BANK_OPTIONS = [
     { value: 'bsi', label: 'BSI' },
@@ -415,7 +416,6 @@ export default function AlokasiPembiayaan() {
         <div className="ap-page">
             <div className="ap-head">
                 <div className="ap-title">
-                    <span><WalletCards size={22} /></span>
                     <div>
                         <h1>Alokasi Pembiayaan</h1>
                         <p>Tampungan dana masuk dari Induk Asuransi (Pool) atau Pembiayaan Mandiri sebelum dialokasikan ke invoice.</p>
@@ -425,7 +425,6 @@ export default function AlokasiPembiayaan() {
 
             <div className="ap-stats-grid">
                 <div className="ap-stat-card primary">
-                    <div className="ap-stat-icon ok"><WalletCards size={22} /></div>
                     <div className="ap-stat-info">
                         <span className="ap-stat-label">Saldo Tampungan Tersedia</span>
                         <strong className="ap-stat-value ok">{money(totals.sisa)}</strong>
@@ -433,7 +432,6 @@ export default function AlokasiPembiayaan() {
                     </div>
                 </div>
                 <div className="ap-stat-card">
-                    <div className="ap-stat-icon in"><ArrowDownCircle size={22} /></div>
                     <div className="ap-stat-info">
                         <span className="ap-stat-label">Total Penerimaan Masuk</span>
                         <strong className="ap-stat-value">{money(totals.dana_masuk)}</strong>
@@ -441,7 +439,6 @@ export default function AlokasiPembiayaan() {
                     </div>
                 </div>
                 <div className="ap-stat-card">
-                    <div className="ap-stat-icon warn"><ArrowUpCircle size={22} /></div>
                     <div className="ap-stat-info">
                         <span className="ap-stat-label">Total Dialokasikan</span>
                         <strong className="ap-stat-value warn">{money(totals.digunakan)}</strong>
@@ -463,8 +460,8 @@ export default function AlokasiPembiayaan() {
                         </div>
                         <select className="ap-input ap-select-native" style={{ width: 'auto' }} value={tipeFilter} onChange={(e) => setTipeFilter(e.target.value)}>
                             <option value="semua">Semua Tipe Alokasi</option>
-                            <option value="induk">🏢 Induk Pool Bersama</option>
-                            <option value="spesifik">📄 Pembiayaan Mandiri</option>
+                            <option value="induk">Induk Pool Bersama</option>
+                            <option value="spesifik">Pembiayaan Mandiri</option>
                         </select>
                         <button className="ap-btn primary" type="button" onClick={openCreateModal}>
                             <Plus size={16} /> Tambah Alokasi
@@ -498,7 +495,7 @@ export default function AlokasiPembiayaan() {
                                                 <strong>{group.nama_pembiayaan}</strong>
                                                 {group.is_induk && (
                                                     <span className="ap-induk-pool-badge" title="Dana Pool Bersama untuk seluruh invoice anak di bawah induk ini">
-                                                        <Layers size={11} /> INDUK POOL
+                                                        Induk Pool
                                                     </span>
                                                 )}
                                             </div>
@@ -681,7 +678,7 @@ export default function AlokasiPembiayaan() {
                                 <h2 id="ap-ledger-title">
                                     {selectedGroup.is_induk ? <Layers size={19} style={{ color: '#8b5cf6' }} /> : <Building2 size={19} />} {selectedGroup.nama_pembiayaan}
                                 </h2>
-                                <p>{selectedGroup.is_induk ? '🏢 Alokasi Pool Induk Pembiayaan' : `ID Pembiayaan: ${selectedGroup.id_pembiayaan}`}</p>
+                                <p>{selectedGroup.is_induk ? 'Alokasi Pool Induk Pembiayaan' : `ID Pembiayaan: ${selectedGroup.id_pembiayaan}`}</p>
                             </div>
                             <button className="ap-modal-close" type="button" title="Tutup" onClick={closeLedgerModal}>
                                 <X size={18} />
@@ -741,7 +738,7 @@ export default function AlokasiPembiayaan() {
                                                     <td className="ap-ledger-date">{dateLabel(entry.tanggal)}</td>
                                                     <td>
                                                         <span className={`ap-flow ${entry.type}`}>
-                                                            {entry.type === 'in' ? '+' : '-'} {entry.label}
+                                                            {entry.label}
                                                         </span>
                                                     </td>
                                                     <td className="ap-ref-cell">{entry.ref}</td>

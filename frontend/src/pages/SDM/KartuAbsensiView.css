@@ -311,6 +311,87 @@
   margin-top: 2px;
 }
 
+/* ── KARTU ABSENSI CONTROLS (@DESIGN.MD OVERRIDES) ── */
+[data-theme="dark"] .kartu-absensi-root,
+[data-theme="light"] .kartu-absensi-root,
+.kartu-absensi-root {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.kartu-absensi-root .kartu-controls-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border, #e3e8ee) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 0 14px 0 !important;
+  margin-bottom: 18px !important;
+}
+
+[data-theme="dark"] .kartu-absensi-root .kartu-controls-card {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.kartu-absensi-root .control-label {
+  font-size: 12px !important;
+  color: #697386 !important;
+}
+
+[data-theme="dark"] .kartu-absensi-root .control-label {
+  color: #94a3b8 !important;
+}
+
+.kartu-absensi-root .kartu-select {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  padding: 0 28px 0 12px !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+[data-theme="dark"] .kartu-absensi-root .kartu-select {
+  background-color: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
+
+.kartu-absensi-root .btn-print-kartu {
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  background: #635bff !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.kartu-absensi-root .btn-print-kartu:hover {
+  background: #5249f5 !important;
+}
+
+.kartu-absensi-root .kartu-loading-box {
+  background: transparent !important;
+  border: none !important;
+}
+
 /* ════════════════ PRINT MEDIA QUERIES ════════════════ */
 @media print {
   body * {

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    Receipt, Plus, Search,
+    Receipt, Plus, Search, DollarSign,
     AlertTriangle, Eye, Paperclip, Upload, Trash2,
     Check, AlertCircle, FileText, User, ZoomIn, ZoomOut, RotateCw,
     Maximize2, Calendar, ClipboardList, ShieldAlert, X
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
-import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
+import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
 import DateRangePicker from '../../components/DateRangePicker';
 import { compressImages, formatFileSize, validateImageFile } from '../../utils/imageCompression';
@@ -53,22 +53,27 @@ const isImageUrl = (url) => {
 };
 
 const RB_STATUS = {
-    pending:   { label: 'Menunggu Approval', bg: '#fff7ed', color: '#c2410c', dot: '#f97316' },
-    disetujui: { label: 'Disetujui',         bg: '#dcfce7', color: '#166534', dot: '#22c55e' },
-    dicairkan: { label: 'Dicairkan',         bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
-    lunas:     { label: 'Lunas',             bg: '#ecfdf5', color: '#065f46', dot: '#10b981' },
-    ditolak:   { label: 'Ditolak',           bg: '#fee2e2', color: '#991b1b', dot: '#ef4444' },
-    dibatalkan:{ label: 'Dibatalkan',        bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
+    pending: { label: 'Menunggu Approval', bg: '#fff7ed', color: '#c2410c', dot: '#f97316' },
+    disetujui: { label: 'Disetujui', bg: '#dcfce7', color: '#166534', dot: '#22c55e' },
+    dicairkan: { label: 'Dicairkan', bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
+    lunas: { label: 'Lunas', bg: '#ecfdf5', color: '#065f46', dot: '#10b981' },
+    ditolak: { label: 'Ditolak', bg: '#fee2e2', color: '#991b1b', dot: '#ef4444' },
+    dibatalkan: { label: 'Dibatalkan', bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
 };
 
-function ModalHeader({ icon, title, subtitle }) {
+function ModalHeader({ icon, title, subtitle, onClose }) {
     return (
         <div className="pc-modal-head">
-            <span className="pc-modal-title-icon">{icon}</span>
+            {icon && <span className="pc-modal-title-icon">{icon}</span>}
             <div className="pc-modal-head-copy">
                 <h2 className="pc-modal-head-title">{title}</h2>
                 {subtitle && <p className="pc-modal-head-subtitle">{subtitle}</p>}
             </div>
+            {onClose && (
+                <button type="button" className="pc-modal-close" onClick={onClose} aria-label="Tutup modal">
+                    <X size={16} />
+                </button>
+            )}
         </div>
     );
 }
@@ -100,10 +105,10 @@ function FileUploadZone({ file, label, hint, onPick }) {
     return (
         <div className={`pc-file-zone${file ? ' has' : ''}`} onClick={onPick} style={{ cursor: 'pointer' }}>
             <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: file ? '#166534' : '#475569', marginBottom: 2 }}>
+                <p className="pc-file-zone-label">
                     {file ? file.name : label}
                 </p>
-                <p style={{ fontSize: 11, color: '#94a3b8' }}>{hint}</p>
+                <p className="pc-file-zone-hint">{hint}</p>
             </div>
             <span className="pc-file-pick">{file ? 'Ganti' : 'Pilih File'}</span>
         </div>
@@ -167,12 +172,12 @@ function MultiAttachmentItemPreview({ item, onRemove, onPreview }) {
 function MultiAttachmentUploader({ items, onRemove, onPreview, onPick }) {
     return (
         <div>
-            <div className="pc-file-zone" onClick={onPick} style={{ cursor: 'pointer' }}>
+            <div className={`pc-file-zone${items.length > 0 ? ' has' : ''}`} onClick={onPick} style={{ cursor: 'pointer' }}>
                 <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: items.length > 0 ? '#166534' : '#475569', marginBottom: 2 }}>
+                    <p className="pc-file-zone-title">
                         {items.length > 0 ? `${items.length} file nota / struk dipilih` : 'Upload Nota / Struk Bukti Fisik *'}
                     </p>
-                    <p style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <p className="pc-file-zone-hint">
                         Bisa pilih lebih dari 1 file nota (JPG, PNG, PDF). Gambar otomatis dikompres.
                     </p>
                 </div>
@@ -834,7 +839,6 @@ export default function Reimbursement({ isEmbedded = false }) {
     }, [listRB, filterStatus, search, filterDari, filterSampai]);
 
 
-    const totalPages = pageCount(search ? filteredRB.length : totalCount, pageSize);
     const pagedRB = search ? filteredRB : listRB;
 
     // Access Denied Screen
@@ -928,33 +932,33 @@ export default function Reimbursement({ isEmbedded = false }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {pagedRB.map((item, idx) => (
-                                    <tr key={item.id} className="pc-tr" style={{ animationDelay: `${Math.min(idx, 8) * 0.03}s` }}>
+                                {pagedRB.map((item) => (
+                                    <tr key={item.id} className="pc-tr">
                                         <td>
-                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1a4731', fontSize: 13 }}>
+                                            <span className="pc-no-code">
                                                 {item.no_reimbursement}
                                             </span>
                                         </td>
-                                        <td style={{ color: '#64748b' }}>{fmtTgl(item.tanggal)}</td>
+                                        <td className="pc-date-cell">{fmtTgl(item.tanggal)}</td>
                                         <td style={{ maxWidth: 220 }}>
-                                            <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                                            <p className="pc-cell-main" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                                                 {item.keperluan}
                                             </p>
                                             {item.tanggal_nota && (
-                                                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, margin: 0 }}>
+                                                <p className="pc-cell-sub" style={{ marginTop: 2, margin: 0 }}>
                                                     Tgl Nota: {fmtTgl(item.tanggal_nota)}
                                                 </p>
                                             )}
                                         </td>
                                         <td>{item.created_by_name || '-'}</td>
-                                        <td style={{ fontWeight: 700, color: '#1a4731' }}>{fmt(item.nominal)}</td>
+                                        <td className="pc-nominal-cell">{fmt(item.nominal)}</td>
                                         <td>
                                             {(() => {
                                                 const st = RB_STATUS[item.status] || { label: item.status, bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' };
                                                 return (
-                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 99, background: st.bg, color: st.color, fontSize: 11.5, fontWeight: 600 }}>
-                                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
-                                                        {st.label}
+                                                    <span className="pc-status-inline">
+                                                        <span className="pc-status-dot" style={{ background: st.dot }} />
+                                                        <span>{st.label}</span>
                                                     </span>
                                                 );
                                             })()}
@@ -1020,30 +1024,17 @@ export default function Reimbursement({ isEmbedded = false }) {
                     </div>
                 )}
 
-                {(search ? filteredRB.length : totalCount) > 0 && (
-                    <div className="pc-pagination">
-                        <span className="pc-page-info">
-                            Hal {page} dari {totalPages} - {search ? filteredRB.length : totalCount} data
-                        </span>
-                        <div className="pc-page-btns">
-                            <RowSizeSelect
-                                className="pc-filter-select"
-                                value={pageSize}
-                                onChange={(size) => {
-                                    setPageSize(size);
-                                    setPage(1);
-                                }}
-                            />
-                            <button className="pc-page-btn" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
-                                &lt;
-                            </button>
-                            <button className="pc-page-btn active">{page}</button>
-                            <button className="pc-page-btn" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
-                                &gt;
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <SimplePagination
+                    page={page}
+                    pageSize={pageSize}
+                    total={search ? filteredRB.length : totalCount}
+                    onPageChange={setPage}
+                    onPageSizeChange={(size) => {
+                        setPageSize(size);
+                        setPage(1);
+                    }}
+                    className="pc-pagination"
+                />
             </div>
         </>
     );
@@ -1057,7 +1048,6 @@ export default function Reimbursement({ isEmbedded = false }) {
                     <div className="pc-hero">
                         <div className="pc-hero-main">
                             <div className="pc-page-title">
-                                <span><Receipt size={22} /></span>
                                 <div>
                                     <h1 className="pc-title">Reimbursement</h1>
                                     <p className="pc-subtitle">
@@ -1079,6 +1069,7 @@ export default function Reimbursement({ isEmbedded = false }) {
                             icon={<Receipt size={18} />}
                             title={modalRevisi ? `Revisi - ${modalRevisi.no_reimbursement}` : 'Ajukan Reimbursement'}
                             subtitle={modalRevisi ? 'Perbaiki data pengajuan sesuai catatan evaluasi pimpinan.' : 'Isi tanggal nota, nominal biaya, keperluan, dan lampirkan bukti nota/kuitansi.'}
+                            onClose={() => { setModalAjukan(false); setModalRevisi(null); resetError(); }}
                         />
 
                         {modalRevisi?.catatan_tolak && (
@@ -1098,10 +1089,10 @@ export default function Reimbursement({ isEmbedded = false }) {
                             <div className="pc-field">
                                 <label className="pc-label">Nama Pengaju</label>
                                 <div className="pc-input-readonly">
-                                    <User size={15} style={{ color: '#10b981', flexShrink: 0 }} />
+                                    <User size={15} className="pc-input-icon" />
                                     <span>{modalRevisi ? (modalRevisi.created_by_name || '-') : (user?.full_name || user?.nama || user?.username || '-')}</span>
                                     {(user?.unit_nama || user?.unit?.nama) && (
-                                        <span style={{ fontSize: 11, fontWeight: 500, color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: 999, marginLeft: 'auto' }}>
+                                        <span className="pc-readonly-meta">
                                             {user?.unit_nama || user?.unit?.nama}
                                         </span>
                                     )}
@@ -1112,9 +1103,9 @@ export default function Reimbursement({ isEmbedded = false }) {
                                 <div className="pc-field">
                                     <label className="pc-label">Tanggal Pengajuan</label>
                                     <div className="pc-input-readonly" title="Tanggal pengajuan terkunci otomatis hari ini">
-                                        <Calendar size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                        <Calendar size={14} className="pc-input-icon" />
                                         <span>{fmtTgl(modalRevisi ? modalRevisi.tanggal : todayStr())}</span>
-                                        <span style={{ fontSize: 10.5, fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '2px 6px', borderRadius: 6, marginLeft: 'auto' }}>
+                                        <span className="pc-readonly-meta">
                                             Hari Ini (Otomatis)
                                         </span>
                                     </div>
@@ -1251,6 +1242,7 @@ export default function Reimbursement({ isEmbedded = false }) {
                             icon={<Receipt size={18} />}
                             title={`Detail - ${modalDetail.no_reimbursement}`}
                             subtitle={`Diajukan pada ${fmtTgl(modalDetail.tanggal)}`}
+                            onClose={() => setModalDetail(null)}
                         />
 
                         <ModalSummary
@@ -1262,9 +1254,9 @@ export default function Reimbursement({ isEmbedded = false }) {
                                 (() => {
                                     const st = RB_STATUS[modalDetail.status] || { label: modalDetail.status, bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' };
                                     return (
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 99, background: st.bg, color: st.color, fontSize: 12, fontWeight: 700 }}>
-                                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
-                                            {st.label}
+                                        <span className="pc-status-inline">
+                                            <span className="pc-status-dot" style={{ background: st.dot }} />
+                                            <span>{st.label}</span>
                                         </span>
                                     );
                                 })()
@@ -1274,19 +1266,19 @@ export default function Reimbursement({ isEmbedded = false }) {
                         <ModalSection icon={<ClipboardList size={14} />} title="Informasi Lengkap">
                             <div className="pc-grid2" style={{ marginBottom: 12 }}>
                                 <div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Tanggal Pengajuan</p>
-                                    <p style={{ fontSize: 13.5, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalDetail.tanggal)}</p>
+                                    <p className="pc-detail-label" style={{ marginBottom: 2 }}>Tanggal Pengajuan</p>
+                                    <p className="pc-detail-value">{fmtTgl(modalDetail.tanggal)}</p>
                                 </div>
                                 <div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Tanggal Nota / Kuitansi</p>
-                                    <p style={{ fontSize: 13.5, fontWeight: 600, color: '#1e293b' }}>{fmtTgl(modalDetail.tanggal_nota || modalDetail.tanggal)}</p>
+                                    <p className="pc-detail-label" style={{ marginBottom: 2 }}>Tanggal Nota / Kuitansi</p>
+                                    <p className="pc-detail-value">{fmtTgl(modalDetail.tanggal_nota || modalDetail.tanggal)}</p>
                                 </div>
                             </div>
 
                             {modalDetail.keterangan && (
-                                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 3 }}>Keterangan Tambahan:</p>
-                                    <p style={{ fontSize: 13, color: '#334155', margin: 0, lineHeight: 1.5 }}>{modalDetail.keterangan}</p>
+                                <div className="pc-detail-info-block" style={{ marginBottom: 12 }}>
+                                    <p className="pc-detail-label" style={{ marginBottom: 3 }}>Keterangan Tambahan:</p>
+                                    <p className="pc-detail-value" style={{ fontWeight: 400, margin: 0, lineHeight: 1.5 }}>{modalDetail.keterangan}</p>
                                 </div>
                             )}
 
@@ -1356,11 +1348,21 @@ export default function Reimbursement({ isEmbedded = false }) {
             {modalApproval && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <div style={{ marginBottom: 18 }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Proses Reimbursement</h2>
-                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>
-                                Tinjau bukti nota dan setujui untuk diteruskan ke Catatan Utang Rumah Sakit.
-                            </p>
+                        <div className="pc-modal-head">
+                            <div className="pc-modal-head-copy">
+                                <h2 className="pc-modal-head-title">Proses Reimbursement</h2>
+                                <p className="pc-modal-head-subtitle">
+                                    Tinjau bukti nota dan setujui untuk diteruskan ke Catatan Utang Rumah Sakit.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="pc-modal-close"
+                                onClick={() => { setModalApproval(null); resetError(); }}
+                                aria-label="Tutup modal"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
                         <div className="pc-approval-summary">
@@ -1375,22 +1377,16 @@ export default function Reimbursement({ isEmbedded = false }) {
 
                             <div className="pc-popup-applicant-block">
                                 <div className="pc-popup-grid-row">
-                                    <span className="pc-popup-grid-label">
-                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Pemohon :
-                                    </span>
+                                    <span className="pc-popup-grid-label">Pemohon</span>
                                     <span className="pc-popup-grid-val">{modalApproval.created_by_name || '-'}</span>
                                 </div>
                                 <div className="pc-popup-grid-row">
-                                    <span className="pc-popup-grid-label">
-                                        <FileText size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keperluan :
-                                    </span>
+                                    <span className="pc-popup-grid-label">Keperluan</span>
                                     <span className="pc-popup-grid-val">{modalApproval.keperluan}</span>
                                 </div>
                                 {modalApproval.tanggal_nota && (
                                     <div className="pc-popup-grid-row">
-                                        <span className="pc-popup-grid-label">
-                                            <Calendar size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Tgl Nota :
-                                        </span>
+                                        <span className="pc-popup-grid-label">Tgl Nota</span>
                                         <span className="pc-popup-grid-val">{fmtTgl(modalApproval.tanggal_nota)}</span>
                                     </div>
                                 )}
@@ -1464,11 +1460,21 @@ export default function Reimbursement({ isEmbedded = false }) {
             {modalBatal && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <div style={{ marginBottom: 18 }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#dc2626', margin: 0 }}>Batalkan Reimbursement</h2>
-                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>
-                                Apakah Anda yakin ingin membatalkan pengajuan <strong>{modalBatal.no_reimbursement}</strong>?
-                            </p>
+                        <div className="pc-modal-head">
+                            <div className="pc-modal-head-copy">
+                                <h2 className="pc-modal-head-title">Batalkan Reimbursement</h2>
+                                <p className="pc-modal-head-subtitle">
+                                    Apakah Anda yakin ingin membatalkan pengajuan <strong>{modalBatal.no_reimbursement}</strong>?
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                className="pc-modal-close"
+                                onClick={() => { setModalBatal(null); resetError(); }}
+                                aria-label="Tutup modal"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
                         {error && <div className="pc-alert-err">{error}</div>}

@@ -4,7 +4,7 @@ import { useToastState } from '../../context/ToastContext';
 import { Search, X, Check, Paperclip, AlertCircle, FileText, ZoomIn, ZoomOut, RotateCw, Maximize2, Trash2, Plus, Wallet, ClipboardList, User, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
-import { getCount, getResults, pageCount, pageParams, RowSizeSelect } from '../../utils/pagination.jsx';
+import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './KasBesar.css';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
@@ -96,14 +96,19 @@ function StableFilterBar({ searchVal, onSearch, statusVal, onStatus, statusCfg, 
     );
 }
 
-function ModalHeader({ icon, title, subtitle }) {
+function ModalHeader({ icon, title, subtitle, onClose }) {
     return (
         <div className="pc-modal-head">
-            <span className="pc-modal-title-icon">{icon}</span>
+            {icon && <span className="pc-modal-title-icon">{icon}</span>}
             <div className="pc-modal-head-copy">
                 <h2 className="pc-modal-head-title">{title}</h2>
                 {subtitle && <p className="pc-modal-head-subtitle">{subtitle}</p>}
             </div>
+            {onClose && (
+                <button type="button" className="pc-modal-close" onClick={onClose} aria-label="Tutup modal">
+                    <X size={16} />
+                </button>
+            )}
         </div>
     );
 }
@@ -135,10 +140,10 @@ function FileUploadZone({ file, label, hint, onPick }) {
     return (
         <div className={`pc-file-zone${file ? ' has' : ''}`} onClick={onPick} style={{ cursor: 'pointer' }}>
             <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: file ? '#166534' : '#475569', marginBottom: 2 }}>
+                <p className="pc-file-zone-label">
                     {file ? file.name : label}
                 </p>
-                <p style={{ fontSize: 11, color: '#94a3b8' }}>{hint}</p>
+                <p className="pc-file-zone-hint">{hint}</p>
             </div>
             <span className="pc-file-pick">{file ? 'Ganti' : 'Pilih File'}</span>
         </div>
@@ -215,7 +220,6 @@ export default function KasBesar() {
         return true;
     }), [listKB, filterStatus, search, filterDari, filterSampai]);
 
-    const totalPagesKB = pageCount(search ? filteredKB.length : totalKB, pageSizeKB);
     const pagedKB = search ? filteredKB : filteredKB;
 
     const handleBuatKB = async () => {
@@ -566,7 +570,6 @@ export default function KasBesar() {
             <div className="pc-hero">
                 <div className="pc-hero-main">
                     <div className="pc-page-title">
-                        <span><Wallet size={22} /></span>
                         <div>
                             <h1 className="pc-title">Kas Besar</h1>
                             <p className="pc-subtitle">Pengajuan dana operasional kas besar di atas Rp 1.000.000 dan pencatatan realisasi dana.</p>
@@ -624,24 +627,24 @@ export default function KasBesar() {
                             </tr>
                         </thead>
                         <tbody>
-                            {pagedKB.map((item, idx) => (
-                                <tr key={item.id} className="pc-tr" style={{ animationDelay: `${Math.min(idx, 8) * 0.03}s` }}>
-                                    <td style={{ fontWeight: 600, color: '#0f2d1a' }}>{item.no_pengajuan}</td>
-                                    <td style={{ color: '#94a3b8' }}>{fmtTgl(item.tanggal)}</td>
+                            {pagedKB.map((item) => (
+                                <tr key={item.id} className="pc-tr">
+                                    <td className="pc-no-code">{item.no_pengajuan}</td>
+                                    <td className="pc-date-cell">{fmtTgl(item.tanggal)}</td>
                                     <td style={{ maxWidth: 220 }}>
-                                        <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.keperluan}</p>
-                                        <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{item.created_by_name}</p>
+                                        <p className="pc-cell-main" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.keperluan}</p>
+                                        <p className="pc-cell-sub" style={{ marginTop: 2 }}>{item.created_by_name}</p>
                                     </td>
                                     <td>{item.created_by_name}</td>
-                                    <td style={{ fontWeight: 700, color: '#1a4731' }}>{fmt(item.nominal)}</td>
+                                    <td className="pc-nominal-cell">{fmt(item.nominal)}</td>
                                     <td>
                                         {(() => {
                                             const st = getStatusDisplay(item);
                                             return (
                                                 <>
-                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 99, background: st.bg, color: st.color, fontSize: 11.5, fontWeight: 600 }}>
-                                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
-                                                    {st.label}
+                                                <span className="pc-status-inline">
+                                                    <span className="pc-status-dot" style={{ background: st.dot }} />
+                                                    <span>{st.label}</span>
                                                 </span>
                                                 {item.status === 'dicairkan' && item.laporan && item.catatan_tolak && (
                                                     <div style={{ marginTop: 3 }}>
@@ -725,17 +728,14 @@ export default function KasBesar() {
                 </div>
             )}
 
-            {(search ? filteredKB.length : totalKB) > 0 && (
-                <div className="pc-pagination">
-                    <span className="pc-page-info">Hal {page} dari {totalPagesKB} - {search ? filteredKB.length : totalKB} data</span>
-                    <div className="pc-page-btns">
-                        <RowSizeSelect className="pc-filter-select" value={pageSizeKB} onChange={(size) => { setPageSizeKB(size); setPage(1); }} />
-                        <button className="pc-page-btn" onClick={() => setPage(p => p - 1)} disabled={page === 1}>&lt;</button>
-                        <button className="pc-page-btn active">{page}</button>
-                        <button className="pc-page-btn" onClick={() => setPage(p => p + 1)} disabled={page === totalPagesKB}>&gt;</button>
-                    </div>
-                </div>
-            )}
+            <SimplePagination
+                page={page}
+                pageSize={pageSizeKB}
+                total={search ? filteredKB.length : totalKB}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => { setPageSizeKB(size); setPage(1); }}
+                className="pc-pagination"
+            />
         </div>
             
             {/* ══ MODAL FORM KAS BESAR (BUAT / REVISI) ══ */}
@@ -746,6 +746,7 @@ export default function KasBesar() {
                             icon={<Wallet size={18} />}
                             title={modalRevisi ? 'Revisi Pengajuan Kas Besar' : 'Ajukan Kas Besar'}
                             subtitle={modalRevisi ? `Memperbaiki pengajuan ${modalRevisi.no_pengajuan}` : 'Isi data pengajuan operasional bernominal di atas Rp 1.000.000.'}
+                            onClose={() => { setModalBuat(false); setModalRevisi(null); resetError(); }}
                         />
                         {modalRevisi?.catatan_tolak && (
                             <div className="pc-rejection">
@@ -850,6 +851,7 @@ export default function KasBesar() {
                             icon={<ClipboardList size={18} />}
                             title="Detail Kas Besar"
                             subtitle="Ringkasan pengajuan dana, approval, riwayat pencairan, dan laporan penggunaan."
+                            onClose={() => setModalDetail(null)}
                         />
                         <ModalSummary
                             label={modalDetail.no_pengajuan}
@@ -1071,7 +1073,7 @@ export default function KasBesar() {
                                     <FileText size={15} /> {modalDetail.laporan && modalDetail.catatan_tolak ? 'Perbaiki Laporan' : 'Submit Laporan'}
                                 </button>
                             )}
-                            <button className="pc-btn-primary" onClick={() => setModalDetail(null)}>Tutup</button>
+                            <button className="pc-btn-ghost" onClick={() => setModalDetail(null)}>Tutup</button>
                         </div>
                     </div>
                 </div>,
@@ -1082,9 +1084,19 @@ export default function KasBesar() {
             {modalApproval && createPortal(
                 <div className="pc-overlay">
                     <div className="pc-modal sm">
-                        <div style={{ marginBottom: 18 }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f2d1a', margin: 0 }}>Proses Pengajuan</h2>
-                            <p style={{ fontSize: 12.5, color: '#64748b', margin: '4px 0 0' }}>Tinjau dan tentukan persetujuan untuk pengajuan Kas Besar.</p>
+                        <div className="pc-modal-head">
+                            <div className="pc-modal-head-copy">
+                                <h2 className="pc-modal-head-title">Proses Pengajuan</h2>
+                                <p className="pc-modal-head-subtitle">Tinjau dan tentukan persetujuan untuk pengajuan Kas Besar.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="pc-modal-close"
+                                onClick={() => { setModalApproval(null); resetError(); }}
+                                aria-label="Tutup modal"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                         <div className="pc-approval-summary">
                             <div className="pc-approval-top">
@@ -1097,32 +1109,24 @@ export default function KasBesar() {
                             </div>
                             <div className="pc-popup-applicant-block">
                                 <div className="pc-popup-grid-row">
-                                    <span className="pc-popup-grid-label">
-                                        <User size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Pemohon :
-                                    </span>
+                                    <span className="pc-popup-grid-label">Pemohon</span>
                                     <span className="pc-popup-grid-val">
                                         {modalApproval.created_by_name || '-'}
                                     </span>
                                 </div>
                                 <div className="pc-popup-grid-row">
-                                    <span className="pc-popup-grid-label">
-                                        <FileText size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keperluan :
-                                    </span>
+                                    <span className="pc-popup-grid-label">Keperluan</span>
                                     <span className="pc-popup-grid-val">{modalApproval.keperluan}</span>
                                 </div>
                                 {modalApproval.keterangan && (
                                     <div className="pc-popup-grid-row">
-                                        <span className="pc-popup-grid-label">
-                                            <ClipboardList size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Keterangan :
-                                        </span>
+                                        <span className="pc-popup-grid-label">Keterangan</span>
                                         <span className="pc-popup-grid-val">{modalApproval.keterangan}</span>
                                     </div>
                                 )}
                                 {modalApproval.file_surat && (
-                                    <div className="pc-popup-grid-row" style={{ marginTop: 2 }}>
-                                        <span className="pc-popup-grid-label">
-                                            <Paperclip size={14} style={{ color: '#10b981', flexShrink: 0 }} /> Berkas :
-                                        </span>
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label">Berkas</span>
                                         <span className="pc-popup-grid-val">
                                             <a href={resolveMediaUrl(modalApproval.file_surat)} target="_blank" rel="noreferrer" className="pc-form-link" style={{ margin: 0 }}>
                                                 Lihat Berkas Surat
@@ -1194,10 +1198,11 @@ export default function KasBesar() {
                             icon={<Wallet size={18} />}
                             title="Pencairan Kas Besar"
                             subtitle="Konfirmasi pencairan dana pengajuan kas besar."
+                            onClose={() => { setModalCairkan(null); resetError(); }}
                         />
                         {error && <div className="pc-alert-err">{error}</div>}
 
-                        <div className="pc-form-note" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}>
+                        <div className="pc-form-note is-info">
                             <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
                             <span>Pembayaran untuk pengajuan ini telah <strong>direalisasikan</strong> di <strong>Catatan Utang</strong>. Tekan <strong>Cairkan Dana</strong> untuk mengonfirmasi penyerahan dana kepada pemohon.</span>
                         </div>
@@ -1228,22 +1233,25 @@ export default function KasBesar() {
                             icon={<AlertTriangle size={18} />}
                             title="Batalkan Pengajuan"
                             subtitle={`No. Pengajuan: ${modalBatal.no_pengajuan}`}
+                            onClose={() => { setModalBatal(null); setFormBatal({ alasan: '' }); resetError(); }}
                         />
-                        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-                            <p style={{ fontSize: 13, color: '#991b1b', marginBottom: 4, fontWeight: 600 }}>Konfirmasi pembatalan pengajuan kas besar:</p>
-                            <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: 0 }}>{modalBatal.no_pengajuan}</p>
-                            <p style={{ fontSize: 18, fontWeight: 700, color: '#b91c1c', margin: '4px 0 8px' }}>{fmt(modalBatal.nominal)}</p>
-                            <div className="pc-popup-applicant-block" style={{ borderTopColor: '#fca5a5' }}>
-                                <div className="pc-popup-applicant-row">
-                                    <User size={14} style={{ color: '#dc2626', flexShrink: 0 }} />
-                                    <span>Diajukan Oleh: <strong>{modalBatal.created_by_name || '-'}</strong></span>
+                        <div className="pc-batal-box">
+                            <p className="pc-batal-box-title">Konfirmasi pembatalan pengajuan kas besar</p>
+                            <p className="pc-batal-box-no">{modalBatal.no_pengajuan}</p>
+                            <p className="pc-batal-box-amt">{fmt(modalBatal.nominal)}</p>
+                            <div className="pc-popup-applicant-block pc-batal-applicant">
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">Pemohon</span>
+                                    <span className="pc-popup-grid-val">{modalBatal.created_by_name || '-'}</span>
                                 </div>
-                                <div className="pc-popup-desc">
-                                    <strong>Keperluan:</strong> {modalBatal.keperluan}
+                                <div className="pc-popup-grid-row">
+                                    <span className="pc-popup-grid-label">Keperluan</span>
+                                    <span className="pc-popup-grid-val">{modalBatal.keperluan}</span>
                                 </div>
                                 {modalBatal.keterangan && (
-                                    <div className="pc-popup-keterangan">
-                                        <strong>Keterangan:</strong> {modalBatal.keterangan}
+                                    <div className="pc-popup-grid-row">
+                                        <span className="pc-popup-grid-label">Keterangan</span>
+                                        <span className="pc-popup-grid-val">{modalBatal.keterangan}</span>
                                     </div>
                                 )}
                             </div>
@@ -1282,6 +1290,7 @@ export default function KasBesar() {
                             icon={<FileText size={18} />}
                             title="Upload Laporan Penggunaan"
                             subtitle="Isi realisasi dana, rincian penggunaan, dan unggah nota bila ada."
+                            onClose={() => { setModalLaporan(null); resetError(); }}
                         />
                         <ModalSummary
                             label="Dana yang dicairkan"
@@ -1289,7 +1298,7 @@ export default function KasBesar() {
                             description={modalLaporan.keperluan}
                             meta={
                                 <span>
-                                    <strong>{modalLaporan.no_pengajuan}</strong> • Diajukan Oleh: <strong>{modalLaporan.created_by_name || '-'}</strong>
+                                    <span className="pc-approval-no">{modalLaporan.no_pengajuan}</span> • Diajukan Oleh: <strong>{modalLaporan.created_by_name || '-'}</strong>
                                     {modalLaporan.keterangan ? ` • Ket: ${modalLaporan.keterangan}` : ''}
                                 </span>
                             }
@@ -1318,7 +1327,6 @@ export default function KasBesar() {
                                         type="button"
                                         className="pc-btn-add-item"
                                         onClick={addLaporanItem}
-                                        style={{ padding: '5px 12px', fontSize: '12px' }}
                                     >
                                         <Plus size={14} /> Tambah Baris Pengeluaran
                                     </button>
@@ -1421,7 +1429,6 @@ export default function KasBesar() {
                                             type="button"
                                             className="pc-btn-add-item"
                                             onClick={addDiskonItem}
-                                            style={{ padding: '5px 12px', fontSize: '12px' }}
                                         >
                                             <Plus size={14} /> Tambah Baris Diskon
                                         </button>
@@ -1500,15 +1507,15 @@ export default function KasBesar() {
                                     </div>
                                     {totalDiskon > 0 && (
                                         <div className="pc-report-calc-row">
-                                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                                            <span style={{ color: '#10b981', fontWeight: 500 }}>
                                                 Total Potongan Diskon ({diskonItems.filter(d => Number(d.nilai) > 0).length} jenis):
                                             </span>
-                                            <strong style={{ color: '#059669', fontSize: '14.5px' }}>- {fmt(totalDiskon)}</strong>
+                                            <strong style={{ color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>- {fmt(totalDiskon)}</strong>
                                         </div>
                                     )}
                                     <div className="pc-report-calc-row highlight">
                                         <span>Total Pengeluaran Riil:</span>
-                                        <strong style={{ color: '#2563eb', fontSize: '15px' }}>{fmt(totalPengeluaranRiil)}</strong>
+                                        <strong className="pc-calc-total">{fmt(totalPengeluaranRiil)}</strong>
                                     </div>
                                     <div className="pc-report-calc-divider" />
                                     <div className="pc-report-calc-row">
@@ -1597,6 +1604,7 @@ export default function KasBesar() {
                             icon={<Check size={18} />}
                             title="Approve Laporan Penggunaan"
                             subtitle="Review realisasi dana sebelum proses kas besar bisa dilanjutkan."
+                            onClose={() => { setModalApprovalLaporan(null); resetError(); }}
                         />
                         {modalApprovalLaporan.laporan && (
                             <div className="pc-approval-review-card">
@@ -1604,7 +1612,6 @@ export default function KasBesar() {
                                     <div>
                                         <p className="pc-review-id">{modalApprovalLaporan.no_pengajuan}</p>
                                         <div className="pc-review-user">
-                                            <User size={13} style={{ color: '#10b981' }} />
                                             <span>Diajukan Oleh: <strong>{modalApprovalLaporan.created_by_name || '-'}</strong></span>
                                         </div>
                                     </div>
@@ -1760,10 +1767,11 @@ export default function KasBesar() {
                             icon={<Wallet size={18} />}
                             title="Konfirmasi Pengembalian Dana"
                             subtitle={`No. Pengajuan: ${modalKonfirmasi.no_pengajuan}`}
+                            onClose={() => { setModalKonfirmasi(null); resetError(); }}
                         />
                         {error && <div className="pc-alert-err">{error}</div>}
 
-                        <div className="pc-form-note" style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#b45309' }}>
+                        <div className="pc-form-note is-warn">
                             <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
                             <span>Terdapat sisa dana yang harus dikembalikan oleh pihak pengaju. Pastikan Anda telah menerima fisik dana tersebut sebelum mengonfirmasi.</span>
                         </div>

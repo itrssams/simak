@@ -2,14 +2,62 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.utils import timezone
 
-from gudang.models import Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem, Ruang, Barang
+from gudang.models import Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem, Ruang, Barang, StokSaldo
 from gudang.serializers.distribution import (
     PermintaanSerializer, PengeluaranSerializer
 )
 from gudang.services.distribution import DistributionService
 from gudang.views.master import StandardResultsSetPagination
+
+
+def _is_approver_user(user):
+    if not user or not user.is_authenticated:
+        return False
+    is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
+    has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
+    approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
+    is_approver = getattr(user, 'role', '') in approver_roles
+    return is_super or (has_logistik and is_approver)
+
+
+def _is_logistik_operator(user):
+    if not user or not user.is_authenticated:
+        return False
+    return bool(
+        user.is_superuser
+        or getattr(user, 'username', '') == 'super'
+        or getattr(user, 'is_logistik', False)
+        or getattr(user, 'role', '') in ['direktur', 'wakil_direktur']
+    )
+
+
+def _resolve_or_create_ruang_for_unit(unit_obj):
+    """Cari Ruang yang sesuai dengan Unit user; jika belum ada, buatkan otomatis."""
+    unit_name = (unit_obj.nama or '').strip()
+    matched_ruang = (
+        Ruang.objects.filter(unit=unit_obj).first()
+        or (Ruang.objects.filter(nama__iexact=unit_name).first() if unit_name else None)
+    )
+    if not matched_ruang and len(unit_name) > 2:
+        matched_ruang = Ruang.objects.filter(nama__icontains=unit_name).first()
+    if matched_ruang:
+        return matched_ruang
+
+    base_kode = f"U-{unit_obj.id:03d}"
+    kode_ruang = base_kode
+    suffix = 1
+    while Ruang.objects.filter(kode=kode_ruang).exists():
+        kode_ruang = f"{base_kode}-{suffix}"
+        suffix += 1
+    return Ruang.objects.create(
+        kode=kode_ruang,
+        nama=(unit_name or base_kode)[:120],
+        unit=unit_obj,
+        is_active=True,
+    )
 
 
 class PermintaanViewSet(viewsets.ModelViewSet):
@@ -50,7 +98,11 @@ class PermintaanViewSet(viewsets.ModelViewSet):
 
         status_param = self.request.query_params.get('status')
         if status_param:
-            qs = qs.filter(status=status_param)
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if len(statuses) == 1:
+                qs = qs.filter(status=statuses[0])
+            elif statuses:
+                qs = qs.filter(status__in=statuses)
         ruang_param = self.request.query_params.get('ruang')
         if ruang_param:
             qs = qs.filter(ruang_id=ruang_param)
@@ -64,15 +116,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         catatan = data.get('catatan', '')
         auto_submit = bool(data.get('auto_submit', True))
 
-        # Jika ruang_id belum ada, otomatis ambil dari unit kerja akun di Manajemen User
+        # Jika ruang_id belum ada, otomatis ambil atau buat dari unit kerja akun di Manajemen User
         if not ruang_id and getattr(request.user, 'unit', None):
-            matched_ruang = Ruang.objects.filter(nama__iexact=request.user.unit.nama).first()
-            if not matched_ruang:
-                matched_ruang = Ruang.objects.filter(unit=request.user.unit).first()
-            if not matched_ruang and len(request.user.unit.nama.strip()) > 2:
-                matched_ruang = Ruang.objects.filter(nama__icontains=request.user.unit.nama.strip()).first()
-            if matched_ruang:
-                ruang_id = matched_ruang.id
+            ruang_id = _resolve_or_create_ruang_for_unit(request.user.unit).id
 
         if not ruang_id:
             return Response({'error': 'Unit / Ruangan pemohon tidak ditemukan. Pastikan akun Anda memiliki unit di Manajemen User.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -107,13 +153,7 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         permintaan = self.get_object()
-        user = request.user
-        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
-        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
-        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
-        is_approver = getattr(user, 'role', '') in approver_roles
-
-        if not (is_super or (has_logistik and is_approver)):
+        if not _is_approver_user(request.user):
             return Response({'error': 'Hanya Koordinator/Kepala Seksi yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang memverifikasi/menyetujui permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         items_approval = request.data.get('items')
@@ -123,20 +163,128 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                 user=request.user,
                 items_approval=items_approval
             )
+            permintaan = self.get_queryset().get(pk=permintaan.pk)
             return Response(self.get_serializer(permintaan).data)
         except ValidationError as e:
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['post'], url_path='approve-followup')
+    def approve_followup(self, request, pk=None):
+        """
+        Verifikasi susulan oleh Koordinator/Kasi untuk item berstatus SEDANG_DIAJUKAN
+        setelah stok gudang terisi kembali.
+        """
+        permintaan = self.get_object()
+        if not _is_approver_user(request.user):
+            return Response({'error': 'Hanya Koordinator/Kepala Seksi yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang melakukan verifikasi susulan.'}, status=status.HTTP_403_FORBIDDEN)
+
+        items_approval = request.data.get('items', [])
+        try:
+            permintaan = DistributionService.approve_followup_items(
+                permintaan,
+                user=request.user,
+                items_approval=items_approval
+            )
+            permintaan = self.get_queryset().get(pk=permintaan.pk)
+            return Response(self.get_serializer(permintaan).data)
+        except ValidationError as e:
+            return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='close-item')
+    def close_item(self, request, pk=None):
+        """
+        Menutup / membatalkan sisa item yang sedang menunggu pengadaan (SEDANG_DIAJUKAN).
+        """
+        permintaan = self.get_object()
+        if not _is_logistik_operator(request.user):
+            return Response({'error': 'Hanya petugas logistik atau administrator yang berwenang menutup item pengadaan.'}, status=status.HTTP_403_FORBIDDEN)
+
+        item_id = request.data.get('item_id') or request.data.get('id')
+        alasan = str(request.data.get('alasan') or '').strip()
+        if not item_id:
+            return Response({'error': 'ID item wajib dikirimkan.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            permintaan = DistributionService.close_procurement_item(
+                permintaan,
+                item_id=int(item_id),
+                user=request.user,
+                alasan=alasan
+            )
+            permintaan = self.get_queryset().get(pk=permintaan.pk)
+            return Response(self.get_serializer(permintaan).data)
+        except (ValueError, TypeError):
+            return Response({'error': 'Format item_id tidak valid.'}, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='procurement-alerts')
+    def procurement_alerts(self, request):
+        """
+        Daftar antrean item SEDANG_DIAJUKAN untuk alert Dashboard Gudang:
+        - ready_for_followup: stok sekarang > 0 (siap ACC susulan oleh Kasi/Koordinator)
+        - awaiting_stock: stok masih 0 (menunggu penerimaan/pengadaan)
+        """
+        allowed_permintaan_ids = self.filter_queryset(self.get_queryset()).values_list('id', flat=True)
+        pending_items = list(
+            PermintaanItem.objects.filter(
+                permintaan_id__in=allowed_permintaan_ids,
+                status=PermintaanItem.STATUS_SEDANG_DIAJUKAN,
+            )
+            .exclude(permintaan__status__in=[Permintaan.STATUS_BATAL, Permintaan.STATUS_DITOLAK, Permintaan.STATUS_SELESAI])
+            .select_related('permintaan', 'permintaan__ruang', 'barang', 'barang__satuan_dasar')
+            .order_by('permintaan__tanggal', 'id')
+        )
+
+        barang_ids = list({pi.barang_id for pi in pending_items})
+        stok_map = {}
+        if barang_ids:
+            rows = StokSaldo.objects.filter(barang_id__in=barang_ids).values('barang_id').annotate(total=Sum('qty'))
+            stok_map = {r['barang_id']: float(r['total'] or 0) for r in rows}
+
+        today = timezone.now().date()
+        ready_for_followup = []
+        awaiting_stock = []
+
+        for pi in pending_items:
+            stok_now = stok_map.get(pi.barang_id, 0.0)
+            req_date = pi.permintaan.tanggal
+            waiting_days = max(0, (today - req_date).days) if req_date else 0
+            entry = {
+                'id': pi.id,
+                'permintaan_id': pi.permintaan_id,
+                'permintaan_nomor': pi.permintaan.nomor,
+                'permintaan_tanggal': str(req_date) if req_date else None,
+                'ruang_id': pi.permintaan.ruang_id,
+                'ruang_nama': pi.permintaan.ruang_nama or (pi.permintaan.ruang.nama if pi.permintaan.ruang else '-'),
+                'barang_id': pi.barang_id,
+                'barang_kode': pi.barang.kode,
+                'barang_nama': pi.barang.nama,
+                'qty_minta': float(pi.qty_minta),
+                'satuan': pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else ''),
+                'stok_tersedia': stok_now,
+                'waiting_days': waiting_days,
+                'keterangan': pi.keterangan,
+            }
+            if stok_now > 0:
+                ready_for_followup.append(entry)
+            else:
+                awaiting_stock.append(entry)
+
+        return Response({
+            'counts': {
+                'total_sedang_diajukan': len(pending_items),
+                'ready_count': len(ready_for_followup),
+                'awaiting_count': len(awaiting_stock),
+                'can_approve_followup': _is_approver_user(request.user),
+            },
+            'ready_for_followup': ready_for_followup,
+            'awaiting_stock': awaiting_stock,
+        })
+
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         permintaan = self.get_object()
-        user = request.user
-        is_super = user.is_superuser or getattr(user, 'username', '') == 'super'
-        has_logistik = bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
-        approver_roles = {'koordinator', 'kepala_seksi', 'manajer', 'wakil_direktur', 'direktur', 'superadmin'}
-        is_approver = getattr(user, 'role', '') in approver_roles
-
-        if not (is_super or (has_logistik and is_approver)):
+        if not _is_approver_user(request.user):
             return Response({'error': 'Hanya Koordinator/Kepala Seksi yang memiliki hak akses Gudang Logistik atau Administrator yang berwenang menolak permintaan unit.'}, status=status.HTTP_403_FORBIDDEN)
 
         alasan = request.data.get('alasan', '').strip()
@@ -144,6 +292,7 @@ class PermintaanViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Alasan penolakan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             permintaan = DistributionService.reject_permintaan(permintaan, user=request.user, alasan=alasan)
+            permintaan = self.get_queryset().get(pk=permintaan.pk)
             return Response(self.get_serializer(permintaan).data)
         except ValidationError as e:
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -152,11 +301,11 @@ class PermintaanViewSet(viewsets.ModelViewSet):
     def serahkan(self, request, pk=None):
         """
         Tahap 3: Penyerahan fisik oleh petugas logistik.
-        Permintaan yang telah DISETUJUI diserahkan ke perawat/petugas unit:
+        Permintaan yang telah DISETUJUI atau PROSES_SEBAGIAN diserahkan ke perawat/petugas unit:
         - Mencatat nama penerima fisik (wajib)
-        - Menerbitkan Bon Pengeluaran (OUT) otomatis
+        - Menerbitkan Bon Pengeluaran (OUT) untuk item yang berstatus DISETUJUI (qty_disetujui > qty_dikeluarkan)
         - Memotong kartu stok gudang secara otomatis
-        - Mengubah status Permintaan menjadi SELESAI
+        - Menyinkronkan status Permintaan (tetap PROSES_SEBAGIAN bila masih ada item SEDANG_DIAJUKAN, atau SELESAI bila seluruh item rampung)
         """
         from decimal import Decimal
         from django.db import transaction
@@ -180,9 +329,9 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                         'error': f'Permintaan {permintaan.nomor} sudah SELESAI (barang fisik sudah diserahkan penuh sebelumnya).'
                     }, status=status.HTTP_400_BAD_REQUEST)
 
-                if permintaan.status != Permintaan.STATUS_DISETUJUI:
+                if permintaan.status not in (Permintaan.STATUS_DISETUJUI, Permintaan.STATUS_PROSES_SEBAGIAN):
                     return Response({
-                        'error': f'Hanya permintaan berstatus DISETUJUI yang dapat diserahkan fisiknya (status saat ini: {permintaan.status}).'
+                        'error': f'Hanya permintaan berstatus DISETUJUI atau PROSES_SEBAGIAN yang dapat diserahkan fisiknya (status saat ini: {permintaan.status}).'
                     }, status=status.HTTP_400_BAD_REQUEST)
 
                 # Ambil item-item permintaan terbaru dari database dengan lock
@@ -200,7 +349,7 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                         except (ValueError, TypeError):
                             pi = None
 
-                        if not pi:
+                        if not pi or pi.status != PermintaanItem.STATUS_DISETUJUI:
                             continue
 
                         target_qty = pi.qty_disetujui
@@ -228,6 +377,8 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                         })
                 else:
                     for pi in pi_map.values():
+                        if pi.status != PermintaanItem.STATUS_DISETUJUI:
+                            continue
                         target_qty = pi.qty_disetujui
                         if target_qty <= Decimal('0'):
                             continue
@@ -257,7 +408,7 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                 )
                 pengeluaran = DistributionService.approve_pengeluaran(pengeluaran, user=request.user)
 
-                permintaan.refresh_from_db()
+                permintaan = self.get_queryset().get(pk=permintaan.pk)
                 serializer = self.get_serializer(permintaan)
 
                 return Response({
@@ -319,7 +470,11 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
         ).all()
         status_param = self.request.query_params.get('status')
         if status_param:
-            qs = qs.filter(status=status_param)
+            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
+            if len(statuses) == 1:
+                qs = qs.filter(status=statuses[0])
+            elif statuses:
+                qs = qs.filter(status__in=statuses)
         ruang_param = self.request.query_params.get('ruang')
         if ruang_param:
             qs = qs.filter(ruang_id=ruang_param)

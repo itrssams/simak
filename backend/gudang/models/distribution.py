@@ -9,6 +9,7 @@ class Permintaan(models.Model):
     STATUS_DRAFT = 'DRAFT'
     STATUS_MENUNGGU = 'MENUNGGU'
     STATUS_DISETUJUI = 'DISETUJUI'
+    STATUS_PROSES_SEBAGIAN = 'PROSES_SEBAGIAN'
     STATUS_SELESAI = 'SELESAI'
     STATUS_DITOLAK = 'DITOLAK'
     STATUS_BATAL = 'BATAL'
@@ -16,7 +17,8 @@ class Permintaan(models.Model):
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Draft'),
         (STATUS_MENUNGGU, 'Menunggu Persetujuan'),
-        (STATUS_DISETUJUI, 'Disetujui Sebagian / Penuh'),
+        (STATUS_DISETUJUI, 'Disetujui (Siap Diserahkan)'),
+        (STATUS_PROSES_SEBAGIAN, 'Dalam Proses / Menunggu Pengadaan'),
         (STATUS_SELESAI, 'Selesai (Sudah Diserahkan)'),
         (STATUS_DITOLAK, 'Ditolak'),
         (STATUS_BATAL, 'Dibatalkan'),
@@ -64,12 +66,30 @@ class Permintaan(models.Model):
 
 
 class PermintaanItem(models.Model):
+    STATUS_MENUNGGU = 'MENUNGGU'
+    STATUS_DISETUJUI = 'DISETUJUI'
+    STATUS_SEDANG_DIAJUKAN = 'SEDANG_DIAJUKAN'
+    STATUS_SELESAI = 'SELESAI'
+    STATUS_DITOLAK = 'DITOLAK'
+    STATUS_BATAL_PENGADAAN = 'BATAL_PENGADAAN'
+
+    STATUS_CHOICES = [
+        (STATUS_MENUNGGU, 'Menunggu ACC'),
+        (STATUS_DISETUJUI, 'Siap Diambil'),
+        (STATUS_SEDANG_DIAJUKAN, 'Sedang Diajukan / Menunggu Stok'),
+        (STATUS_SELESAI, 'Sudah Diserahkan'),
+        (STATUS_DITOLAK, 'Ditolak'),
+        (STATUS_BATAL_PENGADAAN, 'Pengadaan Dibatalkan / Ditutup'),
+    ]
+
     permintaan = models.ForeignKey(Permintaan, on_delete=models.CASCADE, related_name='items')
     barang = models.ForeignKey(Barang, on_delete=models.PROTECT, related_name='permintaan_items')
     qty_minta = models.DecimalField(max_digits=12, decimal_places=3)
     satuan = models.CharField(max_length=20)
     qty_disetujui = models.DecimalField(max_digits=12, decimal_places=3, default=Decimal('0.000'))
     qty_dikeluarkan = models.DecimalField(max_digits=12, decimal_places=3, default=Decimal('0.000'))
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default=STATUS_MENUNGGU, db_index=True)
+    alasan_tolak = models.CharField(max_length=255, blank=True)
     keterangan = models.CharField(max_length=255, blank=True)
     legacy_out_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
 

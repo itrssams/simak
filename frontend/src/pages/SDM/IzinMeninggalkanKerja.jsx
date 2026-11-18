@@ -902,49 +902,41 @@ export default function IzinMeninggalkanKerja() {
                 ) : (
                   approvalData.slice((apprPage - 1) * apprPageSize, apprPage * apprPageSize).map((item, idx) => (
                     <tr key={item.id}>
-                      <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{(apprPage - 1) * apprPageSize + idx + 1}</td>
+                      <td style={{ color: 'var(--sdm-muted, #94a3b8)', fontSize: '0.8rem' }} className="imtk-tabular">{(apprPage - 1) * apprPageSize + idx + 1}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {item.foto ? (
-                            <img
-                              src={item.foto}
-                              alt={item.nama_lengkap}
-                              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: '50%',
-                                background: '#e0e7ff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.8rem',
-                                fontWeight: 800,
-                                color: '#4338ca',
-                              }}
-                            >
-                              {item.nama_lengkap?.slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
+                          <div className="sdm-avatar-neutral">
+                            {item.foto ? (
+                              <img src={item.foto} alt={item.nama_lengkap} />
+                            ) : (
+                              item.nama_lengkap?.slice(0, 2).toUpperCase()
+                            )}
+                          </div>
                           <div>
-                            <strong style={{ display: 'block', fontSize: '0.88rem' }}>
+                            <strong style={{ display: 'block', fontSize: '13px' }}>
                               {item.nama_lengkap}
                             </strong>
-                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            <span className="imtk-muted" style={{ fontSize: '11.5px' }}>
                               {item.unit_nama || '-'}
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td className="imtk-tabular">
                         <strong>{formatTanggalIndo(item.tanggal)}</strong>
                       </td>
                       <td>
-                        <span className={`sdm-badge ${item.kategori}`}>
-                          {item.kategori_label}
+                        <span className="sdm-status-inline">
+                          <span
+                            className={`sdm-dot ${
+                              item.kategori === 'dinas'
+                                ? 'is-indigo'
+                                : item.kategori === 'sakit'
+                                  ? 'is-red'
+                                  : 'is-amber'
+                            }`}
+                          />
+                          <span>{item.kategori_label}</span>
                         </span>
                       </td>
                       <td style={{ maxWidth: 260 }}>{item.keperluan}</td>
@@ -1012,52 +1004,32 @@ export default function IzinMeninggalkanKerja() {
       {/* ════════════════ TAB 3: REKAPITULASI SDM & DIREKSI ════════════════ */}
       {activeTab === 'rekap' && hasSdmAccess && (
         <>
-          {/* KPI Statistic Cards */}
-          <div className="sdm-kpi-grid">
-            <div className="sdm-kpi-card">
-              <div className="sdm-kpi-info">
-                <span className="sdm-kpi-lbl">Menunggu Approval</span>
-                <span className="sdm-kpi-val" style={{ color: '#f59e0b' }}>
-                  {stats?.today_menunggu_approval ?? 0}
-                </span>
-              </div>
-              <div className="sdm-kpi-icon-box orange">
-                <Clock size={22} />
-              </div>
+          {/* Flat KPI Stat-Bar */}
+          <div className="sdm-stat-bar sdm-stat-bar-4">
+            <div className="sdm-stat-item">
+              <span className="sdm-stat-lbl">Menunggu Approval</span>
+              <span className="sdm-stat-val is-amber">
+                {stats?.today_menunggu_approval ?? 0}
+              </span>
             </div>
 
-            <div className="sdm-kpi-card">
-              <div className="sdm-kpi-info">
-                <span className="sdm-kpi-lbl">Sedang di Luar Hari Ini</span>
-                <span className="sdm-kpi-val" style={{ color: '#dc2626' }}>
-                  {stats?.today_sedang_keluar ?? 0}
-                </span>
-              </div>
-              <div className="sdm-kpi-icon-box blue">
-                <LogOut size={22} />
-              </div>
+            <div className="sdm-stat-item">
+              <span className="sdm-stat-lbl">Sedang di Luar Hari Ini</span>
+              <span className="sdm-stat-val is-red">
+                {stats?.today_sedang_keluar ?? 0}
+              </span>
             </div>
 
-            <div className="sdm-kpi-card">
-              <div className="sdm-kpi-info">
-                <span className="sdm-kpi-lbl">Sudah Kembali Hari Ini</span>
-                <span className="sdm-kpi-val" style={{ color: '#059669' }}>
-                  {stats?.today_sudah_kembali ?? 0}
-                </span>
-              </div>
-              <div className="sdm-kpi-icon-box green">
-                <CheckCircle2 size={22} />
-              </div>
+            <div className="sdm-stat-item">
+              <span className="sdm-stat-lbl">Sudah Kembali Hari Ini</span>
+              <span className="sdm-stat-val is-green">
+                {stats?.today_sudah_kembali ?? 0}
+              </span>
             </div>
 
-            <div className="sdm-kpi-card">
-              <div className="sdm-kpi-info">
-                <span className="sdm-kpi-lbl">Total Izin Bulan Ini</span>
-                <span className="sdm-kpi-val">{stats?.month_total ?? 0}</span>
-              </div>
-              <div className="sdm-kpi-icon-box indigo">
-                <Calendar size={22} />
-              </div>
+            <div className="sdm-stat-item">
+              <span className="sdm-stat-lbl">Total Izin Bulan Ini</span>
+              <span className="sdm-stat-val">{stats?.month_total ?? 0}</span>
             </div>
           </div>
 
@@ -1199,74 +1171,75 @@ export default function IzinMeninggalkanKerja() {
                   ) : (
                     rekapData.slice((rekapIzinPage - 1) * rekapIzinPageSize, rekapIzinPage * rekapIzinPageSize).map((item, idx) => (
                       <tr key={item.id}>
-                        <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{(rekapIzinPage - 1) * rekapIzinPageSize + idx + 1}</td>
+                        <td className="imtk-muted imtk-tabular" style={{ fontSize: '12px' }}>{(rekapIzinPage - 1) * rekapIzinPageSize + idx + 1}</td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {item.foto ? (
-                              <img
-                                src={item.foto}
-                                alt={item.nama_lengkap}
-                                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: '50%',
-                                  background: '#e2e8f0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 800,
-                                  color: '#475569',
-                                }}
-                              >
-                                {item.nama_lengkap?.slice(0, 2).toUpperCase()}
-                              </div>
-                            )}
+                            <div className="sdm-avatar-neutral">
+                              {item.foto ? (
+                                <img src={item.foto} alt={item.nama_lengkap} />
+                              ) : (
+                                item.nama_lengkap?.slice(0, 2).toUpperCase()
+                              )}
+                            </div>
                             <div>
-                              <strong style={{ display: 'block', fontSize: '0.88rem' }}>
+                              <strong style={{ display: 'block', fontSize: '13px' }}>
                                 {item.nama_lengkap}
                               </strong>
-                              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                              <span className="imtk-muted" style={{ fontSize: '11.5px' }}>
                                 {item.unit_nama || '-'}
                               </span>
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td className="imtk-tabular">
                           <strong>{item.tanggal}</strong>
                         </td>
                         <td>
-                          <span className={`sdm-badge ${item.kategori}`}>
-                            {item.kategori_label}
+                          <span className="sdm-status-inline">
+                            <span
+                              className={`sdm-dot ${
+                                item.kategori === 'dinas'
+                                  ? 'is-indigo'
+                                  : item.kategori === 'sakit'
+                                    ? 'is-red'
+                                    : 'is-amber'
+                              }`}
+                            />
+                            <span>{item.kategori_label}</span>
                           </span>
                         </td>
                         <td style={{ maxWidth: 220 }}>{item.keperluan}</td>
-                        <td>
-                          <span style={{ color: '#64748b', fontSize: '0.82rem' }}>
+                        <td className="imtk-tabular">
+                          <span className="imtk-muted" style={{ fontSize: '12px' }}>
                             {item.jam_keluar_awal?.slice(0, 5)} - {item.jam_kembali_awal?.slice(0, 5)}
                           </span>
                         </td>
-                        <td>
+                        <td className="imtk-tabular">
                           <strong>
                             {item.jam_keluar?.slice(0, 5)} - {item.jam_kembali?.slice(0, 5)}
                           </strong>
                         </td>
-                        <td>
+                        <td className="imtk-tabular">
                           {item.jam_kembali_aktual ? (
-                            <span style={{ color: '#059669', fontWeight: 700 }}>
+                            <span style={{ color: '#10b981', fontWeight: 600 }}>
                               {item.jam_kembali_aktual.slice(0, 5)}
                             </span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
+                            <span className="imtk-muted">-</span>
                           )}
                         </td>
                         <td>
-                          <span className={`sdm-badge ${item.status}`}>
-                            {item.status_label}
+                          <span className="sdm-status-inline">
+                            <span
+                              className={`sdm-dot ${
+                                item.status === 'menunggu_approval'
+                                  ? 'is-amber'
+                                  : item.status === 'ditolak' || item.status === 'dibatalkan'
+                                    ? 'is-red'
+                                    : 'is-green'
+                              }`}
+                            />
+                            <span>{item.status_label}</span>
                           </span>
                         </td>
                         <td>
@@ -1581,7 +1554,6 @@ export default function IzinMeninggalkanKerja() {
                 <button
                   type="submit"
                   className="sdm-btn-primary"
-                  style={{ background: '#10b981' }}
                   disabled={actionLoading}
                 >
                   {actionLoading ? 'Menyimpan...' : 'Saya Sudah di Kantor'}
@@ -1612,13 +1584,13 @@ export default function IzinMeninggalkanKerja() {
                 </div>
                 <div style={{ fontSize: '0.85rem', marginTop: 6 }}>
                   Rencana Awal:{' '}
-                  <span style={{ fontWeight: 800, color: '#1e40af' }}>
+                  <span className="imtk-tabular" style={{ fontWeight: 700, color: '#635bff' }}>
                     {logsModalItem.jam_keluar_awal?.slice(0, 5)} - {logsModalItem.jam_kembali_awal?.slice(0, 5)}
                   </span>
                 </div>
               </div>
 
-              <h4 style={{ margin: '14px 0 8px', fontSize: '0.9rem', fontWeight: 800 }}>Kronologi Perubahan:</h4>
+              <h4 style={{ margin: '14px 0 8px', fontSize: '0.9rem', fontWeight: 600 }}>Kronologi Perubahan:</h4>
 
               {logsModalItem.logs && logsModalItem.logs.length > 0 ? (
                 <div className="sdm-timeline">
@@ -1635,16 +1607,16 @@ export default function IzinMeninggalkanKerja() {
                         })}  • Oleh: {lg.created_by_name}
                       </div>
                       <div className="sdm-timeline-card">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 750 }}>
-                          <span style={{ color: '#94a3b8' }}>
+                        <div className="imtk-tabular" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                          <span className="imtk-muted">
                             {lg.jam_keluar_sebelum?.slice(0, 5)} - {lg.jam_kembali_sebelum?.slice(0, 5)}
                           </span>
-                          <ArrowRight size={14} color="#64748b" />
-                          <span style={{ color: '#2563eb' }}>
+                          <ArrowRight size={14} className="imtk-muted" />
+                          <span style={{ color: '#635bff' }}>
                             {lg.jam_keluar_sesudah?.slice(0, 5)} - {lg.jam_kembali_sesudah?.slice(0, 5)}
                           </span>
                         </div>
-                        <div style={{ marginTop: 6, fontSize: '0.82rem', color: '#334155' }}>
+                        <div className="imtk-muted" style={{ marginTop: 6, fontSize: '0.82rem' }}>
                           <strong>Alasan:</strong> "{lg.alasan_penyesuaian}"
                         </div>
                       </div>
@@ -1723,7 +1695,6 @@ export default function IzinMeninggalkanKerja() {
                 <button
                   type="submit"
                   className="sdm-btn-primary"
-                  style={{ background: '#10b981' }}
                   disabled={actionLoading}
                 >
                   {actionLoading ? 'Memproses...' : 'Setujui Izin'}

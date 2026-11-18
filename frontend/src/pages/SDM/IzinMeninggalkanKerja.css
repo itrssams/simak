@@ -2508,7 +2508,7 @@
    ============================================================================ */
 
 .imtk-stripe-page {
-  --imtk-bg: #0f1117;
+  --imtk-bg: #0b0d12;
   --imtk-surface: #181b23;
   --imtk-modal: #111318;
   --imtk-border: rgba(255, 255, 255, 0.12);
@@ -2520,7 +2520,7 @@
 
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: 0;
   background: transparent;
   color: var(--imtk-text);
@@ -3220,10 +3220,20 @@
   border-radius: 6px !important;
   font-size: 13px !important;
   padding: 0 12px !important;
-  background: #181b23 !important;
+  background-color: #181b23 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   color: #f1f5f9 !important;
   box-shadow: none !important;
+}
+
+.sdm-modal-overlay .sdm-select {
+  padding: 0 28px 0 12px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
 }
 
 .sdm-modal-overlay textarea.sdm-input {
@@ -3243,9 +3253,16 @@
 [data-theme="light"] .sdm-modal-overlay .sdm-input,
 [data-theme="light"] .sdm-modal-overlay .sdm-select,
 [data-theme="light"] .sdm-modal-overlay .df-input {
-  background: #ffffff !important;
+  background-color: #ffffff !important;
   border: 1px solid #d8dee4 !important;
   color: #1a1f36 !important;
+}
+
+[data-theme="light"] .sdm-modal-overlay .sdm-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
 }
 
 .sdm-modal-overlay .sdm-modal-foot {
@@ -3291,5 +3308,483 @@
 .sdm-modal-overlay .sdm-modal-foot .sdm-btn-primary:hover:not(:disabled) {
   background: #5249f5 !important;
 }
+
+/* ============================================================================
+   TAB 2 (APPROVAL), TAB 3 (REKAP), TAB 4 (ORG TREE) & FLAT MODAL INNER CLEANUP
+   ============================================================================ */
+
+/* Stripe Underline Tabs */
+.imtk-stripe-page .sdm-tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-bottom: 4px !important;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 2px;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--imtk-muted) !important;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-tab-btn:hover {
+  color: var(--imtk-text) !important;
+}
+
+.imtk-stripe-page .sdm-tab-btn.active {
+  color: #635bff !important;
+  border-bottom-color: #635bff !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .imtk-stripe-page .sdm-tab-btn.active {
+  color: #f8fafc !important;
+  border-bottom-color: #635bff !important;
+}
+
+.imtk-stripe-page .sdm-tab-badge {
+  background: #635bff !important;
+  color: #ffffff !important;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Flat Table Section (No Outer Card Frame / Navy Box) */
+[data-theme="dark"] .sdm-wrapper,
+[data-theme="light"] .sdm-wrapper,
+.sdm-wrapper,
+[data-theme="dark"] .imtk-stripe-page,
+[data-theme="light"] .imtk-stripe-page,
+.imtk-stripe-page,
+[data-theme="dark"] .imtk-stripe-page .sdm-table-section,
+[data-theme="light"] .imtk-stripe-page .sdm-table-section,
+.imtk-stripe-page .sdm-table-section,
+[data-theme="dark"] .imtk-stripe-page .sdm-table-responsive,
+[data-theme="light"] .imtk-stripe-page .sdm-table-responsive,
+[data-theme="dark"] .imtk-stripe-page .imtk-table-wrap,
+[data-theme="light"] .imtk-stripe-page .imtk-table-wrap {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.imtk-stripe-page .sdm-table-section {
+  padding: 0 !important;
+}
+
+.imtk-stripe-page .sdm-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0 0 12px 0;
+  border-bottom: 1px solid var(--imtk-border-subtle);
+  margin-bottom: 12px;
+}
+
+.imtk-stripe-page .sdm-table-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--imtk-text) !important;
+}
+
+.imtk-stripe-page .sdm-table-desc {
+  margin: 3px 0 0 0;
+  font-size: 12.5px;
+  color: var(--imtk-muted) !important;
+}
+
+.imtk-stripe-page .sdm-btn-outline {
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+  color: var(--imtk-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-btn-outline:hover:not(:disabled) {
+  border-color: #635bff !important;
+}
+
+.imtk-stripe-page .sdm-btn-approve,
+.imtk-stripe-page .sdm-btn-reject {
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-btn-approve {
+  background: #635bff !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+}
+
+.imtk-stripe-page .sdm-btn-approve:hover {
+  background: #5249f5 !important;
+}
+
+.imtk-stripe-page .sdm-btn-reject {
+  background: transparent !important;
+  border: 1px solid var(--imtk-border) !important;
+  color: #ef4444 !important;
+}
+
+.imtk-stripe-page .sdm-btn-reject:hover {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Filter Bar (Uniform 36px Controls & Custom Chevron Select) */
+.imtk-stripe-page .sdm-filter-bar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 0 !important;
+  padding: 0 0 14px 0 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.imtk-stripe-page .sdm-filter-item label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--imtk-muted) !important;
+  margin-bottom: 4px !important;
+}
+
+.imtk-stripe-page .sdm-select-sm,
+.imtk-stripe-page .sdm-input-search,
+.imtk-stripe-page .sdm-filter-item .drp-trigger {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  background-color: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+  color: var(--imtk-text) !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-select-sm {
+  padding: 0 28px 0 12px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+[data-theme="light"] .imtk-stripe-page .sdm-select-sm {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
+
+.imtk-stripe-page .sdm-input-search {
+  padding: 0 12px 0 34px !important;
+}
+
+.imtk-stripe-page .sdm-select-sm:focus,
+.imtk-stripe-page .sdm-input-search:focus {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.16) !important;
+}
+
+/* Full-Bleed Tables for Tab 2 & Tab 3 */
+.imtk-stripe-page .sdm-table-responsive {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-table,
+.imtk-stripe-page .sdm-table thead,
+.imtk-stripe-page .sdm-table thead tr,
+.imtk-stripe-page .sdm-table tbody,
+.imtk-stripe-page .sdm-table tbody tr {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.imtk-stripe-page .sdm-table th {
+  background: transparent !important;
+  color: var(--imtk-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 11px 12px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+}
+
+.imtk-stripe-page .sdm-table td {
+  background: transparent !important;
+  color: var(--imtk-text) !important;
+  font-size: 13px !important;
+  padding: 11px 12px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+}
+
+.imtk-stripe-page .sdm-table th:first-child,
+.imtk-stripe-page .sdm-table td:first-child {
+  padding-left: 0 !important;
+}
+
+.imtk-stripe-page .sdm-table tbody tr:hover td {
+  background: rgba(99, 91, 255, 0.03) !important;
+}
+
+.imtk-stripe-page .sdm-adjusted-badge,
+.imtk-stripe-page .sdm-approver-chip {
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+  color: var(--imtk-muted) !important;
+  border-radius: 4px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+}
+
+/* Modal Info Summary & Timeline (No Box-in-a-Box) */
+.sdm-modal-overlay .sdm-modal-info-box {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 !important;
+  padding: 0 0 12px 0 !important;
+  margin-bottom: 12px !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .sdm-modal-overlay .sdm-modal-info-box {
+  border-bottom-color: #e3e8ee !important;
+  color: #1a1f36 !important;
+}
+
+.sdm-modal-overlay .sdm-modal-info-lbl {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sdm-modal-overlay .sdm-modal-info-val {
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] .sdm-modal-overlay .sdm-modal-info-val {
+  color: #1a1f36 !important;
+}
+
+.sdm-modal-overlay .sdm-timeline-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 !important;
+  padding: 6px 0 12px !important;
+}
+
+[data-theme="light"] .sdm-modal-overlay .sdm-timeline-card {
+  border-bottom-color: #e3e8ee !important;
+}
+
+/* Tab 4: Struktur Organisasi RS (Neutral Surfaces, Zero Blur, 36px Toolbar) */
+.imtk-stripe-page .sdm-org-chart-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.imtk-stripe-page .sdm-org-toolbar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 0 !important;
+  padding: 0 0 14px 0 !important;
+}
+
+.imtk-stripe-page .sdm-view-switcher,
+.imtk-stripe-page .sdm-zoom-controls {
+  height: 36px !important;
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+  border-radius: 6px !important;
+  padding: 2px !important;
+  box-sizing: border-box !important;
+}
+
+.imtk-stripe-page .sdm-view-btn {
+  height: 30px !important;
+  border-radius: 4px !important;
+  font-size: 12.5px !important;
+  color: var(--imtk-muted) !important;
+  background: transparent !important;
+}
+
+.imtk-stripe-page .sdm-view-btn.active {
+  background: #635bff !important;
+  color: #ffffff !important;
+}
+
+.imtk-stripe-page .sdm-input-search-tree {
+  height: 36px !important;
+  border-radius: 6px !important;
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+  color: var(--imtk-text) !important;
+  font-size: 13px !important;
+}
+
+.imtk-stripe-page .sdm-btn-zoom,
+.imtk-stripe-page .sdm-btn-zoom-val,
+.imtk-stripe-page .sdm-btn-soft-xs {
+  height: 30px !important;
+  border-radius: 4px !important;
+  color: var(--imtk-text) !important;
+  background: transparent !important;
+  border-color: var(--imtk-border) !important;
+}
+
+.imtk-stripe-page .sdm-btn-soft-xs {
+  height: 36px !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border) !important;
+}
+
+.imtk-stripe-page .sdm-tree-canvas-container {
+  background-color: var(--imtk-bg) !important;
+  border: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 8px !important;
+}
+
+.imtk-stripe-page .sdm-org-legend-bar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 0 !important;
+  padding: 10px 0 !important;
+}
+
+.imtk-stripe-page .sdm-btn-primary {
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  background: #635bff !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.imtk-stripe-page .sdm-btn-primary:hover:not(:disabled) {
+  background: #5249f5 !important;
+  border-color: #5249f5 !important;
+}
+
+.imtk-stripe-page .sdm-org-card,
+.imtk-stripe-page .sdm-tree-card {
+  background: var(--imtk-modal) !important;
+  border: 1px solid var(--imtk-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: var(--imtk-text) !important;
+}
+
+[data-theme="light"] .imtk-stripe-page .sdm-org-card,
+[data-theme="light"] .imtk-stripe-page .sdm-tree-card {
+  background: #ffffff !important;
+}
+
+.imtk-stripe-page .sdm-tree-leader-box {
+  background: var(--imtk-surface) !important;
+  border: 1px solid var(--imtk-border-subtle) !important;
+  border-radius: 6px !important;
+}
+
+[data-theme="light"] .imtk-stripe-page .sdm-tree-leader-box {
+  background: #f8fafc !important;
+}
+
+.imtk-stripe-page .sdm-tree-leader-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  background: var(--imtk-surface-muted, #f1f5f9) !important;
+  color: var(--imtk-text) !important;
+  border: 1px solid var(--imtk-border) !important;
+  font-size: 11px !important;
+}
+
+.imtk-stripe-page .sdm-org-name,
+.imtk-stripe-page .sdm-tree-title,
+.imtk-stripe-page .sdm-tree-leader-name {
+  color: var(--imtk-text) !important;
+}
+
+.imtk-stripe-page .sdm-org-meta,
+.imtk-stripe-page .sdm-tree-leader-lbl,
+.imtk-stripe-page .sdm-tree-meta-row {
+  color: var(--imtk-muted) !important;
+}
+
+.imtk-stripe-page .sdm-tree-staff-pill {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--imtk-muted) !important;
+}
+
 
 

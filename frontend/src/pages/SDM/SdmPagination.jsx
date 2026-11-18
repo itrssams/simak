@@ -1,15 +1,23 @@
 import React, { useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+const NOOP = () => {};
+
 export default function SdmPagination({
   totalItems = 0,
-  page = 1,
-  setPage,
+  page: pageProp,
+  currentPage,
+  setPage: setPageProp,
+  onPageChange,
   pageSize = 15,
-  setPageSize,
+  setPageSize: setPageSizeProp,
+  onPageSizeChange,
   label = 'data',
   pageSizeOptions = [10, 15, 25, 50, 100],
 }) {
+  const page = pageProp ?? currentPage ?? 1;
+  const setPage = setPageProp || onPageChange || NOOP;
+  const setPageSize = setPageSizeProp || onPageSizeChange || NOOP;
   const effectivePageSize = pageSize === 'all' ? Math.max(totalItems, 1) : Number(pageSize) || 15;
   const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
 
@@ -77,7 +85,7 @@ export default function SdmPagination({
             <button
               type="button"
               className="sdm-page-btn"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
               title="Halaman sebelumnya"
             >
@@ -104,7 +112,7 @@ export default function SdmPagination({
             <button
               type="button"
               className="sdm-page-btn"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page === totalPages}
               title="Halaman berikutnya"
             >

@@ -1,23 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    AlertTriangle,
     ArrowRight,
-    BarChart3,
-    CheckCircle2,
     Clock3,
-    FileText,
-    Landmark,
     Search,
     TrendingUp,
-    WalletCards,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import DateRangePicker from '../../components/DateRangePicker';
-import DateField from '../../components/DateField';
 import './InvoiceDashboard.css';
+import './PenagihanClean.css';
 
 const money = (value) =>
     `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -92,7 +86,6 @@ export default function InvoiceDashboard() {
         <div className="idash-page">
             <div className="idash-head">
                 <div className="idash-title">
-                    <span><BarChart3 size={23} /></span>
                     <div>
                         <h1>Dashboard Invoice</h1>
                         <p>Ringkasan piutang pembiayaan, pembayaran, dan prioritas penagihan.</p>
@@ -111,28 +104,24 @@ export default function InvoiceDashboard() {
             <section className="idash-summary-grid">
                 <MetricCard
                     variant="indigo"
-                    icon={FileText}
                     label="Total Piutang"
                     value={money(summary.total_tagihan)}
                     note={`${summary.invoice_count || 0} invoice aktif`}
                 />
                 <MetricCard
                     variant="blue"
-                    icon={CheckCircle2}
                     label="Sudah Dibayar"
                     value={money(summary.total_dibayar)}
                     note={`Collection rate ${percent(summary.collection_rate)}`}
                 />
                 <MetricCard
                     variant="amber"
-                    icon={WalletCards}
                     label="Sisa Piutang"
                     value={money(summary.sisa_piutang)}
                     note={`${summary.belum_bayar_count || 0} belum bayar · ${summary.sebagian_count || 0} sebagian`}
                 />
                 <MetricCard
                     variant="red"
-                    icon={AlertTriangle}
                     label="Lewat Jatuh Tempo"
                     value={`${summary.overdue_count || 0} invoice`}
                     note="Perlu prioritas follow up"
@@ -218,7 +207,6 @@ export default function InvoiceDashboard() {
                                 <tr key={`${item.id_pembiayaan}-${item.nama_pembiayaan}`}>
                                     <td>
                                         <div className="idash-name">
-                                            <span><Landmark size={16} /></span>
                                             <div>
                                                 <strong>{item.nama_pembiayaan}</strong>
                                                 <small>ID: {item.id_pembiayaan || '-'}</small>
@@ -258,12 +246,9 @@ export default function InvoiceDashboard() {
     );
 }
 
-function MetricCard({ icon: Icon, label, value, note, variant }) {
+function MetricCard({ label, value, note, variant }) {
     return (
         <div className={`idash-metric idash-metric--${variant}`}>
-            <div className="idash-metric-icon">
-                <Icon size={22} />
-            </div>
             <div className="idash-metric-body">
                 <span className="idash-metric-label">{label}</span>
                 <strong className="idash-metric-value">{value}</strong>

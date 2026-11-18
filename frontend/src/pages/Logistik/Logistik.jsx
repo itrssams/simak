@@ -111,7 +111,7 @@ const normalizeMoneyDraft = (value) => {
 
 const TITLES = {
     barang: ['Daftar Barang', 'Kelola daftar barang gudang logistik dari RSSAMS.'],
-    vendor: ['Master Vendor', 'Kelola rekanan/vendor untuk SPB dan penerimaan gudang logistik.'],
+    vendor: ['Master Vendor', 'Kelola master vendor dan kategori rekanan untuk Catatan Utang (Farmasi & Manual).'],
     spb: ['SPB', 'Surat Pesanan Barang gudang logistik.'],
     penerimaan: ['Penerimaan', 'Daftar barang masuk dari invoice rekanan.'],
     permintaan: ['Permintaan & Barang Keluar', 'Kelola permintaan barang dari unit ruangan serta mutasi pengeluaran stok.'],
@@ -217,6 +217,17 @@ export default function Logistik() {
             return true;
         });
     }, [kartuRows, kartuJenis, kartuDari, kartuSampai, kartuSearch]);
+
+    const vendorStats = useMemo(() => {
+        if (section !== 'vendor') return { total: 0, farmasi: 0, manual: 0, belumDiatur: 0 };
+        const list = vendorOptions || [];
+        return {
+            total: list.length,
+            farmasi: list.filter((v) => v.sumber === 'farmasi').length,
+            manual: list.filter((v) => v.sumber === 'manual').length,
+            belumDiatur: list.filter((v) => !String(v.kategori || '').trim()).length,
+        };
+    }, [section, vendorOptions]);
     const [forms, setForms] = useState({
         barang: emptyBarang,
         vendor: emptyVendor,
@@ -232,7 +243,7 @@ export default function Logistik() {
     const fetchOptions = useCallback(async () => {
         try {
             if (section === 'vendor') {
-                const vendorRes = await api.get('/keuangan/logistik/vendor/options/?sumber=all').catch(() => null);
+                const vendorRes = await api.get('/keuangan/logistik/vendor/options/?sumber=farmasi_manual').catch(() => null);
                 if (vendorRes?.data) setVendorOptions(getResults(vendorRes.data));
                 return;
             }
@@ -278,7 +289,7 @@ export default function Logistik() {
             }
             if (section === 'barang') params.show_all = showAllBarang ? 'true' : 'false';
             if (section === 'vendor') {
-                if (vendorSumberFilter !== 'all') params.sumber = vendorSumberFilter;
+                params.sumber = vendorSumberFilter === 'all' ? 'farmasi_manual' : vendorSumberFilter;
                 if (vendorKategoriFilter) params.kategori = vendorKategoriFilter;
             }
             const listRes = await api.get(endpointFor(), { params });
@@ -309,14 +320,12 @@ export default function Logistik() {
 
     useEffect(() => {
         if (section === 'vendor') {
-            if (urlSumber === 'logistik') {
-                setVendorSumberFilter('logistik');
-            } else if (urlSumber === 'semua' || urlSumber === 'all') {
-                setVendorSumberFilter('all');
-            } else if (urlSumber === 'farmasi') {
+            if (urlSumber === 'farmasi') {
                 setVendorSumberFilter('farmasi');
             } else if (urlSumber === 'manual') {
                 setVendorSumberFilter('manual');
+            } else {
+                setVendorSumberFilter('all');
             }
         }
     }, [section, urlSumber]);
@@ -330,7 +339,7 @@ export default function Logistik() {
         const target = section === 'stok-minimum' ? 'barang' : section;
         if (target === 'barang') setForms((v) => ({ ...v, barang: emptyBarang }));
         if (target === 'vendor') {
-            const defaultSumber = ['farmasi', 'logistik', 'manual'].includes(vendorSumberFilter) ? vendorSumberFilter : 'farmasi';
+            const defaultSumber = ['farmasi', 'manual'].includes(vendorSumberFilter) ? vendorSumberFilter : 'farmasi';
             setForms((v) => ({ ...v, vendor: { ...emptyVendor, sumber: defaultSumber } }));
         }
         if (target === 'spb' || target === 'penerimaan') setForms((v) => ({ ...v, spb: emptySpb }));
@@ -878,6 +887,7 @@ export default function Logistik() {
             icon: <Trash2 size={24} />,
             confirmLabel: 'Ya, Hapus Vendor',
             variant: 'danger',
+            cleanVariant: 'vendor',
             action: async () => {
                 setSaving(true);
                 try {
@@ -1007,16 +1017,54 @@ export default function Logistik() {
     }
 
     return (
-        <div className="inv-page log-page">
+        <div className={`inv-page log-page ${section === 'vendor' ? 'log-vendor-page' : ''}`}>
             <section className="inv-hero">
                 <div className="inv-title">
-                    <span><Warehouse size={24} /></span>
+                    {section !== 'vendor' && <span><Warehouse size={24} /></span>}
                     <div>
-                        <h1>{title[0]} <span style={{ fontSize: '0.65em', color: '#f87171', background: 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '6px', marginLeft: '8px', verticalAlign: 'middle' }}>v.1 (Legacy)</span></h1>
+                        <h1>
+                            {title[0]}
+                            {section !== 'vendor' && (
+                                <span style={{ fontSize: '0.65em', color: '#f87171', background: 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '6px', marginLeft: '8px', verticalAlign: 'middle' }}>v.1 (Legacy)</span>
+                            )}
+                        </h1>
                         <p>{title[1]}</p>
                     </div>
                 </div>
+                {section === 'vendor' && (
+                    <div className="inv-hero-actions">
+                        <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={15} /> Refresh</button>
+                        {canCreate && (
+                            <button className="inv-btn primary" onClick={openCreate} type="button"><FilePlus2 size={15} /> Tambah Vendor</button>
+                        )}
+                    </div>
+                )}
             </section>
+
+            {section === 'vendor' && (
+                <section className="log-stat-bar">
+                    <div className="log-stat-cell">
+                        <span className="log-stat-label">Total Rekanan</span>
+                        <strong className="log-stat-value inv-mono">{fmt(vendorStats.total)}</strong>
+                        <span className="log-stat-sub">Vendor aktif Catatan Utang</span>
+                    </div>
+                    <div className="log-stat-cell">
+                        <span className="log-stat-label">Sumber Farmasi</span>
+                        <strong className="log-stat-value inv-mono">{fmt(vendorStats.farmasi)}</strong>
+                        <span className="log-stat-sub">Rekanan supplier farmasi</span>
+                    </div>
+                    <div className="log-stat-cell">
+                        <span className="log-stat-label">Sumber Manual</span>
+                        <strong className="log-stat-value inv-mono">{fmt(vendorStats.manual)}</strong>
+                        <span className="log-stat-sub">Rekanan input manual</span>
+                    </div>
+                    <div className="log-stat-cell">
+                        <span className="log-stat-label">Kategori Belum Diatur</span>
+                        <strong className={`log-stat-value inv-mono ${vendorStats.belumDiatur > 0 ? 'warn' : ''}`}>{fmt(vendorStats.belumDiatur)}</strong>
+                        <span className="log-stat-sub">Perlu penyesuaian kategori</span>
+                    </div>
+                </section>
+            )}
 
             {isModuleLocked && (
                 <div style={{
@@ -1080,57 +1128,59 @@ export default function Logistik() {
                 <section className="inv-card table">
                     <div className="inv-card-head">
                         <div className="inv-card-title">
-                            <h2>Daftar Data</h2>
+                            <h2>{section === 'vendor' ? 'Daftar Vendor & Rekanan' : 'Daftar Data'}</h2>
                             <p>Total {fmt(total)} data</p>
                         </div>
-                        <div className="inv-card-actions">
-                            <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={16} /> Refresh</button>
+                        {section !== 'vendor' && (
+                            <div className="inv-card-actions">
+                                <button className="inv-btn soft" onClick={fetchRows} type="button"><RefreshCw size={16} /> Refresh</button>
 
-                            {section === 'barang' && !isModuleLocked && isWadirOrAbove && (
-                                <button
-                                    className="inv-btn danger"
-                                    onClick={bulkDeleteBarang}
-                                    type="button"
-                                    disabled={saving || selectedBarangIds.length === 0}
-                                    title={selectedBarangIds.length === 0 ? 'Pilih checkbox barang pada tabel terlebih dahulu' : `Hapus ${selectedBarangIds.length} barang terpilih`}
-                                    style={selectedBarangIds.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-                                >
-                                    <Trash2 size={16} /> Hapus Terpilih {selectedBarangIds.length > 0 ? `(${selectedBarangIds.length})` : ''}
-                                </button>
-                            )}
-
-                            {section === 'barang' && !isModuleLocked && isWadirOrAbove && selectedBarangIds.length > 0 && (
-                                <button
-                                    className="inv-btn soft"
-                                    onClick={() => setSelectedBarangIds([])}
-                                    type="button"
-                                    title="Batalkan semua pilihan checkbox"
-                                >
-                                    <X size={14} /> Batal ({selectedBarangIds.length})
-                                </button>
-                            )}
-
-                            {section === 'barang' && (
-                                <button className="inv-btn excel-btn" onClick={exportExcel} type="button" disabled={saving}>
-                                    <FileSpreadsheet size={16} /> Export Excel
-                                </button>
-                            )}
-                            {!isModuleLocked && ['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
-                                <>
-                                    <button className="inv-btn soft" onClick={() => setModal('barang-keluar')} type="button">
-                                        <Send size={16} /> Pengeluaran Langsung
+                                {section === 'barang' && !isModuleLocked && isWadirOrAbove && (
+                                    <button
+                                        className="inv-btn danger"
+                                        onClick={bulkDeleteBarang}
+                                        type="button"
+                                        disabled={saving || selectedBarangIds.length === 0}
+                                        title={selectedBarangIds.length === 0 ? 'Pilih checkbox barang pada tabel terlebih dahulu' : `Hapus ${selectedBarangIds.length} barang terpilih`}
+                                        style={selectedBarangIds.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                                    >
+                                        <Trash2 size={16} /> Hapus Terpilih {selectedBarangIds.length > 0 ? `(${selectedBarangIds.length})` : ''}
                                     </button>
-                                    <button className="inv-btn primary" onClick={() => setModal('permintaan')} type="button">
-                                        <FilePlus2 size={16} /> Permintaan Ruangan
+                                )}
+
+                                {section === 'barang' && !isModuleLocked && isWadirOrAbove && selectedBarangIds.length > 0 && (
+                                    <button
+                                        className="inv-btn soft"
+                                        onClick={() => setSelectedBarangIds([])}
+                                        type="button"
+                                        title="Batalkan semua pilihan checkbox"
+                                    >
+                                        <X size={14} /> Batal ({selectedBarangIds.length})
                                     </button>
-                                </>
-                            )}
-                            {canCreate && !['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && <button className="inv-btn primary" onClick={openCreate} type="button"><FilePlus2 size={16} /> Tambah</button>}
-                        </div>
+                                )}
+
+                                {section === 'barang' && (
+                                    <button className="inv-btn excel-btn" onClick={exportExcel} type="button" disabled={saving}>
+                                        <FileSpreadsheet size={16} /> Export Excel
+                                    </button>
+                                )}
+                                {!isModuleLocked && ['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && (
+                                    <>
+                                        <button className="inv-btn soft" onClick={() => setModal('barang-keluar')} type="button">
+                                            <Send size={16} /> Pengeluaran Langsung
+                                        </button>
+                                        <button className="inv-btn primary" onClick={() => setModal('permintaan')} type="button">
+                                            <FilePlus2 size={16} /> Permintaan Ruangan
+                                        </button>
+                                    </>
+                                )}
+                                {canCreate && !['permintaan', 'barang-keluar', 'verifikasi'].includes(section) && <button className="inv-btn primary" onClick={openCreate} type="button"><FilePlus2 size={16} /> Tambah</button>}
+                            </div>
+                        )}
                     </div>
                     <div className="dki-filter">
                         <div className="dki-filter-row-1">
-                            <label className="dki-search"><Search size={17} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari data..." /></label>
+                            <label className="dki-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={section === 'vendor' ? 'Cari nama vendor / alamat / kontak / PIC...' : 'Cari data...'} /></label>
                             {section === 'barang' && (
                                 <div className="log-filter-segment" role="group" aria-label="Filter barang">
                                     <button className={!showAllBarang ? 'active' : ''} type="button" onClick={() => setShowAllBarang(false)}>Stok tersedia</button>
@@ -1140,13 +1190,12 @@ export default function Logistik() {
                             {section === 'vendor' && (
                                 <>
                                     <select
-                                        className="inv-input"
+                                        className="inv-input log-vendor-cat-select"
                                         value={vendorKategoriFilter}
                                         onChange={(e) => { setPage(1); setVendorKategoriFilter(e.target.value); }}
-                                        style={{ width: '160px', minWidth: '150px', maxWidth: '180px', flex: '0 0 auto', height: '29px', padding: '3px 8px', fontSize: '11.5px', borderRadius: '6px' }}
                                     >
                                         <option value="">Semua Kategori</option>
-                                        <option value="__empty__">⚠️ Belum Diatur (Kosong)</option>
+                                        <option value="__empty__">Belum Diatur (Kosong)</option>
                                         {VENDOR_CATEGORIES.map((cat) => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
@@ -1154,7 +1203,6 @@ export default function Logistik() {
                                     <div className="log-filter-segment" role="group" aria-label="Filter vendor">
                                         <button className={vendorSumberFilter === 'all' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('all'); }}>Semua Vendor</button>
                                         <button className={vendorSumberFilter === 'farmasi' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('farmasi'); }}>Khusus Farmasi</button>
-                                        <button className={vendorSumberFilter === 'logistik' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('logistik'); }}>Khusus Logistik</button>
                                         <button className={vendorSumberFilter === 'manual' ? 'active' : ''} type="button" onClick={() => { setPage(1); setVendorSumberFilter('manual'); }}>Khusus Manual</button>
                                     </div>
                                 </>
@@ -1392,74 +1440,9 @@ function payload_error_fallback(section) {
 
 function VendorCategoryBadge({ kategori }) {
     if (!kategori || !kategori.trim()) {
-        return (
-            <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: '#d97706',
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px dashed rgba(245, 158, 11, 0.4)',
-                padding: '3px 8px',
-                borderRadius: '6px',
-            }}>
-                ⚠️ Belum Diatur
-            </span>
-        );
+        return <span className="log-vendor-cat-meta empty">Belum Diatur</span>;
     }
-    const cat = kategori.trim();
-    let bg = 'rgba(59, 130, 246, 0.1)';
-    let color = '#2563eb';
-    let border = '1px solid rgba(59, 130, 246, 0.25)';
-
-    if (cat === 'OBAT DAN BHP' || cat === 'OBAT & BHP') {
-        bg = 'rgba(16, 185, 129, 0.1)';
-        color = '#059669';
-        border = '1px solid rgba(16, 185, 129, 0.25)';
-    } else if (cat === 'ALAT KESEHATAN') {
-        bg = 'rgba(139, 92, 246, 0.1)';
-        color = '#7c3aed';
-        border = '1px solid rgba(139, 92, 246, 0.25)';
-    } else if (cat.includes('RUJUKAN') || cat.includes('LAB')) {
-        bg = 'rgba(236, 72, 153, 0.1)';
-        color = '#db2777';
-        border = '1px solid rgba(236, 72, 153, 0.25)';
-    } else if (cat.includes('PENUNJANG')) {
-        bg = 'rgba(245, 158, 11, 0.1)';
-        color = '#d97706';
-        border = '1px solid rgba(245, 158, 11, 0.25)';
-    } else if (cat.includes('ATK') || cat.includes('RUMAH TANGGA')) {
-        bg = 'rgba(14, 165, 233, 0.1)';
-        color = '#0284c7';
-        border = '1px solid rgba(14, 165, 233, 0.25)';
-    } else if (cat.includes('BPJS')) {
-        bg = 'rgba(20, 184, 166, 0.1)';
-        color = '#0d9488';
-        border = '1px solid rgba(20, 184, 166, 0.25)';
-    } else if (cat.includes('KAS NEGARA')) {
-        bg = 'rgba(239, 68, 68, 0.1)';
-        color = '#dc2626';
-        border = '1px solid rgba(239, 68, 68, 0.25)';
-    }
-
-    return (
-        <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            color,
-            background: bg,
-            border,
-            padding: '3px 9px',
-            borderRadius: '6px',
-            whiteSpace: 'nowrap',
-        }}>
-            {cat}
-        </span>
-    );
+    return <span className="log-vendor-cat-meta">{kategori.trim()}</span>;
 }
 
 function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onEditBarang, onEditPenerimaan, onDeleteBarang, onDeleteVendor, onDeleteSpb, onDeletePenerimaan, onVerify, onProsesPenerimaan, onSubmitSpb, onApproveSpb, onRejectSpb, onBatalSpb, onSubmitPenerimaan, onApprovePenerimaan, onRejectPenerimaan, isWadirOrAbove, selectedBarangIds = [], onToggleSelectAllBarang, onToggleSelectOneBarang }) {
@@ -1525,17 +1508,17 @@ function DataTable({ section, rows, loading, onDetail, onItem, onEditVendor, onE
             <tr key={r.id}>
                 <td>
                     <div className="log-vendor-name-cell">
-                        <strong style={{ fontSize: '0.92rem' }}>{r.nama}</strong>
-                        {r.id && <small style={{ color: '#94a3b8', fontSize: '0.75rem' }}>ID: #{r.id}</small>}
+                        <strong>{r.nama}</strong>
+                        {r.id && <small className="log-vendor-id-meta">ID: #{r.id}</small>}
                     </div>
                 </td>
                 <td>
                     <VendorCategoryBadge kategori={r.kategori} />
                 </td>
                 <td>
-                    {r.sumber === 'logistik' && <Badge info>Logistik</Badge>}
-                    {r.sumber === 'manual' && <Badge warning>Manual</Badge>}
-                    {(r.sumber === 'farmasi' || (!r.sumber || r.sumber === 'ots_import')) && <Badge purple>Farmasi</Badge>}
+                    <span className="log-vendor-sumber-meta">
+                        {r.sumber === 'logistik' ? 'Logistik' : r.sumber === 'manual' ? 'Manual' : 'Farmasi'}
+                    </span>
                 </td>
                 <td>
                     <div className="log-vendor-address-cell" title={r.alamat || '-'}>
@@ -1879,6 +1862,7 @@ function humanLabel(key) {
 
 function Modal({ title, description = 'Lengkapi data lalu simpan.', children, onClose, variant = 'create', icon = <FilePlus2 size={20} /> }) {
     const isDetail = variant === 'detail';
+    const isVendorClean = variant === 'vendor';
 
     useEffect(() => {
         const originalStyle = document.body.style.overflow;
@@ -1893,13 +1877,15 @@ function Modal({ title, description = 'Lengkapi data lalu simpan.', children, on
             <div className={`inv-modal ${isDetail ? 'detail' : 'create'} log-modal ${variant}`.trim()} role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                 <div className={`inv-modal-head ${isDetail ? 'inv-detail-head' : ''}`}>
                     <div className={isDetail ? 'inv-detail-title' : 'log-modal-title'}>
-                        <span className={`inv-modal-head-icon ${isDetail ? 'detail' : ''}`}>{icon}</span>
+                        {!isVendorClean && <span className={`inv-modal-head-icon ${isDetail ? 'detail' : ''}`}>{icon}</span>}
                         <div>
                             <h2>{title}</h2>
                             <p>{description}</p>
                         </div>
                     </div>
-                    <button className="inv-close" type="button" onClick={onClose}><X size={18} /> Tutup</button>
+                    <button className={`inv-close ${isVendorClean ? 'icon-only' : ''}`} type="button" onClick={onClose} aria-label="Tutup">
+                        <X size={18} />{!isVendorClean && ' Tutup'}
+                    </button>
                 </div>
                 <div className={isDetail ? 'inv-detail-body' : 'inv-modal-body'}>{children}</div>
             </div>
@@ -1915,6 +1901,7 @@ function ActionConfirmModal({
     icon = <ShieldAlert size={24} />,
     confirmLabel = 'Ya, Lanjutkan',
     variant = 'danger',
+    cleanVariant = '',
     hasInput = false,
     inputLabel = '',
     inputValue = '',
@@ -1939,18 +1926,22 @@ function ActionConfirmModal({
         onConfirm(hasInput ? val : true);
     };
 
+    const isCleanVendor = cleanVariant === 'vendor';
+
     return createPortal(
         <div className="inv-modal-backdrop" role="presentation" onMouseDown={onClose}>
-            <div className="log-confirm-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={`log-confirm-modal ${isCleanVendor ? 'vendor-confirm' : ''}`} role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                 <button className="log-confirm-close" type="button" onClick={onClose} aria-label="Tutup">
                     <X size={18} />
                 </button>
 
-                <div className="log-confirm-icon-wrapper">
-                    <div className={`log-confirm-icon-circle ${variant}`}>
-                        {icon}
+                {!isCleanVendor && (
+                    <div className="log-confirm-icon-wrapper">
+                        <div className={`log-confirm-icon-circle ${variant}`}>
+                            {icon}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <form onSubmit={handleSubmit} style={{ width: '100%' }}>
                     <div className="log-confirm-body">
@@ -2280,14 +2271,13 @@ function BarangModal({ form, setForm, onSubmit, onClose, saving, onGenerateKode 
 
 function VendorModal({ form, setForm, onSubmit, onClose, saving }) {
     return (
-        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan, PIC, kategori, dan sumber." onClose={onClose} icon={<Pencil size={20} />}>
+        <Modal title={form.id ? 'Edit Vendor' : 'Tambah Vendor'} description="Lengkapi data rekanan, PIC, kategori, dan sumber." onClose={onClose} variant="vendor">
             <form onSubmit={onSubmit}>
                 <div className="inv-form-grid">
                     <Field label="Nama Vendor"><input className="inv-input" required value={form.nama} onChange={(e) => setForm({ nama: e.target.value })} /></Field>
                     <Field label="Sumber Vendor">
                         <select className="inv-input" required value={form.sumber || 'farmasi'} onChange={(e) => setForm({ sumber: e.target.value })}>
                             <option value="farmasi">Farmasi</option>
-                            <option value="logistik">Logistik</option>
                             <option value="manual">Manual</option>
                         </select>
                     </Field>

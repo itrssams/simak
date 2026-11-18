@@ -59,27 +59,81 @@ class DistributionService:
             if qty_minta <= Decimal('0'):
                 raise ValidationError(f"Jumlah minta untuk '{barang.nama}' harus lebih dari 0.")
 
-            # Validasi ketersediaan stok: tidak bisa meminta jika stok gudang habis (<= 0)
-            total_stok = StokSaldo.objects.filter(barang=barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
-            if total_stok <= Decimal('0'):
-                satuan_txt = barang.satuan_dasar.kode if barang.satuan_dasar else 'item'
-                raise ValidationError(f"Stok barang '{barang.nama}' di gudang sedang habis (0 {satuan_txt}). Permintaan tidak dapat diajukan.")
-
             satuan = item.get('satuan') or (barang.satuan_dasar.kode if barang.satuan_dasar else 'PCS')
-            qty_disetujui = Decimal(str(item.get('qty_disetujui', qty_minta)))
 
             PermintaanItem.objects.create(
                 permintaan=permintaan,
                 barang=barang,
                 qty_minta=qty_minta,
                 satuan=satuan,
-                qty_disetujui=qty_disetujui,
+                qty_disetujui=Decimal('0.000'),
                 qty_dikeluarkan=Decimal('0.000'),
+                status=PermintaanItem.STATUS_MENUNGGU,
                 legacy_out_id=item.get('legacy_out_id') or None,
                 keterangan=str(item.get('keterangan') or '').strip()
             )
 
         return permintaan
+
+    @classmethod
+    def _get_total_stok(cls, barang: Barang) -> Decimal:
+        return StokSaldo.objects.filter(barang=barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
+
+    @classmethod
+    def recompute_permintaan_status(cls, permintaan: Permintaan, save: bool = True) -> str:
+        """
+        Sinkronkan status header Permintaan berdasarkan status seluruh PermintaanItem.
+        """
+        all_items = list(PermintaanItem.objects.filter(permintaan=permintaan))
+        if not all_items:
+            return permintaan.status
+
+        if permintaan.status == Permintaan.STATUS_BATAL:
+            return permintaan.status
+
+        has_menunggu = any(pi.status == PermintaanItem.STATUS_MENUNGGU for pi in all_items)
+        has_sedang_diajukan = any(pi.status == PermintaanItem.STATUS_SEDANG_DIAJUKAN for pi in all_items)
+        has_siap_serah = any(
+            pi.status == PermintaanItem.STATUS_DISETUJUI
+            and (pi.qty_disetujui or Decimal('0')) > (pi.qty_dikeluarkan or Decimal('0'))
+            for pi in all_items
+        )
+        has_selesai = any(
+            pi.status == PermintaanItem.STATUS_SELESAI
+            or (
+                pi.status == PermintaanItem.STATUS_DISETUJUI
+                and (pi.qty_disetujui or Decimal('0')) > Decimal('0')
+                and (pi.qty_dikeluarkan or Decimal('0')) >= (pi.qty_disetujui or Decimal('0'))
+            )
+            for pi in all_items
+        )
+
+        if has_menunggu and permintaan.status in (Permintaan.STATUS_DRAFT, Permintaan.STATUS_MENUNGGU):
+            return permintaan.status
+
+        update_fields = ['status', 'updated_at']
+        if has_sedang_diajukan:
+            new_status = Permintaan.STATUS_PROSES_SEBAGIAN
+        elif has_siap_serah:
+            new_status = Permintaan.STATUS_DISETUJUI
+        elif has_selesai:
+            new_status = Permintaan.STATUS_SELESAI
+        else:
+            new_status = Permintaan.STATUS_DITOLAK
+            if not permintaan.alasan_tolak:
+                reasons = [
+                    f"{pi.barang.nama}: {pi.alasan_tolak}"
+                    for pi in all_items
+                    if pi.status in (PermintaanItem.STATUS_DITOLAK, PermintaanItem.STATUS_BATAL_PENGADAAN) and pi.alasan_tolak
+                ]
+                if reasons:
+                    permintaan.alasan_tolak = '; '.join(reasons[:5])
+                    update_fields.append('alasan_tolak')
+
+        permintaan.status = new_status
+        if save:
+            permintaan.save(update_fields=update_fields)
+        return new_status
 
     @classmethod
     @transaction.atomic
@@ -99,73 +153,257 @@ class DistributionService:
         items_approval: Optional[List[Dict[str, Any]]] = None
     ) -> Permintaan:
         """
-        Gudang menyetujui permintaan barang dari unit ruangan.
-        Bisa menyesuaikan qty_disetujui jika kuantitas disesuaikan dengan ketersediaan stok.
+        Approver (Koordinator/Kasi) meninjau permintaan barang dari unit ruangan:
+        - SETUJUI: isi qty_disetujui (> 0 dan <= stok gudang). Tidak membuat backorder untuk selisih pengurangan.
+        - AJUKAN: masukkan ke antrean pengadaan (SEDANG_DIAJUKAN) karena stok kosong / belum mencukupi.
+        - TOLAK: tolak baris barang dengan alasan penolakan yang jelas.
         """
         if permintaan.status not in (Permintaan.STATUS_MENUNGGU, Permintaan.STATUS_DRAFT):
             raise ValidationError(f"Permintaan {permintaan.nomor} tidak dalam status menunggu persetujuan (status: {permintaan.status}).")
 
         if items_approval:
             approval_map = {}
+            has_explicit_decision = False
             for item in items_approval:
-                if 'id' in item and item.get('qty_disetujui') is not None:
+                if 'id' not in item:
+                    continue
+                try:
+                    pi_id = int(item['id'])
+                except (ValueError, TypeError):
+                    continue
+                keputusan_raw = str(item.get('keputusan') or '').strip().upper()
+                if keputusan_raw:
+                    has_explicit_decision = True
+                qty_val = Decimal('0')
+                if item.get('qty_disetujui') is not None and str(item.get('qty_disetujui')).strip() != '':
                     try:
-                        approval_map[int(item['id'])] = Decimal(str(item['qty_disetujui']))
+                        qty_val = Decimal(str(item['qty_disetujui']))
                     except (ValueError, TypeError):
-                        pass
+                        raise ValidationError("Format qty disetujui tidak valid.")
+                approval_map[pi_id] = {
+                    'keputusan': keputusan_raw,
+                    'qty_disetujui': qty_val,
+                    'alasan_tolak': str(item.get('alasan_tolak') or item.get('alasan') or '').strip(),
+                    'keterangan': str(item.get('keterangan') or '').strip(),
+                }
 
             total_qty_approved = Decimal('0')
-            for pi in permintaan.items.all():
-                if pi.id in approval_map:
-                    qty_app = approval_map[pi.id]
-                    satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
-                    # Validasi: Qty disetujui tidak boleh negatif
-                    if qty_app < Decimal('0'):
-                        raise ValidationError(
-                            f"Qty disetujui untuk '{pi.barang.nama}' tidak boleh bernilai negatif."
-                        )
-                    # Validasi: Jika disetujui > 0, tidak bisa melebihi stok yang tersedia di gudang
-                    if qty_app > Decimal('0'):
-                        total_stok = StokSaldo.objects.filter(barang=pi.barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
-                        if qty_app > total_stok:
-                            raise ValidationError(
-                                f"Qty disetujui untuk '{pi.barang.nama}' ({qty_app} {satuan_txt}) melebihi stok gudang yang tersedia ({total_stok} {satuan_txt})."
-                            )
-                        total_qty_approved += qty_app
-                    pi.qty_disetujui = qty_app
-                    pi.save(update_fields=['qty_disetujui'])
+            total_sedang_diajukan = 0
+            total_ditolak = 0
 
-            # Validasi keseluruhan: Minimal harus ada 1 barang yang disetujui (> 0)
-            if total_qty_approved <= Decimal('0'):
+            for pi in permintaan.items.select_related('barang', 'barang__satuan_dasar').all():
+                cfg = approval_map.get(pi.id)
+                if not cfg:
+                    continue
+
+                satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
+                keputusan = cfg['keputusan']
+                qty_app = cfg['qty_disetujui']
+                alasan = cfg['alasan_tolak']
+                catatan_verif = cfg['keterangan']
+
+                if not keputusan:
+                    # Kompatibilitas pemanggil lama yang hanya mengirim qty_disetujui
+                    keputusan = 'SETUJUI' if qty_app > Decimal('0') else 'TOLAK'
+
+                update_pi_fields = ['qty_disetujui', 'status', 'alasan_tolak']
+                if keputusan == 'SETUJUI':
+                    if qty_app <= Decimal('0'):
+                        raise ValidationError(
+                            f"Qty disetujui untuk '{pi.barang.nama}' harus lebih dari 0 jika memilih Setujui."
+                        )
+                    total_stok = cls._get_total_stok(pi.barang)
+                    if qty_app > total_stok:
+                        raise ValidationError(
+                            f"Qty disetujui untuk '{pi.barang.nama}' ({qty_app} {satuan_txt}) melebihi stok gudang yang tersedia ({total_stok} {satuan_txt})."
+                        )
+                    pi.qty_disetujui = qty_app
+                    pi.status = PermintaanItem.STATUS_DISETUJUI
+                    pi.alasan_tolak = ''
+                    if catatan_verif:
+                        existing_ket = (pi.keterangan or '').strip()
+                        pi.keterangan = (
+                            f"{existing_ket} · ACC: {catatan_verif}" if existing_ket and catatan_verif not in existing_ket else catatan_verif
+                        )[:255]
+                        update_pi_fields.append('keterangan')
+                    total_qty_approved += qty_app
+                elif keputusan == 'AJUKAN':
+                    total_stok = cls._get_total_stok(pi.barang)
+                    if total_stok > Decimal('0'):
+                        raise ValidationError(
+                            f"Stok '{pi.barang.nama}' masih tersedia di gudang ({total_stok} {satuan_txt}); gunakan keputusan Setujui atau Tolak."
+                        )
+                    pi.qty_disetujui = Decimal('0.000')
+                    pi.status = PermintaanItem.STATUS_SEDANG_DIAJUKAN
+                    pi.alasan_tolak = ''
+                    if catatan_verif:
+                        existing_ket = (pi.keterangan or '').strip()
+                        pi.keterangan = (
+                            f"{existing_ket} · Pengadaan: {catatan_verif}" if existing_ket and catatan_verif not in existing_ket else catatan_verif
+                        )[:255]
+                        update_pi_fields.append('keterangan')
+                    total_sedang_diajukan += 1
+                elif keputusan == 'TOLAK':
+                    reason_text = alasan or catatan_verif
+                    if has_explicit_decision and not reason_text:
+                        raise ValidationError(
+                            f"Alasan penolakan untuk '{pi.barang.nama}' wajib diisi saat menolak item."
+                        )
+                    pi.qty_disetujui = Decimal('0.000')
+                    pi.status = PermintaanItem.STATUS_DITOLAK
+                    pi.alasan_tolak = reason_text[:255] if reason_text else 'Tidak disetujui oleh verifikator logistik'
+                    total_ditolak += 1
+                else:
+                    raise ValidationError(f"Keputusan '{keputusan}' untuk '{pi.barang.nama}' tidak dikenal.")
+
+                pi.save(update_fields=update_pi_fields)
+
+            if not has_explicit_decision and total_qty_approved <= Decimal('0') and total_sedang_diajukan == 0:
                 raise ValidationError(
                     "Tidak ada barang yang disetujui (seluruh kuantitas 0). Jika seluruh barang tidak disetujui atau stok kosong, silakan gunakan tombol Tolak Permintaan."
                 )
         else:
             total_qty_approved = Decimal('0')
-            for pi in permintaan.items.all():
-                satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
+            for pi in permintaan.items.select_related('barang', 'barang__satuan_dasar').all():
                 if pi.qty_minta <= Decimal('0'):
                     raise ValidationError(f"Qty minta untuk '{pi.barang.nama}' tidak boleh 0.")
-                total_stok = StokSaldo.objects.filter(barang=pi.barang).aggregate(total=Sum('qty'))['total'] or Decimal('0')
+                total_stok = cls._get_total_stok(pi.barang)
                 if total_stok <= Decimal('0'):
-                    pi.qty_disetujui = Decimal('0')
+                    pi.qty_disetujui = Decimal('0.000')
+                    pi.status = PermintaanItem.STATUS_SEDANG_DIAJUKAN
+                    pi.alasan_tolak = ''
                 elif pi.qty_minta > total_stok:
                     pi.qty_disetujui = total_stok
+                    pi.status = PermintaanItem.STATUS_DISETUJUI
+                    pi.alasan_tolak = ''
                     total_qty_approved += total_stok
                 else:
                     pi.qty_disetujui = pi.qty_minta
+                    pi.status = PermintaanItem.STATUS_DISETUJUI
+                    pi.alasan_tolak = ''
                     total_qty_approved += pi.qty_minta
-                pi.save(update_fields=['qty_disetujui'])
+                pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
 
-            if total_qty_approved <= Decimal('0'):
+            if total_qty_approved <= Decimal('0') and not permintaan.items.filter(status=PermintaanItem.STATUS_SEDANG_DIAJUKAN).exists():
                 raise ValidationError(
-                    "Seluruh barang yang diminta kosong di gudang (0 stok). Permintaan tidak dapat disetujui, silakan gunakan tombol Tolak Permintaan."
+                    "Seluruh barang yang diminta kosong di gudang (0 stok). Permintaan tidak dapat disetujui."
                 )
 
-        permintaan.status = Permintaan.STATUS_DISETUJUI
+        cls.recompute_permintaan_status(permintaan, save=False)
         permintaan.approved_by = user
         permintaan.approved_at = timezone.now()
-        permintaan.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+        permintaan.save(update_fields=['status', 'alasan_tolak', 'approved_by', 'approved_at', 'updated_at'])
+        return permintaan
+
+    @classmethod
+    @transaction.atomic
+    def approve_followup_items(
+        cls,
+        permintaan: Permintaan,
+        user: Any,
+        items_approval: List[Dict[str, Any]]
+    ) -> Permintaan:
+        """
+        Verifikasi susulan oleh Approver (Mas Febri) untuk item berstatus SEDANG_DIAJUKAN
+        setelah stok gudang terisi kembali (via Penerimaan/GRN) agar qty_disetujui tetap dikontrol.
+        """
+        if permintaan.status not in (Permintaan.STATUS_PROSES_SEBAGIAN, Permintaan.STATUS_DISETUJUI):
+            raise ValidationError(
+                f"Permintaan {permintaan.nomor} tidak memiliki antrean verifikasi susulan (status: {permintaan.status})."
+            )
+        if not items_approval:
+            raise ValidationError("Data verifikasi susulan item tidak boleh kosong.")
+
+        pi_map = {
+            pi.id: pi
+            for pi in PermintaanItem.objects.select_for_update().select_related('barang', 'barang__satuan_dasar').filter(permintaan=permintaan)
+        }
+
+        processed = 0
+        for item in items_approval:
+            try:
+                pi_id = int(item.get('id'))
+            except (TypeError, ValueError):
+                continue
+            pi = pi_map.get(pi_id)
+            if not pi or pi.status != PermintaanItem.STATUS_SEDANG_DIAJUKAN:
+                continue
+
+            keputusan = str(item.get('keputusan') or 'SETUJUI').strip().upper()
+            alasan = str(item.get('alasan_tolak') or item.get('alasan') or '').strip()
+            satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang.satuan_dasar else 'item')
+
+            if keputusan == 'AJUKAN':
+                # Masih tetap menunggu pengadaan
+                continue
+            elif keputusan == 'SETUJUI':
+                try:
+                    qty_app = Decimal(str(item.get('qty_disetujui') or 0))
+                except (ValueError, TypeError):
+                    raise ValidationError(f"Format qty disetujui untuk '{pi.barang.nama}' tidak valid.")
+                if qty_app <= Decimal('0'):
+                    raise ValidationError(f"Qty disetujui susulan untuk '{pi.barang.nama}' harus lebih dari 0.")
+                total_stok = cls._get_total_stok(pi.barang)
+                if qty_app > total_stok:
+                    raise ValidationError(
+                        f"Qty disetujui untuk '{pi.barang.nama}' ({qty_app} {satuan_txt}) melebihi stok gudang saat ini ({total_stok} {satuan_txt})."
+                    )
+                pi.qty_disetujui = qty_app
+                pi.status = PermintaanItem.STATUS_DISETUJUI
+                pi.alasan_tolak = ''
+                pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
+                processed += 1
+            elif keputusan == 'TOLAK':
+                if not alasan:
+                    raise ValidationError(f"Alasan penolakan susulan untuk '{pi.barang.nama}' wajib diisi.")
+                pi.qty_disetujui = Decimal('0.000')
+                pi.status = PermintaanItem.STATUS_DITOLAK
+                pi.alasan_tolak = alasan[:255]
+                pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
+                processed += 1
+            elif keputusan in ('BATAL_PENGADAAN', 'TUTUP'):
+                pi.qty_disetujui = Decimal('0.000')
+                pi.status = PermintaanItem.STATUS_BATAL_PENGADAAN
+                pi.alasan_tolak = (alasan or 'Pengadaan item ditutup oleh petugas')[:255]
+                pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
+                processed += 1
+            else:
+                raise ValidationError(f"Keputusan susulan '{keputusan}' tidak dikenal.")
+
+        if processed == 0:
+            raise ValidationError("Pilih minimal satu item pengadaan untuk disetujui, ditolak, atau ditutup.")
+
+        cls.recompute_permintaan_status(permintaan, save=False)
+        permintaan.approved_by = user
+        permintaan.approved_at = timezone.now()
+        permintaan.save(update_fields=['status', 'alasan_tolak', 'approved_by', 'approved_at', 'updated_at'])
+        return permintaan
+
+    @classmethod
+    @transaction.atomic
+    def close_procurement_item(
+        cls,
+        permintaan: Permintaan,
+        item_id: int,
+        user: Any,
+        alasan: str = ''
+    ) -> Permintaan:
+        """
+        Menutup / membatalkan sisa item yang berstatus SEDANG_DIAJUKAN secara manual
+        agar dokumen permintaan tidak menggantung terbuka selamanya.
+        """
+        pi = PermintaanItem.objects.select_for_update().filter(permintaan=permintaan, id=item_id).first()
+        if not pi:
+            raise ValidationError("Item permintaan tidak ditemukan.")
+        if pi.status != PermintaanItem.STATUS_SEDANG_DIAJUKAN:
+            raise ValidationError(f"Hanya item berstatus SEDANG_DIAJUKAN yang dapat ditutup (status saat ini: {pi.status}).")
+
+        pi.qty_disetujui = Decimal('0.000')
+        pi.status = PermintaanItem.STATUS_BATAL_PENGADAAN
+        pi.alasan_tolak = (alasan or 'Pengadaan item ditutup / tidak dilanjutkan')[:255]
+        pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
+
+        cls.recompute_permintaan_status(permintaan, save=True)
         return permintaan
 
     @classmethod
@@ -173,8 +411,15 @@ class DistributionService:
     def reject_permintaan(cls, permintaan: Permintaan, user: Any, alasan: str) -> Permintaan:
         if permintaan.status in (Permintaan.STATUS_SELESAI, Permintaan.STATUS_BATAL):
             raise ValidationError(f"Permintaan dengan status {permintaan.status} tidak dapat ditolak.")
+        alasan_clean = str(alasan or '').strip()
+        for pi in permintaan.items.all():
+            if pi.status in (PermintaanItem.STATUS_MENUNGGU, PermintaanItem.STATUS_DISETUJUI, PermintaanItem.STATUS_SEDANG_DIAJUKAN):
+                pi.qty_disetujui = Decimal('0.000')
+                pi.status = PermintaanItem.STATUS_DITOLAK
+                pi.alasan_tolak = alasan_clean[:255]
+                pi.save(update_fields=['qty_disetujui', 'status', 'alasan_tolak'])
         permintaan.status = Permintaan.STATUS_DITOLAK
-        permintaan.alasan_tolak = alasan
+        permintaan.alasan_tolak = alasan_clean
         permintaan.approved_by = user
         permintaan.approved_at = timezone.now()
         permintaan.save(update_fields=['status', 'alasan_tolak', 'approved_by', 'approved_at', 'updated_at'])
@@ -301,11 +546,15 @@ class DistributionService:
 
             actual_total_nilai += item.subtotal
 
-            # Update fulfilled qty on the room's requisition
+            # Update fulfilled qty & item status on the room's requisition
             if item.permintaan_item:
                 pi = item.permintaan_item
                 pi.qty_dikeluarkan += item.qty
-                pi.save(update_fields=['qty_dikeluarkan'])
+                update_pi_fields = ['qty_dikeluarkan']
+                if (pi.qty_disetujui or Decimal('0')) > Decimal('0') and pi.qty_dikeluarkan >= pi.qty_disetujui:
+                    pi.status = PermintaanItem.STATUS_SELESAI
+                    update_pi_fields.append('status')
+                pi.save(update_fields=update_pi_fields)
 
             # Update status di Siaga lama jika terhubung dengan legacy_out_id
             leg_id = item.legacy_out_id or (item.permintaan_item.legacy_out_id if item.permintaan_item else None)
@@ -323,20 +572,10 @@ class DistributionService:
                 except Exception:
                     pass
 
-        # Cek apakah permintaan asal sudah terpenuhi penuh
+        # Sinkronkan status permintaan asal (tetap PROSES_SEBAGIAN bila masih ada item SEDANG_DIAJUKAN)
         if pengeluaran.permintaan_id:
             permintaan = Permintaan.objects.select_for_update().get(id=pengeluaran.permintaan_id)
-            all_items = list(PermintaanItem.objects.filter(permintaan=permintaan))
-            all_fulfilled = True
-            for pi in all_items:
-                target_qty = pi.qty_disetujui
-                # Item yang disetujui 0 tidak perlu dikeluarkan, lewati
-                if target_qty > Decimal('0') and pi.qty_dikeluarkan < target_qty:
-                    all_fulfilled = False
-                    break
-            if all_fulfilled and all_items:
-                permintaan.status = Permintaan.STATUS_SELESAI
-                permintaan.save(update_fields=['status', 'updated_at'])
+            cls.recompute_permintaan_status(permintaan, save=True)
 
         pengeluaran.total_nilai = actual_total_nilai
         pengeluaran.status = Pengeluaran.STATUS_DISETUJUI

@@ -79,10 +79,6 @@ export default function RekapUnitView() {
       {/* Header */}
       <div className="disiplin-header-card">
         <div>
-          <div className="disiplin-title-pill" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }}>
-            <BarChart3 size={14} />
-            <span>MODUL SDM • STEP 7</span>
-          </div>
           <h2 className="disiplin-title">Rekapitulasi Kehadiran Per Unit Kerja</h2>
           <p className="disiplin-subtitle">
             Evaluasi persentase kehadiran, kedisiplinan jam kerja, dan produktivitas per instalasi/ruangan di RS Siaga Al Munawwarah Samarinda.
@@ -102,38 +98,26 @@ export default function RekapUnitView() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="disiplin-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <div className="disiplin-kpi-card total">
-          <div className="kpi-icon-wrap blue"><Building2 size={20} /></div>
-          <div>
-            <div className="kpi-val">{summary.total_unit || 0}</div>
-            <div className="kpi-lbl">Total Unit / Instalasi RS</div>
-          </div>
+      {/* Flat Stat-Bar */}
+      <div className="sdm-stat-bar sdm-stat-bar-4">
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Total Unit / Instalasi RS</span>
+          <span className="sdm-stat-val">{summary.total_unit || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card total">
-          <div className="kpi-icon-wrap green"><Users size={20} /></div>
-          <div>
-            <div className="kpi-val">{summary.total_pegawai || 0}</div>
-            <div className="kpi-lbl">Total Seluruh Pegawai</div>
-          </div>
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Total Seluruh Pegawai</span>
+          <span className="sdm-stat-val">{summary.total_pegawai || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card total">
-          <div className="kpi-icon-wrap green"><TrendingUp size={20} /></div>
-          <div>
-            <div className="kpi-val">{summary.rata_rata_kehadiran || 0}%</div>
-            <div className="kpi-lbl">Rata-rata Kehadiran RS</div>
-          </div>
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Rata-rata Kehadiran RS</span>
+          <span className="sdm-stat-val is-green">{summary.rata_rata_kehadiran || 0}%</span>
         </div>
 
-        <div className="disiplin-kpi-card total">
-          <div className="kpi-icon-wrap red"><Clock size={20} /></div>
-          <div>
-            <div className="kpi-val">{summary.total_menit_terlambat_semua || 0} m</div>
-            <div className="kpi-lbl">Total Menit Terlambat</div>
-          </div>
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Total Menit Terlambat</span>
+          <span className="sdm-stat-val is-red">{summary.total_menit_terlambat_semua || 0} m</span>
         </div>
       </div>
 
@@ -217,46 +201,49 @@ export default function RekapUnitView() {
 
                 return (
                   <tr key={u.unit_nama}>
-                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{rowNum}</td>
+                    <td style={{ textAlign: 'center' }} className="sdm-cell-muted sdm-tabular">{rowNum}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Building2 size={15} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="sdm-avatar-neutral">
+                          {u.unit_nama ? u.unit_nama.charAt(0).toUpperCase() : 'U'}
                         </div>
-                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{u.unit_nama}</span>
+                        <span className="unit-name-txt" style={{ fontWeight: 600 }}>{u.unit_nama}</span>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 650 }}>{u.total_pegawai} staf</td>
-                    <td style={{ textAlign: 'center' }}>{u.total_dinas} hr</td>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: '#059669' }}>{u.total_hadir} hr</td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }} className="sdm-tabular">{u.total_pegawai} staf</td>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">{u.total_dinas} hr</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#10b981' }} className="sdm-tabular">{u.total_hadir} hr</td>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {u.total_terlambat_kali > 0 ? (
-                        <span style={{ color: '#dc2626', fontWeight: 650 }}>{u.total_terlambat_kali}x</span>
+                        <span style={{ color: '#ef4444', fontWeight: 600 }}>{u.total_terlambat_kali}x</span>
                       ) : (
                         <span style={{ color: '#10b981' }}>0</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {u.total_menit_terlambat > 0 ? (
-                        <span style={{ color: '#dc2626', fontWeight: 650 }}>{u.total_menit_terlambat} mnt</span>
+                        <span style={{ color: '#ef4444', fontWeight: 600 }}>{u.total_menit_terlambat} mnt</span>
                       ) : (
                         <span style={{ color: '#10b981' }}>0</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {u.total_alfa > 0 ? (
-                        <span className="alfa-count-badge">{u.total_alfa} hr</span>
+                        <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                          <span className="sdm-dot is-red" />
+                          <strong style={{ color: '#ef4444' }}>{u.total_alfa} hr</strong>
+                        </span>
                       ) : (
                         <span style={{ color: '#10b981' }}>0</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{u.total_jam_kerja} jam</td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }} className="sdm-tabular">{u.total_jam_kerja} jam</td>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                        <span style={{ fontWeight: 800, fontSize: 13, color: isGood ? '#059669' : isWarning ? '#d97706' : '#dc2626' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: isGood ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444' }}>
                           {pct}%
                         </span>
-                        <div style={{ width: 60, height: 5, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                        <div className="disiplin-pct-track">
                           <div
                             style={{
                               width: `${Math.min(pct, 100)}%`,
@@ -268,15 +255,9 @@ export default function RekapUnitView() {
                       </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <span
-                        className="disiplin-status-badge"
-                        style={{
-                          background: isGood ? '#ecfdf5' : isWarning ? '#fefce8' : '#fef2f2',
-                          color: isGood ? '#059669' : isWarning ? '#b45309' : '#dc2626',
-                          borderColor: isGood ? '#a7f3d0' : isWarning ? '#fef08a' : '#fecaca'
-                        }}
-                      >
-                        {u.status_rating}
+                      <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                        <span className={`sdm-dot ${isGood ? 'is-green' : isWarning ? 'is-amber' : 'is-red'}`} />
+                        <span>{u.status_rating}</span>
                       </span>
                     </td>
                   </tr>

@@ -134,7 +134,8 @@ class PenerimaanSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nomor', 'po', 'po_nomor', 'gudang', 'gudang_nama',
             'tanggal', 'vendor_id', 'vendor_nama', 'no_faktur',
-            'tgl_jatuh_tempo', 'metode_pembayaran', 'total_nilai',
+            'tgl_jatuh_tempo', 'metode_pembayaran',
+            'subtotal_bruto', 'diskon_total', 'diskon_items', 'total_nilai',
             'status', 'tutup_po', 'kirim_keuangan', 'utang_supplier_id',
             'catatan', 'alasan_batal', 'items',
             'created_by', 'created_by_nama',

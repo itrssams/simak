@@ -148,11 +148,7 @@ export default function EvaluasiDisiplinView() {
       {/* ── Top Header Bar ── */}
       <div className="disiplin-header-card">
         <div>
-          <div className="disiplin-title-pill">
-            <ShieldAlert size={14} />
-            <span>MODUL SDM • STEP 6</span>
-          </div>
-          <h2 className="disiplin-title">Evaluasi Kedisiplinan & Surat Pembinaan</h2>
+          <h2 className="disiplin-title">Evaluasi Kedisiplinan &amp; Surat Pembinaan</h2>
           <p className="disiplin-subtitle">
             Monitoring pelanggaran jam kerja, keterlambatan akumulatif, ketidakhadiran (alfa), dan penerbitan Surat Peringatan (SP) resmi RS Siaga Al Munawwarah Samarinda.
           </p>
@@ -171,46 +167,31 @@ export default function EvaluasiDisiplinView() {
         </div>
       </div>
 
-      {/* ── KPI Summary Cards ── */}
-      <div className="disiplin-kpi-grid">
-        <div className="disiplin-kpi-card total">
-          <div className="kpi-icon-wrap blue"><Users size={20} /></div>
-          <div>
-            <div className="kpi-val">{kpi.total_pegawai || 0}</div>
-            <div className="kpi-lbl">Total Pegawai Dievaluasi</div>
-          </div>
+      {/* ── Flat KPI Stat-Bar ── */}
+      <div className="sdm-stat-bar sdm-stat-bar-5">
+        <div className="sdm-stat-item clickable" onClick={() => setStatusFilter('')}>
+          <span className="sdm-stat-lbl">Total Pegawai Dievaluasi</span>
+          <span className="sdm-stat-val">{kpi.total_pegawai || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card baik" onClick={() => setStatusFilter('BAIK')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-icon-wrap green"><CheckCircle size={20} /></div>
-          <div>
-            <div className="kpi-val">{kpi.disiplin_baik || 0}</div>
-            <div className="kpi-lbl">Disiplin Sangat Baik</div>
-          </div>
+        <div className="sdm-stat-item clickable" onClick={() => setStatusFilter('BAIK')}>
+          <span className="sdm-stat-lbl">Disiplin Sangat Baik</span>
+          <span className="sdm-stat-val is-green">{kpi.disiplin_baik || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card ringan" onClick={() => setStatusFilter('TEGURAN_LISAN')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-icon-wrap yellow"><AlertCircle size={20} /></div>
-          <div>
-            <div className="kpi-val">{kpi.perlu_pembinaan_ringan || 0}</div>
-            <div className="kpi-lbl">Perlu Teguran / Binaan</div>
-          </div>
+        <div className="sdm-stat-item clickable" onClick={() => setStatusFilter('TEGURAN_LISAN')}>
+          <span className="sdm-stat-lbl">Perlu Teguran / Binaan</span>
+          <span className="sdm-stat-val is-amber">{kpi.perlu_pembinaan_ringan || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card sp1" onClick={() => setStatusFilter('SP_1')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-icon-wrap orange"><AlertTriangle size={20} /></div>
-          <div>
-            <div className="kpi-val">{kpi.perlu_sp_1 || 0}</div>
-            <div className="kpi-lbl">Pelanggaran SP - I</div>
-          </div>
+        <div className="sdm-stat-item clickable" onClick={() => setStatusFilter('SP_1')}>
+          <span className="sdm-stat-lbl">Pelanggaran SP - I</span>
+          <span className="sdm-stat-val is-amber">{kpi.perlu_sp_1 || 0}</span>
         </div>
 
-        <div className="disiplin-kpi-card sp2" onClick={() => setStatusFilter('SP_2')} style={{ cursor: 'pointer' }}>
-          <div className="kpi-icon-wrap red"><ShieldAlert size={20} /></div>
-          <div>
-            <div className="kpi-val">{kpi.perlu_sp_2 || 0}</div>
-            <div className="kpi-lbl">Pelanggaran Berat (SP - II)</div>
-          </div>
+        <div className="sdm-stat-item clickable" onClick={() => setStatusFilter('SP_2')}>
+          <span className="sdm-stat-lbl">Pelanggaran Berat (SP - II)</span>
+          <span className="sdm-stat-val is-red">{kpi.perlu_sp_2 || 0}</span>
         </div>
       </div>
 
@@ -342,7 +323,7 @@ export default function EvaluasiDisiplinView() {
                     </td>
                     <td>
                       <div className="pegawai-cell">
-                        <div className="pegawai-avatar-circle" style={{ background: row.badge_color + '22', color: row.badge_color }}>
+                        <div className="sdm-avatar-neutral">
                           {row.nama ? row.nama.charAt(0).toUpperCase() : 'P'}
                         </div>
                         <div>
@@ -356,44 +337,47 @@ export default function EvaluasiDisiplinView() {
                     <td>
                       <span className="unit-name-txt">{row.unit_kerja}</span>
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 650 }}>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }} className="sdm-tabular">
                       {row.total_hari_dinas} hr
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: '#059669' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: '#10b981' }} className="sdm-tabular">
                       {row.total_hadir} hr
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {row.total_terlambat_kali > 0 ? (
-                        <div className="telat-info-badge">
-                          <strong>{row.total_terlambat_kali}x</strong>
-                          <span>({row.total_menit_terlambat} mnt)</span>
-                        </div>
+                        <span className="sdm-status-inline">
+                          <span className="sdm-dot is-amber" />
+                          <span><strong>{row.total_terlambat_kali}x</strong> ({row.total_menit_terlambat} mnt)</span>
+                        </span>
                       ) : (
-                        <span style={{ color: '#10b981', fontSize: 12 }}>Tepat Waktu</span>
+                        <span style={{ color: '#10b981', fontSize: 12.5 }}>Tepat Waktu</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {row.total_pulang_cepat_kali > 0 ? (
-                        <span style={{ color: '#f59e0b', fontSize: 12, fontWeight: 600 }}>
+                        <span style={{ color: '#f59e0b', fontSize: 12.5, fontWeight: 600 }}>
                           {row.total_pulang_cepat_kali}x ({row.total_menit_pulang_cepat}m)
                         </span>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: 12 }}>-</span>
+                        <span className="sdm-cell-faint" style={{ fontSize: 12 }}>-</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       {row.total_alfa > 0 ? (
-                        <span className="alfa-count-badge">{row.total_alfa} hr</span>
+                        <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                          <span className="sdm-dot is-red" />
+                          <strong style={{ color: '#ef4444' }}>{row.total_alfa} hr</strong>
+                        </span>
                       ) : (
                         <span style={{ color: '#10b981', fontSize: 12 }}>0</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }} className="sdm-tabular">
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                        <span style={{ fontWeight: 750, fontSize: 13, color: row.persentase_kehadiran >= 90 ? '#059669' : row.persentase_kehadiran >= 75 ? '#d97706' : '#dc2626' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: row.persentase_kehadiran >= 90 ? '#10b981' : row.persentase_kehadiran >= 75 ? '#f59e0b' : '#ef4444' }}>
                           {row.persentase_kehadiran}%
                         </span>
-                        <div style={{ width: 48, height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                        <div className="disiplin-pct-track">
                           <div
                             style={{
                               width: `${Math.min(row.persentase_kehadiran, 100)}%`,
@@ -405,15 +389,17 @@ export default function EvaluasiDisiplinView() {
                       </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <span
-                        className="disiplin-status-badge"
-                        style={{
-                          background: row.badge_color + '18',
-                          color: row.badge_color,
-                          borderColor: row.badge_color + '44'
-                        }}
-                      >
-                        {row.status_disiplin_label}
+                      <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                        <span
+                          className={`sdm-dot ${
+                            row.status_disiplin === 'BAIK'
+                              ? 'is-green'
+                              : row.status_disiplin === 'TEGURAN_LISAN' || row.status_disiplin === 'SP_1'
+                                ? 'is-amber'
+                                : 'is-red'
+                          }`}
+                        />
+                        <span>{row.status_disiplin_label}</span>
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>

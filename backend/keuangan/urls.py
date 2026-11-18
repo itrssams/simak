@@ -1,6 +1,7 @@
 from django.urls import path, include
 from .views import LaporanPettyCashView, PembiayaanListView, PembiayaanDetailView, InvoiceDashboardView, KunjunganInvoiceView, InvoiceVerificationView
 from rest_framework.routers import DefaultRouter
+from logistik.views import LogistikVendorViewSet
 from .views import (
     AkunViewSet, TransaksiViewSet, JurnalViewSet,
     PelangganViewSet, PemasokViewSet, FakturViewSet, TagihanViewSet,
@@ -33,6 +34,7 @@ router.register(r'saldo-petty-cash',      SaldoPettyCashViewSet,         basenam
 router.register(r'penambahan-saldo',      PengajuanPenambahanSaldoViewSet, basename='penambahan-saldo')
 router.register(r'utang-supplier', UtangSupplierViewSet, basename='utang-supplier')
 router.register(r'pembayaran-utang', PembayaranUtangViewSet, basename='pembayaran-utang')
+router.register(r'catatan-utang/vendor', LogistikVendorViewSet, basename='utang-master-vendor')
 urlpatterns = [
     path('faktur/rekap/', faktur_rekap_print_view, name='faktur-rekap-print'),
     path('faktur/tanda-terima/print/', faktur_tanda_terima_print_view, name='faktur-tanda-terima-print'),

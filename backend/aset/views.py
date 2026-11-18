@@ -154,9 +154,14 @@ class AsetViewSet(viewsets.ModelViewSet):
         if jenis_id:
             qs = qs.filter(jenis_id=jenis_id)
 
-        kelayakan = self.request.query_params.get('status_kelayakan')
-        if kelayakan:
-            qs = qs.filter(status_kelayakan=kelayakan)
+        kelayakan_list = [
+            item.strip()
+            for val in self.request.query_params.getlist('status_kelayakan')
+            for item in val.split(',')
+            if item.strip()
+        ]
+        if kelayakan_list:
+            qs = qs.filter(status_kelayakan__in=kelayakan_list)
 
         perlu_kalibrasi = self.request.query_params.get('perlu_kalibrasi')
         if perlu_kalibrasi in ('true', '1'):
@@ -260,8 +265,8 @@ class AsetViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset()
         total_aset = qs.count()
 
-        # Hitung kelayakan
-        kelayakan_rows = qs.values('status_kelayakan').annotate(total=Count('id'))
+        # Hitung kelayakan (.order_by() wajib agar GROUP BY tidak terpecah oleh ordering default kode_aset)
+        kelayakan_rows = qs.values('status_kelayakan').order_by().annotate(total=Count('id'))
         kelayakan_counts = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0}
         for r in kelayakan_rows:
             if r['status_kelayakan'] in kelayakan_counts:

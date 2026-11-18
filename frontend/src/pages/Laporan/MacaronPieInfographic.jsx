@@ -1,9 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {    
-    PieChart,
-    SlidersHorizontal,
-    Info,
-    Wallet,
+import {
     Pencil,
     Laptop,
     Printer,
@@ -31,119 +27,118 @@ import {
     Wrench,
     Leaf,
     Receipt,
-    Tag,
 } from 'lucide-react';
 import './MacaronPieInfographic.css';
 
-// 🧁 Palet Warna Macaron Prancis (Vibrant Pastel Candy)
+// Harmonious Enterprise Donut & Chart Palette (Stripe / Linear style)
 export const MACARON_PALETTE = [
     {
-        color: '#FF6B8B',
-        gradStart: '#FF8FAB',
-        gradEnd: '#E63956',
-        bg: '#FFF0F5',
-        text: '#B8002D',
-        border: '#FFC2D1',
-        name: 'Strawberry Macaron',
+        color: '#635bff',
+        gradStart: '#635bff',
+        gradEnd: '#635bff',
+        bg: 'rgba(99, 91, 255, 0.1)',
+        text: '#635bff',
+        border: 'rgba(99, 91, 255, 0.25)',
+        name: 'Indigo Accent',
     },
     {
-        color: '#00C2FF',
-        gradStart: '#70D6FF',
-        gradEnd: '#0090D9',
-        bg: '#F0F9FF',
-        text: '#0284C7',
-        border: '#BAE6FD',
-        name: 'Blue Sky Macaron',
+        color: '#0ea5e9',
+        gradStart: '#0ea5e9',
+        gradEnd: '#0ea5e9',
+        bg: 'rgba(14, 165, 233, 0.1)',
+        text: '#0284c7',
+        border: 'rgba(14, 165, 233, 0.25)',
+        name: 'Sky Blue',
     },
     {
-        color: '#FFB703',
-        gradStart: '#FFD166',
-        gradEnd: '#F77F00',
-        bg: '#FEFCE8',
-        text: '#B45309',
-        border: '#FDE68A',
-        name: 'Lemon Custard',
+        color: '#10b981',
+        gradStart: '#10b981',
+        gradEnd: '#10b981',
+        bg: 'rgba(16, 185, 129, 0.1)',
+        text: '#059669',
+        border: 'rgba(16, 185, 129, 0.25)',
+        name: 'Emerald',
     },
     {
-        color: '#06D6A0',
-        gradStart: '#52EDC7',
-        gradEnd: '#00A878',
-        bg: '#ECFDF5',
-        text: '#047857',
-        border: '#A7F3D0',
-        name: 'Pistachio Mint',
+        color: '#f59e0b',
+        gradStart: '#f59e0b',
+        gradEnd: '#f59e0b',
+        bg: 'rgba(245, 158, 11, 0.1)',
+        text: '#d97706',
+        border: 'rgba(245, 158, 11, 0.25)',
+        name: 'Amber Gold',
     },
     {
-        color: '#A259FF',
-        gradStart: '#C084FC',
-        gradEnd: '#7E22CE',
-        bg: '#FAF5FF',
-        text: '#6B21A8',
-        border: '#E9D5FF',
-        name: 'Taro Lavender',
+        color: '#8b5cf6',
+        gradStart: '#8b5cf6',
+        gradEnd: '#8b5cf6',
+        bg: 'rgba(139, 92, 246, 0.1)',
+        text: '#7c3aed',
+        border: 'rgba(139, 92, 246, 0.25)',
+        name: 'Soft Violet',
     },
     {
-        color: '#FF7A59',
-        gradStart: '#FF9770',
-        gradEnd: '#E65100',
-        bg: '#FFF7ED',
-        text: '#C2410C',
-        border: '#FED7AA',
-        name: 'Peach Apricot',
+        color: '#ec4899',
+        gradStart: '#ec4899',
+        gradEnd: '#ec4899',
+        bg: 'rgba(236, 72, 153, 0.1)',
+        text: '#db2777',
+        border: 'rgba(236, 72, 153, 0.25)',
+        name: 'Rose',
     },
     {
-        color: '#84CC16',
-        gradStart: '#A3E635',
-        gradEnd: '#65A30D',
-        bg: '#F7FEE7',
-        text: '#4D7C0F',
-        border: '#D9F99D',
-        name: 'Matcha Green',
+        color: '#14b8a6',
+        gradStart: '#14b8a6',
+        gradEnd: '#14b8a6',
+        bg: 'rgba(20, 184, 166, 0.1)',
+        text: '#0d9488',
+        border: 'rgba(20, 184, 166, 0.25)',
+        name: 'Teal',
     },
     {
-        color: '#F43F5E',
-        gradStart: '#FB7185',
-        gradEnd: '#BE123C',
-        bg: '#FFF1F2',
-        text: '#9F1239',
-        border: '#FECDD3',
-        name: 'Raspberry Rose',
+        color: '#f97316',
+        gradStart: '#f97316',
+        gradEnd: '#f97316',
+        bg: 'rgba(249, 115, 22, 0.1)',
+        text: '#ea580c',
+        border: 'rgba(249, 115, 22, 0.25)',
+        name: 'Tangerine',
     },
     {
-        color: '#14B8A6',
-        gradStart: '#2DD4BF',
-        gradEnd: '#0D9488',
-        bg: '#F0FDFA',
-        text: '#0F766E',
-        border: '#99F6E4',
-        name: 'Tiffany Seafoam',
+        color: '#06b6d4',
+        gradStart: '#06b6d4',
+        gradEnd: '#06b6d4',
+        bg: 'rgba(6, 182, 212, 0.1)',
+        text: '#0891b2',
+        border: 'rgba(6, 182, 212, 0.25)',
+        name: 'Cyan',
     },
     {
-        color: '#8B5CF6',
-        gradStart: '#A78BFA',
-        gradEnd: '#6D28D9',
-        bg: '#F5F3FF',
-        text: '#5B21B6',
-        border: '#DDD6FE',
-        name: 'Blueberry Jam',
+        color: '#84cc16',
+        gradStart: '#84cc16',
+        gradEnd: '#84cc16',
+        bg: 'rgba(132, 204, 22, 0.1)',
+        text: '#65a30d',
+        border: 'rgba(132, 204, 22, 0.25)',
+        name: 'Sage Lime',
     },
     {
-        color: '#EC4899',
-        gradStart: '#F472B6',
-        gradEnd: '#BE185D',
-        bg: '#FDF2F8',
-        text: '#9D174D',
-        border: '#FBCFE8',
-        name: 'Bubblegum Pink',
+        color: '#e11d48',
+        gradStart: '#e11d48',
+        gradEnd: '#e11d48',
+        bg: 'rgba(225, 29, 72, 0.1)',
+        text: '#be123c',
+        border: 'rgba(225, 29, 72, 0.25)',
+        name: 'Crimson',
     },
     {
-        color: '#EAB308',
-        gradStart: '#FACC15',
-        gradEnd: '#CA8A04',
-        bg: '#FEFCE8',
-        text: '#854D0E',
-        border: '#FEF08A',
-        name: 'Vanilla Caramel',
+        color: '#64748b',
+        gradStart: '#64748b',
+        gradEnd: '#64748b',
+        bg: 'rgba(100, 116, 139, 0.1)',
+        text: '#475569',
+        border: 'rgba(100, 116, 139, 0.25)',
+        name: 'Neutral Slate',
     },
 ];
 
@@ -291,11 +286,10 @@ export default function MacaronPieInfographic({
     rekapAkun = [],
     totalBelanja = 0,
 }) {
-    const [chartLimit, setChartLimit] = useState(5); // Default 5 slices like the infographic reference
-    const [isSteppedRadius, setIsSteppedRadius] = useState(true); // Stepped radius like Infographic image
+    const [chartLimit, setChartLimit] = useState(5);
     const [activeIdx, setActiveIdx] = useState(null);
 
-    // Compute display data with automatic "Lainnya" grouping
+    // Compute clean uniform Donut slices (cutout: 68%) with automatic "Lainnya" grouping
     const chartData = useMemo(() => {
         if (!rekapAkun.length) return [];
 
@@ -327,36 +321,23 @@ export default function MacaronPieInfographic({
         }
 
         const totalSum = items.reduce((acc, it) => acc + Number(it.total || 0), 0) || 1;
-        const maxPct = Math.max(...items.map((it) => Number(it.persentase || 0)), 1);
-
         let currentAngle = 0;
-        const gap = items.length > 1 ? 2.8 : 0;
+
+        // Uniform Donut geometry: cutout 68% -> rInner = 0.68 * rOuter
+        const rOuter = 152;
+        const rInner = Math.round(rOuter * 0.68); // 103 (~68% cutout)
 
         return items.map((item, idx) => {
             const pct = Number(item.persentase || ((item.total / totalSum) * 100).toFixed(1));
             const sliceAngle = (Number(item.total || 0) / totalSum) * 360;
 
-            const startAngle = currentAngle + gap / 2;
-            const endAngle = currentAngle + sliceAngle - gap / 2;
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + sliceAngle;
             currentAngle += sliceAngle;
 
-            const midAngle = (startAngle + endAngle) / 2;
-
-            // Stepped radius effect (higher percentage extends further out like Image 1)
-            const minOuter = 190;
-            const maxOuter = 236;
-            const rOuter = isSteppedRadius
-                ? minOuter + (pct / maxPct) * (maxOuter - minOuter)
-                : 215;
-
-            const rInner = 86;
-
-            // Position for in-slice content
-            const midRadius = rInner + (rOuter - rInner) * 0.52;
-            const contentPos = polarToCartesian(280, 280, midRadius, midAngle);
-
-            const pal = MACARON_PALETTE[idx % MACARON_PALETTE.length];
-            const meta = getAccountCuteMeta(item.kode_akun, item.nama_akun);
+            const pal = item.isOthers
+                ? MACARON_PALETTE[MACARON_PALETTE.length - 1]
+                : MACARON_PALETTE[idx % (MACARON_PALETTE.length - 1)];
 
             return {
                 ...item,
@@ -365,15 +346,13 @@ export default function MacaronPieInfographic({
                 sliceAngle,
                 startAngle,
                 endAngle,
-                midAngle,
                 rInner,
                 rOuter,
-                contentPos,
                 pal,
-                meta,
+                sliceColor: pal.color,
             };
         });
-    }, [rekapAkun, chartLimit, totalBelanja, isSteppedRadius]);
+    }, [rekapAkun, chartLimit, totalBelanja]);
 
     if (!rekapAkun.length) {
         return null;
@@ -386,31 +365,14 @@ export default function MacaronPieInfographic({
             {/* ── Header ── */}
             <div className="mpi-header">
                 <div className="mpi-title-wrap">
-                    <div className="mpi-icon-badge">
-                        <PieChart size={22} />
+                    <div className="mpi-title-row">
+                        <h3>Infografis Pengeluaran Akun Biaya</h3>
                     </div>
-                    <div>
-                        <div className="mpi-title-row">
-                            <h3>Infografis Pengeluaran Akun Biaya</h3>                            
-                        </div>
-                        <p>Visualisasi proporsi beban kas kecil per pos akun</p>
-                    </div>
+                    <p>Visualisasi proporsi beban kas kecil per pos akun</p>
                 </div>
 
                 <div className="mpi-actions-row">
-                    {/* Stepped radius toggle */}
-                    <button
-                        type="button"
-                        className={`mpi-toggle-btn ${isSteppedRadius ? 'active' : ''}`}
-                        onClick={() => setIsSteppedRadius(!isSteppedRadius)}
-                        title="Beralih antara variasi jari-jari (stepped rose) dan donut reguler"
-                    >
-                        <SlidersHorizontal size={13} />
-                        <span>{isSteppedRadius ? 'Stepped Radius' : 'Uniform Donut'}</span>
-                    </button>
-
-                    {/* Slices count filter */}
-                    <div className="mpi-limit-pills">
+                    <div className="mpi-limit-pills" role="tablist" aria-label="Batas tampilan pos akun">
                         <button
                             type="button"
                             className={`mpi-limit-pill ${chartLimit === 5 ? 'active' : ''}`}
@@ -436,280 +398,98 @@ export default function MacaronPieInfographic({
                 </div>
             </div>
 
-            {/* ── Main Layout: SVG Pie + Interactive Legend ── */}
+            {/* ── Main Layout: Clean Donut Chart + Flat Interactive Legend ── */}
             <div className="mpi-content-grid">
-                {/* ── Left Column: The Custom SVG Pie Infographic ── */}
+                {/* ── Left Column: Clean Donut Chart (cutout 68%) ── */}
                 <div className="mpi-svg-container">
                     <svg
-                        viewBox="0 0 560 560"
+                        viewBox="0 0 360 360"
                         className="mpi-svg"
                         preserveAspectRatio="xMidYMid meet"
                     >
-                        <defs>
-                            {/* Gradients for slices */}
-                            {chartData.map((d, i) => (
-                                <linearGradient
-                                    key={`grad-${i}`}
-                                    id={`mpi-grad-${i}`}
-                                    x1="0%"
-                                    y1="0%"
-                                    x2="100%"
-                                    y2="100%"
-                                >
-                                    <stop offset="0%" stopColor={d.pal.gradStart} />
-                                    <stop offset="100%" stopColor={d.pal.gradEnd} />
-                                </linearGradient>
-                            ))}
-
-                            {/* Drop shadow filters */}
-                            <filter id="mpi-shadow" x="-15%" y="-15%" width="130%" height="130%">
-                                <feDropShadow dx="0" dy="6" stdDeviation="8" floodOpacity="0.16" />
-                            </filter>
-                            <filter id="mpi-active-glow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="8" stdDeviation="12" floodOpacity="0.32" />
-                            </filter>
-                        </defs>
-
-                        {/* Outer Glow / Base Background circle */}
-                        <circle cx="280" cy="280" r="82" fill="none" opacity="0.1" />
-
-                        {/* ── Slices Rendering ── */}
                         <g className="mpi-slices-group">
                             {chartData.map((d, idx) => {
                                 const isHovered = activeIdx === idx;
                                 const isAnyHovered = activeIdx !== null;
                                 const pathD = createDonutSlicePath(
-                                    280,
-                                    280,
+                                    180,
+                                    180,
                                     d.rInner,
-                                    isHovered ? d.rOuter + 8 : d.rOuter,
+                                    isHovered ? d.rOuter + 5 : d.rOuter,
                                     d.startAngle,
                                     d.endAngle
                                 );
 
-                                const SliceIcon = d.meta.icon;
-                                const iconSize = d.sliceAngle >= 26 ? 16 : 13;
-
                                 return (
-                                    <g
+                                    <path
                                         key={`slice-${idx}`}
-                                        className={`mpi-slice-item ${isHovered ? 'active' : ''}`}
+                                        d={pathD}
+                                        fill={d.sliceColor}
+                                        opacity={!isAnyHovered || isHovered ? 1 : 0.35}
+                                        stroke="var(--lpc-canvas, #f8fafc)"
+                                        strokeWidth={chartData.length > 1 ? 2.5 : 0}
+                                        strokeLinejoin="round"
+                                        className={`mpi-slice-path ${isHovered ? 'active' : ''}`}
                                         onMouseEnter={() => setActiveIdx(idx)}
                                         onMouseLeave={() => setActiveIdx(null)}
+                                        onClick={() => setActiveIdx(isHovered ? null : idx)}
                                         style={{ cursor: 'pointer' }}
-                                    >
-                                        <path
-                                            d={pathD}
-                                            fill={`url(#mpi-grad-${idx})`}
-                                            filter={isHovered ? 'url(#mpi-active-glow)' : 'url(#mpi-shadow)'}
-                                            opacity={!isAnyHovered || isHovered ? 1 : 0.45}
-                                            stroke={isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.4)'}
-                                            strokeWidth={isHovered ? 3.5 : 1.5}
-                                            className="mpi-slice-path"
-                                        />
-
-                                        {/* In-Slice Label & Vector Icon */}
-                                        {d.sliceAngle >= 14 && (
-                                            <g
-                                                transform={`translate(${d.contentPos.x}, ${d.contentPos.y})`}
-                                                className="mpi-slice-content"
-                                                pointerEvents="none"
-                                            >
-                                                {/* White Icon Bubble Disc */}
-                                                <circle
-                                                    r={d.sliceAngle >= 26 ? 16 : 13}
-                                                    cy={d.sliceAngle >= 26 ? -16 : -8}
-                                                    fill="#ffffff"
-                                                    filter="drop-shadow(0 2px 5px rgba(0,0,0,0.22))"
-                                                />
-                                                {/* Vector Icon in Center of Disc */}
-                                                <g
-                                                    transform={
-                                                        d.sliceAngle >= 26
-                                                            ? `translate(${-iconSize / 2}, ${-16 - iconSize / 2})`
-                                                            : `translate(${-iconSize / 2}, ${-8 - iconSize / 2})`
-                                                    }
-                                                >
-                                                    <SliceIcon
-                                                        size={iconSize}
-                                                        color={d.pal.text}
-                                                        strokeWidth={2.4}
-                                                    />
-                                                </g>
-
-                                                {/* Percentage Bold Number */}
-                                                <text
-                                                    textAnchor="middle"
-                                                    y={d.sliceAngle >= 26 ? 8 : 10}
-                                                    className="mpi-slice-pct-text"
-                                                    fontSize={d.sliceAngle >= 32 ? 16 : 13}
-                                                    fontWeight="900"
-                                                    fill="#ffffff"
-                                                    filter="drop-shadow(0 1.5px 3px rgba(0,0,0,0.55))"
-                                                >
-                                                    {d.pct}%
-                                                </text>
-
-                                                {/* Short Account Name (only for wide slices) */}
-                                                {d.sliceAngle >= 38 && (
-                                                    <text
-                                                        textAnchor="middle"
-                                                        y={22}
-                                                        className="mpi-slice-label-text"
-                                                        fontSize="10"
-                                                        fontWeight="750"
-                                                        fill="#ffffff"
-                                                        filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))"
-                                                    >
-                                                        {d.nama_akun.length > 14
-                                                            ? d.nama_akun.slice(0, 12) + '…'
-                                                            : d.nama_akun}
-                                                    </text>
-                                                )}
-                                            </g>
-                                        )}
-                                    </g>
+                                    />
                                 );
                             })}
                         </g>
-
-                        {/* ── Center White Circle (Image 1 Infographic Center) ── */}
-                        <g className="mpi-center-group" pointerEvents="none">
-                            {/* Outer decorative ring */}
-                            <circle
-                                cx="280"
-                                cy="280"
-                                r="82"
-                                fill="none"
-                                stroke="rgba(255, 255, 255, 0.8)"
-                                strokeWidth="4"
-                            />
-                            {/* Main Center Disc */}
-                            <circle
-                                cx="280"
-                                cy="280"
-                                r="76"
-                                className="mpi-center-disc"
-                            />
-
-                            {activeItem ? (
-                                /* Active Hover State */
-                                <g className="mpi-center-active-text">
-                                    <g transform="translate(267, 222)" className="mpi-center-icon-wrap">
-                                        <activeItem.meta.icon
-                                            size={26}
-                                            color={activeItem.pal.color}
-                                            strokeWidth={2.4}
-                                        />
-                                    </g>
-                                    <text
-                                        x="280"
-                                        y="266"
-                                        textAnchor="middle"
-                                        className="mpi-center-title"
-                                    >
-                                        {activeItem.nama_akun.length > 15
-                                            ? activeItem.nama_akun.slice(0, 14) + '…'
-                                            : activeItem.nama_akun}
-                                    </text>
-                                    <text
-                                        x="280"
-                                        y="288"
-                                        textAnchor="middle"
-                                        className="mpi-center-pct"
-                                        fill={activeItem.pal.color}
-                                    >
-                                        {activeItem.pct}%
-                                    </text>
-                                    <text
-                                        x="280"
-                                        y="306"
-                                        textAnchor="middle"
-                                        className="mpi-center-val"
-                                    >
-                                        {fmtRupiah(activeItem.total)}
-                                    </text>
-                                </g>
-                            ) : (
-                                /* Default State */
-                                <g className="mpi-center-default-text">
-                                    <g transform="translate(267, 223)" className="mpi-center-icon-wrap">
-                                        <Wallet
-                                            size={26}
-                                            color="#4F46E5"
-                                            strokeWidth={2.3}
-                                        />
-                                    </g>
-                                    <text
-                                        x="280"
-                                        y="266"
-                                        textAnchor="middle"
-                                        className="mpi-center-sub"
-                                    >
-                                        TOTAL BEBAN
-                                    </text>
-                                    <text
-                                        x="280"
-                                        y="288"
-                                        textAnchor="middle"
-                                        className="mpi-center-total"
-                                    >
-                                        {fmtRupiah(totalBelanja)}
-                                    </text>
-                                    <text
-                                        x="280"
-                                        y="305"
-                                        textAnchor="middle"
-                                        className="mpi-center-count"
-                                    >
-                                        {rekapAkun.length} Pos Akun
-                                    </text>
-                                </g>
-                            )}
-                        </g>
                     </svg>
+
+                    {/* Clean Center Metric Overlay (HTML text for crisp tabular-nums & wrapping) */}
+                    <div className="mpi-donut-center-overlay" aria-live="polite">
+                        {activeItem ? (
+                            <>
+                                <span className="mpi-center-sub mpi-center-sub-active" title={activeItem.nama_akun}>
+                                    {activeItem.nama_akun}
+                                </span>
+                                <span className="mpi-center-total">{fmtRupiah(activeItem.total)}</span>
+                                <span
+                                    className="mpi-center-count"
+                                    style={{ color: activeItem.sliceColor, fontWeight: 600 }}
+                                >
+                                    {activeItem.pct}% &bull; {activeItem.jumlah_transaksi}x transaksi
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="mpi-center-sub">TOTAL BEBAN</span>
+                                <span className="mpi-center-total">{fmtRupiah(totalBelanja)}</span>
+                                <span className="mpi-center-count">{rekapAkun.length} Pos Akun</span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* ── Right Column: Interactive Legend Cards ── */}
+                {/* ── Right Column: Flat Interactive Legend List ── */}
                 <div className="mpi-legend-column">
                     <div className="mpi-legend-head">
-                        <span className="mpi-legend-head-title">Rincian Slice Infografis:</span>
-                        <span className="mpi-legend-hint">
-                            <Info size={12} /> Sorot kartu untuk highlight slice
-                        </span>
+                        <span className="mpi-legend-head-title">RINCIAN SLICE INFOGRAFIS</span>
+                        <span className="mpi-legend-hint">Sorot baris untuk highlight slice</span>
                     </div>
 
                     <div className="mpi-legend-list">
                         {chartData.map((d, idx) => {
                             const isHovered = activeIdx === idx;
-                            const CardIcon = d.meta.icon;
+                            const isDimmed = activeIdx !== null && !isHovered;
 
                             return (
                                 <div
                                     key={`legend-${idx}`}
-                                    className={`mpi-legend-card ${isHovered ? 'active' : ''}`}
+                                    className={`mpi-legend-row ${isHovered ? 'active' : ''} ${isDimmed ? 'dimmed' : ''}`}
                                     onMouseEnter={() => setActiveIdx(idx)}
                                     onMouseLeave={() => setActiveIdx(null)}
-                                    style={{
-                                        borderColor: isHovered ? d.pal.color : undefined,
-                                        boxShadow: isHovered
-                                            ? `0 8px 24px -4px ${d.pal.color}50`
-                                            : undefined,
-                                    }}
+                                    onClick={() => setActiveIdx(isHovered ? null : idx)}
                                 >
-                                    {/* Icon Box with Macaron Background */}
-                                    <div
-                                        className="mpi-legend-icon-wrap"
-                                        style={{
-                                            background: d.pal.bg,
-                                            borderColor: d.pal.border,
-                                            color: d.pal.text,
-                                        }}
-                                    >
-                                        <CardIcon size={19} strokeWidth={2.2} />
-                                    </div>
+                                    <span
+                                        className="mpi-legend-dot"
+                                        style={{ backgroundColor: d.sliceColor }}
+                                    />
 
-                                    {/* Account Info */}
                                     <div className="mpi-legend-info">
                                         <div className="mpi-legend-name" title={d.nama_akun}>
                                             {d.nama_akun}
@@ -721,19 +501,9 @@ export default function MacaronPieInfographic({
                                         </div>
                                     </div>
 
-                                    {/* Percentage Pill & Nominal */}
                                     <div className="mpi-legend-val-wrap">
-                                        <span
-                                            className="mpi-legend-pct-pill"
-                                            style={{
-                                                background: d.pal.color,
-                                                color: '#ffffff',
-                                                boxShadow: `0 2px 8px ${d.pal.color}45`,
-                                            }}
-                                        >
-                                            {d.pct}%
-                                        </span>
                                         <span className="mpi-legend-amount">{fmtRupiah(d.total)}</span>
+                                        <span className="mpi-legend-pct-text">{d.pct}%</span>
                                     </div>
                                 </div>
                             );

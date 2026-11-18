@@ -104,9 +104,6 @@ export default function SdmLayout({ children }) {
         <div className="sdm-sb-head">
           {!collapsed && (
             <div className="sdm-sb-title-wrap">
-              <div className="sdm-sb-title-icon" title="Modul SDM">
-                <Users size={15} strokeWidth={2.3} />
-              </div>
               <span className="sdm-sb-title-text">Menu SDM</span>
             </div>
           )}
@@ -227,7 +224,7 @@ export default function SdmLayout({ children }) {
             >
               <span className="sdm-sb-icon"><CalendarPlus size={16} /></span>
               <span className="sdm-sb-text">Cuti & Izin Sakit</span>
-              <span className="sdm-sb-badge badge-amber">Soon</span>
+              <span className="sdm-sb-meta">Soon</span>
             </button>
           </div>
 
@@ -269,7 +266,7 @@ export default function SdmLayout({ children }) {
             >
               <span className="sdm-sb-icon"><CircleDollarSign size={16} /></span>
               <span className="sdm-sb-text">Penggajian / Payroll</span>
-              <span className="sdm-sb-badge badge-amber">Roadmap</span>
+              <span className="sdm-sb-meta">Roadmap</span>
             </button>
 
             <button
@@ -279,7 +276,7 @@ export default function SdmLayout({ children }) {
             >
               <span className="sdm-sb-icon"><Coins size={16} /></span>
               <span className="sdm-sb-text">Jasa Pelayanan (Jaspel)</span>
-              <span className="sdm-sb-badge badge-amber">Roadmap</span>
+              <span className="sdm-sb-meta">Roadmap</span>
             </button>
 
             <button
@@ -289,7 +286,7 @@ export default function SdmLayout({ children }) {
             >
               <span className="sdm-sb-icon"><Stethoscope size={16} /></span>
               <span className="sdm-sb-text">Jasmed Dokter</span>
-              <span className="sdm-sb-badge badge-amber">Roadmap</span>
+              <span className="sdm-sb-meta">Roadmap</span>
             </button>
 
             <button
@@ -299,7 +296,7 @@ export default function SdmLayout({ children }) {
             >
               <span className="sdm-sb-icon"><Receipt size={16} /></span>
               <span className="sdm-sb-text">Slip Gaji Online</span>
-              <span className="sdm-sb-badge badge-amber">Roadmap</span>
+              <span className="sdm-sb-meta">Roadmap</span>
             </button>
           </div>
 

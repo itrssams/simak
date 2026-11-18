@@ -49,6 +49,7 @@ import DateField from '../../components/DateField';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import TableSkeleton from '../../components/TableSkeleton';
 import './InvoicePembiayaan.css';
+import './PenagihanClean.css';
 
 const STATUS_OPTIONS = [
     { value: '', label: 'Semua Status' },
@@ -1027,7 +1028,6 @@ export default function InvoicePembiayaan() {
         <div className="inv-page">
             <div className="inv-hero">
                 <div className="inv-title">
-                    <span><ReceiptText size={22} /></span>
                     <div>
                         <h1>Invoice Pembiayaan</h1>
                         <p>Kelola tagihan, pengiriman invoice, pembayaran, dan rekapitulasi pembiayaan.</p>
@@ -1037,7 +1037,6 @@ export default function InvoicePembiayaan() {
 
             <section className="inv-summary">
                 <div className="inv-summary-card piutang">
-                    <span><WalletCards size={24} /></span>
                     <div className="inv-summary-card-body">
                         <small>Total Piutang</small>
                         <strong>{money(summaryStats?.total_piutang ?? 0)}</strong>
@@ -1050,7 +1049,6 @@ export default function InvoicePembiayaan() {
                 </div>
 
                 <div className="inv-summary-card overdue">
-                    <span><AlertTriangle size={24} /></span>
                     <div className="inv-summary-card-body">
                         <small>Piutang Jatuh Tempo</small>
                         <strong>{money(summaryStats?.jatuh_tempo_nominal ?? 0)}</strong>
@@ -1280,7 +1278,7 @@ export default function InvoicePembiayaan() {
             </div>
 
             {createOpen && createPortal(
-                <div className="inv-modal-backdrop" role="presentation" onMouseDown={closeCreate}>
+                <div className="inv-modal-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeCreate}>
                     <div className="inv-modal create inv-create-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-modal-head">
                             <span className="inv-modal-head-icon"><FilePlus2 size={20} /></span>
@@ -1344,20 +1342,19 @@ export default function InvoicePembiayaan() {
                                         </label>
                                     ))}
                                 </div>
-                                <div style={{ marginTop: 14, padding: '14px 16px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 14, border: '1px solid rgba(99, 102, 241, 0.22)' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700 }}>
+                                <div className="pen-cob-box">
+                                    <label className="pen-cob-toggle">
                                         <input
                                             type="checkbox"
                                             checked={Boolean(form.is_cob)}
                                             onChange={(e) => setForm({ ...form, is_cob: e.target.checked })}
-                                            style={{ width: 18, height: 18, accentColor: '#4f46e5' }}
                                         />
                                         <span>Invoice COB (BPJS + Asuransi Tambahan)</span>
                                     </label>
                                     {form.is_cob && (
-                                        <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+                                        <div className="pen-cob-fields">
                                             <label style={{ display: 'grid', gap: 4 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
+                                                <span style={{ fontSize: 12, fontWeight: 600 }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
                                                 <input
                                                     className="inv-input"
                                                     type="text"
@@ -1365,19 +1362,18 @@ export default function InvoicePembiayaan() {
                                                     value={formatMoneyInput(form.tanggungan_bpjs)}
                                                     onChange={(e) => setForm({ ...form, tanggungan_bpjs: normalizeMoneyDraft(e.target.value) })}
                                                     placeholder="Contoh: 3.173.800"
-                                                    style={{ fontWeight: 700 }}
                                                 />
                                             </label>
-                                            <div style={{ padding: '10px 14px', background: 'rgba(0, 0, 0, 0.06)', borderRadius: 10, fontSize: 13, display: 'grid', gap: 6, border: '1px solid rgba(0, 0, 0, 0.08)' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85 }}>
+                                            <div className="pen-cob-summary">
+                                                <div className="pen-cob-row">
                                                     <span>Total Biaya Riil RS:</span>
                                                     <strong>{money(totalForm)}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
+                                                <div className="pen-cob-row bpjs">
                                                     <span>Ditanggung BPJS (INA-CBGs):</span>
                                                     <strong>- {money(parseMoneyInput(form.tanggungan_bpjs))}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(148, 163, 184, 0.3)', paddingTop: 6, marginTop: 2, color: '#10b981', fontWeight: 800 }}>
+                                                <div className="pen-cob-row net">
                                                     <span>Total Ditagihkan ke Asuransi:</span>
                                                     <span>{money(Math.max(0, totalForm - parseMoneyInput(form.tanggungan_bpjs)))}</span>
                                                 </div>
@@ -1406,7 +1402,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {(selected || detailLoading) && createPortal(
-                <div className="inv-modal-backdrop" role="presentation" onMouseDown={closeDetail}>
+                <div className="inv-modal-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeDetail}>
                     <div className="inv-modal detail" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                         {detailLoading || !selected ? <div className="inv-empty">Memuat detail invoice...</div> : (
                             <>
@@ -1509,16 +1505,16 @@ export default function InvoicePembiayaan() {
                                             {COST_FIELDS.map(([key, label]) => <Info key={key} label={<CostLabel fieldKey={key} label={label} />} value={money(selected[key])} mono />)}
                                         </div>
                                         {(selected.is_cob || Number(selected.tanggungan_bpjs || 0) > 0) && (
-                                            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.2)', display: 'grid', gap: 6 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                                            <div className="pen-cob-summary" style={{ marginTop: 12 }}>
+                                                <div className="pen-cob-row">
                                                     <span>Total Biaya Riil RS:</span>
                                                     <strong>{money(Number(selected.total_real_rs || 0) > 0 ? selected.total_real_rs : (selectedDisplayAmounts.total + Number(selected.tanggungan_bpjs || 0)))}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#e11d48' }}>
+                                                <div className="pen-cob-row bpjs">
                                                     <span>Ditanggung BPJS (INA-CBGs):</span>
                                                     <strong>- {money(selected.tanggungan_bpjs)}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: '#16a34a', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 6 }}>
+                                                <div className="pen-cob-row net">
                                                     <span>Net Tagihan Asuransi:</span>
                                                     <span>{money(selectedDisplayAmounts.total)}</span>
                                                 </div>
@@ -1651,7 +1647,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {visitToRemove && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeRemoveVisit}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeRemoveVisit}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-remove-visit-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon">
                             <Trash2 size={24} />
@@ -1679,7 +1675,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {paymentToDelete && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeDeletePayment}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeDeletePayment}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-delete-payment-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon">
                             <AlertTriangle size={22} />
@@ -1710,7 +1706,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {paymentToVerify && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeVerifyPayment}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeVerifyPayment}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-verify-payment-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon send">
                             <CheckCircle2 size={22} />
@@ -1738,7 +1734,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {invoiceToCancel && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeCancelInvoice}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeCancelInvoice}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-cancel-invoice-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon">
                             <AlertTriangle size={22} />
@@ -1766,7 +1762,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {invoiceToReturn && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeReturnInvoice}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeReturnInvoice}>
                     <div className="inv-confirm-modal inv-return-modal" role="dialog" aria-modal="true" aria-labelledby="inv-return-invoice-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon return">
                             <UndoDot size={22} />
@@ -1813,7 +1809,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {sentInfoTarget && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeSentInfo}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeSentInfo}>
                     <div className="inv-sent-info-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon send">
                             <CalendarCheck size={22} />
@@ -1843,7 +1839,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {sendTarget && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeSendInvoice}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeSendInvoice}>
                     <form className="inv-send-modal" role="dialog" aria-modal="true" onSubmit={confirmSendInvoice} onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon send">
                             <Send size={22} />
@@ -1876,7 +1872,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {receiptOpen && createPortal(
-                <div className="inv-confirm-backdrop" role="presentation" onMouseDown={closeReceiptDialog}>
+                <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeReceiptDialog}>
                     <form className="inv-send-modal inv-receipt-modal" role="dialog" aria-modal="true" onSubmit={printReceipt} onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-icon send">
                             <Printer size={23} />
@@ -1916,7 +1912,7 @@ export default function InvoicePembiayaan() {
             )}
 
             {rekapOpen && createPortal(
-                <div className="inv-modal-backdrop" role="presentation" onMouseDown={closeRekapDialog}>
+                <div className="inv-modal-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeRekapDialog}>
                     <div className="inv-modal rekap-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-modal-head compact">
                             <div className="rekap-head-left">
@@ -2029,10 +2025,8 @@ function StatusBadge({ status, label }) {
 function PaymentVerifyBadge({ pay }) {
     const isVerified = pay?.status_verifikasi === 'terverifikasi';
     const isCanceled = pay?.status_verifikasi === 'dibatalkan' || pay?.status_verifikasi === 'ditolak';
-    const Icon = isVerified ? CheckCircle2 : isCanceled ? X : Clock3;
     return (
         <span className={`inv-verify-badge ${isVerified ? 'verified' : isCanceled ? 'canceled' : 'pending'}`}>
-            <Icon size={13} />
             {pay?.status_verifikasi_label || (isVerified ? 'Terverifikasi' : isCanceled ? 'Dibatalkan' : 'Menunggu')}
         </span>
     );

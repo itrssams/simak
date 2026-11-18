@@ -3,7 +3,8 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from users.models import User
+from rest_framework.test import APIClient
+from users.models import User, Unit
 from gudang.models import (
     Gudang, GolonganBarang, Satuan, Barang, Ruang,
     Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem,
@@ -135,4 +136,248 @@ class DistributionTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             DistributionService.approve_pengeluaran(out, user=self.user_gudang)
+
+    def test_create_permintaan_auto_resolves_ruang_for_unit_without_ruang(self):
+        StockService.record_in(
+            barang=self.barang,
+            gudang=self.gudang,
+            qty=Decimal('10'),
+            harga_unit=Decimal('3000'),
+            sumber_tipe='INIT',
+            sumber_id='3',
+            sumber_nomor='INIT-03',
+            user=self.user_gudang
+        )
+        unit_penunjang, _ = Unit.objects.get_or_create(
+            nama='Penunjang Medis Test',
+            defaults={'kategori': 'bidang', 'is_active': True}
+        )
+        Ruang.objects.filter(unit=unit_penunjang).delete()
+        pemohon, _ = User.objects.get_or_create(
+            username='ade_test',
+            defaults={'role': 'kepala_seksi', 'unit': unit_penunjang}
+        )
+        pemohon.unit = unit_penunjang
+        pemohon.save(update_fields=['unit'])
+
+        client = APIClient()
+        client.force_authenticate(user=pemohon)
+        res = client.post(
+            '/api/gudang/permintaan/',
+            {
+                'items': [{'barang': self.barang.id, 'qty_minta': 2, 'satuan': self.sat_pcs.kode}],
+                'catatan': 'Kebutuhan unit tanpa ruang awal',
+            },
+            format='json',
+        )
+        self.assertEqual(res.status_code, 201, res.content)
+        created_ruang = Ruang.objects.filter(unit=unit_penunjang).first()
+        self.assertIsNotNone(created_ruang)
+        self.assertEqual(res.data['ruang'], created_ruang.id)
+        Permintaan.objects.filter(ruang=created_ruang).delete()
+        created_ruang.delete()
+
+    def test_zero_stock_split_followup_and_per_item_rejection_flow(self):
+        # Siapkan 3 barang:
+        # 1) self.barang -> stok 10 (akan di-ACC parsial 4 oleh Mas Febri tanpa backorder)
+        # 2) barang_kosong -> stok 0 (akan masuk antrean SEDANG_DIAJUKAN lalu restock & ACC susulan)
+        # 3) barang_ditolak -> stok 10 (akan ditolak dengan alasan jelas)
+        barang_kosong, _ = Barang.objects.get_or_create(
+            kode='B1-DIST-02',
+            defaults={'nama': 'TINTA PRINTER TEST', 'golongan': self.gol, 'satuan_dasar': self.sat_pcs, 'merk': 'STD'}
+        )
+        barang_ditolak, _ = Barang.objects.get_or_create(
+            kode='B1-DIST-03',
+            defaults={'nama': 'MAP PLASTIK TEST', 'golongan': self.gol, 'satuan_dasar': self.sat_pcs, 'merk': 'STD'}
+        )
+        StokLedger.objects.filter(barang__in=[barang_kosong, barang_ditolak], reversal_of__isnull=False).delete()
+        StokLedger.objects.filter(barang__in=[barang_kosong, barang_ditolak]).delete()
+        StokSaldo.objects.filter(barang__in=[barang_kosong, barang_ditolak]).delete()
+
+        default_gudang = Gudang.get_default()
+        StockService.record_in(
+            barang=self.barang, gudang=default_gudang, qty=Decimal('10'), harga_unit=Decimal('2000'),
+            sumber_tipe='INIT', sumber_id='10', sumber_nomor='INIT-10', user=self.user_gudang
+        )
+        StockService.record_in(
+            barang=barang_ditolak, gudang=default_gudang, qty=Decimal('10'), harga_unit=Decimal('1000'),
+            sumber_tipe='INIT', sumber_id='11', sumber_nomor='INIT-11', user=self.user_gudang
+        )
+
+        # User approver (Mas Febri)
+        approver, _ = User.objects.get_or_create(
+            username='febri_kasi_test',
+            defaults={'role': 'kepala_seksi', 'is_logistik': True}
+        )
+        approver.role = 'kepala_seksi'
+        approver.is_logistik = True
+        approver.save(update_fields=['role', 'is_logistik'])
+
+        client = APIClient()
+        client.force_authenticate(user=self.user_unit)
+
+        # 1. Unit mengajukan 3 barang termasuk barang_kosong (stok 0) -> HARUS BERHASIL
+        res_create = client.post(
+            '/api/gudang/permintaan/',
+            {
+                'ruang': self.ruang.id,
+                'items': [
+                    {'barang': self.barang.id, 'qty_minta': 8, 'satuan': self.sat_pcs.kode},
+                    {'barang': barang_kosong.id, 'qty_minta': 5, 'satuan': self.sat_pcs.kode},
+                    {'barang': barang_ditolak.id, 'qty_minta': 3, 'satuan': self.sat_pcs.kode},
+                ],
+                'catatan': 'Permintaan campuran stok ada dan kosong',
+            },
+            format='json',
+        )
+        self.assertEqual(res_create.status_code, 201, res_create.content)
+        req_id = res_create.data['id']
+        items_by_barang = {it['barang']: it for it in res_create.data['items']}
+        pi_ready = items_by_barang[self.barang.id]
+        pi_empty = items_by_barang[barang_kosong.id]
+        pi_reject = items_by_barang[barang_ditolak.id]
+
+        # 2. Approver (Mas Febri) mencoba Tolak tanpa alasan -> ditolak sistem
+        client.force_authenticate(user=approver)
+        res_bad_reject = client.post(
+            f'/api/gudang/permintaan/{req_id}/approve/',
+            {
+                'items': [
+                    {'id': pi_ready['id'], 'keputusan': 'SETUJUI', 'qty_disetujui': 4},
+                    {'id': pi_empty['id'], 'keputusan': 'AJUKAN', 'qty_disetujui': 0},
+                    {'id': pi_reject['id'], 'keputusan': 'TOLAK', 'qty_disetujui': 0, 'alasan_tolak': ''},
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(res_bad_reject.status_code, 400)
+
+        # 3. Approver memberi keputusan per baris:
+        #    - self.barang -> SETUJUI 4 (dari 8 diminta, kontrol ketat tanpa backorder)
+        #    - barang_kosong -> AJUKAN (SEDANG_DIAJUKAN)
+        #    - barang_ditolak -> TOLAK dengan alasan jelas
+        res_acc = client.post(
+            f'/api/gudang/permintaan/{req_id}/approve/',
+            {
+                'items': [
+                    {'id': pi_ready['id'], 'keputusan': 'SETUJUI', 'qty_disetujui': 4},
+                    {'id': pi_empty['id'], 'keputusan': 'AJUKAN', 'qty_disetujui': 0},
+                    {'id': pi_reject['id'], 'keputusan': 'TOLAK', 'qty_disetujui': 0, 'alasan_tolak': 'Tidak sesuai kebutuhan ruang'},
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(res_acc.status_code, 200, res_acc.content)
+        self.assertEqual(res_acc.data['status'], Permintaan.STATUS_PROSES_SEBAGIAN)
+        self.assertTrue(res_acc.data['can_issue'])
+        acc_map = {it['id']: it for it in res_acc.data['items']}
+        self.assertEqual(acc_map[pi_ready['id']]['status'], PermintaanItem.STATUS_DISETUJUI)
+        self.assertEqual(Decimal(str(acc_map[pi_ready['id']]['qty_disetujui'])), Decimal('4'))
+        self.assertEqual(acc_map[pi_empty['id']]['status'], PermintaanItem.STATUS_SEDANG_DIAJUKAN)
+        self.assertEqual(acc_map[pi_reject['id']]['status'], PermintaanItem.STATUS_DITOLAK)
+        self.assertEqual(acc_map[pi_reject['id']]['alasan_tolak'], 'Tidak sesuai kebutuhan ruang')
+
+        # 4. Tahap 1 penyerahan fisik (hanya self.barang qty 4), Permintaan tetap PROSES_SEBAGIAN
+        res_serah1 = client.post(
+            f'/api/gudang/permintaan/{req_id}/serahkan/',
+            {'penerima_nama': 'Ns. Sari IGD'},
+            format='json',
+        )
+        self.assertEqual(res_serah1.status_code, 200, res_serah1.content)
+        p1 = res_serah1.data['permintaan']
+        self.assertEqual(p1['status'], Permintaan.STATUS_PROSES_SEBAGIAN)
+        self.assertFalse(p1['can_issue'])
+        self.assertEqual(len(p1['pengeluaran_list']), 1)
+        s1_map = {it['id']: it for it in p1['items']}
+        self.assertEqual(s1_map[pi_ready['id']]['status'], PermintaanItem.STATUS_SELESAI)
+        self.assertEqual(Decimal(str(s1_map[pi_ready['id']]['qty_dikeluarkan'])), Decimal('4'))
+
+        # 5. Alert dashboard: barang_kosong masih awaiting_stock
+        res_alerts1 = client.get('/api/gudang/permintaan/procurement-alerts/')
+        self.assertEqual(res_alerts1.status_code, 200)
+        awaiting_ids = [x['id'] for x in res_alerts1.data['awaiting_stock']]
+        self.assertIn(pi_empty['id'], awaiting_ids)
+
+        # 6. Stok barang_kosong masuk via Penerimaan (GRN) -> 3 unit (kurang dari minta 5)
+        StockService.record_in(
+            barang=barang_kosong, gudang=default_gudang, qty=Decimal('3'), harga_unit=Decimal('50000'),
+            sumber_tipe='GRN', sumber_id='99', sumber_nomor='GRN-99', user=approver
+        )
+        res_alerts2 = client.get('/api/gudang/permintaan/procurement-alerts/')
+        ready_ids = [x['id'] for x in res_alerts2.data['ready_for_followup']]
+        self.assertIn(pi_empty['id'], ready_ids)
+
+        # 7. Mas Febri melakukan ACC susulan dengan kontrol qty (setujui 2 dari 3 stok tersedia)
+        res_followup = client.post(
+            f'/api/gudang/permintaan/{req_id}/approve-followup/',
+            {
+                'items': [
+                    {'id': pi_empty['id'], 'keputusan': 'SETUJUI', 'qty_disetujui': 2}
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(res_followup.status_code, 200, res_followup.content)
+        self.assertEqual(res_followup.data['status'], Permintaan.STATUS_DISETUJUI)
+        self.assertTrue(res_followup.data['can_issue'])
+
+        # 8. Tahap 2 penyerahan fisik -> menerbitkan Bon OUT ke-2 & Permintaan resmi SELESAI
+        res_serah2 = client.post(
+            f'/api/gudang/permintaan/{req_id}/serahkan/',
+            {'penerima_nama': 'Ns. Budi IGD'},
+            format='json',
+        )
+        self.assertEqual(res_serah2.status_code, 200, res_serah2.content)
+        p2 = res_serah2.data['permintaan']
+        self.assertEqual(p2['status'], Permintaan.STATUS_SELESAI)
+        self.assertEqual(len(p2['pengeluaran_list']), 2)
+
+        StokLedger.objects.filter(barang__in=[barang_kosong, barang_ditolak], reversal_of__isnull=False).delete()
+        StokLedger.objects.filter(barang__in=[barang_kosong, barang_ditolak]).delete()
+        StokSaldo.objects.filter(barang__in=[barang_kosong, barang_ditolak]).delete()
+
+    def test_close_procurement_item_resolves_permintaan_status(self):
+        barang_kosong, _ = Barang.objects.get_or_create(
+            kode='B1-DIST-04',
+            defaults={'nama': 'KERTAS HVS TEST', 'golongan': self.gol, 'satuan_dasar': self.sat_pcs, 'merk': 'STD'}
+        )
+        StokLedger.objects.filter(barang=barang_kosong, reversal_of__isnull=False).delete()
+        StokLedger.objects.filter(barang=barang_kosong).delete()
+        StokSaldo.objects.filter(barang=barang_kosong).delete()
+
+        approver, _ = User.objects.get_or_create(
+            username='febri_kasi_test',
+            defaults={'role': 'kepala_seksi', 'is_logistik': True}
+        )
+        approver.role = 'kepala_seksi'
+        approver.is_logistik = True
+        approver.save(update_fields=['role', 'is_logistik'])
+
+        req = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': barang_kosong, 'qty_minta': Decimal('5')}],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+        pi = req.items.first()
+        DistributionService.approve_permintaan(
+            req,
+            user=approver,
+            items_approval=[{'id': pi.id, 'keputusan': 'AJUKAN', 'qty_disetujui': 0}],
+        )
+        req.refresh_from_db()
+        self.assertEqual(req.status, Permintaan.STATUS_PROSES_SEBAGIAN)
+
+        client = APIClient()
+        client.force_authenticate(user=approver)
+        res_close = client.post(
+            f'/api/gudang/permintaan/{req.id}/close-item/',
+            {'item_id': pi.id, 'alasan': 'Barang dihentikan / tidak diadakan'},
+            format='json',
+        )
+        self.assertEqual(res_close.status_code, 200, res_close.content)
+        self.assertEqual(res_close.data['status'], Permintaan.STATUS_DITOLAK)
+        self.assertEqual(res_close.data['items'][0]['status'], PermintaanItem.STATUS_BATAL_PENGADAAN)
+
+
 

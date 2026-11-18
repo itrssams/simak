@@ -147,7 +147,7 @@ export default function AppLauncher() {
             allowed: Boolean(canCatatanUtang),
             submenus: [
                 { label: 'Daftar Catatan Utang', path: '/keuangan/catatan-utang/obat-bhp' },
-                { label: 'Master Vendor', path: '/logistik/vendor?sumber=semua' },
+                { label: 'Master Vendor', path: '/keuangan/catatan-utang/vendor' },
             ],
         },
         {

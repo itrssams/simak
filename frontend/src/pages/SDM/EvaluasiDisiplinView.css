@@ -698,6 +698,347 @@
 .badge-pelanggaran.terlambat { background: #fef3c7; color: #92400e; }
 .badge-pelanggaran.pulang_cepat { background: #ffedd5; color: #9a3412; }
 
+/* ==========================================================================
+   DISIPLIN & REKAP UNIT — @DESIGN.MD OVERRIDES (LIGHT & DARK)
+   ========================================================================== */
+.disiplin-view-root {
+  --dv-surface: #ffffff;
+  --dv-surface-muted: #f1f5f9;
+  --dv-border: var(--gdg-border, #e3e8ee);
+  --dv-border-strong: #d8dee4;
+  --dv-text: #1a1f36;
+  --dv-muted: #697386;
+  color: var(--dv-text);
+  background: transparent;
+}
+
+[data-theme="dark"] .disiplin-view-root {
+  --dv-surface: #181b23;
+  --dv-surface-muted: #1f2430;
+  --dv-border: var(--gdg-border, rgba(255, 255, 255, 0.08));
+  --dv-border-strong: rgba(255, 255, 255, 0.14);
+  --dv-text: #f8fafc;
+  --dv-muted: #94a3b8;
+}
+
+.disiplin-view-root .disiplin-header-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--dv-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 0 16px 0 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.disiplin-view-root .disiplin-title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dv-text) !important;
+}
+
+.disiplin-view-root .disiplin-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dv-muted) !important;
+}
+
+.disiplin-view-root .btn-excel-disiplin {
+  height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  background: #635bff !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.disiplin-view-root .btn-excel-disiplin:hover {
+  background: #5249f5 !important;
+}
+
+.disiplin-view-root .disiplin-toolbar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--dv-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 12px 0 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.disiplin-view-root .disiplin-select,
+.disiplin-view-root .disiplin-search-wrap,
+.disiplin-view-root .disiplin-pill {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  background: var(--dv-surface) !important;
+  border: 1px solid var(--dv-border-strong) !important;
+  color: var(--dv-text) !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+}
+
+.disiplin-view-root .disiplin-select {
+  padding: 0 28px 0 12px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+[data-theme="dark"] .disiplin-view-root .disiplin-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
+
+.disiplin-view-root .disiplin-search-wrap {
+  padding: 0 12px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.disiplin-view-root .disiplin-search-wrap input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--dv-text) !important;
+  font-size: 13px !important;
+  outline: none !important;
+}
+
+.disiplin-view-root .disiplin-pill {
+  padding: 0 12px !important;
+  font-weight: 500 !important;
+  color: var(--dv-muted) !important;
+}
+
+.disiplin-view-root .disiplin-pill.active {
+  background: #635bff !important;
+  border-color: #635bff !important;
+  color: #ffffff !important;
+}
+
+.disiplin-view-root .filter-label {
+  color: var(--dv-muted) !important;
+  font-size: 12px !important;
+}
+
+[data-theme="dark"] .disiplin-view-root,
+[data-theme="light"] .disiplin-view-root,
+.disiplin-view-root,
+[data-theme="dark"] .disiplin-view-root .disiplin-table-card,
+[data-theme="light"] .disiplin-view-root .disiplin-table-card,
+.disiplin-view-root .disiplin-table-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.disiplin-view-root .disiplin-table-card {
+  overflow-x: auto;
+}
+
+.disiplin-view-root .disiplin-table,
+.disiplin-view-root .disiplin-table thead,
+.disiplin-view-root .disiplin-table thead tr,
+.disiplin-view-root .disiplin-table tbody,
+.disiplin-view-root .disiplin-table tbody tr {
+  background: transparent !important;
+}
+
+.disiplin-view-root .disiplin-table th {
+  background: transparent !important;
+  color: var(--dv-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 11px 12px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--dv-border) !important;
+}
+
+.disiplin-view-root .disiplin-table td {
+  background: transparent !important;
+  color: var(--dv-text) !important;
+  font-size: 13px !important;
+  padding: 11px 12px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--dv-border) !important;
+}
+
+.disiplin-view-root .disiplin-table th:first-child,
+.disiplin-view-root .disiplin-table td:first-child {
+  padding-left: 0 !important;
+}
+
+.disiplin-view-root .disiplin-table tbody tr:hover td {
+  background: rgba(99, 91, 255, 0.03) !important;
+}
+
+.disiplin-view-root .pegawai-name-txt,
+.disiplin-view-root .unit-name-txt {
+  color: var(--dv-text) !important;
+}
+
+.disiplin-view-root .pegawai-pin-sub {
+  color: var(--dv-muted) !important;
+}
+
+.disiplin-pct-track {
+  width: 52px;
+  height: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.disiplin-view-root .btn-binaan-action {
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  background: var(--dv-surface) !important;
+  border: 1px solid var(--dv-border-strong) !important;
+  color: var(--dv-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.disiplin-view-root .btn-binaan-action:hover {
+  border-color: #635bff !important;
+  color: #635bff !important;
+}
+
+/* Surat Pembinaan Modal (Clean #111318 / #ffffff, No Blur, 36px Footer Buttons) */
+.surat-modal-overlay {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay {
+  background: rgba(0, 0, 0, 0.68) !important;
+}
+
+.surat-modal-overlay .surat-modal-card {
+  background: #ffffff !important;
+  border: 1px solid #e3e8ee !important;
+  border-radius: 8px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .surat-modal-card {
+  background: #111318 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+.surat-modal-overlay .surat-modal-header,
+.surat-modal-overlay .surat-modal-subtabs,
+.surat-modal-overlay .surat-modal-footer {
+  background: transparent !important;
+  border-color: #e3e8ee !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .surat-modal-header,
+[data-theme="dark"] .surat-modal-overlay .surat-modal-subtabs,
+[data-theme="dark"] .surat-modal-overlay .surat-modal-footer {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .surat-modal-header h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .surat-modal-body {
+  background: #0b0d12 !important;
+}
+
+.surat-modal-overlay .tingkat-select,
+.surat-modal-overlay .btn-print-primary,
+.surat-modal-overlay .btn-secondary-sdm {
+  height: 36px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  box-sizing: border-box !important;
+}
+
+.surat-modal-overlay .tingkat-select {
+  padding: 0 28px 0 12px !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .tingkat-select {
+  background-color: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+.surat-modal-overlay .btn-print-primary {
+  background: #635bff !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  padding: 0 14px !important;
+  box-shadow: none !important;
+}
+
+.surat-modal-overlay .btn-print-primary:hover {
+  background: #5249f5 !important;
+}
+
+.surat-modal-overlay .subtab-btn.active {
+  color: #635bff !important;
+  border-bottom-color: #635bff !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .rincian-pelanggaran-wrap {
+  background: #111318 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .surat-modal-overlay .rincian-table th,
+[data-theme="dark"] .surat-modal-overlay .rincian-table td {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
 /* ════════════════ CETAK / PRINT ONLY CSS ════════════════ */
 @media print {
   body * {

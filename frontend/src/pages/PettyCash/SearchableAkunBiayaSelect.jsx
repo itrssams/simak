@@ -72,8 +72,8 @@ export default function SearchableAkunBiayaSelect({
             const rect = rootRef.current?.getBoundingClientRect();
             if (!rect) return;
 
-            const popoverWidth = Math.max(rect.width, 320);
-            const popoverHeight = 320;
+            const popoverWidth = Math.max(rect.width, 360);
+            const popoverHeight = 340;
             const gap = 4;
             const padding = 10;
 

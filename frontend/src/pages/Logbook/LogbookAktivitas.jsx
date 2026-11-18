@@ -47,7 +47,7 @@ export default function LogbookAktivitas() {
     const [aktivitas, setAktivitas] = useState([]);
     const [uraianTugasOpts, setUraianTugasOpts] = useState([]);
     const [loading, setLoading] = useState(false);
-    
+
     // Filter & Search
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebounce(search, 400);
@@ -83,7 +83,7 @@ export default function LogbookAktivitas() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    
+
     const [formData, setFormData] = useState({
         tanggal: new Date().toISOString().split('T')[0],
         uraian_tugas_id: '',
@@ -246,8 +246,8 @@ export default function LogbookAktivitas() {
                 nama_aktivitas: item.nama_aktivitas || '',
                 nilai_output: item.nilai_output || 0,
                 satuan_output: item.satuan_output || '',
-                jam_mulai: item.jam_mulai ? item.jam_mulai.substring(0,5) : '',
-                jam_selesai: item.jam_selesai ? item.jam_selesai.substring(0,5) : '',
+                jam_mulai: item.jam_mulai ? item.jam_mulai.substring(0, 5) : '',
+                jam_selesai: item.jam_selesai ? item.jam_selesai.substring(0, 5) : '',
                 deskripsi: item.deskripsi || ''
             });
         } else {

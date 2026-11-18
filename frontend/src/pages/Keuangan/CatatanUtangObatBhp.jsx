@@ -247,8 +247,6 @@ export default function CatatanUtangObatBhp() {
     const { user } = useAuth();
     
     const mode = searchParams.get('tab') || 'semua';
-    const meta = VIEW_META[mode] || VIEW_META.semua;
-    const Icon = meta.icon;
 
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
@@ -1141,224 +1139,144 @@ export default function CatatanUtangObatBhp() {
         <div className="utang-page">
             <section className="utang-hero">
                 <div className="utang-title">
-                    <span><Icon size={24} /></span>
                     <div>
                         <h1>Catatan Utang Obat, BHP &amp; Logistik</h1>
                         <p>Manajemen pengajuan dan pembayaran utang supplier obat, bahan habis pakai, dan logistik</p>
                     </div>
                 </div>
+                <div className="utang-hero-actions">
+                    <button className="utang-btn secondary" type="button" onClick={exportExcel}>
+                        <FileSpreadsheet size={15} /> Export Excel
+                    </button>
+                    <button className="utang-btn primary" type="button" onClick={openManual}>
+                        <FilePlus2 size={15} /> Catat Utang Manual
+                    </button>
+                </div>
             </section>
 
-            <section className="utang-summary-cards">
-                <div className="utang-summary-card">
-                    <div className="card-inner">
-                        <div className="card-info">
-                            <span className="card-label">Hutang Menunggu Verifikasi</span>
-                            <span className="card-value">{money(displayPendingValue)}</span>
-                            <span className="card-subtext">{displayPendingSubtext}</span>
-                        </div>
-                        <span className="card-icon pending"><FileClock size={24} /></span>
-                    </div>
+            <section className="utang-stat-bar">
+                <div className="utang-stat-cell">
+                    <span className="utang-stat-label">Hutang Menunggu Verifikasi</span>
+                    <strong className="utang-stat-value utang-mono">{money(displayPendingValue)}</strong>
+                    <span className="utang-stat-sub">{displayPendingSubtext}</span>
                 </div>
 
-                <div className="utang-summary-card">
-                    <div className="card-inner">
-                        <div className="card-info">
-                            <span className="card-label">Utang Aktif</span>
-                            <span className="card-value">{money(displayActiveValue)}</span>
-                            <span className="card-subtext">{displayActiveSubtext}</span>
-                        </div>
-                        <span className="card-icon active"><ReceiptText size={24} /></span>
-                    </div>
+                <div className="utang-stat-cell">
+                    <span className="utang-stat-label">Utang Aktif</span>
+                    <strong className="utang-stat-value utang-mono">{money(displayActiveValue)}</strong>
+                    <span className="utang-stat-sub">{displayActiveSubtext}</span>
                 </div>
 
-                <div className="utang-summary-card total">
-                    <div className="card-inner">
-                        <div className="card-info">
-                            <span className="card-label">Total Utang</span>
-                            <span className="card-value">{money(displayTotalUtangValue)}</span>
-                            <span className="card-subtext">{displayTotalUtangSubtext}</span>
-                        </div>
-                        <span className="card-icon total"><CircleDollarSign size={24} /></span>
-                    </div>
+                <div className="utang-stat-cell">
+                    <span className="utang-stat-label">Total Utang</span>
+                    <strong className="utang-stat-value utang-mono">{money(displayTotalUtangValue)}</strong>
+                    <span className="utang-stat-sub">{displayTotalUtangSubtext}</span>
                 </div>
             </section>
 
             <section className="utang-card table">
                 <div className="utang-card-head">
-                    <div className="utang-tabs">
-                        {TABS.map((tab) => {
-                            const TabIcon = tab.icon;
-                            const isActive = mode === tab.id;
-                            const isMenunggu = tab.id === 'menunggu';
-                            const showBadge = isMenunggu && pendingCount > 0;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    className={`utang-tab ${isActive ? 'active' : ''}`}
-                                    onClick={() => setSearchParams({ tab: tab.id })}
-                                >
-                                    <TabIcon size={16} />
-                                    <span>{tab.label}</span>
-                                    {showBadge && (
-                                        <span className="utang-tab-badge" title={`${pendingCount} faktur menunggu verifikasi`}>
-                                            {pendingCount > 99 ? '99+' : pendingCount}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <div className="utang-card-actions">
+                    <div className="utang-tabs-row">
+                        <div className="utang-tabs" role="tablist" aria-label="Status Catatan Utang">
+                            {TABS.map((tab) => {
+                                const isActive = mode === tab.id;
+                                const isMenunggu = tab.id === 'menunggu';
+                                const showBadge = isMenunggu && pendingCount > 0;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={isActive}
+                                        className={`utang-tab ${isActive ? 'active' : ''}`}
+                                        onClick={() => setSearchParams({ tab: tab.id })}
+                                    >
+                                        <span>{tab.label}</span>
+                                        {showBadge && (
+                                            <span className="utang-tab-count" title={`${pendingCount} faktur menunggu verifikasi`}>
+                                                {pendingCount > 99 ? '99+' : pendingCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                         <DebouncedSearchInput
                             value={filters.search}
                             onChange={(val) => setFilters((prev) => ({ ...prev, search: val }))}
                             placeholder="Cari vendor / faktur / SPB / keterangan..."
                             className="utang-tab-search"
                         />
-                        {mode === 'pengajuan' && selectedPengajuanIds.length > 0 && (
-                            <>
-                                <div className="utang-selected-pill" style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    background: 'rgba(16, 185, 129, 0.12)',
-                                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                                    color: '#047857',
-                                    padding: '6px 14px',
-                                    borderRadius: '9px',
-                                    fontSize: '13px',
-                                    fontWeight: '700'
-                                }}>
-                                    <span>Terpilih: <strong>{selectedPengajuanIds.length} faktur</strong></span>
-                                    <span style={{ opacity: 0.5 }}>|</span>
-                                    <span>Total: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(totalBulkNominal)}</strong></span>
-                                </div>
-                                <button
-                                    className="utang-btn primary"
-                                    type="button"
-                                    onClick={exportExcel}
-                                    style={{ background: '#0284c7', borderColor: '#0369a1', color: '#ffffff' }}
-                                    title="Export hanya faktur pengajuan yang dicentang ke Excel"
-                                >
-                                    <FileSpreadsheet size={16} /> Export ({selectedPengajuanIds.length}) Terpilih
-                                </button>
-                                <button
-                                    className="utang-btn primary"
-                                    type="button"
-                                    onClick={() => {
-                                        setBulkRealisasiDate(todayISO());
-                                        setShowBulkRealisasiModal(true);
-                                    }}
-                                    style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}
-                                    title="Realisasi beberapa pengajuan pembayaran sekaligus"
-                                >
-                                    <CheckCheck size={16} /> Realisasi ({selectedPengajuanIds.length}) Terpilih
-                                </button>
-                            </>
-                        )}
-                        {(mode === 'aktif' || mode === 'semua') && selectedActiveIds.length > 0 && (
-                            <>
-                                <div className="utang-selected-pill" style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    background: 'rgba(16, 185, 129, 0.12)',
-                                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                                    color: '#047857',
-                                    padding: '6px 14px',
-                                    borderRadius: '9px',
-                                    fontSize: '13px',
-                                    fontWeight: '700'
-                                }}>
-                                    <span>Terpilih: <strong>{selectedActiveIds.length} faktur</strong></span>
-                                    <span style={{ opacity: 0.5 }}>|</span>
-                                    <span>Nilai: <strong style={{ color: '#059669', fontSize: '13.5px' }}>{money(selectedActiveSisa)}</strong></span>
-                                </div>
-                                <button
-                                    className="utang-btn primary"
-                                    type="button"
-                                    onClick={exportExcel}
-                                    style={{ background: '#0284c7', borderColor: '#0369a1', color: '#ffffff' }}
-                                    title="Export hanya faktur yang dicentang ke Excel"
-                                >
-                                    <FileSpreadsheet size={16} /> Export ({selectedActiveIds.length}) Terpilih
-                                </button>
-                                <button
-                                    className="utang-btn secondary"
-                                    type="button"
-                                    onClick={() => setSelectedActiveIds([])}
-                                    style={{ fontSize: '12.5px', padding: '6px 12px' }}
-                                    title="Batalkan pilihan centang"
-                                >
-                                    Reset Pilihan
-                                </button>
-                            </>
-                        )}
-                        {(
-                            mode === 'histori' ||
-                            ((mode === 'aktif' || mode === 'semua') && selectedActiveIds.length === 0) ||
-                            (mode === 'pengajuan' && selectedPengajuanIds.length === 0)
-                        ) && (
-                            <button className="utang-btn primary" type="button" onClick={exportExcel}>
-                                <FileSpreadsheet size={16} /> Export Excel
-                            </button>
-                        )}
-                        {mode === 'menunggu' && (
-                            <>
-                                {selectedKeys.length > 0 && (
-                                    <button className="utang-btn primary" type="button" onClick={handleBulkPelunasanSelected} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }} title="Pelunasan Masal Faktur Terpilih">
-                                        <CheckCheck size={16} /> Lunaskan ({selectedKeys.length}) Terpilih
-                                    </button>
-                                )}
-
-                                {/* ══════════════════════════════════════════════════════════════════════
-                                    [FITUR NONAKTIF SEMENTARA: PELUNASAN MASAL DATA LAMA]
-                                    Dokumentasi: Digunakan untuk melunaskan secara masal data transaksi gudang 
-                                    lama yang terdaftar di Excel OTS berdasarkan tanggal faktur terakhir vendor.
-                                    Untuk mengaktifkan kembali, cukup buka comment pada 2 tombol di bawah ini:
-                                    ══════════════════════════════════════════════════════════════════════ */}
-                                {/*
-                                <button className="utang-btn primary" type="button" onClick={handlePelunasanDataLama} style={{ background: '#d97706', borderColor: '#b45309', color: '#ffffff' }} title="Pelunasan Masal Data Transaksi Gudang Lama (Dinamis Sesuai Tanggal Faktur Terakhir Masing-Masing Vendor di Excel OTS)">
-                                    <CheckCheck size={16} /> Lunaskan Sisa Data Lama
-                                </button>
-                                <button className="utang-btn primary" type="button" onClick={handleUndoPelunasanDataLama} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Batalkan (Undo) Pelunasan Masal Data Lama">
-                                    <RotateCcw size={16} /> Undo Pelunasan Data Lama
-                                </button>
-                                */}
-                            </>
-                        )}
-
-                        {/* ══════════════════════════════════════════════════════════════════════
-                            [FITUR NONAKTIF SEMENTARA: IMPORT EXCEL OTS & ROLLBACK]
-                            Dokumentasi: Digunakan saat proses migrasi awal data utang supplier dari format Excel OTS.
-                            Untuk mengaktifkan kembali tombol ini, cukup buka comment pada 2 tombol di bawah ini:
-                            ══════════════════════════════════════════════════════════════════════ */}
-                        {/*
-                        <button className="utang-btn primary" type="button" onClick={() => navigate('/keuangan/catatan-utang/import-ots')} style={{ background: '#10b981', borderColor: '#059669', color: '#ffffff' }}>
-                            <FileSpreadsheet size={16} /> Import Excel OTS
-                        </button>
-                        <button className="utang-btn primary" type="button" onClick={handleRollbackImport} style={{ background: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }} title="Hapus seluruh data utang hasil import Excel OTS">
-                            <RotateCcw size={16} /> Undo Import OTS
-                        </button>
-                        */}
-
-                        {/* ══════════════════════════════════════════════════════════════════════
-                            [FITUR NONAKTIF SEMENTARA: RESET SEMUA VERIFIKASI]
-                            Dokumentasi: Digunakan saat testing / inisialisasi awal untuk mereset seluruh
-                            verifikasi data utang kembali ke status default / awal.
-                            Untuk mengaktifkan kembali tombol ini, cukup buka comment di bawah ini:
-                            ══════════════════════════════════════════════════════════════════════ */}
-                        {/*
-                        <button className="utang-btn primary" type="button" onClick={handleResetAll} style={{ background: '#b91c1c', borderColor: '#991b1b', color: '#ffffff' }} title="Hapus / Reset seluruh data utang dan verifikasi kembali ke kondisi awal">
-                            <RotateCcw size={16} /> Reset Semua Verifikasi
-                        </button>
-                        */}
-
-                        <button className="utang-btn-manual" type="button" onClick={openManual}>
-                            <FilePlus2 size={16} /> Catat Utang Manual
-                        </button>
                     </div>
+                    {((mode === 'pengajuan' && selectedPengajuanIds.length > 0) ||
+                        ((mode === 'aktif' || mode === 'semua') && selectedActiveIds.length > 0) ||
+                        (mode === 'menunggu' && selectedKeys.length > 0)) && (
+                        <div className="utang-card-actions">
+                            {mode === 'pengajuan' && selectedPengajuanIds.length > 0 && (
+                                <>
+                                    <div className="utang-selected-pill">
+                                        <span>Terpilih: <strong>{selectedPengajuanIds.length} faktur</strong></span>
+                                        <span className="utang-selected-sep">|</span>
+                                        <span>Total: <strong className="utang-mono">{money(totalBulkNominal)}</strong></span>
+                                    </div>
+                                    <button
+                                        className="utang-btn secondary"
+                                        type="button"
+                                        onClick={exportExcel}
+                                        title="Export hanya faktur pengajuan yang dicentang ke Excel"
+                                    >
+                                        <FileSpreadsheet size={15} /> Export ({selectedPengajuanIds.length}) Terpilih
+                                    </button>
+                                    <button
+                                        className="utang-btn primary"
+                                        type="button"
+                                        onClick={() => {
+                                            setBulkRealisasiDate(todayISO());
+                                            setShowBulkRealisasiModal(true);
+                                        }}
+                                        title="Realisasi beberapa pengajuan pembayaran sekaligus"
+                                    >
+                                        <CheckCheck size={15} /> Realisasi ({selectedPengajuanIds.length}) Terpilih
+                                    </button>
+                                </>
+                            )}
+                            {(mode === 'aktif' || mode === 'semua') && selectedActiveIds.length > 0 && (
+                                <>
+                                    <div className="utang-selected-pill">
+                                        <span>Terpilih: <strong>{selectedActiveIds.length} faktur</strong></span>
+                                        <span className="utang-selected-sep">|</span>
+                                        <span>Nilai: <strong className="utang-mono">{money(selectedActiveSisa)}</strong></span>
+                                    </div>
+                                    <button
+                                        className="utang-btn secondary"
+                                        type="button"
+                                        onClick={exportExcel}
+                                        title="Export hanya faktur yang dicentang ke Excel"
+                                    >
+                                        <FileSpreadsheet size={15} /> Export ({selectedActiveIds.length}) Terpilih
+                                    </button>
+                                    <button
+                                        className="utang-btn secondary"
+                                        type="button"
+                                        onClick={() => setSelectedActiveIds([])}
+                                        title="Batalkan pilihan centang"
+                                    >
+                                        Reset Pilihan
+                                    </button>
+                                </>
+                            )}
+                            {mode === 'menunggu' && selectedKeys.length > 0 && (
+                                <button
+                                    className="utang-btn primary"
+                                    type="button"
+                                    onClick={handleBulkPelunasanSelected}
+                                    title="Pelunasan Masal Faktur Terpilih"
+                                >
+                                    <CheckCheck size={15} /> Lunaskan ({selectedKeys.length}) Terpilih
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <FilterBar
@@ -1434,7 +1352,6 @@ export default function CatatanUtangObatBhp() {
                     <form className="utang-confirm-modal" role="dialog" aria-modal="true" onSubmit={confirmVerify} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-confirm-head">
                             <div className="utang-confirm-head-copy">
-                                <span className="utang-confirm-head-icon"><CheckCircle2 size={22} /></span>
                                 <div>
                                     <h2>Verifikasi Faktur</h2>
                                     <p>Catat faktur sebagai utang supplier di SIMAK</p>
@@ -1469,26 +1386,26 @@ export default function CatatanUtangObatBhp() {
                                     <span className="lbl">Jatuh Tempo</span>
                                     <span className="val">{['logistik', 'keuangan'].includes(verifyTarget.sumber) ? '—' : dateLabel(verifyTarget.tanggal_jatuh_tempo)}</span>
                                 </div>
-                                <div className="utang-verify-row" style={{ borderTop: '1px dashed #e2e8f0', paddingTop: 6, marginTop: 4 }}>
+                                <div className="utang-verify-row utang-verify-divider">
                                     <span className="lbl">Total Bruto</span>
                                     <span className="val mono">{money(verifyTarget.total_sebelum_diskon || verifyTarget.nominal)}</span>
                                 </div>
                                 {Number(verifyTarget.disc1 || 0) > 0 && (
                                     <div className="utang-verify-row">
                                         <span className="lbl">Diskon 1</span>
-                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc1)}</span>
+                                        <span className="val mono utang-text-danger">- {money(verifyTarget.disc1)}</span>
                                     </div>
                                 )}
                                 {Number(verifyTarget.disc2 || 0) > 0 && (
                                     <div className="utang-verify-row">
                                         <span className="lbl">Diskon 2</span>
-                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc2)}</span>
+                                        <span className="val mono utang-text-danger">- {money(verifyTarget.disc2)}</span>
                                     </div>
                                 )}
                                 {Number(verifyTarget.disc3 || 0) > 0 && (
                                     <div className="utang-verify-row">
                                         <span className="lbl">Diskon 3</span>
-                                        <span className="val mono" style={{ color: '#e11d48' }}>- {money(verifyTarget.disc3)}</span>
+                                        <span className="val mono utang-text-danger">- {money(verifyTarget.disc3)}</span>
                                     </div>
                                 )}
                                 {(Number(verifyTarget.disc1 || 0) > 0 || Number(verifyTarget.disc2 || 0) > 0 || Number(verifyTarget.disc3 || 0) > 0) && (
@@ -1500,7 +1417,7 @@ export default function CatatanUtangObatBhp() {
                                 {Number(verifyTarget.ppn || 0) > 0 && (
                                     <div className="utang-verify-row">
                                         <span className="lbl">PPN</span>
-                                        <span className="val mono" style={{ color: '#16a34a' }}>+ {money(verifyTarget.ppn)}</span>
+                                        <span className="val mono utang-text-success">+ {money(verifyTarget.ppn)}</span>
                                     </div>
                                 )}
                                 {Number(verifyTarget.materai || 0) > 0 && (
@@ -1559,7 +1476,7 @@ export default function CatatanUtangObatBhp() {
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
-                                <small style={{ display: 'block', marginTop: 4, color: '#64748b', fontSize: 11.5 }}>
+                                <small className="utang-field-hint">
                                     Default terisi otomatis dari master vendor. Ubah jika faktur ini adalah peruntukan khusus (misal: ALAT KESEHATAN).
                                 </small>
                             </div>
@@ -1596,7 +1513,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setPaymentTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitPayment} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff' }}><HandCoins size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Ajukan Pembayaran Utang</h2>
@@ -1720,7 +1636,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setReturTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitRetur} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #e11d48, #f43f5e)', color: '#fff' }}><RotateCcw size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Input Retur / Potongan Faktur</h2>
@@ -1750,13 +1665,13 @@ export default function CatatanUtangObatBhp() {
                                     <span className="lbl">Total Nominal Faktur</span>
                                     <span className="val price">{money(returTarget.nominal)}</span>
                                 </div>
-                                <div className="utang-verify-row">
+                                <div className="utang-verify-row total">
                                     <span className="lbl">Sisa Utang Saat Ini</span>
-                                    <span className="val price" style={{ color: '#e11d48', fontWeight: 800 }}>{money(returTarget.sisa_utang)}</span>
+                                    <span className="val price utang-text-danger">{money(returTarget.sisa_utang)}</span>
                                 </div>
                             </div>
 
-                            <div className="utang-manual-grid" style={{ gridTemplateColumns: '1fr', marginTop: 14 }}>
+                            <div className="utang-manual-grid" style={{ gridTemplateColumns: '1fr', marginTop: 12 }}>
                                 <label>
                                     <span>Nominal Retur (Rp) <span className="utang-req">*</span></span>
                                     <input
@@ -1796,8 +1711,8 @@ export default function CatatanUtangObatBhp() {
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setReturTarget(null)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: '#e11d48' }}>
-                                <RotateCcw size={16} /> {saving ? 'Menyimpan...' : 'Simpan Retur Faktur'}
+                            <button className="utang-btn danger" type="submit" disabled={saving}>
+                                <RotateCcw size={15} /> {saving ? 'Menyimpan...' : 'Simpan Retur Faktur'}
                             </button>
                         </div>
                     </form>
@@ -1809,10 +1724,11 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setSelectedDepositVendor(null)}>
                     <div className="utang-modal payment" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 740 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: '#059669', color: '#fff' }}><Sparkles size={20} /></span>
-                            <div>
-                                <h2>Mutasi Deposit Retur Vendor</h2>
-                                <p>{selectedDepositVendor.vendor_nama}</p>
+                            <div className="utang-modal-head-text">
+                                <div className="utang-modal-head-title-row">
+                                    <h2>Mutasi Deposit Retur Vendor</h2>
+                                </div>
+                                <p className="utang-modal-head-subtitle">{selectedDepositVendor.vendor_nama}</p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setSelectedDepositVendor(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
@@ -1840,7 +1756,7 @@ export default function CatatanUtangObatBhp() {
                                             <tr key={item.id || idx}>
                                                 <td>{dateLabel(item.created_at)}</td>
                                                 <td className="utang-mono">{item.nomor_faktur || item.nomor_spb || '-'}</td>
-                                                <td className="utang-mono bold" style={{ color: '#059669' }}>{money(item.nominal_retur)}</td>
+                                                <td className="utang-mono bold utang-text-success">{money(item.nominal_retur)}</td>
                                                 <td className="utang-mono">{money(item.terpakai)}</td>
                                                 <td className="utang-mono bold">{money(item.sisa_deposit)}</td>
                                                 <td>{item.keterangan || '-'}</td>
@@ -1863,7 +1779,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setRealisasiTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={confirmRealisasi} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff' }}><CheckCircle2 size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Realisasi Pembayaran Utang</h2>
@@ -1897,14 +1812,14 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div className="utang-form-grid" style={{ marginTop: 4 }}>
                                 <div className="utang-field-block">
-                                    <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Realisasi <span className="utang-req">*</span></label>
+                                    <label className="utang-field-lbl"><CalendarDays size={14} /> Tanggal Realisasi <span className="utang-req">*</span></label>
                                     <DateInput value={realisasiForm.tanggal_realisasi} onChange={(val) => setRealisasiForm({ ...realisasiForm, tanggal_realisasi: val })} />
                                 </div>
 
                                 <div className="utang-field-block">
-                                    <label className="utang-field-lbl"><CircleDollarSign size={15} /> Nominal Realisasi <span className="utang-req">*</span></label>
+                                    <label className="utang-field-lbl"><CircleDollarSign size={14} /> Nominal Realisasi <span className="utang-req">*</span></label>
                                     <input
                                         className="utang-input utang-input-right"
                                         inputMode="decimal"
@@ -1917,8 +1832,8 @@ export default function CatatanUtangObatBhp() {
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setRealisasiTarget(null)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : 'Konfirmasi Realisasi Bayar'}
+                            <button className="utang-btn primary" type="submit" disabled={saving}>
+                                <CheckCircle2 size={15} /> {saving ? 'Memproses...' : 'Konfirmasi Realisasi Bayar'}
                             </button>
                         </div>
                     </form>
@@ -1930,7 +1845,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setShowManual(false)}>
                     <form className="utang-modal manual" role="dialog" aria-modal="true" onSubmit={submitManual} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff' }}><FilePlus2 size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Catat Utang Manual</h2>
@@ -2010,7 +1924,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setEditTarget(null)}>
                     <form className="utang-modal manual" role="dialog" aria-modal="true" onSubmit={submitEdit} onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff' }}><Pencil size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Edit Catatan Utang</h2>
@@ -2088,8 +2001,8 @@ export default function CatatanUtangObatBhp() {
                             </div>
                         </div>
                         <div className="utang-modal-actions">
-                            <button type="button" className="utang-btn secondary" onClick={() => setEditTarget(null)} disabled={saving}>Batal</button>
-                            <button type="submit" className="utang-btn primary" disabled={saving} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderColor: '#d97706' }}>
+                            <button type="button" className="utang-btn soft" onClick={() => setEditTarget(null)} disabled={saving}>Batal</button>
+                            <button type="submit" className="utang-btn primary" disabled={saving}>
                                 {saving ? 'Menyimpan...' : <><Pencil size={15} /> Simpan Perubahan</>}
                             </button>
                         </div>
@@ -2102,13 +2015,14 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setDetailTarget(null)}>
                     <div className="utang-modal payment utang-detail-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)', color: '#fff' }}><Eye size={20} /></span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Detail Utang &amp; Riwayat Pembayaran</h2>
-                                    <SumberBadge sumber={detailTarget.sumber} />
                                 </div>
-                                <p className="utang-modal-head-subtitle">Vendor: <strong>{detailTarget.vendor_nama || '-'}</strong></p>
+                                <p className="utang-modal-head-subtitle">
+                                    {detailTarget.sumber ? `${SUMBER_LABELS[detailTarget.sumber] || detailTarget.sumber} • ` : ''}
+                                    Vendor: <strong>{detailTarget.vendor_nama || '-'}</strong>
+                                </p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setDetailTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
@@ -2153,11 +2067,11 @@ export default function CatatanUtangObatBhp() {
                                             </div>
                                             <div className="utang-verify-row">
                                                 <span className="lbl">No. Faktur</span>
-                                                <span className="val mono">{detailTarget.nomor_faktur || '-'}</span>
+                                                <span className="val utang-mono">{detailTarget.nomor_faktur || '-'}</span>
                                             </div>
                                             <div className="utang-verify-row">
                                                 <span className="lbl">No. Ref / SPB</span>
-                                                <span className="val mono">{getRefNo(detailTarget)}</span>
+                                                <span className="val utang-mono">{getRefNo(detailTarget)}</span>
                                             </div>
                                             <div className="utang-verify-row">
                                                 <span className="lbl">Tgl. Faktur</span>
@@ -2208,7 +2122,7 @@ export default function CatatanUtangObatBhp() {
                                                         {detailHistory.map((item, idx) => (
                                                             <tr key={item.id || idx}>
                                                                 <td>{dateLabel(item.tanggal_realisasi || item.tanggal_proses || item.tanggal_rencana_bayar)}</td>
-                                                                <td className={`utang-mono ${item.status === 'retur' ? 'utang-nominal-retur' : ''}`} style={{ textAlign: 'right', fontWeight: 700, color: item.status === 'retur' ? '#e11d48' : undefined }}>
+                                                                <td className={`utang-mono ${item.status === 'retur' ? 'utang-nominal-retur utang-text-danger' : ''}`} style={{ textAlign: 'right', fontWeight: 700 }}>
                                                                     {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
                                                                 </td>
                                                                 <td><StatusBadge status={item.status} label={item.status_label || item.status} /></td>
@@ -2220,9 +2134,9 @@ export default function CatatanUtangObatBhp() {
                                                 </table>
                                             </div>
                                         ) : (
-                                            <div className="utang-history-empty" style={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 200, border: '1px dashed #cbd5e1', borderRadius: 12, background: '#f8fafc', color: '#64748b', padding: '24px 16px', textAlign: 'center' }}>
+                                            <div className="utang-history-empty tall">
                                                 <div>
-                                                    <FileClock size={28} style={{ opacity: 0.4, margin: '0 auto 8px', display: 'block' }} />
+                                                    <FileClock size={26} style={{ opacity: 0.45, margin: '0 auto 8px', display: 'block' }} />
                                                     <span>Belum ada riwayat pembayaran atau retur untuk faktur ini.</span>
                                                 </div>
                                             </div>
@@ -2235,13 +2149,12 @@ export default function CatatanUtangObatBhp() {
                         <div className="utang-modal-actions">
                             {detailTarget.status === 'dibatalkan' && detailTarget.sumber !== 'manual' && (
                                 <button
-                                    className="utang-btn soft"
+                                    className="utang-btn secondary utang-btn-push-left"
                                     type="button"
-                                    style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff', marginRight: 'auto' }}
                                     onClick={() => handleKembalikanKePending(detailTarget)}
                                     disabled={saving}
                                 >
-                                    <RotateCcw size={16} /> Kembalikan ke Menunggu Verifikasi
+                                    <RotateCcw size={15} /> Kembalikan ke Menunggu Verifikasi
                                 </button>
                             )}
                             <button className="utang-btn soft" type="button" onClick={() => setDetailTarget(null)}>Tutup</button>
@@ -2255,9 +2168,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setShowBulkRealisasiModal(false)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitBulkRealisasi} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 820, width: '92vw' }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}>
-                                <CheckCheck size={22} />
-                            </span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Realisasi Massal Pembayaran Utang</h2>
@@ -2267,95 +2177,33 @@ export default function CatatanUtangObatBhp() {
                             <button className="utang-confirm-close" type="button" onClick={() => setShowBulkRealisasiModal(false)} aria-label="Tutup"><X size={18} /></button>
                         </div>
 
-                        <div className="utang-modal-body" style={{ padding: '20px 24px' }}>
-                            {/* Summary Cards Banner */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                                gap: 14,
-                                marginBottom: 18,
-                            }}>
-                                <div style={{
-                                    background: '#f8fafc',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: 10,
-                                    padding: '14px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 14,
-                                }}>
-                                    <div style={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 10,
-                                        background: '#e0f2fe',
-                                        color: '#0284c7',
-                                        display: 'grid',
-                                        placeItems: 'center',
-                                        flexShrink: 0,
-                                    }}>
-                                        <ClipboardList size={22} />
-                                    </div>
-                                    <div>
-                                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
-                                            Total Pengajuan
-                                        </span>
-                                        <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
-                                            {selectedPengajuanItems.length} <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>Item Terpilih</span>
-                                        </div>
-                                    </div>
+                        <div className="utang-modal-body">
+                            <div className="utang-stat-bar compact">
+                                <div className="utang-stat-cell">
+                                    <span className="utang-stat-label">Total Pengajuan</span>
+                                    <strong className="utang-stat-value utang-mono">{selectedPengajuanItems.length} Item Terpilih</strong>
                                 </div>
-
-                                <div style={{
-                                    background: '#ecfdf5',
-                                    border: '1px solid #a7f3d0',
-                                    borderRadius: 10,
-                                    padding: '14px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 14,
-                                }}>
-                                    <div style={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 10,
-                                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                                        color: '#ffffff',
-                                        display: 'grid',
-                                        placeItems: 'center',
-                                        flexShrink: 0,
-                                        boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
-                                    }}>
-                                        <CircleDollarSign size={22} />
-                                    </div>
-                                    <div>
-                                        <span style={{ fontSize: 11, color: '#047857', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
-                                            Total Realisasi Kas Keluar
-                                        </span>
-                                        <div style={{ fontSize: 20, fontWeight: 800, color: '#047857', letterSpacing: '-0.3px', marginTop: 2 }}>
-                                            {money(totalBulkNominal)}
-                                        </div>
-                                    </div>
+                                <div className="utang-stat-cell">
+                                    <span className="utang-stat-label">Total Realisasi Kas Keluar</span>
+                                    <strong className="utang-stat-value utang-mono utang-text-success">{money(totalBulkNominal)}</strong>
                                 </div>
                             </div>
 
-                            {/* Date Picker Input */}
-                            <div className="utang-field-block" style={{ marginBottom: 20, background: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                                <label className="utang-field-lbl" style={{ fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <CalendarDays size={16} style={{ color: '#10b981' }} /> Tanggal Realisasi Pembayaran <span className="utang-req">*</span>
+                            <div className="utang-field-block utang-bulk-date-block">
+                                <label className="utang-field-lbl">
+                                    <CalendarDays size={14} /> Tanggal Realisasi Pembayaran <span className="utang-req">*</span>
                                 </label>
-                                <div style={{ maxWidth: 280 }}>
+                                <div style={{ maxWidth: 260 }}>
                                     <DateInput value={bulkRealisasiDate} onChange={(v) => setBulkRealisasiDate(v)} />
                                 </div>
-                                <small style={{ color: '#64748b', fontSize: 12, marginTop: 6, display: 'block', lineHeight: 1.4 }}>
-                                    💡 Tanggal ini akan dicatat sebagai <strong>Tanggal Efektif Pencairan / Realisasi Kas Keluar</strong> untuk seluruh {selectedPengajuanItems.length} item yang dipilih.
+                                <small className="utang-field-hint">
+                                    Tanggal ini akan dicatat sebagai <strong>Tanggal Efektif Pencairan / Realisasi Kas Keluar</strong> untuk seluruh {selectedPengajuanItems.length} item yang dipilih.
                                 </small>
                             </div>
 
-                            {/* Table List of Selected Items */}
                             <section className="utang-payment-section">
                                 <SectionTitle icon={ClipboardList}>Rincian Pengajuan Pembayaran Terpilih ({selectedPengajuanItems.length} Item)</SectionTitle>
-                                <div className="utang-history-wrap" style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                                <div className="utang-history-wrap" style={{ maxHeight: 260, overflowY: 'auto' }}>
                                     <table className="utang-history-table" style={{ width: '100%', tableLayout: 'fixed' }}>
                                         <colgroup>
                                             <col style={{ width: '30%' }} />
@@ -2364,26 +2212,26 @@ export default function CatatanUtangObatBhp() {
                                             <col style={{ width: '25%' }} />
                                         </colgroup>
                                         <thead>
-                                            <tr style={{ background: '#f1f5f9' }}>
-                                                <th style={{ padding: '10px 12px' }}>Vendor</th>
-                                                <th style={{ padding: '10px 12px' }}>No. SPB</th>
-                                                <th style={{ padding: '10px 12px' }}>No. Faktur</th>
-                                                <th style={{ padding: '10px 12px', textAlign: 'right' }}>Nominal Realisasi</th>
+                                            <tr>
+                                                <th>Vendor</th>
+                                                <th>No. SPB</th>
+                                                <th>No. Faktur</th>
+                                                <th style={{ textAlign: 'right' }}>Nominal Realisasi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {selectedPengajuanItems.map((item, idx) => (
                                                 <tr key={item.id || idx}>
-                                                    <td style={{ padding: '10px 12px', wordBreak: 'break-word' }}>
+                                                    <td style={{ wordBreak: 'break-word' }}>
                                                         <strong>{item.vendor_nama || '-'}</strong>
                                                     </td>
-                                                    <td className="utang-mono" style={{ padding: '10px 12px', fontSize: 12, color: '#475569' }}>
+                                                    <td className="utang-mono">
                                                         {item.nomor_spb ? item.nomor_spb : (item.app_siaga_faktur_id ? `RJ-${item.app_siaga_faktur_id}` : '-')}
                                                     </td>
-                                                    <td className="utang-mono" style={{ padding: '10px 12px', fontSize: 12 }}>
+                                                    <td className="utang-mono">
                                                         {item.nomor_faktur || '-'}
                                                     </td>
-                                                    <td className="utang-mono bold" style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: 13 }}>
+                                                    <td className="utang-mono bold utang-text-success" style={{ textAlign: 'right' }}>
                                                         {money(item.jumlah_bayar)}
                                                     </td>
                                                 </tr>
@@ -2394,10 +2242,10 @@ export default function CatatanUtangObatBhp() {
                             </section>
                         </div>
 
-                        <div className="utang-modal-actions" style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                        <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setShowBulkRealisasiModal(false)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', borderColor: '#059669', padding: '9px 20px', fontWeight: 600 }}>
-                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : `Konfirmasi Realisasi (${selectedPengajuanItems.length} Item)`}
+                            <button className="utang-btn primary" type="submit" disabled={saving}>
+                                <CheckCircle2 size={15} /> {saving ? 'Memproses...' : `Konfirmasi Realisasi (${selectedPengajuanItems.length} Item)`}
                             </button>
                         </div>
                     </form>
@@ -2409,9 +2257,6 @@ export default function CatatanUtangObatBhp() {
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setEditTanggalTarget(null)}>
                     <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitEditTanggal} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)' }}>
-                                <CalendarDays size={20} />
-                            </span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Ubah Tanggal Realisasi</h2>
@@ -2441,15 +2286,15 @@ export default function CatatanUtangObatBhp() {
                                 </div>
                             </div>
 
-                            <div className="utang-field-block" style={{ marginTop: 16 }}>
-                                <label className="utang-field-lbl"><CalendarDays size={15} /> Tanggal Realisasi Pembayaran Baru <span className="utang-req">*</span></label>
+                            <div className="utang-field-block" style={{ marginTop: 8 }}>
+                                <label className="utang-field-lbl"><CalendarDays size={14} /> Tanggal Realisasi Pembayaran Baru <span className="utang-req">*</span></label>
                                 <DateInput value={editTanggalForm.tanggal_realisasi} onChange={(v) => setEditTanggalForm({ tanggal_realisasi: v })} />
                             </div>
                         </div>
                         <div className="utang-modal-actions">
                             <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setEditTanggalTarget(null)}>Batal</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving} style={{ background: '#0284c7', borderColor: '#0369a1' }}>
-                                <CheckCircle2 size={16} /> {saving ? 'Memproses...' : 'Simpan Tanggal Baru'}
+                            <button className="utang-btn primary" type="submit" disabled={saving}>
+                                <CheckCircle2 size={15} /> {saving ? 'Memproses...' : 'Simpan Tanggal Baru'}
                             </button>
                         </div>
                     </form>
@@ -2459,17 +2304,16 @@ export default function CatatanUtangObatBhp() {
 
             {batalTarget && createPortal(
                 <div className="utang-modal-backdrop" role="presentation" onMouseDown={() => setBatalTarget(null)}>
-                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitBatalkan} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                    <form className="utang-modal payment" role="dialog" aria-modal="true" onSubmit={submitBatalkan} onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
                         <div className="utang-modal-head">
-                            <span className="utang-modal-head-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)' }}>
-                                <Ban size={20} />
-                            </span>
                             <div className="utang-modal-head-text">
                                 <div className="utang-modal-head-title-row">
                                     <h2>Batalkan Catatan Utang</h2>
-                                    {batalTarget.sumber && <SumberBadge sumber={batalTarget.sumber} />}
                                 </div>
-                                <p className="utang-modal-head-subtitle">Faktur akan dinonaktifkan tanpa menghapus riwayat audit</p>
+                                <p className="utang-modal-head-subtitle">
+                                    {batalTarget.sumber ? `${SUMBER_LABELS[batalTarget.sumber] || batalTarget.sumber} • ` : ''}
+                                    Faktur akan dinonaktifkan tanpa menghapus riwayat audit
+                                </p>
                             </div>
                             <button className="utang-confirm-close" type="button" onClick={() => setBatalTarget(null)} aria-label="Tutup"><X size={18} /></button>
                         </div>
@@ -2496,18 +2340,18 @@ export default function CatatanUtangObatBhp() {
                             </div>
 
                             <div className="utang-notice-box warning">
-                                <AlertTriangle size={18} className="utang-notice-box-icon" />
+                                <AlertTriangle size={16} className="utang-notice-box-icon" />
                                 <div className="utang-notice-content">
                                     <strong>Perhatian:</strong> Faktur yang dibatalkan tidak akan lagi dihitung dalam total hutang aktif maupun pengajuan pembayaran. Data dan riwayat pencatatan tetap tersimpan demi audit trail pembukuan.
                                     {batalTarget.sumber !== 'manual' && (
-                                        <div style={{ marginTop: 6, fontSize: '0.82rem', color: '#0369a1' }}>
-                                            <strong>Tips:</strong> Jika ingin memverifikasi ulang karena revisi nominal dari gudang atau salah verifikasi, gunakan tombol <strong>"Kembalikan ke Menunggu Verifikasi"</strong> di bawah.
+                                        <div className="utang-notice-tip">
+                                            <strong>Tips:</strong> Jika ingin memverifikasi ulang karena revisi nominal dari gudang atau salah verifikasi, gunakan tombol <strong>&quot;Kembalikan ke Verifikasi&quot;</strong> di bawah.
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="utang-field-block" style={{ marginTop: 14 }}>
+                            <div className="utang-field-block" style={{ marginTop: 6 }}>
                                 <label className="utang-field-lbl">Alasan Pembatalan <span className="utang-req">*</span></label>
                                 <textarea
                                     className="utang-input"
@@ -2519,23 +2363,24 @@ export default function CatatanUtangObatBhp() {
                                 />
                             </div>
                         </div>
-                        <div className="utang-modal-actions">
+                        <div className={`utang-modal-actions ${batalTarget.sumber !== 'manual' ? 'split' : ''}`}>
                             {batalTarget.sumber !== 'manual' && (
                                 <button
-                                    className="utang-btn soft"
+                                    className="utang-btn secondary"
                                     type="button"
                                     disabled={saving}
                                     onClick={() => handleKembalikanKePending(batalTarget)}
-                                    style={{ color: '#0369a1', borderColor: '#bae6fd', background: '#f0f9ff', marginRight: 'auto' }}
                                     title="Hapus verifikasi dan kembalikan faktur ke tab Menunggu Verifikasi"
                                 >
-                                    <RotateCcw size={16} /> Kembalikan ke Menunggu Verifikasi
+                                    Kembalikan ke Verifikasi
                                 </button>
                             )}
-                            <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setBatalTarget(null)}>Tutup</button>
-                            <button className="utang-btn primary" type="submit" disabled={saving} onClick={submitBatalkan} style={{ background: '#dc2626', borderColor: '#b91c1c' }}>
-                                <Ban size={16} /> {saving ? 'Memproses...' : 'Konfirmasi Batalkan Faktur'}
-                            </button>
+                            <div className="utang-modal-actions-right">
+                                <button className="utang-btn soft" type="button" disabled={saving} onClick={() => setBatalTarget(null)}>Tutup</button>
+                                <button className="utang-btn danger" type="submit" disabled={saving} onClick={submitBatalkan}>
+                                    {saving ? 'Memproses...' : 'Batalkan Faktur'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>,
@@ -2571,7 +2416,7 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                     title="Filter berdasarkan kategori vendor"
                 >
                     <option value="">Semua Kategori</option>
-                    <option value="__empty__">⚠️ Belum Diatur (Kosong)</option>
+                    <option value="__empty__">Belum Diatur (Kosong)</option>
                     {VENDOR_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <select
@@ -2657,21 +2502,8 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
                     </select>
                 )}
                 {mode === 'histori' && (
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '0 12px',
-                        height: '42px',
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: '14px',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color: '#1d4ed8',
-                        whiteSpace: 'nowrap'
-                    }}>
-                        <CalendarDays size={15} style={{ color: '#2563eb' }} />
+                    <div className="utang-filter-chip">
+                        <CalendarDays size={14} />
                         <span>Periode: Tgl Bayar</span>
                     </div>
                 )}
@@ -2702,68 +2534,9 @@ function FilterBar({ mode, filters, setFilters, vendors, onReset }) {
 
 function KategoriChip({ kategori }) {
     if (!kategori || !kategori.trim()) {
-        return (
-            <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: '10px',
-                fontWeight: 600,
-                color: '#d97706',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px dashed rgba(245, 158, 11, 0.4)',
-                padding: '1px 6px',
-                borderRadius: '4px',
-                verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
-            }}>
-                ⚠️ Belum Diatur
-            </span>
-        );
+        return <span className="utang-kategori-meta empty">Belum Diatur</span>;
     }
-    const cat = kategori.trim();
-    let bg = 'rgba(59, 130, 246, 0.08)';
-    let color = '#2563eb';
-    let border = '1px solid rgba(59, 130, 246, 0.2)';
-
-    if (cat === 'OBAT DAN BHP' || cat === 'OBAT & BHP') {
-        bg = 'rgba(16, 185, 129, 0.08)';
-        color = '#059669';
-        border = '1px solid rgba(16, 185, 129, 0.2)';
-    } else if (cat === 'ALAT KESEHATAN') {
-        bg = 'rgba(139, 92, 246, 0.08)';
-        color = '#7c3aed';
-        border = '1px solid rgba(139, 92, 246, 0.2)';
-    } else if (cat.includes('RUJUKAN') || cat.includes('LAB')) {
-        bg = 'rgba(236, 72, 153, 0.08)';
-        color = '#db2777';
-        border = '1px solid rgba(236, 72, 153, 0.2)';
-    } else if (cat.includes('PENUNJANG')) {
-        bg = 'rgba(245, 158, 11, 0.08)';
-        color = '#d97706';
-        border = '1px solid rgba(245, 158, 11, 0.2)';
-    } else if (cat.includes('ATK') || cat.includes('RUMAH TANGGA')) {
-        bg = 'rgba(14, 165, 233, 0.08)';
-        color = '#0284c7';
-        border = '1px solid rgba(14, 165, 233, 0.2)';
-    }
-
-    return (
-        <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontSize: '10px',
-            fontWeight: 600,
-            color,
-            background: bg,
-            border,
-            padding: '1px 6px',
-            borderRadius: '4px',
-            verticalAlign: 'middle',
-            whiteSpace: 'nowrap',
-        }}>
-            {cat}
-        </span>
-    );
+    return <span className="utang-kategori-meta">{kategori.trim()}</span>;
 }
 
 function PendingTable({ items, onVerify, onSort, selectedKeys = [], onToggleAll, onToggleItem }) {
@@ -2934,11 +2707,11 @@ function ActiveTable({
                                 <strong className="utang-mono" style={{ opacity: 0.5 }}>—</strong>
                             ) : (
                                 <div>
-                                    <strong className="utang-mono" style={{ color: '#0369a1', display: 'block', fontSize: '0.86rem', fontWeight: 700 }}>
+                                    <strong className="utang-mono utang-titip-date">
                                         {item.tanggal_titip ? dateLabel(item.tanggal_titip) : '-'}
                                     </strong>
                                     {item.tanggal_titip ? (
-                                        <small className="utang-subtext" style={{ fontWeight: 600, color: '#64748b' }}>
+                                        <small className="utang-subtext">
                                             {calcUmurUtang(item.tanggal_titip)}
                                         </small>
                                     ) : (
@@ -2948,7 +2721,7 @@ function ActiveTable({
                             )}
                         </td>
                         <td className="utang-right">
-                            <strong className="utang-mono utang-sisa-main" style={isDibatalkan ? { color: '#94a3b8', textDecoration: 'line-through' } : undefined}>
+                            <strong className="utang-mono utang-sisa-main" style={isDibatalkan ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}>
                                 {isDibatalkan ? 'Rp 0' : money(item.sisa_utang)}
                             </strong>
                             <small className="utang-subtext utang-mono">Total: {money(item.nominal)}</small>
@@ -2957,8 +2730,7 @@ function ActiveTable({
                         <td><StatusBadge status={item.status} label={item.status_label} /></td>
                         <td className="utang-operator-cell">
                             {item.verified_by_name ? (
-                                <span className="utang-operator-badge" title={`Diverifikasi oleh ${item.verified_by_name}`}>
-                                    <User size={13} style={{ opacity: 0.7 }} />
+                                <span className="utang-operator-text" title={`Diverifikasi oleh ${item.verified_by_name}`}>
                                     {item.verified_by_name}
                                 </span>
                             ) : '-'}
@@ -2973,7 +2745,7 @@ function ActiveTable({
                                         disabled={isPaymentDisabled}
                                         title={isPendingApproval ? 'Faktur ini sedang diajukan pembayaran' : isNoSisa ? 'Sisa utang Rp 0' : 'Ajukan Pembayaran'}
                                     >
-                                        <HandCoins size={16} />
+                                        <HandCoins size={15} />
                                     </button>
                                 )}
                                 {canEdit && (
@@ -2983,7 +2755,7 @@ function ActiveTable({
                                         onClick={() => onEdit(item)}
                                         title="Edit Catatan Utang"
                                     >
-                                        <Pencil size={16} />
+                                        <Pencil size={15} />
                                     </button>
                                 )}
                                 {canRetur && (
@@ -2993,7 +2765,7 @@ function ActiveTable({
                                         onClick={() => onRetur(item)}
                                         title="Input Retur / Potongan Faktur"
                                     >
-                                        <RotateCcw size={16} />
+                                        <RotateCcw size={15} />
                                     </button>
                                 )}
                                 {canBatalkan && (
@@ -3003,18 +2775,17 @@ function ActiveTable({
                                         onClick={() => onBatalkan(item)}
                                         title="Batalkan Catatan Utang / Faktur"
                                     >
-                                        <Ban size={16} />
+                                        <Ban size={15} />
                                     </button>
                                 )}
                                 {item.status === 'dibatalkan' && item.sumber !== 'manual' && onKembalikanKePending && (
                                     <button
                                         className="utang-action-btn"
                                         type="button"
-                                        style={{ color: '#0284c7', background: '#f0f9ff', borderColor: '#bae6fd' }}
                                         onClick={() => onKembalikanKePending(item)}
                                         title="Kembalikan Faktur ke Menunggu Verifikasi"
                                     >
-                                        <RotateCcw size={16} />
+                                        <RotateCcw size={15} />
                                     </button>
                                 )}
                                 <button
@@ -3093,9 +2864,9 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                         <td style={{ wordBreak: 'break-word', overflow: 'hidden' }}>
                             <strong className="utang-mono">{item.nomor_faktur || '-'}</strong>
                             {item.tanggal_titip ? (
-                                <div style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: 700, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span>📅 Titip: {dateLabel(item.tanggal_titip)}</span>
-                                    <span style={{ color: '#64748b', fontWeight: 500 }}>({calcUmurUtang(item.tanggal_titip)})</span>
+                                <div className="utang-titip-row">
+                                    <span className="utang-titip-date">Titip: {dateLabel(item.tanggal_titip)}</span>
+                                    <span className="utang-subtext">({calcUmurUtang(item.tanggal_titip)})</span>
                                 </div>
                             ) : (
                                 <small className="utang-subtext">Tgl Titip: -</small>
@@ -3109,8 +2880,7 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                             </div>
                         </td>
                         <td className="utang-operator-cell" style={{ textAlign: 'center' }}>
-                            <span className="utang-operator-badge" title={`Diajukan oleh ${item.created_by_name || '-'}`}>
-                                <User size={13} style={{ opacity: 0.7 }} />
+                            <span className="utang-operator-text" title={`Diajukan oleh ${item.created_by_name || '-'}`}>
                                 {item.created_by_name || '-'}
                             </span>
                         </td>
@@ -3122,7 +2892,7 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                                     onClick={() => onRealisasi(item)}
                                     title="Realisasi / Verifikasi Pembayaran"
                                 >
-                                    <CheckCircle2 size={16} />
+                                    <CheckCircle2 size={15} />
                                 </button>
                                 <button
                                     className="utang-action-btn danger"
@@ -3130,7 +2900,7 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
                                     onClick={() => onCancel(item)}
                                     title="Batalkan Pengajuan Pembayaran"
                                 >
-                                    <Trash2 size={16} />
+                                    <Trash2 size={15} />
                                 </button>
                             </div>
                         </td>
@@ -3140,29 +2910,19 @@ function PendingSubmissionTable({ items, onRealisasi, onCancel, onSort, selected
             </tbody>
             {items.length > 0 && (
                 <tfoot>
-                    <tr style={{
-                        background: hasSelection ? 'rgba(16, 185, 129, 0.12)' : 'rgba(241, 245, 249, 0.6)',
-                        borderTop: '2px solid rgba(16, 185, 129, 0.35)',
-                        fontWeight: 750
-                    }}>
+                    <tr className={`utang-tfoot-summary ${hasSelection ? 'selected' : ''}`}>
                         <td colSpan={3} style={{ textAlign: 'right', padding: '10px 14px' }}>
                             {hasSelection ? (
-                                <span style={{ color: '#047857', fontWeight: 800 }}>
-                                    ✓ Total Terpilih ({selectedIds.length} Pengajuan):
+                                <span className="utang-tfoot-label selected">
+                                    Total Terpilih ({selectedIds.length} Pengajuan):
                                 </span>
                             ) : (
-                                <span style={{ color: '#64748b' }}>
+                                <span className="utang-tfoot-label">
                                     Total Pengajuan Halaman Ini ({items.length} Faktur):
                                 </span>
                             )}
                         </td>
-                        <td className="utang-mono utang-right" style={{
-                            textAlign: 'right',
-                            padding: '10px 14px',
-                            fontSize: '14px',
-                            color: hasSelection ? '#047857' : 'inherit',
-                            fontWeight: 850
-                        }}>
+                        <td className="utang-mono utang-right utang-tfoot-total">
                             {money(hasSelection ? selectedNominalTotal : pageTotal)}
                         </td>
                         <td colSpan={3}></td>
@@ -3199,7 +2959,7 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                             </div>
                             <small className="utang-subtext">No Faktur: {item.nomor_faktur || '-'}</small>
                             {item.tanggal_titip && (
-                                <small className="utang-subtext" style={{ color: '#0369a1', fontWeight: 600 }}>
+                                <small className="utang-subtext utang-titip-date">
                                     Titip: {dateLabel(item.tanggal_titip)}
                                 </small>
                             )}
@@ -3210,22 +2970,21 @@ function HistoryTable({ items, onSort, onEditTanggal, onBatalRealisasi }) {
                                 <small className="utang-subtext">Rencana: {dateLabel(item.tanggal_rencana_bayar)}</small>
                             )}
                         </td>
-                        <td className={`utang-right utang-mono ${item.status === 'retur' ? '' : item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`} style={item.status === 'retur' ? { color: '#e11d48', fontWeight: 'bold' } : item.status === 'batal' ? { color: '#94a3b8', textDecoration: 'line-through' } : undefined}>
+                        <td className={`utang-right utang-mono ${item.status === 'retur' ? 'utang-text-danger bold' : item.status === 'realisasi_lunas' ? 'utang-nominal-realisasi' : 'utang-nominal-sebagian'}`} style={item.status === 'batal' ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
                             {item.status === 'retur' ? `- ${money(item.jumlah_bayar)}` : money(item.jumlah_bayar)}
                         </td>
                         <td className="utang-right utang-mono">{money(item.running_sisa_utang)}</td>
                         <td>
                             {item.status === 'retur' && (
-                                <span style={{ marginRight: 6 }}><StatusBadge status="retur" label="Retur Barang" /></span>
+                                <span style={{ marginRight: 8 }}><StatusBadge status="retur" label="Retur Barang" /></span>
                             )}
                             {item.status === 'batal' && (
-                                <span style={{ marginRight: 6, background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Dibatalkan</span>
+                                <span style={{ marginRight: 8 }}><StatusBadge status="dibatalkan" label="Dibatalkan" /></span>
                             )}
                             {item.keterangan || '-'}
                         </td>
                         <td className="utang-operator-cell">
-                            <span className="utang-operator-badge" title={`Dicatat oleh ${item.created_by_name || '-'}`}>
-                                <User size={13} style={{ opacity: 0.7 }} />
+                            <span className="utang-operator-text" title={`Dicatat oleh ${item.created_by_name || '-'}`}>
                                 {item.created_by_name || '-'}
                             </span>
                         </td>
@@ -3284,14 +3043,18 @@ function SortTh({ label, field, onSort, right = false, align = 'left' }) {
 }
 
 function StatusBadge({ status, label }) {
-    return <span className={`utang-status ${status || 'unknown'}`}>{label || status || '-'}</span>;
+    return (
+        <span className={`utang-status ${status || 'unknown'}`}>
+            <span className="utang-status-dot" aria-hidden="true" />
+            <span>{label || status || '-'}</span>
+        </span>
+    );
 }
 
 function SumberBadge({ sumber }) {
-    if (!sumber) return <span className="utang-sumber-badge unknown">—</span>;
+    if (!sumber) return <span className="utang-sumber-meta unknown">—</span>;
     return (
-        <span className={`utang-sumber-badge ${sumber}`}>
-            {sumber === 'logistik' ? <Truck size={11} /> : sumber === 'keuangan' ? <Wallet size={11} /> : <ShieldCheck size={11} />}
+        <span className={`utang-sumber-meta ${sumber}`}>
             {SUMBER_LABELS[sumber] || sumber}
         </span>
     );
@@ -3323,22 +3086,22 @@ function DepositVendorTable({ summary, vendors, onDetail }) {
     return (
         <div>
             {summary && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
-                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Vendor Deposit</span>
-                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{summary.total_vendor} Vendor</div>
+                <div className="utang-stat-bar compact" style={{ marginBottom: 16 }}>
+                    <div className="utang-stat-cell">
+                        <span className="utang-stat-label">Total Vendor Deposit</span>
+                        <strong className="utang-stat-value utang-mono">{summary.total_vendor} Vendor</strong>
                     </div>
-                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #059669, #047857)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
-                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Sisa Saldo Deposit Aktif</span>
-                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_sisa_deposit)}</div>
+                    <div className="utang-stat-cell">
+                        <span className="utang-stat-label">Sisa Saldo Deposit Aktif</span>
+                        <strong className="utang-stat-value utang-mono utang-text-success">{money(summary.total_sisa_deposit)}</strong>
                     </div>
-                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #64748b, #475569)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
-                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Deposit Terpakai</span>
-                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_terpakai)}</div>
+                    <div className="utang-stat-cell">
+                        <span className="utang-stat-label">Total Deposit Terpakai</span>
+                        <strong className="utang-stat-value utang-mono">{money(summary.total_terpakai)}</strong>
                     </div>
-                    <div className="utang-stat-card" style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)', color: '#fff', padding: '14px 18px', borderRadius: '14px' }}>
-                        <span style={{ fontSize: '12px', opacity: 0.85, fontWeight: 600 }}>Total Retur Diterima</span>
-                        <div style={{ fontSize: '20px', fontWeight: 850, marginTop: 4 }}>{money(summary.total_retur)}</div>
+                    <div className="utang-stat-cell">
+                        <span className="utang-stat-label">Total Retur Diterima</span>
+                        <strong className="utang-stat-value utang-mono">{money(summary.total_retur)}</strong>
                     </div>
                 </div>
             )}
@@ -3369,14 +3132,14 @@ function DepositVendorTable({ summary, vendors, onDetail }) {
                                 </td>
                                 <td>
                                     {isAktif ? (
-                                        <span className="utang-status lunas" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }}>Saldo Aktif</span>
+                                        <StatusBadge status="lunas" label="Saldo Aktif" />
                                     ) : (
-                                        <span className="utang-status" style={{ background: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' }}>Habis / Terpakai</span>
+                                        <StatusBadge status="dibatalkan" label="Habis / Terpakai" />
                                     )}
                                 </td>
                                 <td className="utang-right">
-                                    <button className="utang-btn soft mini" onClick={() => onDetail(v)} title="Lihat detail mutasi deposit vendor ini">
-                                        <Eye size={15} /> Detail Mutasi
+                                    <button className="utang-btn soft mini" type="button" onClick={() => onDetail(v)} title="Lihat detail mutasi deposit vendor ini">
+                                        <Eye size={14} /> Detail Mutasi
                                     </button>
                                 </td>
                             </tr>

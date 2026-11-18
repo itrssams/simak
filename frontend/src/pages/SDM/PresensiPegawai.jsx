@@ -646,9 +646,6 @@ export default function PresensiPegawai() {
       <div className="sdm-hero">
         <div className="sdm-hero-main">
           <div className="sdm-title">
-            <span style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-              <Fingerprint size={26} />
-            </span>
             <div>
               <h1>Presensi Pegawai &amp; Mesin Absen</h1>
               <p>Sinkronisasi otomatis multi-mesin sidik jari RS Siaga (Gerbang Depan SE21-C &amp; Gerbang Belakang S-IPC), pemantauan jam hadir, dan konsolidasi data</p>
@@ -661,7 +658,7 @@ export default function PresensiPegawai() {
               onClick={() => setIsLiveActive(!isLiveActive)}
               title={isLiveActive ? 'Live Realtime Aktif (Pembaruan tiap 10s). Klik untuk jeda.' : 'Live Realtime Dijeda. Klik untuk mengaktifkan kembali.'}
             >
-              <span className="live-pulse-dot" />
+              <span className={`sdm-dot ${isLiveActive ? 'is-green' : 'is-slate'}`} />
               <span>{isLiveActive ? 'Live Realtime Aktif' : 'Live Dijeda'}</span>
             </button>
             <button
@@ -693,90 +690,80 @@ export default function PresensiPegawai() {
           </div>
         </div>
 
-        {/* Multi-Machine Status Cards */}
-        <div className="presensi-multi-machine-grid">
-          {(mesinList.length > 0 ? mesinList : [
-            { id: 1, nama: 'Mesin Absen Gerbang Belakang (S-IPC)', ip_address: '192.168.44.120', port: 4370, device_name: 'S-IPC', status_koneksi: 'connected', total_user_mesin: 376, last_sync_at: '12.18 WITA' },
-            { id: 2, nama: 'Mesin Absen Gerbang Depan (SE21-C)', ip_address: '192.168.44.121', port: 4370, device_name: 'SE21-C', status_koneksi: 'connected', total_user_mesin: 360, last_sync_at: '12.17 WITA' }
-          ]).map((m) => (
-            <div key={m.id} className="mesin-status-bar">
-              <div className="mesin-info">
-                <span className="mesin-icon">
-                  <Server size={19} />
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="mesin-name">{m.nama}</span>
-                    <span className={`badge-status-koneksi ${m.status_koneksi === 'connected' ? 'online' : 'offline'}`} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: 650, background: m.status_koneksi === 'connected' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: m.status_koneksi === 'connected' ? '#059669' : '#dc2626' }}>
-                      ● {m.status_koneksi === 'connected' ? 'Online' : 'Offline'}
-                    </span>
-                  </div>
-                  <div className="mesin-meta">
-                    <span>IP: <strong>{m.ip_address}:{m.port}</strong></span>
-                    <span style={{ margin: '0 6px' }}>•</span>
-                    <span>Model: {m.device_name || 'Secure'}</span>
-                    <span style={{ margin: '0 6px' }}>•</span>
-                    <span>Tersimpan: {m.total_user_mesin || 0} User</span>
-                    {m.last_sync_at && (
-                      <>
+        {/* Multi-Machine Status Strip (hanya tampil di Rekap Presensi & Log Mesin Fingerprint) */}
+        {['rekap', 'raw_logs'].includes(activeViewTab) && (
+          <div className="presensi-multi-machine-grid">
+            {(mesinList.length > 0 ? mesinList : [
+              { id: 1, nama: 'Mesin Absen Gerbang Belakang (S-IPC)', ip_address: '192.168.44.120', port: 4370, device_name: 'S-IPC', status_koneksi: 'connected', total_user_mesin: 376, last_sync_at: '12.18 WITA' },
+              { id: 2, nama: 'Mesin Absen Gerbang Depan (SE21-C)', ip_address: '192.168.44.121', port: 4370, device_name: 'SE21-C', status_koneksi: 'connected', total_user_mesin: 360, last_sync_at: '12.17 WITA' }
+            ]).map((m) => {
+              const isOnline = m.status_koneksi === 'connected';
+              return (
+                <div key={m.id} className="mesin-status-bar">
+                  <div className="mesin-info">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span className="mesin-name">{m.nama}</span>
+                        <span className="sdm-status-inline" style={{ fontSize: '12px' }}>
+                          <span className={`sdm-dot ${isOnline ? 'is-green' : 'is-red'}`} />
+                          <span style={{ color: isOnline ? '#10b981' : '#ef4444' }}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="mesin-meta">
+                        <span>IP: <strong>{m.ip_address}:{m.port}</strong></span>
                         <span style={{ margin: '0 6px' }}>•</span>
-                        <span>Sinkron: {typeof m.last_sync_at === 'string' && (m.last_sync_at.includes('WIB') || m.last_sync_at.includes('WITA')) ? m.last_sync_at : new Date(m.last_sync_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'}</span>
-                      </>
-                    )}
+                        <span>Model: {m.device_name || 'Secure'}</span>
+                        <span style={{ margin: '0 6px' }}>•</span>
+                        <span>Tersimpan: {m.total_user_mesin || 0} User</span>
+                        {m.last_sync_at && (
+                          <>
+                            <span style={{ margin: '0 6px' }}>•</span>
+                            <span>Sinkron: {typeof m.last_sync_at === 'string' && (m.last_sync_at.includes('WIB') || m.last_sync_at.includes('WITA')) ? m.last_sync_at : new Date(m.last_sync_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WITA'}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-test-ping"
+                      onClick={() => handleTestConnection(m.id)}
+                      disabled={testingConn === m.id}
+                    >
+                      <Activity size={12} className={testingConn === m.id ? 'spin' : ''} />
+                      <span>{testingConn === m.id ? 'Ping...' : 'Tes Ping'}</span>
+                    </button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn-test-ping"
-                  onClick={() => handleTestConnection(m.id)}
-                  disabled={testingConn === m.id}
-                >
-                  <Activity size={12} className={testingConn === m.id ? 'spin' : ''} />
-                  <span>{testingConn === m.id ? 'Ping...' : 'Tes Ping'}</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* ════════════════ STAT CARDS (Daily Presensi) ════════════════ */}
+      {/* ════════════════ FLAT KPI STAT-BAR (Daily Presensi) ════════════════ */}
       {['rekap', 'raw_logs'].includes(activeViewTab) && (
-        <div className="presensi-stats-grid">
-          <div className="presensi-stat-card">
-            <div className="stat-icon total"><Users size={22} /></div>
-            <div className="stat-info">
-              <div className="stat-num">{stats?.total_pegawai || 0}</div>
-              <div className="stat-lbl">Total Pegawai SIMAK</div>
-            </div>
+        <div className="sdm-stat-bar sdm-stat-bar-5">
+          <div className="sdm-stat-item">
+            <span className="sdm-stat-lbl">Total Pegawai SIMAK</span>
+            <span className="sdm-stat-val">{stats?.total_pegawai || 0}</span>
           </div>
-          <div className="presensi-stat-card">
-            <div className="stat-icon hadir"><CheckCircle2 size={22} /></div>
-            <div className="stat-info">
-              <div className="stat-num">{stats?.hadir_tepat || 0}</div>
-              <div className="stat-lbl">Hadir Tepat Waktu</div>
-            </div>
+          <div className="sdm-stat-item">
+            <span className="sdm-stat-lbl">Hadir Tepat Waktu</span>
+            <span className="sdm-stat-val is-green">{stats?.hadir_tepat || 0}</span>
           </div>
-          <div className="presensi-stat-card">
-            <div className="stat-icon telat"><Clock size={22} /></div>
-            <div className="stat-info">
-              <div className="stat-num">{stats?.terlambat || 0}</div>
-              <div className="stat-lbl">Terlambat (&gt; 08:15)</div>
-            </div>
+          <div className="sdm-stat-item">
+            <span className="sdm-stat-lbl">Terlambat (&gt; 08:15)</span>
+            <span className="sdm-stat-val is-amber">{stats?.terlambat || 0}</span>
           </div>
-          <div className="presensi-stat-card">
-            <div className="stat-icon izin"><AlertTriangle size={22} /></div>
-            <div className="stat-info">
-              <div className="stat-num">{stats?.izin_keluar || 0}</div>
-              <div className="stat-lbl">Izin Meninggalkan Kerja</div>
-            </div>
+          <div className="sdm-stat-item">
+            <span className="sdm-stat-lbl">Izin Meninggalkan Kerja</span>
+            <span className="sdm-stat-val is-indigo">{stats?.izin_keluar || 0}</span>
           </div>
-          <div className="presensi-stat-card">
-            <div className="stat-icon alfa"><AlertCircle size={22} /></div>
-            <div className="stat-info">
-              <div className="stat-num">{stats?.belum_absen || 0}</div>
-              <div className="stat-lbl">Belum Tap / Tidak Hadir</div>
-            </div>
+          <div className="sdm-stat-item">
+            <span className="sdm-stat-lbl">Belum Tap / Tidak Hadir</span>
+            <span className="sdm-stat-val is-red">{stats?.belum_absen || 0}</span>
           </div>
         </div>
       )}
@@ -785,90 +772,8 @@ export default function PresensiPegawai() {
       {['rekap', 'raw_logs', 'pegawai', 'shift'].includes(activeViewTab) && (
         <div className="presensi-filter-toolbar">
           {activeViewTab === 'rekap' ? (
-          <>
-            <div className="filter-left">
-              <div className="filter-input">
-                <Calendar size={15} color="#64748b" />
-                <DateField
-                  value={selectedDate}
-                  onChange={(val) => setSelectedDate(val)}
-                  placeholder="Pilih tanggal"
-                />
-              </div>
-              <div className="filter-input">
-                <Filter size={15} color="#64748b" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">Semua Status Kehadiran</option>
-                  <option value="hadir">Hadir Tepat Waktu</option>
-                  <option value="terlambat">Terlambat</option>
-                  <option value="pulang_cepat">Pulang Cepat</option>
-                  <option value="libur">Libur / Off Duty</option>
-                  <option value="cuti">Cuti</option>
-                  <option value="sakit">Sakit</option>
-                  <option value="izin">Izin Resmi</option>
-                  <option value="izin_keluar">Izin Meninggalkan Kerja (IMTK)</option>
-                  <option value="tidak_hadir">Tidak Hadir / Belum Tap</option>
-                </select>
-              </div>
-              <div className="filter-input" style={{ minWidth: 240 }}>
-                <Search size={15} color="#64748b" />
-                <input
-                  type="text"
-                  placeholder="Cari nama pegawai / unit..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="filter-right">
-              <button
-                type="button"
-                className="btn-engine-recalc"
-                onClick={handleRecalculateEngine}
-                disabled={recalculating}
-                title="Jalankan Attendance Engine untuk mencocokkan log mesin dan roster dinas"
-              >
-                <RefreshCw size={13} className={recalculating ? 'spin' : ''} />
-                <span>{recalculating ? 'Menghitung...' : 'Hitung Ulang Engine'}</span>
-              </button>
-            </div>
-          </>
-        ) : activeViewTab === 'raw_logs' ? (
-          <>
-            <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
-              <button
-                type="button"
-                className={`log-period-pill ${logPeriodFilter === 'hari_ini' ? 'active' : ''}`}
-                onClick={() => setLogPeriodFilter('hari_ini')}
-              >
-                Hari Ini ({stats?.total_logs_today || 0})
-              </button>
-              <button
-                type="button"
-                className={`log-period-pill ${logPeriodFilter === 'bulan_ini' ? 'active' : ''}`}
-                onClick={() => setLogPeriodFilter('bulan_ini')}
-              >
-                Bulan Ini ({stats?.total_logs_month || 0})
-              </button>
-              <button
-                type="button"
-                className={`log-period-pill ${logPeriodFilter === 'semua' ? 'active' : ''}`}
-                onClick={() => setLogPeriodFilter('semua')}
-              >
-                Semua Riwayat Log ({stats?.total_logs_all || 0})
-              </button>
-              <button
-                type="button"
-                className={`log-period-pill ${logPeriodFilter === 'custom' ? 'active' : ''}`}
-                onClick={() => setLogPeriodFilter('custom')}
-              >
-                Pilih Tanggal
-              </button>
-
-              {logPeriodFilter === 'custom' && (
+            <>
+              <div className="filter-left">
                 <div className="filter-input">
                   <Calendar size={15} color="#64748b" />
                   <DateField
@@ -877,155 +782,221 @@ export default function PresensiPegawai() {
                     placeholder="Pilih tanggal"
                   />
                 </div>
-              )}
+                <div className="filter-input">
+                  <Filter size={15} color="#64748b" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">Semua Status Kehadiran</option>
+                    <option value="hadir">Hadir Tepat Waktu</option>
+                    <option value="terlambat">Terlambat</option>
+                    <option value="pulang_cepat">Pulang Cepat</option>
+                    <option value="libur">Libur / Off Duty</option>
+                    <option value="cuti">Cuti</option>
+                    <option value="sakit">Sakit</option>
+                    <option value="izin">Izin Resmi</option>
+                    <option value="izin_keluar">Izin Meninggalkan Kerja (IMTK)</option>
+                    <option value="tidak_hadir">Tidak Hadir / Belum Tap</option>
+                  </select>
+                </div>
+                <div className="filter-input" style={{ minWidth: 240 }}>
+                  <Search size={15} color="#64748b" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama pegawai / unit..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="filter-right">
+                <button
+                  type="button"
+                  className="btn-engine-recalc"
+                  onClick={handleRecalculateEngine}
+                  disabled={recalculating}
+                  title="Jalankan Attendance Engine untuk mencocokkan log mesin dan roster dinas"
+                >
+                  <RefreshCw size={13} className={recalculating ? 'spin' : ''} />
+                  <span>{recalculating ? 'Menghitung...' : 'Hitung Ulang Engine'}</span>
+                </button>
+              </div>
+            </>
+          ) : activeViewTab === 'raw_logs' ? (
+            <>
+              <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                <button
+                  type="button"
+                  className={`log-period-pill ${logPeriodFilter === 'hari_ini' ? 'active' : ''}`}
+                  onClick={() => setLogPeriodFilter('hari_ini')}
+                >
+                  Hari Ini ({stats?.total_logs_today || 0})
+                </button>
+                <button
+                  type="button"
+                  className={`log-period-pill ${logPeriodFilter === 'bulan_ini' ? 'active' : ''}`}
+                  onClick={() => setLogPeriodFilter('bulan_ini')}
+                >
+                  Bulan Ini ({stats?.total_logs_month || 0})
+                </button>
+                <button
+                  type="button"
+                  className={`log-period-pill ${logPeriodFilter === 'semua' ? 'active' : ''}`}
+                  onClick={() => setLogPeriodFilter('semua')}
+                >
+                  Semua Riwayat Log ({stats?.total_logs_all || 0})
+                </button>
+                <button
+                  type="button"
+                  className={`log-period-pill ${logPeriodFilter === 'custom' ? 'active' : ''}`}
+                  onClick={() => setLogPeriodFilter('custom')}
+                >
+                  Pilih Tanggal
+                </button>
 
-              <div className="filter-input">
-                <Server size={15} color="#64748b" />
-                <select
-                  value={logMachineFilter}
-                  onChange={(e) => setLogMachineFilter(e.target.value)}
+                {logPeriodFilter === 'custom' && (
+                  <div className="filter-input">
+                    <Calendar size={15} color="#64748b" />
+                    <DateField
+                      value={selectedDate}
+                      onChange={(val) => setSelectedDate(val)}
+                      placeholder="Pilih tanggal"
+                    />
+                  </div>
+                )}
+
+                <div className="filter-input">
+                  <Server size={15} color="#64748b" />
+                  <select
+                    value={logMachineFilter}
+                    onChange={(e) => setLogMachineFilter(e.target.value)}
+                  >
+                    <option value="">Semua Mesin</option>
+                    {mesinList.map((m) => (
+                      <option key={m.id} value={m.id}>{m.nama}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="filter-input" style={{ minWidth: 240 }}>
+                  <Search size={15} color="#64748b" />
+                  <input
+                    type="text"
+                    placeholder="Cari PIN / nama di mesin..."
+                    value={logSearchQuery}
+                    onChange={(e) => setLogSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary-sdm"
+                  onClick={fetchRealtimeLogs}
+                  disabled={realtimeLogsLoading}
                 >
-                  <option value="">Semua Mesin</option>
-                  {mesinList.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nama}</option>
-                  ))}
-                </select>
+                  <RefreshCw size={14} className={realtimeLogsLoading ? 'spin' : ''} />
+                  <span>Segarkan Log</span>
+                </button>
               </div>
-            </div>
-            <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="filter-input" style={{ minWidth: 240 }}>
-                <Search size={15} color="#64748b" />
-                <input
-                  type="text"
-                  placeholder="Cari PIN / nama di mesin..."
-                  value={logSearchQuery}
-                  onChange={(e) => setLogSearchQuery(e.target.value)}
-                />
+            </>
+          ) : activeViewTab === 'pegawai' ? (
+            <>
+              <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                <div className="filter-input">
+                  <Filter size={15} />
+                  <select
+                    value={pegawaiKategoriFilter}
+                    onChange={(e) => setPegawaiKategoriFilter(e.target.value)}
+                  >
+                    <option value="">Semua Kategori ({pegawaiList.length})</option>
+                    <option value="SHIFT">Shift - Medis / Pelayanan</option>
+                    <option value="NON_SHIFT">Non-Shift - Kantor / Direksi</option>
+                    <option value="CS">Cleaning Service</option>
+                    <option value="SECURITY_DRIVER">Security &amp; Driver</option>
+                    <option value="MITRA">Mitra Kerohanian</option>
+                  </select>
+                </div>
+                <div className="filter-input">
+                  <Send size={15} />
+                  <select
+                    value={pegawaiTelegramFilter}
+                    onChange={(e) => setPegawaiTelegramFilter(e.target.value)}
+                  >
+                    <option value="">Semua Status Bot ({pegawaiList.length})</option>
+                    <option value="terhubung">Terhubung Bot ({pegawaiList.filter(p => Boolean(p.telegram_chat_id)).length})</option>
+                    <option value="belum">Belum Terhubung ({pegawaiList.filter(p => !p.telegram_chat_id).length})</option>
+                  </select>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn-secondary-sdm"
-                onClick={fetchRealtimeLogs}
-                disabled={realtimeLogsLoading}
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-              >
-                <RefreshCw size={13} className={realtimeLogsLoading ? 'spin' : ''} />
-                <span>Segarkan Log</span>
-              </button>
-            </div>
-          </>
-        ) : activeViewTab === 'pegawai' ? (
-          <>
-            <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
-              <div className="filter-input">
-                <Filter size={15} color="#64748b" />
-                <select
-                  value={pegawaiKategoriFilter}
-                  onChange={(e) => setPegawaiKategoriFilter(e.target.value)}
+              <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="filter-input" style={{ minWidth: 260 }}>
+                  <Search size={15} />
+                  <input
+                    type="text"
+                    placeholder="Cari nama, NIK, PIN, unit..."
+                    value={pegawaiSearchQuery}
+                    onChange={(e) => setPegawaiSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary-sdm"
+                  onClick={fetchPegawaiList}
+                  disabled={pegawaiLoading}
                 >
-                  <option value="">Semua Kategori ({pegawaiList.length})</option>
-                  <option value="SHIFT">Shift - Medis / Pelayanan</option>
-                  <option value="NON_SHIFT">Non-Shift - Kantor / Direksi</option>
-                  <option value="CS">Cleaning Service</option>
-                  <option value="SECURITY_DRIVER">Security &amp; Driver</option>
-                  <option value="MITRA">Mitra Kerohanian</option>
-                </select>
+                  <RefreshCw size={14} className={pegawaiLoading ? 'spin' : ''} />
+                  <span>Segarkan Pegawai</span>
+                </button>
               </div>
-              <div className="filter-input">
-                <Send size={15} color="#64748b" />
-                <select
-                  value={pegawaiTelegramFilter}
-                  onChange={(e) => setPegawaiTelegramFilter(e.target.value)}
+            </>
+          ) : (
+            <>
+              <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                <div className="filter-input">
+                  <Filter size={15} />
+                  <select
+                    value={shiftKelompokFilter}
+                    onChange={(e) => setShiftKelompokFilter(e.target.value)}
+                  >
+                    <option value="">Semua Kelompok Profesi ({shiftList.length})</option>
+                    <option value="UMUM">Umum / Medis / Nakes / Kantor</option>
+                    <option value="CS">Cleaning Service (CS)</option>
+                    <option value="SECURITY_DRIVER">Security &amp; Driver</option>
+                    <option value="MITRA">Mitra Kerohanian</option>
+                  </select>
+                </div>
+              </div>
+              <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="filter-input" style={{ minWidth: 220 }}>
+                  <Search size={15} />
+                  <input
+                    type="text"
+                    placeholder="Cari kode shift atau nama..."
+                    value={shiftSearchQuery}
+                    onChange={(e) => setShiftSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary-sdm"
+                  onClick={fetchShiftList}
+                  disabled={shiftLoading}
                 >
-                  <option value="">Semua Status Bot ({pegawaiList.length})</option>
-                  <option value="terhubung">🟢 Terhubung Bot ({pegawaiList.filter(p => Boolean(p.telegram_chat_id)).length})</option>
-                  <option value="belum">⚪ Belum Terhubung ({pegawaiList.filter(p => !p.telegram_chat_id).length})</option>
-                </select>
-              </div>
-            </div>
-            <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="filter-input" style={{ minWidth: 260 }}>
-                <Search size={15} color="#64748b" />
-                <input
-                  type="text"
-                  placeholder="Cari nama, NIK, PIN, unit..."
-                  value={pegawaiSearchQuery}
-                  onChange={(e) => setPegawaiSearchQuery(e.target.value)}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-secondary-sdm"
-                onClick={fetchPegawaiList}
-                disabled={pegawaiLoading}
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-              >
-                <RefreshCw size={13} className={pegawaiLoading ? 'spin' : ''} />
-                <span>Segarkan Pegawai</span>
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="filter-left" style={{ flexWrap: 'wrap', gap: '8px' }}>
-              <div className="filter-input">
-                <Filter size={15} color="#64748b" />
-                <select
-                  value={shiftKelompokFilter}
-                  onChange={(e) => setShiftKelompokFilter(e.target.value)}
+                  <RefreshCw size={14} className={shiftLoading ? 'spin' : ''} />
+                  <span>Segarkan Shift</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-sync-now"
+                  onClick={handleOpenCreateShift}
                 >
-                  <option value="">Semua Kelompok Profesi ({shiftList.length})</option>
-                  <option value="UMUM">Umum / Medis / Nakes / Kantor</option>
-                  <option value="CS">Cleaning Service (CS)</option>
-                  <option value="SECURITY_DRIVER">Security &amp; Driver</option>
-                  <option value="MITRA">Mitra Kerohanian</option>
-                </select>
+                  <Plus size={15} />
+                  <span>Tambah Shift Baru</span>
+                </button>
               </div>
-            </div>
-            <div className="filter-right" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div className="filter-input" style={{ minWidth: 220 }}>
-                <Search size={15} color="#64748b" />
-                <input
-                  type="text"
-                  placeholder="Cari kode shift atau nama..."
-                  value={shiftSearchQuery}
-                  onChange={(e) => setShiftSearchQuery(e.target.value)}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-secondary-sdm"
-                onClick={fetchShiftList}
-                disabled={shiftLoading}
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-              >
-                <RefreshCw size={13} className={shiftLoading ? 'spin' : ''} />
-                <span>Segarkan Shift</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenCreateShift}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: '12.5px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 650,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(16,185,129,0.2)'
-                }}
-              >
-                <Plus size={14} />
-                <span>Tambah Shift Baru</span>
-              </button>
-            </div>
-          </>
-        )}
+            </>
+          )}
         </div>
       )}
 
@@ -1067,10 +1038,10 @@ export default function PresensiPegawai() {
                     const rowNum = (rekapPageSize === 'all' ? 0 : (rekapPage - 1) * rekapPageSize) + idx + 1;
                     return (
                       <tr key={item.id || item.user_id || idx}>
-                        <td style={{ textAlign: 'center', color: '#64748b' }}>{rowNum}</td>
+                        <td style={{ textAlign: 'center' }} className="sdm-cell-muted">{rowNum}</td>
                         <td>
                           <div className="user-cell">
-                            <div className="user-avatar-small">
+                            <div className="sdm-avatar-neutral">
                               {item.foto ? (
                                 <img src={item.foto} alt="" />
                               ) : (
@@ -1091,91 +1062,88 @@ export default function PresensiPegawai() {
                         <td style={{ textAlign: 'center' }}>
                           {item.shift_kode ? (
                             <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11.5px',
-                                fontWeight: 700,
-                                backgroundColor: `${item.shift_warna || '#6366f1'}22`,
-                                color: item.shift_warna || '#6366f1',
-                                border: `1px solid ${item.shift_warna || '#6366f1'}55`,
-                                whiteSpace: 'nowrap'
-                              }}
+                              className="sdm-shift-tag-flat"
                               title={`${item.shift_nama || ''} (${item.shift_jam_masuk ? item.shift_jam_masuk.slice(0, 5) : ''} - ${item.shift_jam_pulang ? item.shift_jam_pulang.slice(0, 5) : ''})`}
                             >
-                              <span>{item.shift_kode}</span>
+                              <span className="sdm-dot" style={{ backgroundColor: item.shift_warna || '#635bff' }} />
+                              <strong>{item.shift_kode}</strong>
                               {item.shift_jam_masuk && (
-                                <span style={{ fontSize: '10px', opacity: 0.85, fontWeight: 500 }}>
+                                <span className="sdm-shift-hours">
                                   {item.shift_jam_masuk.slice(0, 5)}-{item.shift_jam_pulang ? item.shift_jam_pulang.slice(0, 5) : ''}
                                 </span>
                               )}
                             </span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
+                            <span className="sdm-cell-faint">-</span>
                           )}
                         </td>
                         <td>
                           {item.jam_masuk ? (
                             <span className="time-pill">
-                              <Clock size={13} color="#10b981" />
+                              <span className="sdm-dot is-green" />
                               {item.jam_masuk.slice(0, 8)}
                             </span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>- Belum Tap -</span>
+                            <span className="sdm-cell-faint">- Belum Tap -</span>
                           )}
                         </td>
                         <td>
                           {item.jam_pulang ? (
                             <span className="time-pill">
-                              <Clock size={13} color="#6366f1" />
+                              <span className="sdm-dot is-indigo" />
                               {item.jam_pulang.slice(0, 8)}
                             </span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>- Belum Tap -</span>
+                            <span className="sdm-cell-faint">- Belum Tap -</span>
                           )}
                         </td>
                         <td>
                           {Number(item.total_jam_kerja) > 0 ? (
-                            <span>{item.total_jam_kerja} Jam</span>
+                            <span className="sdm-tabular">{item.total_jam_kerja} Jam</span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
+                            <span className="sdm-cell-faint">-</span>
                           )}
                         </td>
                         <td>
-                          <span className={`badge-status-presensi ${item.status}`}>
-                            {item.status === 'hadir' && <CheckCircle2 size={13} />}
-                            {item.status === 'terlambat' && <Clock size={13} />}
-                            {item.status === 'pulang_cepat' && <Clock size={13} />}
-                            {item.status === 'izin_keluar' && <AlertTriangle size={13} />}
-                            {item.status === 'tidak_hadir' && <AlertCircle size={13} />}
-                            {['libur', 'cuti', 'sakit', 'izin'].includes(item.status) && <CheckCircle2 size={13} />}
-                            <span>{item.status_label || item.status}</span>
-                            {item.menit_keterlambatan > 0 && (
-                              <span style={{ fontSize: 11, opacity: 0.85 }}> (+{item.menit_keterlambatan} mnt)</span>
-                            )}
-                            {item.menit_pulang_cepat > 0 && (
-                              <span style={{ fontSize: 11, opacity: 0.85 }}> (-{item.menit_pulang_cepat} mnt)</span>
-                            )}
-                          </span>
+                          {(() => {
+                            const dotCls =
+                              item.status === 'hadir' || ['libur', 'cuti', 'sakit', 'izin'].includes(item.status)
+                                ? 'is-green'
+                                : item.status === 'terlambat' || item.status === 'pulang_cepat'
+                                  ? 'is-amber'
+                                  : item.status === 'izin_keluar'
+                                    ? 'is-indigo'
+                                    : item.status === 'tidak_hadir'
+                                      ? 'is-red'
+                                      : 'is-slate';
+                            return (
+                              <span className="sdm-status-inline">
+                                <span className={`sdm-dot ${dotCls}`} />
+                                <span>{item.status_label || item.status}</span>
+                                {item.menit_keterlambatan > 0 && (
+                                  <span className="sdm-cell-muted"> (+{item.menit_keterlambatan} mnt)</span>
+                                )}
+                                {item.menit_pulang_cepat > 0 && (
+                                  <span className="sdm-cell-muted"> (-{item.menit_pulang_cepat} mnt)</span>
+                                )}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td>
                           {item.izin_info ? (
-                            <span className="badge-status-presensi izin_keluar" title={item.izin_info.keperluan}>
-                              <ExternalLink size={12} />
-                              <span>Izin: {item.izin_info.kategori} ({item.izin_info.jam_keluar.slice(0, 5)} - {item.izin_info.jam_kembali.slice(0, 5)})</span>
+                            <span className="sdm-status-inline" title={item.izin_info.keperluan}>
+                              <span className="sdm-dot is-indigo" />
+                              <span>Izin: {item.izin_info.kategori} ({item.izin_info.jam_keluar.slice(0, 5)}-{item.izin_info.jam_kembali.slice(0, 5)})</span>
                             </span>
                           ) : (
-                            <span style={{ color: '#94a3b8' }}>-</span>
+                            <span className="sdm-cell-faint">-</span>
                           )}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
-                            className="btn-secondary-sdm"
-                            style={{ padding: '4px 10px', fontSize: 12 }}
+                            className="btn-row-sdm"
                             onClick={() => handleViewRawLogs(item)}
                           >
                             Log Tap
@@ -1251,27 +1219,27 @@ export default function PresensiPegawai() {
                           </span>
                         </td>
                         <td>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, padding: '2px 8px', background: 'rgba(99,102,241,0.08)', borderRadius: 4, color: '#4f46e5' }}>
+                          <span className="sdm-pin-code">
                             PIN {log.pin}
                           </span>
                         </td>
                         <td>
-                          <span style={{ fontWeight: 650 }}>{log.nama_di_mesin || '-'}</span>
+                          <span style={{ fontWeight: 600 }}>{log.nama_di_mesin || '-'}</span>
                         </td>
                         <td>
                           {log.user ? (
-                            <span className="badge-status-presensi hadir">
-                              <CheckCircle2 size={13} />
+                            <span className="sdm-status-inline">
+                              <span className="sdm-dot is-green" />
                               <span>Terhubung: {log.nama_lengkap} (@{log.username})</span>
                             </span>
                           ) : log.pegawai_id ? (
-                            <span className="badge-status-presensi hadir" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#059669', border: '1px solid #a7f3d0' }}>
-                              <CheckCircle2 size={13} />
+                            <span className="sdm-status-inline">
+                              <span className="sdm-dot is-green" />
                               <span>Pegawai RS: {log.nama_lengkap} ({log.unit_nama || log.jabatan || 'Staf RS'})</span>
                             </span>
                           ) : (
-                            <span className="badge-status-presensi" style={{ background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }}>
-                              <AlertCircle size={13} />
+                            <span className="sdm-status-inline sdm-cell-muted">
+                              <span className="sdm-dot is-slate" />
                               <span>Staf RS / Nakes (Belum Terhubung SIMAK)</span>
                             </span>
                           )}
@@ -1280,8 +1248,7 @@ export default function PresensiPegawai() {
                           {(!log.user && !log.pegawai_id) ? (
                             <button
                               type="button"
-                              className="btn-secondary-sdm"
-                              style={{ padding: '4px 10px', fontSize: 12 }}
+                              className="btn-row-sdm"
                               onClick={() => {
                                 setMappingSearch(log.pin);
                                 openMappingModal();
@@ -1290,7 +1257,10 @@ export default function PresensiPegawai() {
                               Petakan PIN
                             </button>
                           ) : (
-                            <span style={{ fontSize: 12, color: '#10b981', fontWeight: 600 }}>Tercatat</span>
+                            <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                              <span className="sdm-dot is-green" />
+                              <span>Tercatat</span>
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -1347,109 +1317,89 @@ export default function PresensiPegawai() {
                     const rowNum = (pegawaiPageSize === 'all' ? 0 : (pegawaiPage - 1) * pegawaiPageSize) + idx + 1;
                     return (
                       <tr key={p.id}>
-                        <td style={{ textAlign: 'center', color: '#64748b' }}>{rowNum}</td>
+                        <td style={{ textAlign: 'center' }} className="sdm-cell-muted">{rowNum}</td>
                         <td>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, padding: '2px 8px', background: 'rgba(99,102,241,0.08)', borderRadius: 4, color: '#4f46e5' }}>
+                          <span className="sdm-pin-code">
                             PIN {p.pin}
                           </span>
                         </td>
                         <td>
-                          <div className="user-cell" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div className="user-avatar-mini" style={{ width: 28, height: 28, borderRadius: '50%', background: '#6366f1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                          <div className="user-cell">
+                            <div className="sdm-avatar-neutral">
                               {p.nama.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 650, color: '#0f172a' }}>{p.nama}</div>
+                              <div className="user-cell-name">{p.nama}</div>
                             </div>
                           </div>
                         </td>
-                        <td style={{ color: p.nik ? '#0f172a' : '#94a3b8', fontSize: 12.5 }}>
+                        <td className={p.nik ? 'sdm-tabular' : 'sdm-cell-faint'} style={{ fontSize: 12.5 }}>
                           {p.nik || '-'}
                         </td>
                         <td>
                           <div style={{ fontWeight: 600 }}>{p.jabatan || p.unit_kerja || '-'}</div>
                           {p.unit_kerja && p.unit_kerja !== p.jabatan && (
-                            <div style={{ fontSize: 11.5, color: '#64748b' }}>Unit: {p.unit_kerja}</div>
+                            <div className="sdm-cell-muted" style={{ fontSize: 11.5 }}>Unit: {p.unit_kerja}</div>
                           )}
                         </td>
                         <td>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '3px 8px',
-                            borderRadius: 6,
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                            background: p.kategori === 'NON_SHIFT' ? 'rgba(99,102,241,0.1)' :
-                                        p.kategori === 'CS' ? 'rgba(234,88,12,0.1)' :
-                                        p.kategori === 'SECURITY_DRIVER' ? 'rgba(202,138,4,0.1)' :
-                                        p.kategori === 'MITRA' ? 'rgba(168,85,247,0.1)' :
-                                        'rgba(16,185,129,0.1)',
-                            color: p.kategori === 'NON_SHIFT' ? '#4f46e5' :
-                                   p.kategori === 'CS' ? '#ea580c' :
-                                   p.kategori === 'SECURITY_DRIVER' ? '#ca8a04' :
-                                   p.kategori === 'MITRA' ? '#9333ea' :
-                                   '#059669',
-                          }}>
-                            {p.kategori_label || p.kategori}
+                          <span className="sdm-status-inline">
+                            <span
+                              className={`sdm-dot ${p.kategori === 'NON_SHIFT'
+                                  ? 'is-indigo'
+                                  : p.kategori === 'CS' || p.kategori === 'SECURITY_DRIVER'
+                                    ? 'is-amber'
+                                    : 'is-green'
+                                }`}
+                            />
+                            <span>{p.kategori_label || p.kategori}</span>
                           </span>
                         </td>
                         <td>
                           {p.user_username ? (
-                            <span className="badge-status-presensi hadir" style={{ fontSize: 11.5 }}>
-                              <CheckCircle2 size={13} />
+                            <span className="sdm-status-inline">
+                              <span className="sdm-dot is-green" />
                               <span>Akun: @{p.user_username}</span>
                             </span>
                           ) : (
-                            <span style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic' }}>
-                              Profil RS (Tanpa Login)
+                            <span className="sdm-status-inline sdm-cell-muted">
+                              <span className="sdm-dot is-slate" />
+                              <span>Profil RS (Tanpa Login)</span>
                             </span>
                           )}
                         </td>
                         <td>
                           {p.telegram_chat_id ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                               <span
-                                className="badge-status-presensi hadir"
-                                style={{
-                                  fontSize: 11.5,
-                                  background: 'rgba(16, 185, 129, 0.1)',
-                                  color: '#059669',
-                                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 8px',
-                                  borderRadius: 6
-                                }}
+                                className="sdm-status-inline"
                                 title={`Chat ID: ${p.telegram_chat_id}`}
                               >
-                                <Send size={11} />
+                                <span className="sdm-dot is-green" />
                                 <span>{p.telegram_username || `ID: ${p.telegram_chat_id}`}</span>
                               </span>
                               <button
                                 type="button"
-                                className="btn-secondary-sdm"
+                                className="btn-row-sdm"
                                 title="Tes kirim notifikasi ke Telegram pegawai"
                                 onClick={() => handleTestTelegram(p.id, p.nama)}
                                 disabled={testingTelegramId === p.id}
-                                style={{ padding: '3px 7px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}
                               >
-                                {testingTelegramId === p.id ? <RefreshCw size={11} className="spin" /> : <Send size={11} color="#0284c7" />}
+                                {testingTelegramId === p.id ? <RefreshCw size={11} className="spin" /> : <Send size={11} />}
                                 <span>Tes</span>
                               </button>
                               <button
                                 type="button"
-                                className="btn-secondary-sdm"
+                                className="btn-row-sdm is-danger"
                                 title="Putuskan / Reset tautan Telegram pegawai ini"
                                 onClick={() => handleResetTelegram(p.id, p.nama)}
-                                style={{ padding: '3px 7px', fontSize: 11, color: '#e11d48', borderColor: '#fecdd3', background: '#fff1f2' }}
                               >
                                 <Unlink size={11} />
                               </button>
                             </div>
                           ) : (
-                            <span style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <AlertCircle size={12} color="#cbd5e1" />
+                            <span className="sdm-status-inline sdm-cell-faint">
+                              <span className="sdm-dot is-slate" />
                               <span>Belum Terhubung</span>
                             </span>
                           )}
@@ -1532,82 +1482,60 @@ export default function PresensiPegawai() {
                     const rowNum = (shiftPageSize === 'all' ? 0 : (shiftPage - 1) * shiftPageSize) + idx + 1;
                     return (
                       <tr key={s.id}>
-                        <td style={{ textAlign: 'center', color: '#64748b' }}>{rowNum}</td>
+                        <td style={{ textAlign: 'center' }} className="sdm-cell-muted">{rowNum}</td>
                         <td>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: 44,
-                            padding: '3px 8px',
-                            borderRadius: 6,
-                            fontWeight: 750,
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            background: s.warna || '#10b981',
-                            color: '#ffffff',
-                            boxShadow: `0 2px 4px ${s.warna}44`
-                          }}>
-                            {s.kode}
+                          <span className="sdm-shift-tag-flat">
+                            <span className="sdm-dot" style={{ backgroundColor: s.warna || '#635bff' }} />
+                            <strong className="sdm-tabular">{s.kode}</strong>
                           </span>
                         </td>
                         <td>
-                          <div style={{ fontWeight: 650, color: '#0f172a' }}>{s.nama}</div>
+                          <div style={{ fontWeight: 600 }}>{s.nama}</div>
                         </td>
                         <td>
-                          <span style={{
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                            background: '#f1f5f9',
-                            color: '#475569'
-                          }}>
+                          <span className="sdm-cell-muted" style={{ fontSize: 12.5 }}>
                             {s.kelompok_label || s.kelompok}
                           </span>
                         </td>
                         <td>
                           {s.is_libur ? (
-                            <span style={{ color: '#64748b', fontWeight: 600, fontSize: 12 }}>
+                            <span className="sdm-cell-muted" style={{ fontSize: 12.5 }}>
                               Libur / Off Duty
                             </span>
                           ) : (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, fontFamily: 'monospace' }}>
-                              <Clock size={13} color="#6366f1" />
+                            <div className="sdm-tabular" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
                               <span>{s.jam_kerja_display}</span>
                               {s.is_overnight && (
-                                <span title="Shift lintas hari (overnight)" style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(99,102,241,0.1)', color: '#4f46e5', padding: '1px 5px', borderRadius: 4, fontSize: 10.5 }}>
-                                  <Moon size={11} style={{ marginRight: 2 }} /> Overnight
+                                <span title="Shift lintas hari (overnight)" className="sdm-cell-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                                  <Moon size={11} /> Overnight
                                 </span>
                               )}
                             </div>
                           )}
                         </td>
                         <td>
-                          {s.is_libur ? '-' : (
-                            <span style={{ fontSize: 12.5, fontFamily: 'monospace', fontWeight: 700, color: '#059669' }}>
+                          {s.is_libur ? <span className="sdm-cell-faint">-</span> : (
+                            <span className="sdm-tabular" style={{ fontSize: 12.5, fontWeight: 600, color: '#10b981' }}>
                               &le; {s.batas_tepat_waktu ? s.batas_tepat_waktu.slice(0, 8) : (s.jam_masuk ? s.jam_masuk.slice(0, 5) : '-')}
                             </span>
                           )}
                         </td>
-                        <td style={{ fontSize: 12, color: '#64748b' }}>
+                        <td className="sdm-cell-muted" style={{ fontSize: 12.5 }}>
                           {s.keterangan || '-'}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', gap: 6 }}>
                             <button
                               type="button"
-                              className="btn-secondary-sdm"
-                              style={{ padding: '4px 8px' }}
+                              className="btn-row-sdm"
                               title="Edit Shift"
                               onClick={() => handleOpenEditShift(s)}
                             >
-                              <Edit2 size={13} color="#4f46e5" />
+                              <Edit2 size={13} />
                             </button>
                             <button
                               type="button"
-                              className="btn-secondary-sdm"
-                              style={{ padding: '4px 8px', fontSize: 11, fontWeight: 700 }}
+                              className="btn-row-sdm"
                               title="Duplikat kode shift ini ke kelompok lain"
                               onClick={() => handleDuplicateShiftToGroups(s)}
                             >
@@ -1615,12 +1543,11 @@ export default function PresensiPegawai() {
                             </button>
                             <button
                               type="button"
-                              className="btn-secondary-sdm"
-                              style={{ padding: '4px 8px' }}
+                              className="btn-row-sdm is-danger"
                               title="Hapus Shift"
                               onClick={() => handleDeleteShift(s)}
                             >
-                              <Trash2 size={13} color="#ef4444" />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -1676,21 +1603,20 @@ export default function PresensiPegawai() {
 
       {/* ════════════════ MODAL: CREATE / EDIT SHIFT RS ════════════════ */}
       {showShiftModal && createPortal(
-        <div className="presensi-modal-overlay">
-          <div className="presensi-modal-card" style={{ maxWidth: 540 }}>
+        <div className="presensi-modal-overlay" onClick={() => setShowShiftModal(false)}>
+          <div className="presensi-modal-card" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <div className="presensi-modal-header">
               <div>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 750 }}>
+                <h2 className="presensi-modal-title">
                   {editingShift ? `Edit Master Shift [${editingShift.kode}]` : 'Tambah Master Shift Baru'}
                 </h2>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                <p className="presensi-modal-subtitle">
                   Atur kode shift, nama, jam masuk/pulang, dan toleransi kedisiplinan
                 </p>
               </div>
               <button
                 type="button"
-                className="btn-secondary-sdm"
-                style={{ padding: '6px' }}
+                className="presensi-modal-close"
                 onClick={() => setShowShiftModal(false)}
               >
                 <X size={18} />
@@ -1701,27 +1627,24 @@ export default function PresensiPegawai() {
               <div className="presensi-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                      Kode Shift *
-                    </label>
+                    <label className="presensi-modal-label">Kode Shift *</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. P, S, M, P1"
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}
+                      className="presensi-modal-input sdm-tabular"
+                      style={{ fontWeight: 600 }}
                       value={shiftFormData.kode}
                       onChange={(e) => setShiftFormData({ ...shiftFormData, kode: e.target.value.toUpperCase() })}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                      Nama Shift *
-                    </label>
+                    <label className="presensi-modal-label">Nama Shift *</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Shift Pagi Pelayanan"
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      className="presensi-modal-input"
                       value={shiftFormData.nama}
                       onChange={(e) => setShiftFormData({ ...shiftFormData, nama: e.target.value })}
                     />
@@ -1729,11 +1652,9 @@ export default function PresensiPegawai() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                    Kelompok Profesi *
-                  </label>
+                  <label className="presensi-modal-label">Kelompok Profesi *</label>
                   <select
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                    className="presensi-modal-select"
                     value={shiftFormData.kelompok}
                     onChange={(e) => setShiftFormData({ ...shiftFormData, kelompok: e.target.value })}
                   >
@@ -1744,40 +1665,34 @@ export default function PresensiPegawai() {
                   </select>
                 </div>
 
-                <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 650, fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={shiftFormData.is_libur}
-                      onChange={(e) => setShiftFormData({ ...shiftFormData, is_libur: e.target.checked })}
-                    />
-                    <span>Status Libur / Cuti / Izin (Off Duty - Tanpa Jam Masuk &amp; Pulang)</span>
-                  </label>
-                </div>
+                <label className="presensi-modal-check-row">
+                  <input
+                    type="checkbox"
+                    checked={shiftFormData.is_libur}
+                    onChange={(e) => setShiftFormData({ ...shiftFormData, is_libur: e.target.checked })}
+                  />
+                  <span>Status Libur / Cuti / Izin (Off Duty - Tanpa Jam Masuk &amp; Pulang)</span>
+                </label>
 
                 {!shiftFormData.is_libur && (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
-                        <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                          Jam Masuk
-                        </label>
+                        <label className="presensi-modal-label">Jam Masuk</label>
                         <input
                           type="time"
                           required={!shiftFormData.is_libur}
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          className="presensi-modal-input sdm-tabular"
                           value={shiftFormData.jam_masuk}
                           onChange={(e) => setShiftFormData({ ...shiftFormData, jam_masuk: e.target.value })}
                         />
                       </div>
                       <div>
-                        <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                          Jam Pulang
-                        </label>
+                        <label className="presensi-modal-label">Jam Pulang</label>
                         <input
                           type="time"
                           required={!shiftFormData.is_libur}
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          className="presensi-modal-input sdm-tabular"
                           value={shiftFormData.jam_pulang}
                           onChange={(e) => setShiftFormData({ ...shiftFormData, jam_pulang: e.target.value })}
                         />
@@ -1786,18 +1701,16 @@ export default function PresensiPegawai() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center' }}>
                       <div>
-                        <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                          Batas Tap Tepat Waktu (Excel)
-                        </label>
+                        <label className="presensi-modal-label">Batas Tap Tepat Waktu (Excel)</label>
                         <input
                           type="time"
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
+                          className="presensi-modal-input sdm-tabular"
                           value={shiftFormData.batas_tepat_waktu || shiftFormData.jam_masuk || ''}
                           onChange={(e) => setShiftFormData({ ...shiftFormData, batas_tepat_waktu: e.target.value })}
                         />
                       </div>
-                      <div style={{ paddingTop: 18 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+                      <div style={{ paddingTop: 20 }}>
+                        <label className="presensi-modal-check-row">
                           <input
                             type="checkbox"
                             checked={shiftFormData.is_overnight}
@@ -1811,15 +1724,13 @@ export default function PresensiPegawai() {
                 )}
 
                 <div>
-                  <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 6 }}>
-                    Warna Badge Shift di Kalender Roster
-                  </label>
+                  <label className="presensi-modal-label">Warna Indikator Shift di Roster</label>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     {[
                       { hex: '#10b981', label: 'Emerald' },
                       { hex: '#f59e0b', label: 'Amber' },
-                      { hex: '#6366f1', label: 'Indigo' },
-                      { hex: '#0284c7', label: 'Sky' },
+                      { hex: '#635bff', label: 'Indigo' },
+                      { hex: '#0ea5e9', label: 'Sky' },
                       { hex: '#8b5cf6', label: 'Purple' },
                       { hex: '#14b8a6', label: 'Teal' },
                       { hex: '#ec4899', label: 'Pink' },
@@ -1833,13 +1744,13 @@ export default function PresensiPegawai() {
                         type="button"
                         onClick={() => setShiftFormData({ ...shiftFormData, warna: col.hex })}
                         style={{
-                          width: 28,
-                          height: 28,
+                          width: 24,
+                          height: 24,
                           borderRadius: '50%',
                           background: col.hex,
-                          border: shiftFormData.warna === col.hex ? '3px solid #0f172a' : '2px solid #fff',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                          cursor: 'pointer'
+                          border: shiftFormData.warna === col.hex ? '2px solid #ffffff' : '2px solid transparent',
+                          outline: shiftFormData.warna === col.hex ? `2px solid ${col.hex}` : 'none',
+                          cursor: 'pointer',
                         }}
                         title={col.label}
                       />
@@ -1848,23 +1759,21 @@ export default function PresensiPegawai() {
                       type="color"
                       value={shiftFormData.warna}
                       onChange={(e) => setShiftFormData({ ...shiftFormData, warna: e.target.value })}
-                      style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer' }}
+                      style={{ width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent' }}
                       title="Pilih Warna Kustom"
                     />
-                    <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 650, color: shiftFormData.warna }}>
+                    <span className="sdm-tabular" style={{ fontSize: 12, fontWeight: 600, color: shiftFormData.warna }}>
                       {shiftFormData.warna}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 12.5, fontWeight: 650, display: 'block', marginBottom: 4 }}>
-                    Keterangan (Opsional)
-                  </label>
+                  <label className="presensi-modal-label">Keterangan (Opsional)</label>
                   <textarea
                     rows={2}
                     placeholder="Catatan tambahan mengenai jadwal dinas ini..."
-                    style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12.5 }}
+                    className="presensi-modal-textarea"
                     value={shiftFormData.keterangan}
                     onChange={(e) => setShiftFormData({ ...shiftFormData, keterangan: e.target.value })}
                   />
@@ -1881,17 +1790,8 @@ export default function PresensiPegawai() {
                 </button>
                 <button
                   type="submit"
+                  className="btn-sync-now"
                   disabled={shiftSaving}
-                  style={{
-                    padding: '7px 16px',
-                    fontSize: 13,
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 650,
-                    cursor: 'pointer'
-                  }}
                 >
                   {shiftSaving ? 'Menyimpan...' : (editingShift ? 'Simpan Perubahan' : 'Buat Shift')}
                 </button>
@@ -1904,21 +1804,20 @@ export default function PresensiPegawai() {
 
       {/* ════════════════ MODAL: MAPPING KARYAWAN MESIN ════════════════ */}
       {showMappingModal && createPortal(
-        <div className="presensi-modal-overlay">
-          <div className="presensi-modal-card">
+        <div className="presensi-modal-overlay" onClick={() => setShowMappingModal(false)}>
+          <div className="presensi-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="presensi-modal-header">
               <div>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 750 }}>
+                <h2 className="presensi-modal-title">
                   Pemetaan Karyawan Mesin Absen (PIN &rarr; Akun SIMAK)
                 </h2>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                <p className="presensi-modal-subtitle">
                   Hubungkan nomor Enroll ID/PIN pada mesin absen dengan data akun pegawai di SIMAK
                 </p>
               </div>
               <button
                 type="button"
-                className="btn-secondary-sdm"
-                style={{ padding: '6px' }}
+                className="presensi-modal-close"
                 onClick={() => setShowMappingModal(false)}
               >
                 <X size={18} />
@@ -1927,9 +1826,9 @@ export default function PresensiPegawai() {
 
             <div className="presensi-modal-body">
               {/* Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
-                <div className="filter-input" style={{ width: 280 }}>
-                  <Search size={15} color="#64748b" />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+                <div className="filter-input" style={{ flex: 1, minWidth: 240 }}>
+                  <Search size={15} />
                   <input
                     type="text"
                     placeholder="Cari PIN atau nama..."
@@ -1940,7 +1839,6 @@ export default function PresensiPegawai() {
                 <button
                   type="button"
                   className="btn-sync-now"
-                  style={{ fontSize: 13, padding: '7px 14px' }}
                   onClick={handleAutoMatch}
                 >
                   <Zap size={15} />
@@ -1950,8 +1848,8 @@ export default function PresensiPegawai() {
 
               {/* Table Mappings */}
               {mappingLoading ? (
-                <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                  <RefreshCw size={24} className="spin" style={{ margin: '0 auto 8px', color: '#6366f1' }} />
+                <div style={{ textAlign: 'center', padding: '32px 0' }} className="sdm-cell-muted">
+                  <RefreshCw size={24} className="spin" style={{ margin: '0 auto 8px', color: '#635bff' }} />
                   <p>Memuat data mapping...</p>
                 </div>
               ) : (
@@ -1963,24 +1861,17 @@ export default function PresensiPegawai() {
                         <th>Nama di Mesin</th>
                         <th>Akun Pegawai SIMAK</th>
                         <th>Unit Kerja</th>
-                        <th style={{ width: 100, textAlign: 'center' }}>Status</th>
+                        <th style={{ width: 120, textAlign: 'center' }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(mappingPageSize === 'all' ? filteredMappings : filteredMappings.slice((mappingPage - 1) * mappingPageSize, mappingPage * mappingPageSize)).map((map) => (
                         <tr key={map.id}>
-                          <td><strong>#{map.pin}</strong></td>
+                          <td className="sdm-tabular"><strong>#{map.pin}</strong></td>
                           <td>{map.nama_di_mesin || '-'}</td>
                           <td>
                             <select
-                              style={{
-                                width: '100%',
-                                padding: '5px 8px',
-                                borderRadius: 6,
-                                border: '1px solid #cbd5e1',
-                                fontSize: 12.5,
-                                background: map.user ? 'rgba(16, 185, 129, 0.05)' : '#ffffff'
-                              }}
+                              className="presensi-modal-select"
                               value={map.user || ''}
                               onChange={(e) => handleLinkUser(map.id, e.target.value)}
                             >
@@ -1995,12 +1886,14 @@ export default function PresensiPegawai() {
                           <td>{map.unit_nama || '-'}</td>
                           <td style={{ textAlign: 'center' }}>
                             {map.user ? (
-                              <span className="badge-status-presensi hadir" style={{ fontSize: 11, padding: '2px 8px' }}>
-                                Terhubung
+                              <span className="sdm-status-inline" style={{ justifyContent: 'center' }}>
+                                <span className="sdm-dot is-green" />
+                                <span>Terhubung</span>
                               </span>
                             ) : (
-                              <span className="badge-status-presensi terlambat" style={{ fontSize: 11, padding: '2px 8px' }}>
-                                Belum Link
+                              <span className="sdm-status-inline sdm-cell-muted" style={{ justifyContent: 'center' }}>
+                                <span className="sdm-dot is-amber" />
+                                <span>Belum Link</span>
                               </span>
                             )}
                           </td>
@@ -2036,39 +1929,38 @@ export default function PresensiPegawai() {
 
       {/* ════════════════ MODAL: DETAIL RAW LOG TAP ════════════════ */}
       {selectedEmployeeLog && createPortal(
-        <div className="presensi-modal-overlay">
-          <div className="presensi-modal-card" style={{ maxWidth: 540 }}>
+        <div className="presensi-modal-overlay" onClick={() => setSelectedEmployeeLog(null)}>
+          <div className="presensi-modal-card" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <div className="presensi-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 750 }}>
+                <h3 className="presensi-modal-title">
                   Riwayat Tap Absen: {selectedEmployeeLog.nama_lengkap || selectedEmployeeLog.pegawai_nama}
                 </h3>
-                <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#64748b' }}>
+                <p className="presensi-modal-subtitle sdm-tabular">
                   Tanggal: {selectedEmployeeLog.tanggal || selectedDate} {selectedEmployeeLog.pegawai_pin && selectedEmployeeLog.pegawai_pin !== '-' ? `• PIN #${selectedEmployeeLog.pegawai_pin}` : ''}
                 </p>
               </div>
               <button
                 type="button"
-                className="btn-secondary-sdm"
-                style={{ padding: '6px' }}
+                className="presensi-modal-close"
                 onClick={() => setSelectedEmployeeLog(null)}
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="presensi-modal-body" style={{ maxHeight: 360 }}>
+            <div className="presensi-modal-body" style={{ maxHeight: 380 }}>
               {rawLogsLoading ? (
-                <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                  <RefreshCw size={20} className="spin" style={{ margin: '0 auto 8px', color: '#6366f1' }} />
+                <div style={{ textAlign: 'center', padding: '24px 0' }} className="sdm-cell-muted">
+                  <RefreshCw size={20} className="spin" style={{ margin: '0 auto 8px', color: '#635bff' }} />
                   <p>Mengambil log tap...</p>
                 </div>
               ) : rawLogs.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#64748b', margin: '20px 0' }}>
+                <p style={{ textAlign: 'center', margin: '20px 0' }} className="sdm-cell-muted">
                   Tidak ada catatan tap mentah tersimpan untuk pegawai ini pada tanggal tersebut.
                 </p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="presensi-raw-log-list">
                   {rawLogs.map((log, index) => {
                     const timeStr = new Date(log.waktu).toLocaleTimeString('id-ID', {
                       hour: '2-digit',
@@ -2084,33 +1976,23 @@ export default function PresensiPegawai() {
                     const isNextDay = selectedEmployeeLog.tanggal && !log.waktu.startsWith(selectedEmployeeLog.tanggal);
 
                     return (
-                      <div
-                        key={log.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          background: '#f8fafc',
-                          borderRadius: 10,
-                          border: '1px solid #e2e8f0'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+                      <div key={log.id} className="presensi-raw-log-row">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span className="sdm-avatar-neutral" style={{ width: 24, height: 24, minWidth: 24, fontSize: 11 }}>
                             {index + 1}
                           </span>
                           <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'monospace' }}>
+                            <div className="presensi-raw-log-time sdm-tabular">
                               {timeStr} WITA {isNextDay && <span style={{ fontSize: 11, fontWeight: 500, color: '#f59e0b' }}>({dateStr})</span>}
                             </div>
-                            <div style={{ fontSize: 11.5, color: '#64748b' }}>
+                            <div className="sdm-cell-muted" style={{ fontSize: 12 }}>
                               Mesin: {log.mesin_nama || 'Mesin Absen RS'} • PIN #{log.pin}
                             </div>
                           </div>
                         </div>
-                        <span className="badge-status-presensi hadir" style={{ fontSize: 11 }}>
-                          {log.status_verifikasi === 4 ? 'Wajah / Face' : 'Fingerprint'}
+                        <span className="sdm-status-inline">
+                          <span className="sdm-dot is-green" />
+                          <span>{log.status_verifikasi === 4 ? 'Wajah / Face' : 'Fingerprint'}</span>
                         </span>
                       </div>
                     );

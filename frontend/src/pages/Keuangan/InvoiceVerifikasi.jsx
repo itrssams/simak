@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './InvoiceVerifikasi.css';
+import './PenagihanClean.css';
 
 const money = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
@@ -121,7 +122,6 @@ export default function InvoiceVerifikasi() {
         <div className="ivf-page">
             <div className="inv-hero">
                 <div className="inv-title">
-                    <span><ShieldCheck size={22} /></span>
                     <div>
                         <h1>Verifikasi Pembayaran</h1>
                         <p>Pantau pengajuan pembayaran invoice pembiayaan yang menunggu verifikasi dan riwayatnya.</p>
@@ -130,9 +130,9 @@ export default function InvoiceVerifikasi() {
             </div>
 
             <section className="ivf-summary">
-                <SummaryCard icon={ReceiptText} label={activeTab === 'menunggu' ? 'Menunggu' : 'History'} value={`${total} pengajuan`} />
-                <SummaryCard icon={Banknote} label="Total Halaman Ini" value={money(totalPending)} accent />
-                <SummaryCard icon={ShieldCheck} label="Akses Verifikasi" value={canVerify ? 'Aktif' : 'Lihat Saja'} />
+                <SummaryCard label={activeTab === 'menunggu' ? 'Menunggu' : 'History'} value={`${total} pengajuan`} />
+                <SummaryCard label="Total Halaman Ini" value={money(totalPending)} accent />
+                <SummaryCard label="Akses Verifikasi" value={canVerify ? 'Aktif' : 'Lihat Saja'} />
             </section>
 
             <section className="ivf-card">
@@ -279,11 +279,9 @@ export default function InvoiceVerifikasi() {
     );
 }
 
-function SummaryCard({ icon, label, value, accent = false }) {
-    const Icon = icon;
+function SummaryCard({ label, value, accent = false }) {
     return (
         <div className={`ivf-summary-card${accent ? ' accent' : ''}`}>
-            <span><Icon size={20} /></span>
             <div>
                 <small>{label}</small>
                 <strong>{value}</strong>

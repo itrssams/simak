@@ -210,6 +210,7 @@ class PenerimaanViewSet(viewsets.ModelViewSet):
         kirim_keuangan = bool(data.get('kirim_keuangan', False))
         catatan = data.get('catatan', '')
         items = data.get('items', [])
+        diskon_items = data.get('diskon_items', [])
 
         if not po_id:
             return Response({'error': 'Penerimaan barang (GRN) wajib memilih Surat Pesanan (SPB / PO) yang telah disetujui.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -243,7 +244,8 @@ class PenerimaanViewSet(viewsets.ModelViewSet):
                 metode_pembayaran=metode_pembayaran,
                 tutup_po=tutup_po,
                 kirim_keuangan=kirim_keuangan,
-                catatan=catatan
+                catatan=catatan,
+                diskon_items=diskon_items
             )
             serializer = self.get_serializer(grn)
             return Response(serializer.data, status=status.HTTP_201_CREATED)

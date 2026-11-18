@@ -59,6 +59,7 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
     const [formCatatan, setFormCatatan] = useState('');
     const [formTutupPO, setFormTutupPO] = useState(true);
     const [formItems, setFormItems] = useState([]);
+    const [formDiskonItems, setFormDiskonItems] = useState([]);
 
     const fetchVendors = async () => {
         try {
@@ -135,6 +136,7 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
         setFormCatatan('');
         setFormTutupPO(true);
         setFormItems([]);
+        setFormDiskonItems([]);
         setShowCreateModal(true);
     };
 
@@ -143,6 +145,7 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
         if (!poId) {
             setFormVendor({ id: null, nama: '' });
             setFormItems([]);
+            setFormDiskonItems([]);
             return;
         }
 
@@ -200,9 +203,36 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
         });
     };
 
-    const grandTotal = useMemo(() => {
+    const handleAddDiskonRow = () => {
+        setFormDiskonItems(prev => [...prev, { deskripsi: '', nilai: '' }]);
+    };
+
+    const handleRemoveDiskonRow = (index) => {
+        setFormDiskonItems(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleDiskonChange = (index, field, value) => {
+        setFormDiskonItems(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
+    const subtotalBruto = useMemo(() => {
         return formItems.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
     }, [formItems]);
+
+    const totalDiskon = useMemo(() => {
+        return formDiskonItems.reduce((acc, d) => {
+            const val = Number(d.nilai) || 0;
+            return acc + (val > 0 ? val : 0);
+        }, 0);
+    }, [formDiskonItems]);
+
+    const grandTotal = useMemo(() => {
+        return Math.max(0, subtotalBruto - totalDiskon);
+    }, [subtotalBruto, totalDiskon]);
 
     const handleSubmitGRN = async (e) => {
         e.preventDefault();
@@ -223,6 +253,30 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
                 return;
             }
         }
+
+        // Validasi baris diskon (sama seperti Petty Cash)
+        for (let i = 0; i < formDiskonItems.length; i++) {
+            const d = formDiskonItems[i];
+            const hasDesc = Boolean(d.deskripsi && d.deskripsi.trim());
+            const hasVal = d.nilai !== '' && Number(d.nilai) > 0;
+            if (hasDesc && !hasVal) {
+                toast.error(`Baris diskon #${i + 1} memiliki keterangan "${d.deskripsi}" tetapi nominal potongan belum diisi atau 0.`);
+                return;
+            }
+            if (!hasDesc && hasVal) {
+                toast.error(`Baris diskon #${i + 1} memiliki nominal potongan tetapi keterangan diskonnya masih kosong.`);
+                return;
+            }
+        }
+
+        if (totalDiskon > subtotalBruto) {
+            toast.error('Total potongan diskon tidak boleh melebihi subtotal nilai barang.');
+            return;
+        }
+
+        const validDiskonItems = formDiskonItems.filter(
+            d => d.deskripsi && d.deskripsi.trim() && Number(d.nilai) > 0
+        );
 
         setSaving(true);
         try {
@@ -245,6 +299,10 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
                     harga_kemasan: Number(it.harga_kemasan) || 0,
                     batch_no: it.batch_no || '',
                     exp_date: it.exp_date || null
+                })),
+                diskon_items: validDiskonItems.map(d => ({
+                    deskripsi: d.deskripsi.trim(),
+                    nilai: Number(d.nilai)
                 }))
             });
             toast.success('Penerimaan Barang (GRN) berhasil disimpan sebagai Draft.');
@@ -433,6 +491,11 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
                                             </td>
                                             <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                 {formatMoney(grn.total_nilai)}
+                                                {Number(grn.diskon_total) > 0 && (
+                                                    <small style={{ display: 'block', fontSize: '11px', fontWeight: 500, color: '#10b981' }}>
+                                                        Diskon -{formatMoney(grn.diskon_total)}
+                                                    </small>
+                                                )}
                                             </td>
                                             <td className="gdg-po-meta-cell">{grn.metode_pembayaran}</td>
                                             <td>
@@ -759,14 +822,105 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
                                         </div>
                                     )}
 
+                                    {/* BARIS DISKON / POTONGAN FAKTUR (OPSIONAL, SEPERTI PETTY CASH) */}
+                                    {formPOId && formItems.length > 0 && (
+                                        <div className="gdg-grn-diskon-section">
+                                            <div className="gdg-po-items-head" style={{ marginBottom: '8px' }}>
+                                                <div>
+                                                    <span className="gdg-detail-section-title">Baris Diskon / Potongan Faktur (Opsional)</span>
+                                                    <small style={{ display: 'block', color: 'var(--gdg-muted)', fontSize: '11.5px', marginTop: '2px' }}>
+                                                        Potongan akan diprorata otomatis ke harga modal (HPP) stok masuk saat GRN disetujui.
+                                                    </small>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="gdg-btn-stripe secondary"
+                                                    style={{ height: '32px', minHeight: '32px', padding: '0 12px', fontSize: '12.5px' }}
+                                                    onClick={handleAddDiskonRow}
+                                                >
+                                                    <Plus size={13} /> Tambah Baris Diskon
+                                                </button>
+                                            </div>
+
+                                            {formDiskonItems.length > 0 && (
+                                                <div className="gdg-table-wrap gdg-table-borderless">
+                                                    <table className="gdg-table gdg-table-stripe">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style={{ width: '40px', textAlign: 'center' }}>No</th>
+                                                                <th>Keterangan Diskon *</th>
+                                                                <th style={{ width: '210px', textAlign: 'right' }}>Nilai Potongan (Rp) *</th>
+                                                                <th style={{ width: '44px', textAlign: 'center' }}>Aksi</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {formDiskonItems.map((dItem, dIdx) => (
+                                                                <tr key={dIdx}>
+                                                                    <td className="gdg-num-cell" style={{ textAlign: 'center', color: 'var(--gdg-muted)' }}>{dIdx + 1}</td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="text"
+                                                                            className="gdg-inline-input"
+                                                                            style={{ width: '100%' }}
+                                                                            placeholder="Contoh: Diskon Rekanan, Potongan Nota, Cashback..."
+                                                                            value={dItem.deskripsi}
+                                                                            onChange={(e) => handleDiskonChange(dIdx, 'deskripsi', e.target.value)}
+                                                                            required
+                                                                        />
+                                                                    </td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="1"
+                                                                            step="any"
+                                                                            className="gdg-inline-input gdg-num-cell"
+                                                                            style={{ width: '100%', textAlign: 'right', fontWeight: 600 }}
+                                                                            placeholder="0"
+                                                                            value={dItem.nilai}
+                                                                            onChange={(e) => handleDiskonChange(dIdx, 'nilai', e.target.value)}
+                                                                            onWheel={(e) => e.target.blur()}
+                                                                            required
+                                                                        />
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center' }}>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="gdg-brg-icon-btn danger"
+                                                                            onClick={() => handleRemoveDiskonRow(dIdx)}
+                                                                            title="Hapus baris diskon"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* GRAND TOTAL */}
-                                    <div className="gdg-po-grand-total">
-                                        <span className="gdg-po-grand-total-label">
-                                            Total Nilai Penerimaan Fisik
-                                        </span>
-                                        <strong className="gdg-po-grand-total-value gdg-num-cell">
-                                            {formatMoney(grandTotal)}
-                                        </strong>
+                                    <div className="gdg-grn-summary-box">
+                                        {totalDiskon > 0 && (
+                                            <>
+                                                <div className="gdg-grn-summary-row">
+                                                    <span>Subtotal Nilai Barang</span>
+                                                    <span className="gdg-num-cell">{formatMoney(subtotalBruto)}</span>
+                                                </div>
+                                                <div className="gdg-grn-summary-row is-discount">
+                                                    <span>Total Potongan Diskon ({formDiskonItems.filter(d => Number(d.nilai) > 0).length} baris)</span>
+                                                    <span className="gdg-num-cell">- {formatMoney(totalDiskon)}</span>
+                                                </div>
+                                            </>
+                                        )}
+                                        <div className="gdg-grn-summary-row is-total">
+                                            <span>Total Netto Penerimaan Fisik</span>
+                                            <strong className="gdg-po-grand-total-value gdg-num-cell">
+                                                {formatMoney(grandTotal)}
+                                            </strong>
+                                        </div>
                                     </div>
 
                                     {/* OPSI PENYELESAIAN SPB */}
@@ -909,6 +1063,25 @@ export default function GudangPenerimaan({ heroActionsTarget = null }) {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {Number(selectedGRN.diskon_total) > 0 && (
+                                <div className="gdg-grn-summary-box" style={{ marginTop: '12px' }}>
+                                    <div className="gdg-grn-summary-row">
+                                        <span>Subtotal Nilai Barang</span>
+                                        <span className="gdg-num-cell">{formatMoney(selectedGRN.subtotal_bruto || selectedGRN.total_nilai)}</span>
+                                    </div>
+                                    {(selectedGRN.diskon_items || []).map((d, idx) => (
+                                        <div key={idx} className="gdg-grn-summary-row is-discount">
+                                            <span>Diskon: {d.deskripsi}</span>
+                                            <span className="gdg-num-cell">- {formatMoney(d.nilai)}</span>
+                                        </div>
+                                    ))}
+                                    <div className="gdg-grn-summary-row is-total">
+                                        <span>Total Netto Faktur (Masuk HPP Stok)</span>
+                                        <strong className="gdg-po-grand-total-value gdg-num-cell">{formatMoney(selectedGRN.total_nilai)}</strong>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="gdg-modal-foot gdg-po-modal-foot-split">

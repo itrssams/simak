@@ -1,355 +1,355 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
-
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html, body, #root {
-  width: 100%;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-}
-
-/* ── KEYFRAME ANIMATIONS ── */
-@keyframes cardPopIn {
+@keyframes cardFadeIn {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(20px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes floatSlow {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-12px) rotate(3deg);
-  }
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 0.75;
+    transform: translateY(0);
   }
 }
 
 @keyframes shakeAnim {
   0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-5px); }
-  80% { transform: translateX(5px); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 
 @keyframes spinLoader {
   to { transform: rotate(360deg); }
 }
 
-/* ── KANVAS LATAR BELAKANG LUAR (PURPLE/INDIGO SIMAK) ── */
+/* ── KANVAS & BINGKAI SPLIT-CARD BERSIH ── */
 .login-canvas {
+  --login-bg: #f8fafc;
+  --login-card-bg: #ffffff;
+  --login-art-bg: #f1f5f9;
+  --login-input-bg: #ffffff;
+  --login-input-hover: #ffffff;
+  --login-border: #e3e8ee;
+  --login-border-ctrl: #d8dee4;
+  --login-text: #1a1f36;
+  --login-muted: #697386;
+  --login-faint: #8792a2;
+  --login-accent: #635bff;
+  --login-accent-hover: #544dc9;
+  --login-dot-grid: rgba(26, 31, 54, 0.085);
+  --login-bp-stroke: #94a3b8;
+  --login-bp-muted: #cbd5e1;
+  --login-bp-faint: #dce3ec;
+
   position: relative;
   width: 100%;
   min-height: calc(100vh / 0.88);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 15%, rgba(168, 85, 247, 0.35), transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(99, 102, 241, 0.4), transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.25), transparent 55%),
-    linear-gradient(135deg, #1e1b4b 0%, #312e81 32%, #4338ca 68%, #4f46e5 100%);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  padding: 56px 20px 56px;
+  box-sizing: border-box;
+  background-color: var(--login-bg);
+  color: var(--login-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Ambient Floating Decorative Elements */
-.login-bg-shape {
+[data-theme="dark"] .login-canvas {
+  --login-bg: #0b0d12;
+  --login-card-bg: #111318;
+  --login-art-bg: #0e1117;
+  --login-input-bg: #181b23;
+  --login-input-hover: #1c202a;
+  --login-border: rgba(255, 255, 255, 0.08);
+  --login-border-ctrl: rgba(255, 255, 255, 0.12);
+  --login-text: #f8fafc;
+  --login-muted: #94a3b8;
+  --login-faint: #64748b;
+  --login-accent: #635bff;
+  --login-accent-hover: #544dc9;
+  --login-dot-grid: rgba(255, 255, 255, 0.06);
+  --login-bp-stroke: rgba(255, 255, 255, 0.28);
+  --login-bp-muted: rgba(255, 255, 255, 0.16);
+  --login-bp-faint: rgba(255, 255, 255, 0.1);
+}
+
+/* ── TOMBOL TOGGLE TEMA POJOK KANAN ATAS ── */
+.login-theme-toggle-btn {
   position: absolute;
-  pointer-events: none;
-  z-index: 0;
-  border-radius: 50%;
-  filter: blur(50px);
+  top: 20px;
+  right: 24px;
+  z-index: 10;
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  background-color: #ffffff;
+  border: 1px solid var(--login-border-ctrl);
+  color: var(--login-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(26, 31, 54, 0.05);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.login-bg-shape.shape-1 {
-  top: -8%;
-  left: 6%;
-  width: 380px;
-  height: 380px;
-  background: rgba(168, 85, 247, 0.28);
-  animation: pulseGlow 6s ease-in-out infinite;
+.login-theme-toggle-btn:hover {
+  background-color: #f7fafc;
 }
 
-.login-bg-shape.shape-2 {
-  bottom: -10%;
-  right: 8%;
-  width: 440px;
-  height: 440px;
-  background: rgba(99, 102, 241, 0.32);
-  animation: pulseGlow 7s ease-in-out infinite reverse;
+[data-theme="dark"] .login-theme-toggle-btn {
+  background-color: #181b23;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  box-shadow: none;
 }
 
-.login-bg-shape.shape-3 {
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 600px;
-  height: 300px;
-  background: rgba(129, 140, 248, 0.16);
+[data-theme="dark"] .login-theme-toggle-btn:hover {
+  background-color: #1f2430;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Isometric Polygons in Background */
-.login-bg-polygon {
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.18;
+.login-theme-toggle-text {
+  line-height: 1;
 }
 
-.login-bg-polygon.poly-1 {
-  top: 8%;
-  right: 12%;
-  width: 140px;
-  height: 140px;
-  background: linear-gradient(135deg, #a855f7, #6366f1);
-  transform: rotate(45deg) skew(-15deg, -15deg);
-  border-radius: 18px;
-  animation: floatSlow 8s ease-in-out infinite;
-}
-
-.login-bg-polygon.poly-2 {
-  bottom: 12%;
-  left: 10%;
-  width: 110px;
-  height: 110px;
-  background: linear-gradient(135deg, #6366f1, #38bdf8);
-  transform: rotate(30deg) skew(10deg, 10deg);
-  border-radius: 16px;
-  animation: floatSlow 9s ease-in-out infinite reverse;
-}
-
-/* ── WADAH UTAMA: CENTRAL FLOATING CARD ── */
+/* ── KONTENER SPLIT-CARD TERPUSAT ── */
 .login-card-container {
   position: relative;
   z-index: 2;
   display: flex;
   width: 100%;
-  max-width: 1060px;
-  min-height: 600px;
-  background: #ffffff;
-  border-radius: 24px;
+  max-width: 880px;
+  min-height: 500px;
+  background-color: var(--login-card-bg);
+  border: 1px solid var(--login-border);
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow:
-    0 30px 80px -15px rgba(15, 23, 42, 0.55),
-    0 15px 35px -5px rgba(49, 46, 129, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.6);
-  animation: cardPopIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: 0 1px 3px rgba(26, 31, 54, 0.04);
+  animation: cardFadeIn 0.25s ease-out both;
+}
+
+[data-theme="dark"] .login-card-container {
+  color-scheme: dark;
+  box-shadow: none;
 }
 
 .login-card-container.shake {
-  animation: shakeAnim 0.45s ease-in-out both;
+  animation: shakeAnim 0.42s ease-in-out both;
 }
 
-/* ── SISI KIRI: FORM LOGIN ── */
+/* ── PANEL KIRI: FORM LOGIN RATA KIRI ── */
 .login-form-side {
-  width: 44%;
-  padding: 38px 46px;
+  width: 48%;
+  padding: 36px 38px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: #ffffff;
+  background-color: var(--login-card-bg);
+  text-align: left;
 }
 
-/* Header Institusi */
+.login-form-top {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Institusi Rata Kiri */
 .login-inst-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .login-inst-logo {
-  height: 38px;
-  max-width: 42px;
+  height: 32px;
+  width: auto;
+  max-width: 36px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .login-inst-meta {
   display: flex;
   flex-direction: column;
+  text-align: left;
 }
 
 .login-inst-name {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  color: #312e81;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--login-text);
   line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .login-inst-sub {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: #6366f1;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--login-muted);
   margin-top: 1px;
 }
 
-/* Avatar Hero Block */
+/* Judul Rata Kiri */
 .login-hero-block {
-  text-align: center;
-  margin: 18px 0 16px;
-}
-
-.login-avatar-ring {
-  width: 62px;
-  height: 62px;
-  margin: 0 auto 14px;
-  border-radius: 50%;
-  padding: 3px;
-  background: linear-gradient(135deg, #c7d2fe, #a5b4fc 50%, #818cf8);
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.login-avatar-core {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-}
-
-.login-avatar-icon {
-  color: #ffffff;
+  text-align: left;
+  margin: 26px 0 22px;
 }
 
 .login-main-title {
-  font-size: 14.5px;
-  font-weight: 800;
-  color: #1e1b4b;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--login-text);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   margin: 0;
 }
 
 .login-main-sub {
-  font-size: 11.5px;
-  color: #64748b;
-  font-weight: 500;
-  margin: 5px 0 0;
-  line-height: 1.4;
+  font-size: 13px;
+  color: var(--login-muted);
+  font-weight: 400;
+  margin: 6px 0 0;
+  line-height: 1.45;
 }
 
-/* Form Body */
+/* Form Body & Inputs (38px, 6px) */
 .login-form-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 4px;
 }
 
 .login-input-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .login-input-label {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #334155;
-  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--login-text);
 }
 
 .login-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  height: 42px;
-  padding: 0 14px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  transition: all 0.2s ease;
+  height: 38px;
+  padding: 0 10px 0 12px;
+  background-color: var(--login-input-bg);
+  border: 1px solid var(--login-border-ctrl);
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .login-input-wrapper:hover {
-  border-color: #cbd5e1;
-  background: #ffffff;
+  background-color: var(--login-input-hover);
 }
 
 .login-input-wrapper:focus-within {
-  border-color: #6366f1;
-  background: #ffffff;
-  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.16);
-}
-
-.login-input-wrapper.is-error {
-  border-color: #ef4444;
-  background: #fff;
-  box-shadow: 0 0 0 3.5px rgba(239, 68, 68, 0.12);
-}
-
-.input-ico {
-  color: #94a3b8;
-  margin-right: 10px;
-  flex-shrink: 0;
-  transition: color 0.2s ease;
-}
-
-.login-input-wrapper:focus-within .input-ico {
-  color: #4f46e5;
-}
-
-.login-native-input {
-  width: 100%;
-  border: none;
-  background: transparent;
+  border-color: var(--login-accent);
   outline: none;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 550;
-  color: #0f172a;
   box-shadow: none;
 }
 
-.login-native-input::placeholder {
-  color: #94a3b8;
+.login-input-wrapper.is-error {
+  border-color: #dc2626;
+}
+
+[data-theme="dark"] .login-input-wrapper {
+  background-color: #181b23;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .login-input-wrapper:focus-within {
+  border-color: #635bff;
+}
+
+[data-theme="dark"] .login-input-wrapper.is-error {
+  border-color: #f87171;
+}
+
+.input-ico {
+  color: var(--login-faint);
+  margin-right: 9px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.login-input-wrapper:focus-within .input-ico {
+  color: var(--login-accent);
+}
+
+.login-native-input,
+input.login-native-input,
+[data-theme="dark"] .login-native-input,
+[data-theme="dark"] input.login-native-input {
+  width: 100%;
+  height: 100%;
+  border: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--login-text) !important;
+}
+
+.login-native-input::placeholder,
+input.login-native-input::placeholder,
+[data-theme="dark"] .login-native-input::placeholder,
+[data-theme="dark"] input.login-native-input::placeholder {
+  color: var(--login-faint) !important;
   font-weight: 400;
   font-size: 12.5px;
+}
+
+.login-native-input:-webkit-autofill,
+.login-native-input:-webkit-autofill:hover,
+.login-native-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #1a1f36 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme="dark"] .login-native-input:-webkit-autofill,
+[data-theme="dark"] .login-native-input:-webkit-autofill:hover,
+[data-theme="dark"] .login-native-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #181b23 inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
 }
 
 .toggle-pwd-btn {
   background: transparent;
   border: none;
-  padding: 6px;
-  display: flex;
+  padding: 4px;
+  margin-left: 4px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--login-faint);
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s ease;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .toggle-pwd-btn:hover {
-  color: #4f46e5;
-  background: rgba(99, 102, 241, 0.08);
+  color: var(--login-text);
+  background-color: rgba(105, 115, 134, 0.1);
+}
+
+[data-theme="dark"] .toggle-pwd-btn:hover {
+  color: #f8fafc;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Error Alert */
@@ -357,56 +357,53 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
-  background: #fef2f2;
+  padding: 8px 12px;
+  background-color: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #dc2626;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .login-error-alert {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
 }
 
 .error-ico {
   flex-shrink: 0;
-  color: #ef4444;
 }
 
-/* Action Row & Button */
+/* Tombol Masuk Solid #635bff (38px, 6px) */
 .login-action-row {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .login-cta-btn {
   width: 100%;
-  height: 44px;
+  height: 38px;
   border: none;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+  border-radius: 6px;
+  background-color: var(--login-accent);
   color: #ffffff;
   font-family: inherit;
   font-size: 13.5px;
-  font-weight: 750;
-  letter-spacing: 0.03em;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 24px -3px rgba(79, 70, 229, 0.45);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .login-cta-btn:hover:not(:disabled) {
-  transform: translateY(-1.5px);
-  box-shadow: 0 14px 30px -2px rgba(79, 70, 229, 0.55);
-  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #6366f1 100%);
-}
-
-.login-cta-btn:active:not(:disabled) {
-  transform: translateY(0);
+  background-color: var(--login-accent-hover);
 }
 
 .login-cta-btn:disabled {
-  opacity: 0.75;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
@@ -417,90 +414,94 @@ html, body, #root {
 }
 
 .cta-spinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: spinLoader 0.7s linear infinite;
 }
 
-/* Bottom Info & Help */
+/* Bottom Info Rata Kiri */
 .login-bottom-info {
-  margin-top: 18px;
-  text-align: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--login-border);
+  text-align: left;
 }
 
 .login-help {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 12px;
+  color: var(--login-muted);
   margin: 0;
 }
 
 .login-help-link {
-  color: #4f46e5;
-  font-weight: 750;
-  cursor: pointer;
+  color: var(--login-text);
+  font-weight: 600;
 }
 
-.login-copyright {
-  font-size: 10px;
-  color: #94a3b8;
-  margin: 5px 0 0;
-}
-
-/* ── SISI KANAN: ILUSTRASI 3D ISOMETRIK ── */
+/* ── PANEL KANAN: ILUSTRASI VEKTOR MINIMALIS (LINE-ART) ── */
 .login-art-side {
-  width: 56%;
+  width: 52%;
   position: relative;
-  background: #ffffff;
+  background-color: var(--login-art-bg);
+  background-image: radial-gradient(var(--login-dot-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border-left: 1px solid var(--login-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 28px;
-  border-left: 1px solid #f1f5f9;
+  padding: 36px 32px;
 }
 
 .login-art-inner {
   width: 100%;
-  height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 18px;
 }
 
-.login-art-image {
+.login-blueprint-svg {
   width: 100%;
-  max-height: 520px;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 28px rgba(79, 70, 229, 0.08));
+  max-width: 360px;
+  height: auto;
+  display: block;
 }
 
-/* Carousel Dots */
-.login-art-dots {
-  position: absolute;
-  bottom: 22px;
-  right: 28px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.login-blueprint-svg .bp-stroke {
+  stroke: var(--login-bp-stroke);
 }
 
-.art-dot {
-  width: 6.5px;
-  height: 6.5px;
-  border-radius: 50%;
-  background: #cbd5e1;
-  transition: all 0.2s ease;
+.login-blueprint-svg .bp-muted {
+  stroke: var(--login-bp-muted);
 }
 
-.art-dot.active {
-  width: 16px;
-  border-radius: 99px;
-  background: #6366f1;
+.login-blueprint-svg .bp-faint {
+  stroke: var(--login-bp-faint);
 }
 
-/* ── FOOTER COPYRIGHT & VERSI (CENTER ALIGNED, NO PILL) ── */
+.login-blueprint-svg .bp-guide {
+  stroke: var(--login-bp-faint);
+}
+
+.login-blueprint-svg .bp-node-fill {
+  fill: var(--login-art-bg);
+}
+
+.login-art-caption {
+  margin: 0;
+  max-width: 320px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--login-muted);
+}
+
+/* ── FOOTER HALAMAN ── */
 .login-page-footer {
   position: absolute;
   bottom: 18px;
@@ -511,31 +512,28 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--login-muted);
   font-size: 11.5px;
-  font-weight: 550;
-  letter-spacing: 0.02em;
+  font-weight: 500;
   white-space: nowrap;
-  text-align: center;
   pointer-events: none;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 .login-footer-sep {
-  opacity: 0.55;
+  opacity: 0.5;
   font-size: 10px;
 }
 
-/* ── RESPONSIVE DESIGN ── */
-@media (max-width: 960px) {
+/* ── RESPONSIVE ── */
+@media (max-width: 820px) {
   .login-card-container {
-    max-width: 480px;
+    max-width: 440px;
     min-height: auto;
   }
 
   .login-form-side {
     width: 100%;
-    padding: 34px 28px;
+    padding: 32px 28px;
   }
 
   .login-art-side {
@@ -544,254 +542,26 @@ html, body, #root {
 }
 
 @media (max-width: 600px) {
+  .login-theme-toggle-btn {
+    top: 14px;
+    right: 14px;
+  }
+
   .login-page-footer {
-    bottom: 10px;
-    font-size: 10px;
-    gap: 6px;
+    bottom: 12px;
+    font-size: 10.5px;
     white-space: normal;
+    text-align: center;
     padding: 0 16px;
   }
 }
 
 @media (max-width: 480px) {
   .login-canvas {
-    padding: 14px;
+    padding: 52px 14px 48px;
   }
 
   .login-form-side {
-    padding: 28px 20px;
-  }
-
-  .login-inst-name {
-    font-size: 10px;
-  }
-
-  .login-main-title {
-    font-size: 13.5px;
+    padding: 26px 20px;
   }
 }
-
-/* ── TOMBOL PENGALIH TEMA MENGAMBANG (THEME TOGGLE) ── */
-.login-theme-toggle-btn {
-  position: absolute;
-  top: 22px;
-  right: 24px;
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.login-theme-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.26);
-  border-color: rgba(255, 255, 255, 0.45);
-  transform: translateY(-1.5px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-}
-
-.login-theme-toggle-btn:active {
-  transform: translateY(0);
-}
-
-.login-theme-toggle-text {
-  letter-spacing: 0.02em;
-}
-
-@media (max-width: 600px) {
-  .login-theme-toggle-btn {
-    top: 14px;
-    right: 14px;
-    padding: 6px 12px;
-    font-size: 11px;
-    gap: 6px;
-  }
-}
-
-/* ── IMPLEMENTASI DEDIKASI MODE GELAP (DARK MODE) ── */
-[data-theme="dark"] .login-canvas {
-  background:
-    radial-gradient(circle at 18% 15%, rgba(147, 51, 234, 0.22), transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(79, 70, 229, 0.25), transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15), transparent 55%),
-    linear-gradient(135deg, #070913 0%, #0d1226 35%, #111836 70%, #0b0f24 100%);
-}
-
-[data-theme="dark"] .login-bg-shape.shape-1 {
-  background: rgba(147, 51, 234, 0.18);
-}
-
-[data-theme="dark"] .login-bg-shape.shape-2 {
-  background: rgba(79, 70, 229, 0.22);
-}
-
-[data-theme="dark"] .login-bg-polygon.poly-1 {
-  opacity: 0.12;
-}
-
-[data-theme="dark"] .login-bg-polygon.poly-2 {
-  opacity: 0.12;
-}
-
-/* Tombol Pengalih Tema di Mode Gelap */
-[data-theme="dark"] .login-theme-toggle-btn {
-  background: rgba(15, 23, 42, 0.6);
-  border-color: rgba(99, 102, 241, 0.35);
-  color: #f1f5f9;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .login-theme-toggle-btn:hover {
-  background: rgba(30, 41, 59, 0.85);
-  border-color: rgba(129, 140, 248, 0.6);
-  color: #ffffff;
-}
-
-/* Wadah Kartu Melayang di Mode Gelap */
-[data-theme="dark"] .login-card-container {
-  color-scheme: dark;
-  background: #0f172a !important;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  box-shadow:
-    0 30px 80px -15px rgba(0, 0, 0, 0.88),
-    0 15px 35px -5px rgba(15, 23, 42, 0.75),
-    0 0 50px rgba(99, 102, 241, 0.14);
-}
-
-/* Sisi Kiri (Form) di Mode Gelap */
-[data-theme="dark"] .login-form-side {
-  background: #0f172a !important;
-}
-
-[data-theme="dark"] .login-inst-name {
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .login-inst-sub {
-  color: #818cf8 !important;
-}
-
-[data-theme="dark"] .login-avatar-ring {
-  background: linear-gradient(135deg, #6366f1, #4f46e5 50%, #312e81);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
-}
-
-[data-theme="dark"] .login-avatar-core {
-  background: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
-}
-
-[data-theme="dark"] .login-main-title {
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .login-main-sub {
-  color: #94a3b8 !important;
-}
-
-[data-theme="dark"] .login-input-label {
-  color: #cbd5e1 !important;
-}
-
-[data-theme="dark"] .login-input-wrapper {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-}
-
-[data-theme="dark"] .login-input-wrapper:hover {
-  border-color: #475569 !important;
-  background: #243048 !important;
-}
-
-[data-theme="dark"] .login-input-wrapper:focus-within {
-  border-color: #818cf8 !important;
-  background: #1e293b !important;
-  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.28) !important;
-}
-
-[data-theme="dark"] .login-native-input,
-[data-theme="dark"] input.login-native-input {
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .login-native-input::placeholder,
-[data-theme="dark"] input.login-native-input::placeholder {
-  color: #64748b !important;
-}
-
-[data-theme="dark"] .input-ico {
-  color: #818cf8 !important;
-}
-
-[data-theme="dark"] .login-input-wrapper:focus-within .input-ico {
-  color: #a5b4fc !important;
-}
-
-[data-theme="dark"] .toggle-pwd-btn {
-  background: transparent !important;
-  color: #94a3b8 !important;
-}
-
-[data-theme="dark"] .toggle-pwd-btn:hover {
-  color: #c7d2fe !important;
-  background: rgba(99, 102, 241, 0.16) !important;
-}
-
-[data-theme="dark"] .login-error-alert {
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
-}
-
-[data-theme="dark"] .login-help {
-  color: #94a3b8 !important;
-}
-
-[data-theme="dark"] .login-help-link {
-  color: #818cf8 !important;
-}
-
-/* Sisi Kanan (Ilustrasi Isometrik) di Mode Gelap */
-[data-theme="dark"] .login-art-side {
-  background:
-    radial-gradient(circle at center, rgba(79, 70, 229, 0.18) 0%, rgba(13, 19, 34, 0.96) 75%),
-    #0d1322 !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-[data-theme="dark"] .login-art-image {
-  filter:
-    drop-shadow(0 20px 35px rgba(0, 0, 0, 0.8))
-    drop-shadow(0 0 30px rgba(99, 102, 241, 0.24));
-}
-
-[data-theme="dark"] .art-dot {
-  background: #334155;
-}
-
-[data-theme="dark"] .art-dot.active {
-  background: #818cf8;
-  box-shadow: 0 0 12px rgba(129, 140, 248, 0.65);
-}
-
-/* Footer di Mode Gelap */
-[data-theme="dark"] .login-page-footer {
-  color: rgba(255, 255, 255, 0.68);
-}
-

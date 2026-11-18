@@ -4958,3 +4958,309 @@
         background: #f1f5f9 !important;
     }
 }
+
+
+/* ── Out-of-stock Procurement Status Dot & Per-Item Decision Controls ── */
+.gdg-status-text.cyan .gdg-status-dot { background: #f59e0b; }
+
+/* Neutral modal backdrop (no navy tint / no blur) & surfaces */
+.gdg-modal-backdrop {
+    background: rgba(0, 0, 0, 0.58) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.gdg-modal .gdg-code-cell {
+    color: var(--gdg-muted);
+    font-weight: 500;
+}
+
+.gdg-modal .gdg-modal-header-text p .gdg-code-cell {
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+[data-theme="light"] .gdg-modal .gdg-modal-header-text p .gdg-code-cell {
+    color: #635bff;
+}
+
+.gdg-modal .gdg-po-readonly-input,
+.gdg-modal .gdg-readonly-box {
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0 !important;
+    border-radius: 6px;
+}
+
+[data-theme="light"] .gdg-modal .gdg-po-readonly-input,
+[data-theme="light"] .gdg-modal .gdg-readonly-box {
+    background: #f8fafc !important;
+    border-color: #e3e8ee !important;
+    color: #1a1f36 !important;
+}
+
+/* Flat metadata summary strip inside approval modal */
+.gdg-modal-meta-strip {
+    display: grid;
+    grid-template-columns: 150px 140px 1fr;
+    gap: 24px;
+    border-top: 1px solid var(--gdg-border);
+    border-bottom: 1px solid var(--gdg-border);
+    padding: 10px 0;
+}
+
+.gdg-modal-meta-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.gdg-modal-meta-cell + .gdg-modal-meta-cell {
+    border-left: 1px solid var(--gdg-border);
+    padding-left: 24px;
+}
+
+.gdg-modal-meta-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gdg-muted);
+}
+
+.gdg-modal-meta-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gdg-text);
+    line-height: 1.4;
+    white-space: normal;
+    word-break: break-word;
+}
+
+@media (max-width: 680px) {
+    .gdg-modal-meta-strip {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .gdg-modal-meta-cell + .gdg-modal-meta-cell {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--gdg-border);
+        padding-top: 10px;
+    }
+}
+
+.gdg-decision-group {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 2px;
+    gap: 2px;
+    border-radius: 6px;
+    border: 1px solid var(--gdg-border);
+    background: #181b23;
+    box-sizing: border-box;
+}
+
+[data-theme="light"] .gdg-decision-group {
+    background: #f8fafc;
+}
+
+.gdg-decision-btn {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--gdg-muted);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.gdg-decision-btn:hover:not(:disabled) {
+    color: var(--gdg-text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .gdg-decision-btn:hover:not(:disabled) {
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.gdg-decision-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.gdg-decision-btn.setuju.active {
+    background: rgba(16, 185, 129, 0.16);
+    color: #10b981;
+    font-weight: 600;
+}
+
+.gdg-decision-btn.ajukan.active {
+    background: rgba(245, 158, 11, 0.16);
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+[data-theme="light"] .gdg-decision-btn.ajukan.active {
+    color: #b45309;
+}
+
+.gdg-decision-btn.tolak.active {
+    background: rgba(244, 63, 94, 0.16);
+    color: #f43f5e;
+    font-weight: 600;
+}
+
+.gdg-procurement-note {
+    display: block;
+    color: #f59e0b;
+    font-size: 11px;
+    line-height: 1.25;
+    margin-top: 4px;
+    white-space: nowrap;
+}
+
+[data-theme="light"] .gdg-procurement-note {
+    color: #b45309;
+}
+
+/* Uniform 36px QTY ACC cell across all rows */
+.gdg-acc-qty-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.gdg-acc-qty-input {
+    width: 82px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    text-align: right;
+    font-weight: 600;
+    padding: 0 10px !important;
+}
+
+.gdg-acc-qty-input:disabled {
+    background: #14171f !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    color: var(--gdg-muted) !important;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+[data-theme="light"] .gdg-acc-qty-input:disabled {
+    background: #f8fafc !important;
+    border-color: #e3e8ee !important;
+    color: #8792a2 !important;
+}
+
+.gdg-acc-qty-unit {
+    min-width: 34px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gdg-muted);
+    white-space: nowrap;
+}
+
+/* Thin neutral left-accent callout */
+.gdg-callout-neutral {
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--gdg-border);
+    border-left: 3px solid #635bff;
+    background: rgba(255, 255, 255, 0.025);
+    color: var(--gdg-muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+[data-theme="light"] .gdg-callout-neutral {
+    background: #f8fafc;
+    color: #4f566b;
+}
+
+.gdg-reason-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.gdg-reason-chip {
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 5px;
+    border: 1px solid var(--gdg-border);
+    background: transparent;
+    color: var(--gdg-muted);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.gdg-reason-chip:hover,
+.gdg-reason-chip.active {
+    border-color: rgba(244, 63, 94, 0.45);
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+}
+
+.gdg-brg-icon-btn.indigo {
+    color: #635bff;
+    border-color: rgba(99, 91, 255, 0.35);
+    background: rgba(99, 91, 255, 0.1);
+}
+
+.gdg-brg-icon-btn.indigo:hover {
+    background: rgba(99, 91, 255, 0.2);
+}
+
+
+/* ── GRN Discount Section & Summary Box ── */
+.gdg-grn-diskon-section {
+    padding-top: 10px;
+    border-top: 1px solid var(--gdg-border);
+}
+
+.gdg-grn-summary-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--gdg-border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="light"] .gdg-grn-summary-box {
+    background: #f8fafc;
+}
+
+.gdg-grn-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--gdg-muted);
+}
+
+.gdg-grn-summary-row.is-discount {
+    color: #10b981;
+    font-weight: 500;
+}
+
+.gdg-grn-summary-row.is-total {
+    padding-top: 8px;
+    border-top: 1px solid var(--gdg-border);
+    color: var(--gdg-text);
+    font-size: 13.5px;
+    font-weight: 600;
+}

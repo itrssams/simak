@@ -127,3 +127,106 @@ class PurchasingTestCase(TestCase):
         # PO harus berstatus SELESAI karena 20 PCS terpenuhi
         po.refresh_from_db()
         self.assertEqual(po.status, SuratPesanan.STATUS_SELESAI)
+
+    def test_grn_with_discount_rows_prorates_hpp_accurately(self):
+        barang_b, _ = Barang.objects.get_or_create(
+            kode='B1-9998',
+            defaults={
+                'nama': 'PULPEN TEST GRN',
+                'golongan': self.gol,
+                'satuan_dasar': self.sat_pcs,
+                'merk': 'STD'
+            }
+        )
+        StokSaldo.objects.filter(barang=barang_b).delete()
+        StokLedger.objects.filter(barang=barang_b).delete()
+
+        po = PurchasingService.create_po(
+            tanggal=timezone.now().date(),
+            vendor_nama='PT TOKO ATK MAJU',
+            items_data=[
+                {
+                    'barang': self.barang,
+                    'kemasan': 'BOX',
+                    'isi': Decimal('10'),
+                    'qty_kemasan': Decimal('1'),  # 10 PCS * 10.000 = 100.000
+                    'harga_kemasan': Decimal('100000'),
+                },
+                {
+                    'barang': barang_b,
+                    'kemasan': 'BOX',
+                    'isi': Decimal('10'),
+                    'qty_kemasan': Decimal('2'),  # 20 PCS * 10.000 = 200.000
+                    'harga_kemasan': Decimal('100000'),
+                },
+            ],
+            user=self.user_maker
+        )
+        PurchasingService.submit_po(po, self.user_maker)
+        PurchasingService.approve_po(po, self.user_kasi)
+        po_items = list(po.items.order_by('id'))
+
+        # Validasi baris diskon tidak lengkap -> gagal
+        with self.assertRaises(ValidationError):
+            PurchasingService.create_grn(
+                tanggal=timezone.now().date(),
+                vendor_nama=po.vendor_nama,
+                po=po,
+                gudang=self.gudang,
+                items_data=[
+                    {'barang': self.barang, 'po_item': po_items[0], 'kemasan': 'BOX', 'isi': Decimal('10'), 'qty_kemasan': Decimal('1'), 'harga_kemasan': Decimal('100000')},
+                ],
+                diskon_items=[{'deskripsi': 'Diskon Faktur', 'nilai': 0}],
+                user=self.user_maker,
+            )
+
+        # Validasi diskon melebihi subtotal bruto -> gagal
+        with self.assertRaises(ValidationError):
+            PurchasingService.create_grn(
+                tanggal=timezone.now().date(),
+                vendor_nama=po.vendor_nama,
+                po=po,
+                gudang=self.gudang,
+                items_data=[
+                    {'barang': self.barang, 'po_item': po_items[0], 'kemasan': 'BOX', 'isi': Decimal('10'), 'qty_kemasan': Decimal('1'), 'harga_kemasan': Decimal('100000')},
+                ],
+                diskon_items=[{'deskripsi': 'Diskon Kebesaran', 'nilai': 150000}],
+                user=self.user_maker,
+            )
+
+        # GRN valid dengan 2 baris diskon (20.000 + 10.000 = 30.000 dari bruto 300.000 -> net 270.000 = 90%)
+        grn = PurchasingService.create_grn(
+            tanggal=timezone.now().date(),
+            vendor_nama=po.vendor_nama,
+            po=po,
+            gudang=self.gudang,
+            no_faktur='FAKTUR-DISC-01',
+            metode_pembayaran='Tunai',
+            items_data=[
+                {'barang': self.barang, 'po_item': po_items[0], 'kemasan': 'BOX', 'isi': Decimal('10'), 'qty_kemasan': Decimal('1'), 'harga_kemasan': Decimal('100000')},
+                {'barang': barang_b, 'po_item': po_items[1], 'kemasan': 'BOX', 'isi': Decimal('10'), 'qty_kemasan': Decimal('2'), 'harga_kemasan': Decimal('100000')},
+            ],
+            diskon_items=[
+                {'deskripsi': 'Diskon Rekanan', 'nilai': 20000},
+                {'deskripsi': 'Potongan Nota', 'nilai': 10000},
+            ],
+            user=self.user_maker,
+        )
+        self.assertEqual(grn.subtotal_bruto, Decimal('300000.00'))
+        self.assertEqual(grn.diskon_total, Decimal('30000.00'))
+        self.assertEqual(grn.total_nilai, Decimal('270000.00'))
+        self.assertEqual(len(grn.diskon_items), 2)
+
+        grn = PurchasingService.approve_grn(grn, self.user_kasi)
+        self.assertEqual(grn.status, Penerimaan.STATUS_DISETUJUI)
+
+        saldo_a = StokSaldo.objects.get(barang=self.barang, gudang=self.gudang)
+        saldo_b = StokSaldo.objects.get(barang=barang_b, gudang=self.gudang)
+        self.assertEqual(saldo_a.nilai, Decimal('90000.00'))
+        self.assertEqual(saldo_a.avg_cost, Decimal('9000.0000'))
+        self.assertEqual(saldo_b.nilai, Decimal('180000.00'))
+        self.assertEqual(saldo_b.avg_cost, Decimal('9000.0000'))
+        self.assertEqual(saldo_a.nilai + saldo_b.nilai, grn.total_nilai)
+
+        StokSaldo.objects.filter(barang=barang_b).delete()
+        StokLedger.objects.filter(barang=barang_b).delete()

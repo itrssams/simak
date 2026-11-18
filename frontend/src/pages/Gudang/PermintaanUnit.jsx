@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
     PackagePlus,
     PackageCheck,
-    Send,
     CheckCircle2,
     Clock,
     XCircle,
@@ -173,21 +172,21 @@ export default function PermintaanUnit() {
         });
     }, [ruangList, isLogistikAdmin, userUnitId, userRuang, userUnitNama]);
 
-    // Options for SearchableSelect
+    // Options for SearchableSelect (tetap izinkan memilih barang stok 0 untuk antrean pengadaan)
     const barangOptions = useMemo(() => {
         return (barangList || []).map((b) => {
             const stokNum = Number(b.stok_saat_ini || 0);
             const isHabis = stokNum <= 0;
             return {
                 value: String(b.id),
-                label: b.kode ? `[${b.kode}] ${b.nama}${isHabis ? ' • [STOK HABIS]' : ''}` : b.nama,
+                label: b.kode ? `[${b.kode}] ${b.nama}${isHabis ? ' • [Stok 0 · Pengadaan]' : ''}` : b.nama,
                 subtext: [
                     b.kode,
                     b.golongan?.nama ? `Gol: ${b.golongan.nama}` : '',
                     b.satuan_dasar?.kode ? `Satuan: ${b.satuan_dasar.kode}` : '',
-                    `Stok: ${stokNum.toLocaleString('id-ID')}${isHabis ? ' (HABIS)' : ''}`
+                    `Stok: ${stokNum.toLocaleString('id-ID')}${isHabis ? ' (Kosong · Bisa diajukan)' : ''}`
                 ].filter(Boolean).join(' • '),
-                tag: isHabis ? 'HABIS' : (b.satuan_dasar?.kode || undefined),
+                tag: isHabis ? 'PENGADAAN' : (b.satuan_dasar?.kode || undefined),
             };
         });
     }, [barangList]);
@@ -262,17 +261,19 @@ export default function PermintaanUnit() {
         let total = unfilteredTotal;
         let menunggu = 0;
         let disetujui = 0;
+        let prosesSebagian = 0;
         let selesai = 0;
         let ditolak = 0;
 
         requests.forEach(r => {
             if (r.status === 'MENUNGGU') menunggu++;
             else if (r.status === 'DISETUJUI') disetujui++;
+            else if (r.status === 'PROSES_SEBAGIAN') prosesSebagian++;
             else if (r.status === 'SELESAI') selesai++;
             else if (r.status === 'DITOLAK') ditolak++;
         });
 
-        return { total, menunggu, disetujui, selesai, ditolak };
+        return { total, menunggu, disetujui, prosesSebagian, selesai, ditolak };
     }, [requests, unfilteredTotal]);
 
     // ── Form Permintaan Handlers ──
@@ -334,16 +335,6 @@ export default function PermintaanUnit() {
             return;
         }
 
-        // Validasi: Barang dengan stok habis tidak dapat diminta
-        for (const it of validItems) {
-            const b = barangList.find(x => String(x.id) === String(it.barang_id));
-            const currentStock = Number(b?.stok_saat_ini || 0);
-            if (currentStock <= 0) {
-                toast.error(`Stok '${b?.nama || 'Barang'}' di gudang sedang habis (0 ${it.satuan}). Permintaan tidak dapat diajukan.`);
-                return;
-            }
-        }
-
         setSaving(true);
         try {
             await api.post('/gudang/permintaan/', {
@@ -358,6 +349,10 @@ export default function PermintaanUnit() {
                     keterangan: it.keterangan || ''
                 }))
             });
+
+            if (!effectiveRuangId) {
+                api.get('/gudang/ruang/').then(r => setRuangList(r.data || [])).catch(() => {});
+            }
 
             toast.success('Permintaan barang berhasil diajukan!');
             setShowCreateModal(false);
@@ -377,6 +372,7 @@ export default function PermintaanUnit() {
                 const minta = Number(it.qty_minta || 0);
                 const disetujui = Number(it.qty_disetujui || 0);
                 const stokTersedia = Number(it.stok_tersedia ?? (barangList.find(b => b.id === it.barang)?.stok_saat_ini || 0));
+                const keputusan = stokTersedia > 0 ? 'SETUJUI' : 'AJUKAN';
                 return {
                     id: it.id,
                     barang_nama: it.barang_nama,
@@ -384,7 +380,9 @@ export default function PermintaanUnit() {
                     satuan: it.satuan,
                     qty_minta: minta,
                     stok_tersedia: stokTersedia,
-                    qty_disetujui: disetujui > 0 ? disetujui : Math.min(minta, stokTersedia)
+                    keputusan,
+                    qty_disetujui: keputusan === 'SETUJUI' ? (disetujui > 0 ? Math.min(disetujui, stokTersedia) : Math.min(minta, stokTersedia)) : 0,
+                    catatan_verif: it.alasan_tolak || ''
                 };
             })
         );
@@ -394,26 +392,21 @@ export default function PermintaanUnit() {
     const handleExecuteApprove = async () => {
         if (!approveTarget) return;
 
-        // Validasi: Qty disetujui tidak boleh negatif, tidak boleh melebihi stok, dan minimal ada 1 item > 0
-        let hasApproved = false;
         for (const it of approveItems) {
-            const qtyApp = Number(it.qty_disetujui || 0);
-            if (qtyApp < 0) {
-                toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' tidak boleh bernilai negatif.`);
-                return;
-            }
-            if (qtyApp > 0) {
-                hasApproved = true;
+            if (it.keputusan === 'SETUJUI') {
+                const qtyApp = Number(it.qty_disetujui || 0);
+                if (qtyApp <= 0) {
+                    toast.error(`Kuantitas yang disetujui untuk '${it.barang_nama}' harus > 0.`);
+                    return;
+                }
                 if (qtyApp > it.stok_tersedia) {
                     toast.error(`Qty disetujui untuk '${it.barang_nama}' (${qtyApp} ${it.satuan}) melebihi stok gudang yang tersedia (${it.stok_tersedia} ${it.satuan}).`);
                     return;
                 }
+            } else if (it.keputusan === 'TOLAK' && !String(it.catatan_verif || '').trim()) {
+                toast.error(`Keterangan / alasan penolakan untuk '${it.barang_nama}' wajib diisi.`);
+                return;
             }
-        }
-
-        if (!hasApproved) {
-            toast.error('Minimal satu barang harus disetujui dengan kuantitas > 0. Jika seluruh barang ditolak, gunakan tombol Tolak Permintaan.');
-            return;
         }
 
         setApproveSubmitting(true);
@@ -421,10 +414,13 @@ export default function PermintaanUnit() {
             await api.post(`/gudang/permintaan/${approveTarget.id}/approve/`, {
                 items: approveItems.map(it => ({
                     id: it.id,
-                    qty_disetujui: Number(it.qty_disetujui || 0)
+                    keputusan: it.keputusan,
+                    qty_disetujui: it.keputusan === 'SETUJUI' ? Number(it.qty_disetujui || 0) : 0,
+                    alasan_tolak: it.keputusan === 'TOLAK' ? String(it.catatan_verif || '').trim() : '',
+                    keterangan: it.keputusan !== 'TOLAK' ? String(it.catatan_verif || '').trim() : ''
                 }))
             });
-            toast.success(`Permintaan ${approveTarget.nomor} telah disetujui.`);
+            toast.success(`Verifikasi permintaan ${approveTarget.nomor} berhasil disimpan.`);
             setApproveTarget(null);
             fetchRequests();
         } catch (err) {
@@ -596,6 +592,8 @@ export default function PermintaanUnit() {
                 return <span className="pu-badge amber"><span className="pu-status-dot" /> Menunggu Otorisasi</span>;
             case 'DISETUJUI':
                 return <span className="pu-badge emerald"><span className="pu-status-dot" /> Disetujui (Siap Diambil)</span>;
+            case 'PROSES_SEBAGIAN':
+                return <span className="pu-badge sky"><span className="pu-status-dot" /> Dalam Proses / Pengadaan</span>;
             case 'SELESAI':
                 return <span className="pu-badge sky"><span className="pu-status-dot" /> Selesai Diserahkan</span>;
             case 'DITOLAK':
@@ -604,6 +602,46 @@ export default function PermintaanUnit() {
                 return <span className="pu-badge slate"><span className="pu-status-dot" /> {status}</span>;
         }
     };
+
+    const renderItemStatusBadge = (item) => {
+        switch (item?.status) {
+            case 'SEDANG_DIAJUKAN':
+                return <span className="pu-badge sky"><span className="pu-status-dot" /> Sedang Diajukan</span>;
+            case 'DISETUJUI':
+                return <span className="pu-badge emerald"><span className="pu-status-dot" /> Siap Diambil</span>;
+            case 'SELESAI':
+                return <span className="pu-badge sky"><span className="pu-status-dot" /> Sudah Diserahkan</span>;
+            case 'DITOLAK':
+                return <span className="pu-badge rose"><span className="pu-status-dot" /> Ditolak</span>;
+            case 'BATAL_PENGADAAN':
+                return <span className="pu-badge slate"><span className="pu-status-dot" /> Pengadaan Ditutup</span>;
+            default:
+                return <span className="pu-badge amber"><span className="pu-status-dot" /> Menunggu ACC</span>;
+        }
+    };
+
+    const selectedOutOfStockItems = useMemo(() => {
+        return formItems
+            .map(it => barangList.find(b => String(b.id) === String(it.barang_id)))
+            .filter(b => b && Number(b.stok_saat_ini || 0) <= 0);
+    }, [formItems, barangList]);
+
+    const duplicatePendingItemNames = useMemo(() => {
+        const selectedIds = new Set(formItems.map(it => String(it.barang_id)).filter(Boolean));
+        if (!selectedIds.size) return [];
+        const targetRuangId = String(formRuangId || userRuang?.id || '');
+        const names = new Set();
+        requests.forEach(r => {
+            if (!['MENUNGGU', 'PROSES_SEBAGIAN'].includes(r.status)) return;
+            if (targetRuangId && String(r.ruang) !== targetRuangId) return;
+            (r.items || []).forEach(it => {
+                if (selectedIds.has(String(it.barang)) && ['MENUNGGU', 'SEDANG_DIAJUKAN'].includes(it.status)) {
+                    names.add(it.barang_nama);
+                }
+            });
+        });
+        return Array.from(names);
+    }, [formItems, requests, formRuangId, userRuang]);
 
     return (
         <div className="pu-page">
@@ -624,6 +662,7 @@ export default function PermintaanUnit() {
                     { value: '', num: stats.total, label: 'Total Permintaan' },
                     { value: 'MENUNGGU', num: stats.menunggu, label: 'Menunggu Otorisasi' },
                     { value: 'DISETUJUI', num: stats.disetujui, label: 'Disetujui (Siap Ambil)' },
+                    { value: 'PROSES_SEBAGIAN', num: stats.prosesSebagian, label: 'Proses / Pengadaan' },
                     { value: 'SELESAI', num: stats.selesai, label: 'Selesai Diserahkan' },
                     { value: 'DITOLAK', num: stats.ditolak, label: 'Permintaan Ditolak' },
                 ].map(item => (
@@ -934,7 +973,7 @@ export default function PermintaanUnit() {
                                     Ajukan barang operasional ruangan ke gudang logistik RS Siaga
                                 </p>
                             </div>
-                            <button type="button" className="pu-action-btn" onClick={() => setShowCreateModal(false)}>
+                            <button type="button" className="pu-modal-close" onClick={() => setShowCreateModal(false)} aria-label="Tutup modal">
                                 <X size={16} />
                             </button>
                         </div>
@@ -986,7 +1025,6 @@ export default function PermintaanUnit() {
                                     <input
                                         type="text"
                                         className="pu-form-textarea"
-                                        style={{ height: '40px', minHeight: '40px', borderRadius: '6px' }}
                                         placeholder="Contoh: Kebutuhan operasional mingguan, perbaikan arsip..."
                                         value={formCatatan}
                                         onChange={e => setFormCatatan(e.target.value)}
@@ -1069,6 +1107,24 @@ export default function PermintaanUnit() {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {selectedOutOfStockItems.length > 0 && (
+                                        <div className="pu-alert-banner warning" style={{ marginTop: '10px' }}>
+                                            <AlertCircle size={16} color="#f59e0b" style={{ flexShrink: 0 }} />
+                                            <span>
+                                                {selectedOutOfStockItems.length} barang yang dipilih sedang kosong di gudang (<strong>{selectedOutOfStockItems.map(b => b.nama).slice(0, 3).join(', ')}</strong>). Permohonan tetap dapat diajukan dan item tersebut akan masuk status <strong>Sedang Diajukan (Antrean Pengadaan)</strong> hingga stok datang.
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {duplicatePendingItemNames.length > 0 && (
+                                        <div className="pu-alert-banner info" style={{ marginTop: '8px' }}>
+                                            <Clock size={16} color="#0ea5e9" style={{ flexShrink: 0 }} />
+                                            <span>
+                                                Catatan: Unit Anda sudah memiliki pengajuan aktif untuk <strong>{duplicatePendingItemNames.join(', ')}</strong> yang masih menunggu ACC / pengadaan.
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1077,7 +1133,7 @@ export default function PermintaanUnit() {
                                     Batal
                                 </button>
                                 <button type="submit" className="pu-btn primary" disabled={saving}>
-                                    <Send size={15} /> {saving ? 'Mengirim Permintaan...' : 'Kirim Pengajuan Permintaan'}
+                                    {saving ? 'Mengirim Permintaan...' : 'Kirim Pengajuan Permintaan'}
                                 </button>
                             </div>
                         </form>
@@ -1098,7 +1154,7 @@ export default function PermintaanUnit() {
                                     Detail Permintaan: {selectedReq.nomor}
                                 </h3>
                             </div>
-                            <button type="button" className="pu-action-btn" onClick={() => setShowDetailModal(false)}>
+                            <button type="button" className="pu-modal-close" onClick={() => setShowDetailModal(false)} aria-label="Tutup modal">
                                 <X size={16} />
                             </button>
                         </div>
@@ -1130,8 +1186,10 @@ export default function PermintaanUnit() {
                             {(() => {
                                 const authState = selectedReq.status === 'DITOLAK'
                                     ? 'rejected'
-                                    : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? 'done' : 'active');
-                                const handState = selectedReq.status === 'SELESAI' ? 'done' : 'pending';
+                                    : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'PROSES_SEBAGIAN' || selectedReq.status === 'SELESAI' ? 'done' : 'active');
+                                const handState = selectedReq.status === 'SELESAI'
+                                    ? 'done'
+                                    : (selectedReq.status === 'PROSES_SEBAGIAN' ? 'active' : 'pending');
                                 const renderAuditIcon = (state) => {
                                     if (state === 'done') return <CheckCircle2 size={14} className="pu-audit-icon" />;
                                     if (state === 'rejected') return <XCircle size={14} className="pu-audit-icon" />;
@@ -1162,7 +1220,11 @@ export default function PermintaanUnit() {
                                                 <span className="pu-audit-step-title">Penyerahan Fisik</span>
                                             </div>
                                             <span className="pu-audit-step-sub">
-                                                {selectedReq.status === 'SELESAI' ? (selectedReq.bon_pengeluaran_nomor || 'Selesai') : 'Loket Gudang'}
+                                                {selectedReq.status === 'SELESAI'
+                                                    ? (selectedReq.bon_pengeluaran_nomor || 'Selesai')
+                                                    : selectedReq.status === 'PROSES_SEBAGIAN'
+                                                        ? 'Bertahap / Menunggu Pengadaan'
+                                                        : 'Loket Gudang'}
                                             </span>
                                         </div>
                                     </div>
@@ -1194,10 +1256,11 @@ export default function PermintaanUnit() {
                                             <th>No</th>
                                             <th>Kode</th>
                                             <th>Nama Barang</th>
-                                            <th style={{ textAlign: 'right' }}>Qty Minta</th>
-                                            <th style={{ textAlign: 'right' }}>Qty Setuju</th>
+                                            <th style={{ textAlign: 'right' }}>Minta</th>
+                                            <th style={{ textAlign: 'right' }}>Setuju</th>
+                                            <th style={{ textAlign: 'right' }}>Diterima</th>
+                                            <th>Status Item</th>
                                             <th>Satuan</th>
-                                            <th>Keterangan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1205,22 +1268,44 @@ export default function PermintaanUnit() {
                                             <tr key={it.id}>
                                                 <td>{idx + 1}</td>
                                                 <td><span className="pu-code-badge">{it.barang_kode}</span></td>
-                                                <td><strong>{it.barang_nama}</strong></td>
-                                                <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td align="right" style={{ color: Number(it.qty_disetujui) > 0 ? '#10b981' : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'SELESAI' ? '#f43f5e' : '#94a3b8'), fontWeight: 700 }}>
-                                                    {selectedReq.status === 'MENUNGGU' || selectedReq.status === 'DRAFT'
-                                                        ? '-'
-                                                        : Number(it.qty_disetujui) > 0
-                                                            ? Number(it.qty_disetujui).toLocaleString('id-ID')
-                                                            : '0 (Ditolak)'}
+                                                <td>
+                                                    <strong>{it.barang_nama}</strong>
+                                                    {it.keterangan && (
+                                                        <small style={{ display: 'block', color: '#94a3b8' }}>Ket: {it.keterangan}</small>
+                                                    )}
+                                                    {it.alasan_tolak && (
+                                                        <small style={{ display: 'block', color: '#f87171', marginTop: '2px' }}>
+                                                            Alasan: {it.alasan_tolak}
+                                                        </small>
+                                                    )}
                                                 </td>
+                                                <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
+                                                <td align="right" style={{ color: Number(it.qty_disetujui) > 0 ? '#10b981' : '#94a3b8', fontWeight: 700 }}>
+                                                    {it.status === 'MENUNGGU'
+                                                        ? '-'
+                                                        : Number(it.qty_disetujui || 0).toLocaleString('id-ID')}
+                                                </td>
+                                                <td align="right">{Number(it.qty_dikeluarkan || 0).toLocaleString('id-ID')}</td>
+                                                <td>{renderItemStatusBadge(it)}</td>
                                                 <td>{it.satuan}</td>
-                                                <td><small style={{ color: '#94a3b8' }}>{it.keterangan || '-'}</small></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
+
+                            {selectedReq.pengeluaran_list && selectedReq.pengeluaran_list.length > 0 && (
+                                <div style={{ marginTop: '12px', fontSize: '12px', color: '#94a3b8' }}>
+                                    <strong style={{ display: 'block', marginBottom: '6px' }}>Riwayat Penyerahan Fisik:</strong>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {selectedReq.pengeluaran_list.map(bon => (
+                                            <span key={bon.id} className="pu-code-badge">
+                                                {bon.nomor} · {bon.tanggal}{bon.penerima_nama ? ` (${bon.penerima_nama})` : ''}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="pu-modal-footer">
@@ -1266,81 +1351,173 @@ export default function PermintaanUnit() {
             {/* ══════════════════════════════════════════════════════════════════════ */}
             {approveTarget && createPortal(
                 <div className="pu-modal-overlay" onClick={() => !approveSubmitting && setApproveTarget(null)}>
-                    <div className="pu-modal" style={{ maxWidth: '680px' }} onClick={e => e.stopPropagation()}>
+                    <div className="pu-modal" style={{ maxWidth: '1040px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
                                 <h3 className="pu-modal-title">
-                                    Verifikasi & Setujui Permintaan
+                                    Verifikasi &amp; Setujui Permintaan
                                 </h3>
                                 <div className="pu-modal-meta-row">
                                     <span className="pu-modal-meta-code">{approveTarget.nomor}</span>
                                     <span>Ruang: <strong>{approveTarget.ruang_nama}</strong></span>
                                 </div>
                             </div>
-                            <button type="button" className="pu-action-btn" onClick={() => setApproveTarget(null)}>
+                            <button type="button" className="pu-modal-close" onClick={() => setApproveTarget(null)} aria-label="Tutup modal">
                                 <X size={16} />
                             </button>
                         </div>
 
                         <div className="pu-modal-body">
-                            <p className="pu-modal-desc">
-                                Sesuaikan kuantitas yang disetujui berdasarkan stok gudang atau kuota unit.
-                            </p>
+                            <div className="pu-modal-meta-strip">
+                                <div className="pu-modal-meta-cell">
+                                    <span className="pu-modal-meta-label">Unit / Ruangan Pemohon</span>
+                                    <span className="pu-modal-meta-val" title={approveTarget.ruang_nama}>{approveTarget.ruang_nama}</span>
+                                </div>
+                                <div className="pu-modal-meta-cell">
+                                    <span className="pu-modal-meta-label">Tanggal Pengajuan</span>
+                                    <span className="pu-modal-meta-val pu-num-cell">{approveTarget.tanggal}</span>
+                                </div>
+                                <div className="pu-modal-meta-cell">
+                                    <span className="pu-modal-meta-label">Catatan dari Ruangan</span>
+                                    <span className="pu-modal-meta-val" title={approveTarget.catatan || '—'} style={{ fontWeight: approveTarget.catatan ? 500 : 400 }}>
+                                        {approveTarget.catatan || '—'}
+                                    </span>
+                                </div>
+                            </div>
 
                             <div className="pu-table-wrap">
                                 <table className="pu-table">
                                     <thead>
                                         <tr>
                                             <th>Barang</th>
-                                            <th style={{ textAlign: 'right' }}>Stok Gudang</th>
-                                            <th style={{ textAlign: 'right' }}>Qty Minta</th>
-                                            <th style={{ width: '130px', textAlign: 'center' }}>Qty Disetujui</th>
-                                            <th>Satuan</th>
+                                            <th style={{ textAlign: 'right' }}>Stok</th>
+                                            <th style={{ textAlign: 'right' }}>Minta</th>
+                                            <th style={{ width: '168px' }}>Keputusan</th>
+                                            <th style={{ width: '140px', textAlign: 'right' }}>Qty ACC</th>
+                                            <th style={{ width: '210px' }}>Keterangan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {approveItems.map((it, idx) => {
                                             const qtyVal = Number(it.qty_disetujui || 0);
                                             const stokVal = Number(it.stok_tersedia || 0);
-                                            const isOverStock = qtyVal > stokVal;
-                                            const isZeroOrLess = !it.qty_disetujui || qtyVal <= 0;
+                                            const isSetuju = it.keputusan === 'SETUJUI';
+                                            const isAjukan = it.keputusan === 'AJUKAN';
+                                            const isTolak = it.keputusan === 'TOLAK';
+                                            const isOverStock = isSetuju && qtyVal > stokVal;
+                                            const isBadZero = isSetuju && qtyVal <= 0;
+                                            const isMissingReason = isTolak && !String(it.catatan_verif || '').trim();
                                             return (
                                                 <tr key={it.id}>
                                                     <td>
                                                         <strong>{it.barang_nama}</strong>
-                                                        <small style={{ display: 'block', color: '#94a3b8' }}>{it.barang_kode}</small>
+                                                        <small style={{ display: 'block', color: 'var(--pu-muted)' }}>{it.barang_kode}</small>
                                                     </td>
-                                                    <td align="right" className={`pu-stock-cell ${it.stok_tersedia <= 0 ? 'empty' : ''}`}>
-                                                        {Number(it.stok_tersedia || 0).toLocaleString('id-ID')}
-                                                        {it.stok_tersedia <= 0 && <small style={{ display: 'block', fontSize: '10.5px', fontWeight: 500 }}>Habis</small>}
+                                                    <td
+                                                        align="right"
+                                                        className="pu-num-cell"
+                                                        style={{ color: stokVal <= 0 ? '#f43f5e' : 'var(--pu-text)', fontWeight: 600 }}
+                                                    >
+                                                        {stokVal.toLocaleString('id-ID')} {it.satuan}
                                                     </td>
-                                                    <td align="right" className="pu-num-cell">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                    <td align="center">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            max={it.stok_tersedia || 0}
-                                                            step="any"
-                                                            className={`pu-approve-qty-input ${isOverStock ? 'overstock' : isZeroOrLess ? 'zero' : 'normal'}`}
-                                                            value={it.qty_disetujui}
-                                                            onChange={(e) => {
-                                                                const next = [...approveItems];
-                                                                next[idx].qty_disetujui = e.target.value;
-                                                                setApproveItems(next);
-                                                            }}
-                                                        />
+                                                    <td align="right" className="pu-num-cell">{Number(it.qty_minta).toLocaleString('id-ID')} {it.satuan}</td>
+                                                    <td>
+                                                        <div className="gdg-decision-group">
+                                                            {stokVal > 0 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className={`gdg-decision-btn setuju ${isSetuju ? 'active' : ''}`}
+                                                                    onClick={() => {
+                                                                        const next = [...approveItems];
+                                                                        next[idx].keputusan = 'SETUJUI';
+                                                                        if (!Number(next[idx].qty_disetujui)) {
+                                                                            next[idx].qty_disetujui = Math.min(next[idx].qty_minta, stokVal);
+                                                                        }
+                                                                        setApproveItems(next);
+                                                                    }}
+                                                                >
+                                                                    Setujui
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    className={`gdg-decision-btn ajukan ${isAjukan ? 'active' : ''}`}
+                                                                    onClick={() => {
+                                                                        const next = [...approveItems];
+                                                                        next[idx].keputusan = 'AJUKAN';
+                                                                        next[idx].qty_disetujui = 0;
+                                                                        setApproveItems(next);
+                                                                    }}
+                                                                >
+                                                                    Pengadaan
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                className={`gdg-decision-btn tolak ${isTolak ? 'active' : ''}`}
+                                                                onClick={() => {
+                                                                    const next = [...approveItems];
+                                                                    next[idx].keputusan = 'TOLAK';
+                                                                    next[idx].qty_disetujui = 0;
+                                                                    setApproveItems(next);
+                                                                }}
+                                                            >
+                                                                Tolak
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td align="right">
+                                                        <div className="pu-acc-qty-cell">
+                                                            <input
+                                                                type="number"
+                                                                min={isSetuju ? '0.001' : '0'}
+                                                                max={isSetuju ? stokVal : undefined}
+                                                                step="any"
+                                                                disabled={!isSetuju}
+                                                                className={`pu-acc-qty-input ${(isOverStock || isBadZero) ? 'overstock' : ''}`}
+                                                                style={{
+                                                                    color: isSetuju
+                                                                        ? ((isOverStock || isBadZero) ? '#f87171' : '#10b981')
+                                                                        : undefined,
+                                                                    borderColor: (isOverStock || isBadZero) ? '#f87171' : undefined,
+                                                                }}
+                                                                value={isSetuju ? it.qty_disetujui : 0}
+                                                                onChange={(e) => {
+                                                                    const next = [...approveItems];
+                                                                    next[idx].qty_disetujui = e.target.value;
+                                                                    setApproveItems(next);
+                                                                }}
+                                                            />
+                                                            <span className="pu-acc-qty-unit">{it.satuan}</span>
+                                                        </div>
                                                         {isOverStock && (
                                                             <small style={{ display: 'block', color: '#f87171', fontSize: '10.5px', marginTop: '3px' }}>
                                                                 Melebihi stok!
                                                             </small>
                                                         )}
-                                                        {isZeroOrLess && !isOverStock && (
-                                                            <small style={{ display: 'block', color: '#94a3b8', fontSize: '10.5px', marginTop: '3px' }}>
-                                                                Tidak disetujui (0)
-                                                            </small>
-                                                        )}
                                                     </td>
-                                                    <td>{it.satuan}</td>
+                                                    <td>
+                                                        <input
+                                                            type="text"
+                                                            placeholder={isTolak ? 'Alasan ditolak (wajib)...' : 'Keterangan (opsional)...'}
+                                                            value={it.catatan_verif || ''}
+                                                            required={isTolak}
+                                                            onChange={(e) => {
+                                                                const next = [...approveItems];
+                                                                next[idx].catatan_verif = e.target.value;
+                                                                setApproveItems(next);
+                                                            }}
+                                                            className="pu-input-keterangan"
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '36px',
+                                                                minHeight: '36px',
+                                                                borderRadius: '6px',
+                                                                fontSize: '12.5px',
+                                                                borderColor: isMissingReason ? '#f87171' : undefined
+                                                            }}
+                                                        />
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -1348,17 +1525,14 @@ export default function PermintaanUnit() {
                                 </table>
                             </div>
 
-                            {approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                <div className="pu-alert-banner danger">
-                                    <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0 }} />
-                                    <span>Kuantitas yang disetujui melebihi stok gudang yang tersedia. Silakan kurangi kuantitas.</span>
-                                </div>
-                            )}
+                            <div className="pu-callout-neutral">
+                                Pengurangan qty yang disetujui (mis. minta 10, disetujui 4) langsung selesai tanpa membuat utang sisa. Item stok kosong dapat dipilih <strong>Pengadaan</strong> agar tetap tercatat menunggu stok masuk.
+                            </div>
 
-                            {approveItems.every(it => Number(it.qty_disetujui || 0) <= 0) && !approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) && (
-                                <div className="pu-alert-banner warning">
-                                    <AlertCircle size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
-                                    <span>Seluruh kuantitas bernilai 0. Minimal harus ada 1 barang yang disetujui (&gt; 0). Jika seluruh barang ditolak, gunakan tombol <strong>Tolak Permintaan</strong>.</span>
+                            {approveItems.some(it => it.keputusan === 'SETUJUI' && (Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0) || Number(it.qty_disetujui || 0) <= 0)) && (
+                                <div className="pu-alert-banner danger" style={{ marginTop: '10px' }}>
+                                    <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0 }} />
+                                    <span>Pastikan setiap item yang dipilih <strong>Setujui</strong> memiliki kuantitas &gt; 0 dan tidak melebihi stok gudang.</span>
                                 </div>
                             )}
                         </div>
@@ -1367,35 +1541,31 @@ export default function PermintaanUnit() {
                             <button
                                 type="button"
                                 className="pu-btn pu-btn-tolak-outline"
+                                style={{ height: '36px', borderRadius: '6px' }}
                                 onClick={() => {
                                     const target = approveTarget;
                                     setApproveTarget(null);
                                     handleOpenRejectModal(target);
                                 }}
                             >
-                                <X size={15} /> Tolak Permintaan
+                                Tolak Semua
                             </button>
                             <div className="pu-approve-modal-footer-right">
-                                <button type="button" className="pu-btn soft" onClick={() => setApproveTarget(null)}>
+                                <button type="button" className="pu-btn soft" style={{ height: '36px', borderRadius: '6px' }} onClick={() => setApproveTarget(null)}>
                                     Batal
                                 </button>
                                 <button
                                     type="button"
                                     className="pu-btn primary"
+                                    style={{ height: '36px', borderRadius: '6px' }}
                                     onClick={handleExecuteApprove}
                                     disabled={
                                         approveSubmitting ||
-                                        approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                        approveItems.every(it => Number(it.qty_disetujui || 0) <= 0)
-                                    }
-                                    style={
-                                        (approveItems.some(it => Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0)) ||
-                                         approveItems.every(it => Number(it.qty_disetujui || 0) <= 0))
-                                            ? { opacity: 0.5, cursor: 'not-allowed' }
-                                            : {}
+                                        approveItems.some(it => it.keputusan === 'SETUJUI' && (Number(it.qty_disetujui || 0) > Number(it.stok_tersedia || 0) || Number(it.qty_disetujui || 0) <= 0)) ||
+                                        approveItems.some(it => it.keputusan === 'TOLAK' && !String(it.catatan_verif || '').trim())
                                     }
                                 >
-                                    <Check size={15} /> {approveSubmitting ? 'Memproses...' : 'Setujui Permintaan Unit'}
+                                    {approveSubmitting ? 'Menyimpan...' : 'Simpan Verifikasi'}
                                 </button>
                             </div>
                         </div>
@@ -1412,7 +1582,7 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 className="pu-modal-title" style={{ color: '#fb7185' }}>
+                                <h3 className="pu-modal-title">
                                     Tolak Permintaan Barang
                                 </h3>
                                 <div className="pu-modal-meta-row">
@@ -1420,7 +1590,7 @@ export default function PermintaanUnit() {
                                     <span>Ruang: <strong>{rejectTarget.ruang_nama}</strong></span>
                                 </div>
                             </div>
-                            <button type="button" className="pu-action-btn" onClick={() => setRejectTarget(null)}>
+                            <button type="button" className="pu-modal-close" onClick={() => setRejectTarget(null)} aria-label="Tutup modal">
                                 <X size={16} />
                             </button>
                         </div>
@@ -1446,11 +1616,10 @@ export default function PermintaanUnit() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="pu-btn"
-                                    style={{ background: '#e11d48', color: '#fff' }}
+                                    className="pu-btn danger"
                                     disabled={rejectSubmitting}
                                 >
-                                    <X size={15} /> {rejectSubmitting ? 'Menolak...' : 'Tolak Permintaan'}
+                                    {rejectSubmitting ? 'Menolak...' : 'Tolak Permintaan'}
                                 </button>
                             </div>
                         </form>
@@ -1467,14 +1636,14 @@ export default function PermintaanUnit() {
                     <div className="pu-modal" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
                         <div className="pu-modal-header">
                             <div>
-                                <h3 className="pu-modal-title" style={{ color: '#f43f5e' }}>
+                                <h3 className="pu-modal-title">
                                     Hapus Permintaan Barang
                                 </h3>
                                 <p className="pu-modal-subtitle">
                                     Tindakan ini tidak dapat dibatalkan
                                 </p>
                             </div>
-                            <button type="button" className="pu-action-btn" onClick={() => setDeleteTarget(null)}>
+                            <button type="button" className="pu-modal-close" onClick={() => setDeleteTarget(null)} aria-label="Tutup modal">
                                 <X size={16} />
                             </button>
                         </div>
@@ -1491,12 +1660,11 @@ export default function PermintaanUnit() {
                             </button>
                             <button
                                 type="button"
-                                className="pu-btn"
-                                style={{ background: '#f43f5e', color: '#fff' }}
+                                className="pu-btn danger"
                                 onClick={handleExecuteDelete}
                                 disabled={deleteSubmitting}
                             >
-                                <Trash2 size={15} /> {deleteSubmitting ? 'Menghapus...' : 'Hapus Permanen'}
+                                {deleteSubmitting ? 'Menghapus...' : 'Hapus Permanen'}
                             </button>
                         </div>
                     </div>

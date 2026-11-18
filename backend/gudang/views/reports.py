@@ -184,14 +184,17 @@ class LaporanViewSet(viewsets.ViewSet):
             )
 
         results = []
-        total_belanja = Decimal('0.00')
+        total_belanja_bruto = Decimal('0.00')
+        total_diskon = Decimal('0.00')
         total_qty_dasar = Decimal('0.000')
         unique_grn = set()
 
         for item in qs:
-            total_belanja += item.subtotal
+            total_belanja_bruto += item.subtotal
             total_qty_dasar += item.qty_dasar
-            unique_grn.add(item.penerimaan_id)
+            if item.penerimaan_id not in unique_grn:
+                unique_grn.add(item.penerimaan_id)
+                total_diskon += Decimal(str(item.penerimaan.diskon_total or 0))
 
             results.append({
                 'id': item.id,
@@ -211,11 +214,15 @@ class LaporanViewSet(viewsets.ViewSet):
                 'subtotal': float(item.subtotal)
             })
 
+        total_belanja = max(Decimal('0.00'), total_belanja_bruto - total_diskon)
+
         return Response({
             'summary': {
                 'total_grn': len(unique_grn),
                 'total_item_baris': len(results),
                 'total_qty_dasar': float(total_qty_dasar),
+                'total_belanja_bruto': float(total_belanja_bruto),
+                'total_diskon': float(total_diskon),
                 'total_belanja': float(total_belanja)
             },
             'results': results

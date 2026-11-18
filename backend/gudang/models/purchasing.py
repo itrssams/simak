@@ -60,7 +60,7 @@ class SuratPesanan(models.Model):
         return f"{self.nomor} - {self.vendor_nama} ({self.status})"
 
     def recalculate_total(self):
-        total = sum([item.subtotal for item in self.items.all()])
+        total = sum((item.subtotal for item in self.items.all()), Decimal('0.00'))
         self.total_nilai = total
         self.save(update_fields=['total_nilai', 'updated_at'])
 
@@ -117,6 +117,9 @@ class Penerimaan(models.Model):
     no_faktur = models.CharField(max_length=100, blank=True)
     tgl_jatuh_tempo = models.DateField(null=True, blank=True)
     metode_pembayaran = models.CharField(max_length=20, default='Kredit')
+    subtotal_bruto = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    diskon_total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    diskon_items = models.JSONField(default=list, blank=True)
     total_nilai = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     tutup_po = models.BooleanField(default=True)
@@ -152,9 +155,19 @@ class Penerimaan(models.Model):
         return f"{self.nomor} - {self.vendor_nama} ({self.status})"
 
     def recalculate_total(self):
-        total = sum([item.subtotal for item in self.items.all()])
-        self.total_nilai = total
-        self.save(update_fields=['total_nilai', 'updated_at'])
+        bruto = sum((item.subtotal for item in self.items.all()), Decimal('0.00'))
+        if self.diskon_items:
+            diskon = sum((Decimal(str(d.get('nilai') or 0)) for d in self.diskon_items), Decimal('0.00'))
+        else:
+            diskon = Decimal(str(self.diskon_total or 0))
+        if diskon < Decimal('0.00'):
+            diskon = Decimal('0.00')
+        if diskon > bruto:
+            diskon = bruto
+        self.subtotal_bruto = bruto
+        self.diskon_total = diskon
+        self.total_nilai = max(Decimal('0.00'), bruto - diskon)
+        self.save(update_fields=['subtotal_bruto', 'diskon_total', 'total_nilai', 'updated_at'])
 
 
 class PenerimaanItem(models.Model):

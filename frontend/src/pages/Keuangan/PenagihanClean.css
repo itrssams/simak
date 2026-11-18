@@ -1,0 +1,2441 @@
+/* ==========================================================================
+   MODUL PENAGIHAN / INVOICE — 100% DESIGN.MD (Stripe / Linear Clean Enterprise)
+   Light Mode (#f8fafc canvas / #ffffff surface) & Dark Mode (#0b0d12 / #111318 / #181b23)
+   Zero backdrop-blur, flat full-bleed tables, 36px controls, 32px pagination, 28px action buttons
+   ========================================================================== */
+
+:is(
+  .idash-page,
+  .dki-page,
+  .inv-page:not(.log-page),
+  .ivf-page,
+  .ap-page,
+  .mp-page,
+  .dki-modal-backdrop,
+  .pen-modal-backdrop,
+  .ap-modal-backdrop,
+  .ap-confirm-backdrop,
+  .mp-modal-overlay
+) {
+  --pen-canvas: #f8fafc;
+  --pen-surface: #ffffff;
+  --pen-surface-2: #f1f5f9;
+  --pen-input: #ffffff;
+  --pen-modal: #ffffff;
+  --gdg-border: #e3e8ee;
+  --pen-border: #e3e8ee;
+  --pen-border-ctrl: #d8dee4;
+  --pen-text: #1a1f36;
+  --pen-muted: #697386;
+  --pen-faint: #8792a2;
+  --pen-accent: #635bff;
+  --pen-accent-hover: #5249f5;
+  --pen-hover: #f1f5f9;
+}
+
+[data-theme="dark"] :is(
+  .idash-page,
+  .dki-page,
+  .inv-page:not(.log-page),
+  .ivf-page,
+  .ap-page,
+  .mp-page,
+  .dki-modal-backdrop,
+  .pen-modal-backdrop,
+  .ap-modal-backdrop,
+  .ap-confirm-backdrop,
+  .mp-modal-overlay
+) {
+  --pen-canvas: #0b0d12;
+  --pen-surface: #111318;
+  --pen-surface-2: #181b23;
+  --pen-input: #181b23;
+  --pen-modal: #111318;
+  --gdg-border: rgba(255, 255, 255, 0.08);
+  --pen-border: rgba(255, 255, 255, 0.08);
+  --pen-border-ctrl: rgba(255, 255, 255, 0.14);
+  --pen-text: #f8fafc;
+  --pen-muted: #94a3b8;
+  --pen-faint: #64748b;
+  --pen-accent: #635bff;
+  --pen-accent-hover: #5249f5;
+  --pen-hover: rgba(255, 255, 255, 0.03);
+}
+
+/* ── Neutralize App Canvas Around Penagihan Module ────────────────────────── */
+[data-theme="dark"] :is(.app-shell, .body-shell, .content-shell, .main-content):has(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page
+) {
+  background: #0b0d12 !important;
+  background-color: #0b0d12 !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"] .app-shell:has(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page
+) :is(.topbar, .app-footer) {
+  background: #0b0d12 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] :is(.body-shell, .content-shell, .main-content):has(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page
+) {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+}
+
+[data-theme="light"] .app-shell:has(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page
+) :is(.topbar, .app-footer) {
+  background: #ffffff !important;
+  border-color: #e3e8ee !important;
+  box-shadow: none !important;
+}
+
+/* Neutralize root page containers across ALL 6 pages (Full-Bleed on Canvas) */
+.idash-page,
+.dki-page,
+.inv-page:not(.log-page),
+.ivf-page,
+.ap-page,
+.mp-page {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: calc(100vh - 96px) !important;
+  padding: 6px 8px 20px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: var(--pen-text) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page) {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+/* Remove backdrop blur anywhere inside Penagihan & its popovers/modals */
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .ap-confirm-backdrop, .mp-modal-overlay
+) * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:is(
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .ap-confirm-backdrop, .mp-modal-overlay
+) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Clean Page Headers (No Blue Icon Box) ───────────────────────────────── */
+:is(.idash-head, .dki-page .inv-hero, .inv-page:not(.log-page) .inv-hero, .ivf-page .inv-hero, .ap-head, .mp-head) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  flex-wrap: wrap !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:is(.idash-title, .dki-page .inv-title, .inv-page:not(.log-page) .inv-title, .ivf-page .inv-title, .ap-title, .mp-title) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+:is(
+  .idash-title > span,
+  .dki-page .inv-title > span,
+  .inv-page:not(.log-page) .inv-title > span,
+  .ivf-page .inv-title > span,
+  .ap-title > span,
+  .mp-title > span
+) {
+  display: none !important;
+}
+
+:is(.idash-title h1, .dki-page .inv-title h1, .inv-page:not(.log-page) .inv-title h1, .ivf-page .inv-title h1, .ap-title h1, .mp-title h1) {
+  margin: 0 !important;
+  font-size: 21px !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--pen-text) !important;
+}
+
+:is(.idash-title p, .dki-page .inv-title p, .inv-page:not(.log-page) .inv-title p, .ivf-page .inv-title p, .ap-title p, .mp-title p) {
+  display: block !important;
+  margin: 3px 0 0 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  color: var(--pen-muted) !important;
+}
+
+/* ── Unified Flat Horizontal Stat-Bar (No Separate Cards / Icon Boxes) ───── */
+:is(
+  .idash-summary-grid,
+  .dki-summary,
+  .inv-page:not(.log-page) .inv-summary,
+  .ivf-summary,
+  .ap-stats-grid,
+  .mp-stats-grid
+) {
+  display: grid !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.idash-summary-grid,
+.dki-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.inv-page:not(.log-page) .inv-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.ivf-summary,
+.ap-stats-grid,
+.mp-stats-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+:is(
+  .idash-metric,
+  .dki-summary-card,
+  .inv-page:not(.log-page) .inv-summary-card,
+  .ivf-summary-card,
+  .ap-stat-card,
+  .mp-stat-card
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 18px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  color: var(--pen-text) !important;
+  transform: none !important;
+}
+
+:is(
+  .idash-metric:first-child,
+  .dki-summary-card:first-child,
+  .inv-page:not(.log-page) .inv-summary-card:first-child,
+  .ivf-summary-card:first-child,
+  .ap-stat-card:first-child,
+  .mp-stat-card:first-child
+) {
+  padding-left: 0 !important;
+}
+
+:is(
+  .idash-metric + .idash-metric,
+  .dki-summary-card + .dki-summary-card,
+  .inv-page:not(.log-page) .inv-summary-card + .inv-summary-card,
+  .ivf-summary-card + .ivf-summary-card,
+  .ap-stat-card + .ap-stat-card,
+  .mp-stat-card + .mp-stat-card
+) {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+:is(
+  .idash-metric-icon,
+  .dki-summary-card > span,
+  .inv-page:not(.log-page) .inv-summary-card > span,
+  .ivf-summary-card > span,
+  .ap-stat-icon,
+  .mp-stat-icon
+) {
+  display: none !important;
+}
+
+:is(
+  .idash-metric-body,
+  .dki-summary-card > div,
+  .inv-summary-card-body,
+  .ivf-summary-card > div,
+  .ap-stat-info,
+  .mp-stat-info
+) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+:is(
+  .idash-metric-label,
+  .dki-summary-card small,
+  .inv-summary-card-body small,
+  .ivf-summary-card small,
+  .ap-stat-label,
+  .mp-stat-label
+) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--pen-muted) !important;
+  opacity: 1 !important;
+  line-height: 1.3 !important;
+}
+
+:is(
+  .idash-metric-value,
+  .dki-summary-card strong,
+  .inv-summary-card-body strong,
+  .ivf-summary-card strong,
+  .ap-stat-value,
+  .mp-stat-value
+) {
+  margin-top: 0 !important;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+.ap-stat-value.ok,
+.mp-stat-value.emerald {
+  color: #10b981 !important;
+}
+[data-theme="light"] .ap-stat-value.ok,
+[data-theme="light"] .mp-stat-value.emerald {
+  color: #059669 !important;
+}
+
+.ap-stat-value.warn,
+.mp-stat-value.amber {
+  color: #f59e0b !important;
+}
+[data-theme="light"] .ap-stat-value.warn,
+[data-theme="light"] .mp-stat-value.amber {
+  color: #d97706 !important;
+}
+
+:is(.idash-metric-note, .inv-summary-sub, .ap-stat-desc) {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--pen-muted) !important;
+  opacity: 1 !important;
+  margin-top: 0 !important;
+  line-height: 1.35 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.inv-summary-card-body .inv-summary-sub.overdue {
+  color: #f87171 !important;
+}
+[data-theme="light"] .inv-summary-card-body .inv-summary-sub.overdue {
+  color: #dc2626 !important;
+}
+
+@media (max-width: 1024px) {
+  .idash-summary-grid,
+  .dki-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .idash-metric:nth-child(3),
+  .dki-summary-card:nth-child(3) {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+  .idash-metric:nth-child(n+3),
+  .dki-summary-card:nth-child(n+3) {
+    border-top: 1px solid var(--gdg-border) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .idash-summary-grid,
+  .dki-summary,
+  .inv-page:not(.log-page) .inv-summary,
+  .ivf-summary,
+  .ap-stats-grid,
+  .mp-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  :is(.idash-metric, .dki-summary-card, .inv-page:not(.log-page) .inv-summary-card, .ivf-summary-card, .ap-stat-card, .mp-stat-card) {
+    padding: 12px 0 !important;
+    border-left: none !important;
+  }
+  :is(
+    .idash-metric + .idash-metric,
+    .dki-summary-card + .dki-summary-card,
+    .inv-page:not(.log-page) .inv-summary-card + .inv-summary-card,
+    .ivf-summary-card + .ivf-summary-card,
+    .ap-stat-card + .ap-stat-card,
+    .mp-stat-card + .mp-stat-card
+  ) {
+    border-left: none !important;
+    border-top: 1px solid var(--gdg-border) !important;
+  }
+}
+
+/* ── Dashboard Invoice Panels (Aging Piutang & Top Sisa Piutang: No Box-in-a-Box) ─ */
+.idash-grid {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr) !important;
+  gap: 20px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 1024px) {
+  .idash-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.idash-panel {
+  background: var(--pen-surface) !important;
+  border: 1px solid var(--gdg-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  padding: 16px 18px !important;
+}
+
+.idash-panel-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+.idash-panel-head h2 {
+  margin: 0 !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  color: var(--pen-text) !important;
+}
+
+.idash-panel-head p {
+  margin: 2px 0 0 !important;
+  font-size: 12px !important;
+  color: var(--pen-muted) !important;
+}
+
+.idash-panel-head svg {
+  color: var(--pen-muted) !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.idash-aging-list,
+.idash-top-list {
+  margin-top: 4px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+.idash-aging-row,
+.idash-top-item {
+  width: 100% !important;
+  min-height: 44px !important;
+  height: auto !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 6px !important;
+  gap: 12px !important;
+  color: var(--pen-text) !important;
+  transform: none !important;
+  transition: background-color 0.14s ease !important;
+}
+
+.idash-aging-row:last-child,
+.idash-top-item:last-child {
+  border-bottom: none !important;
+}
+
+.idash-aging-row:hover,
+.idash-top-item:hover {
+  background: var(--pen-hover) !important;
+  border-color: var(--gdg-border) !important;
+  transform: none !important;
+}
+
+.idash-aging-row > span,
+.idash-top-item > span {
+  width: 3px !important;
+  height: 22px !important;
+  border-radius: 999px !important;
+  flex-shrink: 0 !important;
+}
+
+.idash-aging-row {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.idash-aging-row > div {
+  flex: 1;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.idash-aging-row strong,
+.idash-top-item strong {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+}
+
+.idash-aging-row small {
+  margin: 0 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  white-space: nowrap !important;
+}
+
+.idash-top-item {
+  display: grid !important;
+  grid-template-columns: 3px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+}
+
+.idash-top-item small {
+  margin-top: 2px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: var(--pen-muted) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.idash-top-item b {
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+/* ── Full-Bleed Table Outer Containers (No Card Frame) ────────────────────── */
+:is(
+  .idash-card,
+  .dki-card,
+  .inv-page:not(.log-page) .inv-card,
+  .ivf-card,
+  .ap-card,
+  .mp-card
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+:is(
+  .idash-table-head,
+  .dki-card-head,
+  .inv-page:not(.log-page) .inv-card-head,
+  .ivf-card-head,
+  .ap-result-head
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 8px 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+:is(
+  .idash-table-head h2,
+  .dki-card-title h2,
+  .inv-page:not(.log-page) .inv-card-title h2,
+  .ivf-card-head h2,
+  .ap-result-head h2
+) {
+  margin: 0 !important;
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  color: var(--pen-text) !important;
+}
+
+:is(
+  .idash-table-head p,
+  .dki-card-title p,
+  .inv-page:not(.log-page) .inv-card-title p,
+  .ivf-card-head p,
+  .ap-result-head p
+) {
+  display: block !important;
+  margin: 2px 0 0 !important;
+  font-size: 12px !important;
+  color: var(--pen-muted) !important;
+}
+
+/* Toolbars / Filter Strips */
+:is(
+  .dki-page .dki-filter,
+  .inv-page:not(.log-page) .inv-filter,
+  .ivf-page .ivf-filter,
+  .mp-page .mp-toolbar
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 12px 0 !important;
+}
+
+/* Master Pembiayaan Underline Tabs */
+.mp-tab-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  width: 100% !important;
+}
+
+.mp-tab-btn {
+  position: relative !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 2px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--pen-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  gap: 8px !important;
+}
+
+.mp-tab-btn:hover:not(.active) {
+  background: transparent !important;
+  color: var(--pen-text) !important;
+}
+
+.mp-tab-btn.active {
+  background: transparent !important;
+  color: var(--pen-accent) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .mp-tab-btn.active {
+  color: #f8fafc !important;
+}
+
+.mp-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #635bff;
+}
+
+.mp-tab-badge {
+  background: var(--pen-surface-2) !important;
+  color: var(--pen-muted) !important;
+  border: 1px solid var(--gdg-border) !important;
+  padding: 1px 7px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.mp-tab-btn.active .mp-tab-badge {
+  background: rgba(99, 91, 255, 0.12) !important;
+  color: var(--pen-accent) !important;
+  border-color: rgba(99, 91, 255, 0.25) !important;
+}
+[data-theme="dark"] .mp-tab-btn.active .mp-tab-badge {
+  color: #a5b4fc !important;
+}
+
+/* Verifikasi Segmented Tabs */
+.ivf-tabs {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 36px !important;
+  padding: 3px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  gap: 3px !important;
+  box-shadow: none !important;
+}
+
+.ivf-tabs button {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 12px !important;
+  border-radius: 4px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.ivf-tabs button.active {
+  background: #635bff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+/* ── Uniform 36px Controls (Search, Input, Select w/ Custom Chevron, Date, Buttons) ── */
+:is(
+  .idash-page .idash-search,
+  .dki-page .dki-search,
+  .inv-page:not(.log-page) .dki-search,
+  .ivf-page .ivf-search,
+  .ap-page .ap-search,
+  .mp-page .mp-search,
+  .dki-modal-backdrop .dki-search,
+  .ap-modal-backdrop .ap-search
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  box-shadow: none !important;
+  padding: 0 10px !important;
+  gap: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.ap-search .ap-input,
+.ap-search input {
+  padding-left: 24px !important;
+}
+
+.ap-search svg {
+  left: 10px !important;
+}
+
+:is(
+  .idash-page .idash-search input,
+  .dki-page .dki-search input,
+  .inv-page:not(.log-page) .dki-search input,
+  .ivf-page .ivf-search input,
+  .ap-page .ap-search input,
+  .mp-page .mp-search input,
+  .dki-modal-backdrop .dki-search input,
+  .ap-modal-backdrop .ap-search input
+) {
+  height: 100% !important;
+  min-height: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .idash-page .idash-search:focus-within,
+  .dki-page .dki-search:focus-within,
+  .inv-page:not(.log-page) .dki-search:focus-within,
+  .ivf-page .ivf-search:focus-within,
+  .ap-page .ap-search:focus-within,
+  .mp-page .mp-search:focus-within
+) {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
+}
+
+/* Native <select> filters & modal <select>: 36px, border-radius: 6px, appearance: none + single chevron */
+:is(
+  .dki-page select.dki-select,
+  .inv-page:not(.log-page) select.dki-select,
+  .ap-page select.ap-select-native,
+  .mp-page select.mp-select,
+  .pen-modal-backdrop select.inv-input,
+  .ap-modal-backdrop select.ap-select-native
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 30px 0 11px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+[data-theme="dark"] :is(
+  .dki-page select.dki-select,
+  .inv-page:not(.log-page) select.dki-select,
+  .ap-page select.ap-select-native,
+  .mp-page select.mp-select,
+  .pen-modal-backdrop select.inv-input,
+  .ap-modal-backdrop select.ap-select-native
+) {
+  background-color: #181b23 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+:is(
+  .dki-page select.dki-select:focus,
+  .inv-page:not(.log-page) select.dki-select:focus,
+  .ap-page select.ap-select-native:focus,
+  .mp-page select.mp-select:focus,
+  .pen-modal-backdrop select.inv-input:focus,
+  .ap-modal-backdrop select.ap-select-native:focus
+) {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
+}
+
+:is(
+  .dki-page select option,
+  .inv-page:not(.log-page) select option,
+  .ap-page select option,
+  .mp-page select option,
+  .pen-modal-backdrop select option,
+  .ap-modal-backdrop select option
+) {
+  background-color: var(--pen-surface) !important;
+  color: var(--pen-text) !important;
+}
+
+/* Inline select in MasterPembiayaan */
+.mp-page select.mp-inline-induk-select {
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 0 26px 0 9px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 11px 11px !important;
+}
+
+[data-theme="dark"] .mp-page select.mp-inline-induk-select {
+  background-color: #181b23 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 11px 11px !important;
+}
+
+.mp-page select.mp-inline-induk-select.no-induk {
+  border-style: dashed !important;
+  color: var(--pen-muted) !important;
+}
+
+/* SearchablePembiayaanSelect (36px, neutral surfaces) */
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-select-control {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  padding: 0 10px !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-select-control:focus-within,
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-select-control.open {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-select-control input {
+  height: 100% !important;
+  min-height: 0 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--pen-text) !important;
+  background: transparent !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-options {
+  background: var(--pen-surface) !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-options button {
+  color: var(--pen-text) !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  font-size: 12.5px !important;
+  min-height: 34px !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-options button:hover,
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .pbiaya-options button.active {
+  background: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+/* DateRangePicker & DateField inside Penagihan (36px, border-radius: 6px, neutral) */
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger,
+.idash-page .idash-head-actions .drp-trigger {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 11px !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger .drp-label,
+.idash-page .idash-head-actions .drp-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger.has-value,
+.idash-page .idash-head-actions .drp-trigger.has-value {
+  border-color: rgba(99, 91, 255, 0.5) !important;
+  background: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-icon {
+  color: var(--pen-muted) !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .df-input {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 11px !important;
+}
+
+/* Ensure portaled DateRangePicker & DateField popovers use #111318/#181b23 in dark mode (overriding index.css) */
+[data-theme="dark"] .drp-popover,
+[data-theme="dark"] .df-popover {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: none !important;
+}
+
+[data-theme="dark"] .drp-preset-btn {
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] .drp-preset-btn.active,
+[data-theme="dark"] .drp-preset-btn:hover {
+  background: #635bff !important;
+  background-color: #635bff !important;
+  border-color: #635bff !important;
+}
+
+/* Primary & Secondary Toolbar / Modal Footer Buttons (36px, #635bff Solid Primary) */
+:is(
+  .dki-page .dki-primary,
+  .inv-page:not(.log-page) .inv-btn.primary,
+  .ap-page .ap-btn.primary,
+  .mp-page .mp-primary,
+  .dki-modal-backdrop .dki-primary,
+  .pen-modal-backdrop .inv-btn.primary,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.primary,
+  .pen-modal-backdrop .inv-pay-submit,
+  .ap-modal-backdrop .ap-btn.primary,
+  .mp-modal-overlay .mp-primary,
+  .mp-modal-overlay .mp-accent-btn
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  border: 1px solid #635bff !important;
+  background: #635bff !important;
+  background-color: #635bff !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:is(
+  .dki-page .dki-primary:hover:not(:disabled),
+  .inv-page:not(.log-page) .inv-btn.primary:hover:not(:disabled),
+  .ap-page .ap-btn.primary:hover:not(:disabled),
+  .mp-page .mp-primary:hover:not(:disabled),
+  .dki-modal-backdrop .dki-primary:hover:not(:disabled),
+  .pen-modal-backdrop .inv-btn.primary:hover:not(:disabled),
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.primary:hover:not(:disabled),
+  .pen-modal-backdrop .inv-pay-submit:hover:not(:disabled),
+  .ap-modal-backdrop .ap-btn.primary:hover:not(:disabled),
+  .mp-modal-overlay .mp-primary:hover:not(:disabled),
+  .mp-modal-overlay .mp-accent-btn:hover:not(:disabled)
+) {
+  background: #5249f5 !important;
+  border-color: #5249f5 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .inv-page:not(.log-page) .inv-btn.soft,
+  .dki-page .dki-filter-reset,
+  .ivf-page .ivf-reset,
+  .ap-page .ap-btn.soft,
+  .mp-page .mp-secondary,
+  .mp-page .mp-accent-btn,
+  .dki-modal-backdrop .dki-secondary,
+  .pen-modal-backdrop .inv-btn.soft,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.soft,
+  .ap-modal-backdrop .ap-btn.soft,
+  .ap-modal-backdrop .ap-filter-reset,
+  .ap-confirm-backdrop .ap-btn.soft,
+  .mp-modal-overlay .mp-secondary
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 13px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  background-image: none !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:is(
+  .inv-page:not(.log-page) .inv-btn.soft:hover:not(:disabled),
+  .dki-page .dki-filter-reset:hover,
+  .ivf-page .ivf-reset:hover,
+  .ap-page .ap-btn.soft:hover:not(:disabled),
+  .mp-page .mp-secondary:hover:not(:disabled),
+  .mp-page .mp-accent-btn:hover:not(:disabled),
+  .dki-modal-backdrop .dki-secondary:hover:not(:disabled),
+  .pen-modal-backdrop .inv-btn.soft:hover:not(:disabled),
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.soft:hover:not(:disabled),
+  .ap-modal-backdrop .ap-btn.soft:hover:not(:disabled),
+  .ap-modal-backdrop .ap-filter-reset:hover,
+  .ap-confirm-backdrop .ap-btn.soft:hover:not(:disabled),
+  .mp-modal-overlay .mp-secondary:hover:not(:disabled)
+) {
+  background: var(--pen-hover) !important;
+  border-color: #635bff !important;
+  color: var(--pen-text) !important;
+}
+
+.dki-chip {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  padding: 0 11px !important;
+  background: var(--pen-surface) !important;
+  border: 1px solid var(--gdg-border) !important;
+  color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+}
+
+/* Danger / Return / Excel buttons in Modals (36px) */
+:is(
+  .pen-modal-backdrop .inv-danger-btn,
+  .ap-confirm-backdrop .ap-danger-btn,
+  .mp-modal-overlay .mp-danger
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  border: 1px solid #dc2626 !important;
+  background: #dc2626 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-return-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  border: 1px solid #d97706 !important;
+  background: #d97706 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.pen-modal-backdrop .inv-btn.excel-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  border: 1px solid #059669 !important;
+  background: #059669 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+/* ── Full-Bleed Tables Across All 6 Pages ────────────────────────────────── */
+:is(
+  .idash-table-wrap,
+  .dki-table-wrap,
+  .inv-page:not(.log-page) .inv-table-wrap,
+  .ivf-table-wrap,
+  .ap-table-wrap,
+  .mp-table-wrap
+) {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .idash-table,
+  .dki-table,
+  .inv-page:not(.log-page) .inv-table,
+  .ivf-table,
+  .ap-table,
+  .mp-table
+) {
+  background: transparent !important;
+  color: var(--pen-text) !important;
+}
+
+:is(
+  .idash-table th,
+  .dki-table th,
+  .inv-page:not(.log-page) .inv-table th,
+  .ivf-table th,
+  .ap-table th,
+  .mp-table th
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 10px 12px !important;
+  height: 36px !important;
+}
+
+:is(
+  .idash-table td,
+  .dki-table td,
+  .inv-page:not(.log-page) .inv-table td,
+  .ivf-table td,
+  .ap-table td,
+  .mp-table td
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  padding: 11px 12px !important;
+  vertical-align: middle !important;
+}
+
+:is(
+  .idash-table tbody tr:hover td,
+  .dki-table tbody tr:hover td,
+  .inv-page:not(.log-page) .inv-table tbody tr:hover td,
+  .ivf-table tbody tr:hover td,
+  .ap-table tbody tr:hover td,
+  .mp-table tbody tr:hover td
+) {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+}
+
+:is(
+  .dki-table tbody tr.selected td,
+  .inv-page:not(.log-page) .inv-table tbody tr.inv-row-selected td,
+  .ap-master-table tbody tr.selected td
+) {
+  background: rgba(99, 91, 255, 0.08) !important;
+}
+
+:is(
+  .idash-name strong,
+  .dki-table td strong,
+  .inv-name-cell strong,
+  .ivf-table td strong,
+  .ap-name-cell strong,
+  .mp-name-cell strong,
+  .mp-induk-name-cell strong
+) {
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+:is(
+  .idash-name small,
+  .dki-table td small,
+  .inv-name-cell small,
+  .ivf-table td small,
+  .ap-table small
+) {
+  color: var(--pen-muted) !important;
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+}
+
+/* Remove blue icon boxes in front of Pembiayaan names (Dashboard & Master) */
+.idash-name > span,
+.mp-induk-avatar {
+  display: none !important;
+}
+
+/* Plain Tabular-Nums Counts & IDs (No Blue Pills) */
+.idash-pill,
+.ap-id-badge,
+.ap-activity-badge,
+.mp-id-badge,
+.mp-code-badge,
+.mp-members-count-pill {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+.ap-id-badge,
+.mp-id-badge,
+.mp-code-badge {
+  color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
+}
+
+.ap-strong {
+  color: var(--pen-text) !important;
+  font-weight: 600 !important;
+}
+
+.ap-operator-badge {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+}
+
+.idash-progress > div {
+  background: var(--pen-surface-2) !important;
+  height: 6px !important;
+}
+
+.idash-progress span {
+  background: #635bff !important;
+}
+
+.idash-progress small {
+  color: var(--pen-muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* ── Status Badges → 6px Status Dot + Flat Text ─────────────────────────── */
+:is(
+  .dki-badge,
+  .inv-page:not(.log-page) .inv-status,
+  .inv-verify-badge,
+  .ivf-verify-badge,
+  .ap-flow,
+  .ap-induk-pool-badge,
+  .mp-badge
+) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .dki-badge,
+  .inv-page:not(.log-page) .inv-status,
+  .inv-verify-badge,
+  .ivf-verify-badge,
+  .ap-flow,
+  .ap-induk-pool-badge
+)::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--pen-muted);
+}
+
+.mp-badge-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Emerald / Verified / Done / Paid / In / Active */
+:is(
+  .dki-badge.done,
+  .dki-badge.invoiced,
+  .inv-page:not(.log-page) .inv-status.lunas,
+  .inv-verify-badge.verified,
+  .ivf-verify-badge.terverifikasi,
+  .ap-flow.in,
+  .mp-badge.active
+) {
+  color: #059669 !important;
+}
+[data-theme="dark"] :is(
+  .dki-badge.done,
+  .dki-badge.invoiced,
+  .inv-page:not(.log-page) .inv-status.lunas,
+  .inv-verify-badge.verified,
+  .ivf-verify-badge.terverifikasi,
+  .ap-flow.in,
+  .mp-badge.active
+) {
+  color: #34d399 !important;
+}
+:is(
+  .dki-badge.done,
+  .dki-badge.invoiced,
+  .inv-page:not(.log-page) .inv-status.lunas,
+  .inv-verify-badge.verified,
+  .ivf-verify-badge.terverifikasi,
+  .ap-flow.in
+)::before,
+.mp-badge.active .mp-badge-dot {
+  background: #10b981 !important;
+}
+
+/* Indigo / Open / Partial / Induk Pool */
+:is(
+  .dki-badge.open,
+  .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .ap-induk-pool-badge
+) {
+  color: #4f46e5 !important;
+}
+[data-theme="dark"] :is(
+  .dki-badge.open,
+  .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .ap-induk-pool-badge
+) {
+  color: #818cf8 !important;
+}
+:is(
+  .dki-badge.open,
+  .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .ap-induk-pool-badge
+)::before {
+  background: #635bff !important;
+}
+
+/* Amber / Pending / Unpaid / Out */
+:is(
+  .dki-badge.pending,
+  .dki-badge.diluar-tanggungan,
+  .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .inv-verify-badge.pending,
+  .ap-flow.out,
+  .mp-badge.inactive
+) {
+  color: #d97706 !important;
+}
+[data-theme="dark"] :is(
+  .dki-badge.pending,
+  .dki-badge.diluar-tanggungan,
+  .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .inv-verify-badge.pending,
+  .ap-flow.out,
+  .mp-badge.inactive
+) {
+  color: #fbbf24 !important;
+}
+:is(
+  .dki-badge.pending,
+  .dki-badge.diluar-tanggungan,
+  .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .inv-verify-badge.pending,
+  .ap-flow.out
+)::before,
+.mp-badge.inactive .mp-badge-dot {
+  background: #f59e0b !important;
+}
+
+/* Danger / Canceled */
+:is(
+  .inv-page:not(.log-page) .inv-status.batal,
+  .inv-verify-badge.canceled,
+  .ivf-verify-badge.dibatalkan,
+  .ivf-verify-badge.ditolak
+) {
+  color: #dc2626 !important;
+}
+[data-theme="dark"] :is(
+  .inv-page:not(.log-page) .inv-status.batal,
+  .inv-verify-badge.canceled,
+  .ivf-verify-badge.dibatalkan,
+  .ivf-verify-badge.ditolak
+) {
+  color: #f87171 !important;
+}
+:is(
+  .inv-page:not(.log-page) .inv-status.batal,
+  .inv-verify-badge.canceled,
+  .ivf-verify-badge.dibatalkan,
+  .ivf-verify-badge.ditolak
+)::before {
+  background: #ef4444 !important;
+}
+
+/* Neutral Muted */
+.dki-badge.tidak-hadir {
+  color: var(--pen-muted) !important;
+}
+.dki-badge.tidak-hadir::before {
+  background: var(--pen-faint) !important;
+}
+
+/* ── Uniform 28px Neutral Table Action Buttons ───────────────────────────── */
+:is(
+  .idash-mini-btn,
+  .dki-icon-btn,
+  .inv-page:not(.log-page) .inv-action-btn,
+  .pen-modal-backdrop .inv-action-btn,
+  .pen-modal-backdrop .inv-icon-btn,
+  .ivf-icon,
+  .ivf-verify,
+  .ivf-unverify,
+  .ap-sm-btn,
+  .ap-modal-backdrop .ap-icon-btn,
+  .mp-mini-btn,
+  .mp-icon-btn,
+  .mp-danger-mini-btn
+) {
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  background-image: none !important;
+  color: var(--pen-text) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease, background-color 0.14s ease !important;
+}
+
+:is(
+  .dki-icon-btn,
+  .inv-page:not(.log-page) .inv-action-btn,
+  .pen-modal-backdrop .inv-action-btn,
+  .pen-modal-backdrop .inv-icon-btn,
+  .ivf-icon,
+  .ap-modal-backdrop .ap-icon-btn,
+  .mp-icon-btn
+) {
+  width: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+  color: var(--pen-muted) !important;
+}
+
+:is(.idash-mini-btn, .ivf-verify, .ivf-unverify, .ap-sm-btn, .mp-mini-btn, .mp-danger-mini-btn) {
+  padding: 0 10px !important;
+  white-space: nowrap !important;
+}
+
+:is(
+  .idash-mini-btn:hover:not(:disabled),
+  .dki-icon-btn:hover:not(:disabled),
+  .inv-page:not(.log-page) .inv-action-btn:hover:not(:disabled),
+  .pen-modal-backdrop .inv-action-btn:hover:not(:disabled),
+  .ivf-icon:hover:not(:disabled),
+  .ap-sm-btn:hover:not(:disabled),
+  .mp-mini-btn.kelola:hover:not(:disabled),
+  .mp-icon-btn.edit:hover:not(:disabled)
+) {
+  background: var(--pen-hover) !important;
+  border-color: #635bff !important;
+  color: var(--pen-text) !important;
+}
+
+:is(
+  .ivf-verify:hover:not(:disabled),
+  .pen-modal-backdrop .inv-icon-btn.verify:hover:not(:disabled),
+  .inv-page:not(.log-page) .inv-action-btn.send.sent:hover:not(:disabled),
+  .mp-mini-btn.reactivate:hover:not(:disabled)
+) {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+:is(
+  .ivf-unverify:hover:not(:disabled),
+  .inv-page:not(.log-page) .inv-action-btn.danger:hover:not(:disabled),
+  .pen-modal-backdrop .inv-action-btn.danger:hover:not(:disabled),
+  .pen-modal-backdrop .inv-icon-btn.danger:hover:not(:disabled),
+  .ap-modal-backdrop .ap-icon-btn.danger:hover:not(:disabled),
+  .mp-icon-btn.danger:hover:not(:disabled),
+  .mp-danger-mini-btn:hover:not(:disabled)
+) {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.inv-page:not(.log-page) .inv-action-btn.return:hover:not(:disabled) {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+
+/* ── Uniform 32px Square Pagination ──────────────────────────────────────── */
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) :is(.dki-pagination-wrap, .inv-pagination-wrap, .ivf-pagination-wrap, .mp-pagination) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 10px 0 0 !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-container {
+  padding: 12px 0 !important;
+  background: transparent !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-info {
+  color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-info strong {
+  color: var(--pen-text) !important;
+  font-weight: 600 !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-size-select {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 0 28px 0 10px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 11px 11px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-size-select {
+  background-color: #181b23 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 11px 11px !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-nav-group {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-nav-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-nav-btn:hover:not(:disabled) {
+  border-color: #635bff !important;
+  background: var(--pen-hover) !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-page-pill {
+  border: none !important;
+  height: 32px !important;
+  color: var(--pen-muted) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-page-pill strong {
+  color: var(--pen-text) !important;
+}
+
+/* ── Standardized Neutral Modals & Drawers (#111318 Dark / #ffffff Light) ── */
+:is(
+  .dki-modal-backdrop,
+  .pen-modal-backdrop,
+  .ap-modal-backdrop,
+  .ap-confirm-backdrop,
+  .mp-modal-overlay
+) {
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"] :is(
+  .dki-modal-backdrop,
+  .pen-modal-backdrop,
+  .ap-modal-backdrop,
+  .ap-confirm-backdrop,
+  .mp-modal-overlay
+) {
+  background: rgba(0, 0, 0, 0.65) !important;
+  background-image: none !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal,
+  .pen-modal-backdrop .inv-modal,
+  .pen-modal-backdrop .inv-modal.rekap-modal,
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .ap-modal-backdrop .ap-modal,
+  .ap-modal-backdrop .ap-create-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal
+) {
+  background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
+  background-image: none !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28) !important;
+  color: var(--pen-text) !important;
+  zoom: 1 !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal-head,
+  .pen-modal-backdrop .inv-modal-head,
+  .pen-modal-backdrop .inv-modal-head.compact,
+  .ap-modal-backdrop .ap-detail-head,
+  .mp-modal-overlay .mp-modal-head
+) {
+  background: var(--pen-modal) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 16px 20px !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal-head h2,
+  .pen-modal-backdrop .inv-modal-head h2,
+  .pen-modal-backdrop .inv-confirm-copy h2,
+  .ap-modal-backdrop .ap-detail-head h2,
+  .ap-confirm-backdrop .ap-confirm-copy h2,
+  .mp-modal-overlay .mp-modal-head h2,
+  .mp-modal-overlay .mp-confirm-head h3
+) {
+  color: var(--pen-text) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.mp-modal-overlay .mp-modal-title-with-badge h2 span.highlight {
+  color: #635bff !important;
+}
+[data-theme="dark"] .mp-modal-overlay .mp-modal-title-with-badge h2 span.highlight {
+  color: #a5b4fc !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal-head p,
+  .pen-modal-backdrop .inv-modal-head p,
+  .pen-modal-backdrop .inv-confirm-copy p,
+  .ap-modal-backdrop .ap-detail-head p,
+  .ap-confirm-backdrop .ap-confirm-copy p,
+  .mp-modal-overlay .mp-confirm-text
+) {
+  color: var(--pen-muted) !important;
+  font-size: 13px !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal-head > div > span,
+  .pen-modal-backdrop .inv-modal-head-icon
+) {
+  display: none !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-modal-head button,
+  .pen-modal-backdrop .inv-close,
+  .ap-modal-backdrop .ap-modal-close,
+  .mp-modal-overlay .mp-close-btn
+) {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-modal-body,
+  .pen-modal-backdrop #inv-create-form .inv-modal-body,
+  .pen-modal-backdrop .inv-detail-body,
+  .dki-modal-backdrop .dki-create-body,
+  .dki-modal-backdrop .dki-detail-body,
+  .ap-modal-backdrop .ap-create-form,
+  .mp-modal-overlay .mp-modal-body
+) {
+  background: var(--pen-modal) !important;
+  background-image: none !important;
+  color: var(--pen-text) !important;
+  padding: 18px 20px !important;
+}
+
+/* Modal Inputs & Textareas (36px inputs, border-radius: 6px, #181b23 dark / #ffffff light) */
+:is(
+  .dki-modal-backdrop .dki-field input,
+  .pen-modal-backdrop input.inv-input,
+  .pen-modal-backdrop textarea.inv-input,
+  .ap-modal-backdrop input.ap-input,
+  .ap-modal-backdrop textarea.ap-input,
+  .mp-modal-overlay input.mp-input,
+  .mp-modal-overlay textarea.mp-input,
+  .mp-modal-overlay .mp-search-mini
+) {
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-field input,
+  .pen-modal-backdrop input.inv-input,
+  .ap-modal-backdrop input.ap-input,
+  .mp-modal-overlay input.mp-input,
+  .mp-modal-overlay .mp-search-mini
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 11px !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-field input:focus,
+  .pen-modal-backdrop .inv-input:focus,
+  .ap-modal-backdrop .ap-input:focus,
+  .mp-modal-overlay .mp-input:focus
+) {
+  border-color: #635bff !important;
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-field input[readonly],
+  .pen-modal-backdrop .inv-input:read-only,
+  .pen-modal-backdrop .inv-input:disabled
+) {
+  background: var(--pen-surface-2) !important;
+  color: var(--pen-muted) !important;
+}
+
+/* Remove Box-in-a-Box inside Modals (Detail Invoice, Detail Kunjungan, Ledger, Rekap) */
+:is(
+  .pen-modal-backdrop .inv-detail-section,
+  .pen-modal-backdrop .inv-payment-card,
+  .pen-modal-backdrop .inv-history-section .inv-table-wrap,
+  .pen-modal-backdrop .rekap-picker-card,
+  .mp-modal-overlay .mp-add-member-panel,
+  .mp-modal-overlay .mp-auto-group-card,
+  .mp-modal-overlay .mp-member-table-container
+) {
+  background: var(--pen-surface-2) !important;
+  background-image: none !important;
+  border: 1px solid var(--gdg-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-detail-section,
+.pen-modal-backdrop .inv-payment-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 0 0 16px !important;
+}
+
+.pen-modal-backdrop .inv-history-section {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-info-item,
+  .pen-modal-backdrop .inv-cost-card,
+  .pen-modal-backdrop .inv-visit-row,
+  .pen-modal-backdrop .inv-confirm-detail,
+  .pen-modal-backdrop .inv-sent-info-grid > div,
+  .pen-modal-backdrop .inv-check,
+  .dki-modal-backdrop .dki-info,
+  .dki-modal-backdrop .dki-cost,
+  .dki-modal-backdrop .dki-invoice-search,
+  .dki-modal-backdrop .dki-invoice-result-panel,
+  .ap-confirm-backdrop .ap-confirm-detail
+) {
+  background: var(--pen-surface-2) !important;
+  background-image: none !important;
+  border: 1px solid var(--gdg-border) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-info-item span,
+  .pen-modal-backdrop .inv-confirm-detail span,
+  .pen-modal-backdrop .inv-sent-info-grid span,
+  .dki-modal-backdrop .dki-info small,
+  .dki-modal-backdrop .dki-cost small,
+  .ap-confirm-backdrop .ap-confirm-detail span
+) {
+  color: var(--pen-muted) !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-info-item strong,
+  .pen-modal-backdrop .inv-confirm-detail strong,
+  .pen-modal-backdrop .inv-sent-info-grid strong,
+  .dki-modal-backdrop .dki-info strong,
+  .dki-modal-backdrop .dki-cost strong,
+  .ap-confirm-backdrop .ap-confirm-detail strong
+) {
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Detail Invoice Balance Strip & Pay Summary -> Clean Flat Stat Strips */
+.pen-modal-backdrop .inv-balance-strip,
+.pen-modal-backdrop .inv-pay-summary,
+.ap-modal-backdrop .ap-modal-stats {
+  background: transparent !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  padding: 10px 0 !important;
+  gap: 0 !important;
+}
+
+.pen-modal-backdrop .inv-balance-strip > span,
+.pen-modal-backdrop .inv-pay-summary > div,
+.ap-modal-backdrop .ap-modal-stats > span {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 6px 14px !important;
+}
+
+.pen-modal-backdrop .inv-balance-strip > span:first-child,
+.pen-modal-backdrop .inv-pay-summary > div:first-child,
+.ap-modal-backdrop .ap-modal-stats > span:first-child {
+  padding-left: 0 !important;
+}
+
+.pen-modal-backdrop .inv-balance-strip > span + span,
+.pen-modal-backdrop .inv-pay-summary > div + div,
+.ap-modal-backdrop .ap-modal-stats > span + span {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+.pen-modal-backdrop .inv-total-box {
+  background: var(--pen-surface-2) !important;
+  background-image: none !important;
+  border: 1px solid var(--gdg-border) !important;
+  border-radius: 8px !important;
+  color: var(--pen-text) !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-total-box strong {
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Ledger table inside AlokasiPembiayaan Modal */
+.ap-modal-backdrop .ap-ledger-tools {
+  background: var(--pen-modal) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  padding: 12px 20px !important;
+}
+
+.ap-modal-backdrop .ap-modal-table {
+  background: var(--pen-modal) !important;
+  padding: 0 20px 12px !important;
+}
+
+.ap-modal-backdrop .ap-table th {
+  background: var(--pen-modal) !important;
+  color: var(--pen-muted) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+.ap-modal-backdrop .ap-ledger-row td {
+  background: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  color: var(--pen-text) !important;
+}
+
+.ap-modal-backdrop .ap-ledger-row:hover td {
+  background: var(--pen-hover) !important;
+}
+
+.ap-modal-backdrop .ap-ledger-date,
+.ap-modal-backdrop .ap-ref-cell,
+.ap-modal-backdrop .ap-note-cell {
+  color: var(--pen-text) !important;
+}
+
+/* Tipe selector in AlokasiPembiayaan Modal */
+.ap-modal-backdrop .ap-tipe-btn {
+  background: var(--pen-input) !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  border-radius: 8px !important;
+}
+
+.ap-modal-backdrop .ap-tipe-btn.active {
+  background: rgba(99, 91, 255, 0.1) !important;
+  border-color: #635bff !important;
+  box-shadow: none !important;
+}
+
+.ap-modal-backdrop .ap-tipe-icon {
+  background: var(--pen-surface-2) !important;
+  border: 1px solid var(--gdg-border) !important;
+  color: var(--pen-muted) !important;
+}
+
+.ap-modal-backdrop .ap-tipe-btn.active .ap-tipe-icon {
+  background: #635bff !important;
+  border-color: #635bff !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.ap-modal-backdrop .ap-tipe-text strong,
+.ap-modal-backdrop .ap-tipe-btn.active strong {
+  color: var(--pen-text) !important;
+}
+
+.ap-modal-backdrop .ap-tipe-text small {
+  color: var(--pen-muted) !important;
+}
+
+/* Signer pill & print buttons in InvoicePembiayaan Detail Header */
+.pen-modal-backdrop .inv-signer-box {
+  background: var(--pen-surface-2) !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  border-radius: 6px !important;
+  height: 34px !important;
+}
+
+.pen-modal-backdrop .inv-signer-toggle {
+  background: transparent !important;
+}
+
+.pen-modal-backdrop .inv-signer-pill {
+  border-radius: 4px !important;
+  color: var(--pen-muted) !important;
+}
+
+.pen-modal-backdrop .inv-signer-pill.active {
+  background: #635bff !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-print-btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop .inv-print-btn:hover {
+  border-color: #635bff !important;
+  background: var(--pen-hover) !important;
+}
+
+/* COB Box Semantic Styles (Light & Dark Safe) */
+.pen-cob-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--pen-surface-2);
+  border: 1px solid var(--gdg-border);
+  border-radius: 8px;
+}
+
+.pen-cob-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pen-text);
+}
+
+.pen-cob-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #635bff;
+}
+
+.pen-cob-fields {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.pen-cob-summary {
+  padding: 10px 12px;
+  background: var(--pen-surface);
+  border: 1px solid var(--gdg-border);
+  border-radius: 6px;
+  font-size: 12.5px;
+  display: grid;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pen-cob-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--pen-muted);
+}
+
+.pen-cob-row.bpjs {
+  color: #dc2626;
+}
+[data-theme="dark"] .pen-cob-row.bpjs {
+  color: #f87171;
+}
+
+.pen-cob-row.net {
+  border-top: 1px solid var(--gdg-border);
+  padding-top: 6px;
+  margin-top: 2px;
+  color: #059669;
+  font-weight: 700;
+}
+[data-theme="dark"] .pen-cob-row.net {
+  color: #34d399;
+}
+
+/* Right-Aligned Modal Footers Across All Penagihan Modals */
+:is(
+  .dki-modal-backdrop .dki-modal-actions,
+  .pen-modal-backdrop .inv-modal-actions,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions,
+  [data-theme="dark"] .pen-modal-backdrop #inv-create-form .inv-modal-actions,
+  .pen-modal-backdrop .inv-confirm-actions,
+  .pen-modal-backdrop .rekap-actions,
+  .ap-modal-backdrop .ap-create-actions,
+  .ap-confirm-backdrop .ap-confirm-actions,
+  .mp-modal-overlay .mp-modal-actions
+) {
+  background: var(--pen-modal) !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 20px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.pen-modal-backdrop .inv-confirm-actions,
+.ap-confirm-backdrop .ap-confirm-actions,
+.mp-modal-overlay .mp-modal-actions.confirm {
+  padding: 14px 0 0 !important;
+  margin-top: 14px !important;
+}
+
+.pen-modal-backdrop .inv-modal-actions > .inv-btn.soft:first-child,
+.pen-modal-backdrop .rekap-actions > .inv-btn.soft:first-child {
+  margin-right: 0 !important;
+}
+
+:is(
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn,
+  .pen-modal-backdrop .inv-modal-actions .inv-btn,
+  .pen-modal-backdrop .inv-confirm-actions button,
+  .pen-modal-backdrop .rekap-actions button
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+
+/* Checkboxes & Inline Modals Polish */
+.dki-page .dki-check span {
+  background: var(--pen-input) !important;
+  border-color: var(--pen-border-ctrl) !important;
+}
+
+.dki-page .dki-check input:checked + span {
+  background: #635bff !important;
+  border-color: #635bff !important;
+}
+
+.inv-page:not(.log-page) .inv-check-col input {
+  accent-color: #635bff !important;
+}
+
+.dki-modal-backdrop .dki-invoice-result {
+  background: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  color: var(--pen-text) !important;
+}
+
+.dki-modal-backdrop .dki-invoice-result:hover,
+.dki-modal-backdrop .dki-invoice-result.selected {
+  background: rgba(99, 91, 255, 0.08) !important;
+}
+
+.dki-modal-backdrop .dki-invoice-result.selected {
+  box-shadow: inset 3px 0 0 #635bff !important;
+}
+
+.dki-modal-backdrop .dki-invoice-no,
+.dki-modal-backdrop .dki-invoice-amount {
+  color: var(--pen-text) !important;
+}
+
+.dki-modal-backdrop .dki-invoice-name,
+.dki-modal-backdrop .dki-invoice-result-head span,
+.dki-modal-backdrop .dki-invoice-result-head small,
+.dki-modal-backdrop .dki-empty-result {
+  color: var(--pen-muted) !important;
+}
+
+.dki-modal-backdrop .dki-invoice-result-head {
+  background: var(--pen-surface-2) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+.dki-modal-backdrop .dki-new-pembiayaan {
+  background: var(--pen-surface-2) !important;
+  border-color: var(--pen-border-ctrl) !important;
+  border-radius: 6px !important;
+}
+
+.dki-modal-backdrop .dki-link-btn {
+  color: #635bff !important;
+}
+[data-theme="dark"] .dki-modal-backdrop .dki-link-btn {
+  color: #a5b4fc !important;
+}
+
+.pen-modal-backdrop .inv-pay-locked {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  border-radius: 6px !important;
+  color: #b45309 !important;
+}
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-locked {
+  color: #fbbf24 !important;
+}
+
+.pen-modal-backdrop .inv-cost-label > span {
+  background: transparent !important;
+  color: var(--pen-muted) !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.mp-modal-overlay .mp-table,
+.mp-modal-overlay .mp-table th,
+.mp-modal-overlay .mp-table td {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  color: var(--pen-text) !important;
+}
+
+.mp-modal-overlay .mp-table th {
+  color: var(--pen-muted) !important;
+}
+
+.mp-modal-overlay .mp-auto-group-banner {
+  background: rgba(99, 91, 255, 0.08) !important;
+  border: 1px solid rgba(99, 91, 255, 0.25) !important;
+  border-radius: 8px !important;
+  color: var(--pen-text) !important;
+}
+
+.mp-modal-overlay .mp-auto-group-title,
+.mp-modal-overlay .mp-member-list-header h3 {
+  color: var(--pen-text) !important;
+}
+
+.mp-modal-overlay .mp-auto-group-count {
+  background: rgba(99, 91, 255, 0.12) !important;
+  color: #635bff !important;
+  border-radius: 6px !important;
+}
+[data-theme="dark"] .mp-modal-overlay .mp-auto-group-count {
+  color: #a5b4fc !important;
+}
+
+.mp-modal-overlay .mp-search-mini input {
+  color: var(--pen-text) !important;
+  background: transparent !important;
+  border: none !important;
+}
+

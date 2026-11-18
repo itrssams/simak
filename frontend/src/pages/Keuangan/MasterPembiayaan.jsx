@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { getResults, SimplePagination } from '../../utils/pagination.jsx';
 import SearchablePembiayaanSelect from '../../components/SearchablePembiayaanSelect';
 import './MasterPembiayaan.css';
+import './PenagihanClean.css';
 
 const emptyForm = { nama: '', alamat: '' };
 const emptyIndukForm = { nama: '', kode: '', keterangan: '' };
@@ -408,7 +409,6 @@ export default function MasterPembiayaan() {
             {/* Header */}
             <div className="mp-head">
                 <div className="mp-title">
-                    <span className="mp-title-icon"><Building2 size={24} /></span>
                     <div>
                         <h1>Master Pembiayaan & Induk Asuransi</h1>
                         <p>Kelola daftar instansi, asuransi anak, dan grouping Induk Pembiayaan (TPA/Payor Group).</p>
@@ -460,21 +460,18 @@ export default function MasterPembiayaan() {
             {/* Summary Stat Cards */}
             <div className="mp-stats-grid">
                 <div className="mp-stat-card">
-                    <div className="mp-stat-icon total"><Layers size={20} /></div>
                     <div className="mp-stat-info">
                         <span className="mp-stat-label">Total Induk (Group)</span>
                         <strong className="mp-stat-value">{stats.totalInduk} Induk</strong>
                     </div>
                 </div>
                 <div className="mp-stat-card">
-                    <div className="mp-stat-icon active"><CheckCircle2 size={20} /></div>
                     <div className="mp-stat-info">
                         <span className="mp-stat-label">Pembiayaan Tergabung Induk</span>
                         <strong className="mp-stat-value emerald">{stats.mapped}</strong>
                     </div>
                 </div>
                 <div className="mp-stat-card">
-                    <div className="mp-stat-icon inactive"><AlertTriangle size={20} /></div>
                     <div className="mp-stat-info">
                         <span className="mp-stat-label">Pembiayaan Mandiri (Tanpa Induk)</span>
                         <strong className="mp-stat-value amber">{stats.unmapped}</strong>
@@ -527,7 +524,6 @@ export default function MasterPembiayaan() {
                                         <td><span className="mp-id-badge">{idx + 1}</span></td>
                                         <td>
                                             <div className="mp-induk-name-cell">
-                                                <div className="mp-induk-avatar"><Building2 size={16} /></div>
                                                 <div>
                                                     <strong>{induk.nama}</strong>
                                                 </div>
@@ -540,7 +536,6 @@ export default function MasterPembiayaan() {
                                         </td>
                                         <td>
                                             <div className="mp-members-count-pill">
-                                                <Users size={14} />
                                                 <span><strong>{induk.total_anggota || 0}</strong> Pembiayaan</span>
                                             </div>
                                         </td>
@@ -602,8 +597,8 @@ export default function MasterPembiayaan() {
                         </label>
                         <select className="mp-select" value={indukFilter} onChange={(e) => setIndukFilter(e.target.value)}>
                             <option value="semua">Semua Induk (Group)</option>
-                            <option value="mapped">✅ Tergabung dalam Induk</option>
-                            <option value="unmapped">⚠️ Mandiri (Tanpa Induk)</option>
+                            <option value="mapped">Tergabung dalam Induk</option>
+                            <option value="unmapped">Mandiri (Tanpa Induk)</option>
                             <optgroup label="Pilih Berdasarkan Induk">
                                 {indukList.map(ind => (
                                     <option key={ind.id} value={ind.id}>{ind.nama}</option>
@@ -655,7 +650,7 @@ export default function MasterPembiayaan() {
                                                 >
                                                     <option value="">— Mandiri (Tanpa Induk) —</option>
                                                     {indukList.map(ind => (
-                                                        <option key={ind.id} value={ind.id}>🏢 {ind.nama}</option>
+                                                        <option key={ind.id} value={ind.id}>{ind.nama}</option>
                                                     ))}
                                                 </select>
                                             </td>
@@ -726,7 +721,7 @@ export default function MasterPembiayaan() {
                             {/* Tambah Anggota Baru */}
                             <div className="mp-add-member-panel">
                                 <div className="mp-form-group flex-1">
-                                    <span>➕ Masukkan Pembiayaan Anak ke Induk Ini</span>
+                                    <span>Masukkan Pembiayaan Anak ke Induk Ini</span>
                                     <SearchablePembiayaanSelect
                                         options={[
                                             { value: '', label: '-- Pilih Pembiayaan untuk Ditambahkan --' },
@@ -822,7 +817,7 @@ export default function MasterPembiayaan() {
                     <div className="mp-modal wide">
                         <div className="mp-modal-head">
                             <div className="mp-modal-title-with-badge">
-                                <h2>⚡ Saran Pengelompokan Otomatis (Auto-Group)</h2>
+                                <h2>Saran Pengelompokan Otomatis (Auto-Group)</h2>
                             </div>
                             <button type="button" className="mp-close-btn" onClick={() => setAutoGroupModal(false)} disabled={autoGroupLoading}><X size={18} /></button>
                         </div>

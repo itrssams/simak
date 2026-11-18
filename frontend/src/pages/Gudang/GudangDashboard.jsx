@@ -7,6 +7,9 @@ import {
     Inbox,
     History,
     Eye,
+    BellRing,
+    Clock,
+    CheckCircle2,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -23,6 +26,11 @@ export default function GudangDashboard() {
     });
     const [lowStockItems, setLowStockItems] = useState([]);
     const [pendingCount, setPendingCount] = useState(0);
+    const [procurementAlerts, setProcurementAlerts] = useState({
+        counts: { total_sedang_diajukan: 0, ready_count: 0, awaiting_count: 0, can_approve_followup: false },
+        ready_for_followup: [],
+        awaiting_stock: [],
+    });
 
     // Permintaan Unit states
     const [permintaanList, setPermintaanList] = useState([]);
@@ -35,10 +43,11 @@ export default function GudangDashboard() {
 
     const fetchSummary = async () => {
         try {
-            const [resSummary, resLow, resPending] = await Promise.allSettled([
+            const [resSummary, resLow, resPending, resAlerts] = await Promise.allSettled([
                 api.get('/gudang/barang/ringkasan_stok/'),
                 api.get('/gudang/barang/?page_size=50'),
                 api.get('/gudang/permintaan/?status=MENUNGGU&page_size=1'),
+                api.get('/gudang/permintaan/procurement-alerts/'),
             ]);
 
             if (resSummary.status === 'fulfilled') {
@@ -52,6 +61,10 @@ export default function GudangDashboard() {
 
             if (resPending.status === 'fulfilled') {
                 setPendingCount(resPending.value.data?.count || 0);
+            }
+
+            if (resAlerts.status === 'fulfilled' && resAlerts.value.data) {
+                setProcurementAlerts(resAlerts.value.data);
             }
         } catch (err) {
             console.error('Failed to load gudang summary', err);
@@ -135,6 +148,12 @@ export default function GudangDashboard() {
                         <span className="gdg-status-dot" /> Disetujui (Siap Bon)
                     </span>
                 );
+            case 'PROSES_SEBAGIAN':
+                return (
+                    <span className="gdg-status-text cyan" title="Dalam Proses: Sebagian/Seluruh Item Menunggu Pengadaan Stok">
+                        <span className="gdg-status-dot" /> Menunggu Pengadaan
+                    </span>
+                );
             case 'SELESAI':
                 return (
                     <span className="gdg-status-text emerald" title="Barang Telah Diserahkan Penuh">
@@ -191,6 +210,145 @@ export default function GudangDashboard() {
                     </strong>
                 </div>
             </div>
+
+            {/* ── Alert Antrean Pengadaan & Verifikasi Susulan (Mas Febri) ── */}
+            {(procurementAlerts.ready_for_followup?.length > 0 || procurementAlerts.awaiting_stock?.length > 0) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {procurementAlerts.ready_for_followup?.length > 0 && (
+                        <section className="gdg-dash-section">
+                            <div className="gdg-out-banner success" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <CheckCircle2 size={17} style={{ color: '#10b981', flexShrink: 0 }} />
+                                    <div>
+                                        <strong style={{ display: 'block', fontSize: '13.5px' }}>
+                                            Stok Baru Masuk: {procurementAlerts.ready_for_followup.length} item pengajuan siap Verifikasi Susulan (ACC Mas Febri)
+                                        </strong>
+                                        <span style={{ fontSize: '12px', color: 'var(--gdg-muted)' }}>
+                                            Item berstatus <em>Sedang Diajukan</em> kini memiliki stok fisik di gudang. Segera tentukan kuantitas yang disetujui untuk penyerahan tahap berikutnya.
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="gdg-btn-stripe primary"
+                                    onClick={() => navigate('/gudang/pengeluaran?status=PROSES_SEBAGIAN')}
+                                >
+                                    Proses ACC Susulan
+                                </button>
+                            </div>
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
+                                    <thead>
+                                        <tr>
+                                            <th>No. Permintaan</th>
+                                            <th>Unit / Ruangan</th>
+                                            <th>Barang</th>
+                                            <th style={{ textAlign: 'right' }}>Qty Diminta</th>
+                                            <th style={{ textAlign: 'right' }}>Stok Masuk Kini</th>
+                                            <th style={{ textAlign: 'right' }}>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {procurementAlerts.ready_for_followup.slice(0, 6).map((item) => (
+                                            <tr key={item.id}>
+                                                <td className="gdg-code-cell">{item.permintaan_nomor}</td>
+                                                <td>{item.ruang_nama}</td>
+                                                <td>
+                                                    <strong>{item.barang_nama}</strong>
+                                                    <span className="gdg-cell-muted" style={{ marginLeft: '6px', fontSize: '11.5px' }}>({item.barang_kode})</span>
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
+                                                    {Number(item.qty_minta).toLocaleString('id-ID')} {item.satuan}
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>
+                                                    {Number(item.stok_tersedia).toLocaleString('id-ID')} {item.satuan}
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="gdg-btn-stripe secondary"
+                                                        style={{ height: '28px', padding: '0 10px', fontSize: '12px' }}
+                                                        onClick={() => navigate(`/gudang/pengeluaran?status=PROSES_SEBAGIAN&permintaan=${item.permintaan_id}`)}
+                                                    >
+                                                        ACC Susulan
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    )}
+
+                    {procurementAlerts.awaiting_stock?.length > 0 && (
+                        <section className="gdg-dash-section">
+                            <div className="gdg-out-banner warning" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <BellRing size={16} style={{ flexShrink: 0 }} />
+                                    <div>
+                                        <strong style={{ display: 'block', fontSize: '13.5px' }}>
+                                            Antrean Pengadaan Unit: {procurementAlerts.awaiting_stock.length} item masih menunggu stok gudang (0)
+                                        </strong>
+                                        <span style={{ fontSize: '12px', opacity: 0.9 }}>
+                                            Permintaan unit tetap terbuka dan dapat dipenuhi setelah penerimaan barang (GRN), atau ditutup jika pengadaan dibatalkan.
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => navigate('/gudang/po')}
+                                    >
+                                        Cek / Buat PO
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="gdg-btn-stripe secondary"
+                                        onClick={() => navigate('/gudang/pengeluaran?status=PROSES_SEBAGIAN')}
+                                    >
+                                        Kelola Antrean
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="gdg-table-wrap gdg-table-borderless">
+                                <table className="gdg-table gdg-table-stripe">
+                                    <thead>
+                                        <tr>
+                                            <th>No. Permintaan</th>
+                                            <th>Unit / Ruangan</th>
+                                            <th>Barang</th>
+                                            <th style={{ textAlign: 'right' }}>Qty Diminta</th>
+                                            <th style={{ textAlign: 'right' }}>Lama Menunggu</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {procurementAlerts.awaiting_stock.slice(0, 6).map((item) => (
+                                            <tr key={item.id}>
+                                                <td className="gdg-code-cell">{item.permintaan_nomor}</td>
+                                                <td>{item.ruang_nama}</td>
+                                                <td>
+                                                    <strong>{item.barang_nama}</strong>
+                                                    <span className="gdg-cell-muted" style={{ marginLeft: '6px', fontSize: '11.5px' }}>({item.barang_kode})</span>
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
+                                                    {Number(item.qty_minta).toLocaleString('id-ID')} {item.satuan}
+                                                </td>
+                                                <td className="gdg-num-cell" style={{ textAlign: 'right' }}>
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: item.waiting_days >= 3 ? '#f59e0b' : 'var(--gdg-muted)' }}>
+                                                        <Clock size={12} /> {item.waiting_days} hari
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    )}
+                </div>
+            )}
 
             {/* ── Stok Minimum Alert Section (Borderless) ── */}
             {lowStockItems.length > 0 && (
@@ -314,6 +472,18 @@ export default function GudangDashboard() {
                             }}
                         >
                             Disetujui (Siap Bon)
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={statusFilter === 'PROSES_SEBAGIAN'}
+                            className={`gdg-dash-tab ${statusFilter === 'PROSES_SEBAGIAN' ? 'active' : ''}`}
+                            onClick={() => {
+                                setStatusFilter('PROSES_SEBAGIAN');
+                                setPage(1);
+                            }}
+                        >
+                            Menunggu Pengadaan{procurementAlerts.counts?.total_sedang_diajukan > 0 ? ` (${procurementAlerts.counts.total_sedang_diajukan})` : ''}
                         </button>
                         <button
                             type="button"

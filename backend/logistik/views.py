@@ -921,7 +921,11 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
         if has_sumber and sumber not in ['semua', 'all', '']:
 
-            if sumber == 'logistik':
+            if sumber in ['farmasi_manual', 'catatan_utang']:
+
+                where += " AND sumber IN ('farmasi', 'manual')"
+
+            elif sumber == 'logistik':
 
                 where += " AND (sumber = 'logistik' OR sumber IS NULL OR sumber = '')"
 
@@ -1285,7 +1289,11 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
         if has_sumber and sumber != 'all' and sumber != 'semua':
 
-            if sumber == 'logistik':
+            if sumber in ['farmasi_manual', 'catatan_utang']:
+
+                where += " AND sumber IN ('farmasi', 'manual')"
+
+            elif sumber == 'logistik':
 
                 where += " AND (sumber = 'logistik' OR sumber IS NULL OR sumber = '')"
 

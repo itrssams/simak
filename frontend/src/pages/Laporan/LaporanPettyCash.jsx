@@ -27,7 +27,8 @@ import * as XLSX from 'xlsx';
 import api from '../../api/axiosConfig';
 import { useToastState } from '../../context/ToastContext';
 import DateRangePicker from '../../components/DateRangePicker';
-import MacaronPieInfographic, { MACARON_PALETTE, getAccountCuteMeta } from './MacaronPieInfographic';
+import MacaronPieInfographic, { MACARON_PALETTE } from './MacaronPieInfographic';
+import { PettyCashExpenseTrendChart, PettyCashBalanceChart } from './PettyCashLineChart';
 import './LaporanPettyCash.css';
 
 const CHART_COLORS = MACARON_PALETTE.map((p) => p.color);
@@ -285,6 +286,7 @@ export default function LaporanPettyCash() {
     const rekapAkun = data?.rekap_akun || [];
     const rekapUnit = data?.per_unit || [];
     const rekapMutasi = data?.rekap_mutasi || [];
+    const grafik = data?.grafik || [];
     const pejabat = data?.pejabat || {
         kasir: 'Ulfa Santika',
         kasir_jabatan: 'Kasir Kas Kecil',
@@ -299,9 +301,6 @@ export default function LaporanPettyCash() {
             {/* ── HEADER & TOOLBAR ──────────────────────── */}
             <div className="lpc-header">
                 <div className="lpc-header-title">
-                    <div className="lpc-header-icon">
-                        <WalletCards size={24} />
-                    </div>
                     <div>
                         <h1>Laporan Kas Kecil & Rekonsiliasi Kasir</h1>
                         <p>Analisis pertanggungjawaban kas operasional, rekap akun beban akuntansi, dan buku kas.</p>
@@ -331,6 +330,35 @@ export default function LaporanPettyCash() {
                     </button>
                 </div>
             </div>
+
+            {/* ── EXECUTIVE KPI STAT-BAR ───────────────── */}
+            {data && (
+                <div className="lpc-stat-bar">
+                    <div className="lpc-stat-item">
+                        <div className="lpc-stat-label">Saldo Awal Periode</div>
+                        <div className="lpc-stat-val">{fmt(data.saldo_awal)}</div>
+                        <div className="lpc-stat-sub">Posisi saldo kasir per {dateId(dari)}</div>
+                    </div>
+
+                    <div className="lpc-stat-item">
+                        <div className="lpc-stat-label">Total Top-Up Masuk</div>
+                        <div className="lpc-stat-val lpc-stat-pos">{fmt(data.total_penambahan)}</div>
+                        <div className="lpc-stat-sub">Pengisian kembali saldo kasir</div>
+                    </div>
+
+                    <div className="lpc-stat-item">
+                        <div className="lpc-stat-label">Total Realisasi Pengeluaran</div>
+                        <div className="lpc-stat-val lpc-stat-neg">{fmt(data.total_pengurangan)}</div>
+                        <div className="lpc-stat-sub">Biaya operasional & klaim keluar</div>
+                    </div>
+
+                    <div className="lpc-stat-item">
+                        <div className="lpc-stat-label">Saldo Akhir Kasir</div>
+                        <div className="lpc-stat-val">{fmt(data.saldo_akhir)}</div>
+                        <div className="lpc-stat-sub">Posisi saldo kasir per {dateId(sampai)}</div>
+                    </div>
+                </div>
+            )}
 
             {/* ── FILTER & PERIODE TOOLBAR ──────────────── */}
             <div className="lpc-filter-card no-print">
@@ -367,47 +395,6 @@ export default function LaporanPettyCash() {
             </div>
 
             {error && <div className="lpc-alert-err no-print">{error}</div>}
-
-            {/* ── EXECUTIVE KPI METRIC CARDS ───────────── */}
-            {data && (
-                <div className="lpc-kpi-grid">
-                    <div className="lpc-kpi-card lpc-kpi-awal">
-                        <div className="lpc-kpi-head">
-                            <span>Saldo Awal Periode</span>
-                            <div className="lpc-kpi-icon"><WalletCards size={18} /></div>
-                        </div>
-                        <div className="lpc-kpi-val">{fmt(data.saldo_awal)}</div>
-                        <div className="lpc-kpi-sub">Posisi saldo kasir per {dateId(dari)}</div>
-                    </div>
-
-                    <div className="lpc-kpi-card lpc-kpi-masuk">
-                        <div className="lpc-kpi-head">
-                            <span>Total Top-Up Masuk</span>
-                            <div className="lpc-kpi-icon"><ArrowDownLeft size={18} /></div>
-                        </div>
-                        <div className="lpc-kpi-val">{fmt(data.total_penambahan)}</div>
-                        <div className="lpc-kpi-sub">Pengisian kembali saldo kasir</div>
-                    </div>
-
-                    <div className="lpc-kpi-card lpc-kpi-keluar">
-                        <div className="lpc-kpi-head">
-                            <span>Total Realisasi Pengeluaran</span>
-                            <div className="lpc-kpi-icon"><ArrowUpRight size={18} /></div>
-                        </div>
-                        <div className="lpc-kpi-val">{fmt(data.total_pengurangan)}</div>
-                        <div className="lpc-kpi-sub">Biaya operasional & klaim keluar</div>
-                    </div>
-
-                    <div className="lpc-kpi-card lpc-kpi-akhir">
-                        <div className="lpc-kpi-head">
-                            <span>Saldo Akhir Kasir</span>
-                            <div className="lpc-kpi-icon"><CheckCircle2 size={18} /></div>
-                        </div>
-                        <div className="lpc-kpi-val">{fmt(data.saldo_akhir)}</div>
-                        <div className="lpc-kpi-sub">Posisi saldo kasir per {dateId(sampai)}</div>
-                    </div>
-                </div>
-            )}
 
             {/* ── TABS NAVIGATION ──────────────────────── */}
             <div className="lpc-tabs-nav no-print">
@@ -473,13 +460,21 @@ export default function LaporanPettyCash() {
                                 </div>
                             </div>
 
-                            {/* 🧁 MACARON PIE INFOGRAPHIC (Stepped Coxcomb & Cute Icons) 🧁 */}
+                            {/* Donut Chart & Flat Legend */}
                             {rekapAkun.length > 0 && (
                                 <MacaronPieInfographic
                                     rekapAkun={rekapAkun}
                                     totalBelanja={data.total_belanja_riil}
                                 />
                             )}
+
+                            {/* Line Chart: Tren Pengeluaran Harian & 6 Bulan Terakhir */}
+                            <PettyCashExpenseTrendChart
+                                rekapMutasi={rekapMutasi}
+                                grafik={grafik}
+                                dari={dari}
+                                sampai={sampai}
+                            />
 
                             {/* Table */}
                             <div className="lpc-table-card">
@@ -502,8 +497,7 @@ export default function LaporanPettyCash() {
                                             </tr>
                                         ) : (
                                             rekapAkun.map((ak, idx) => {
-                                                const pal = MACARON_PALETTE[idx % MACARON_PALETTE.length];
-                                                const meta = getAccountCuteMeta(ak.kode_akun, ak.nama_akun);
+                                                const pal = MACARON_PALETTE[idx % (MACARON_PALETTE.length - 1)];
                                                 return (
                                                     <tr key={idx}>
                                                         <td className="lpc-col-center">{idx + 1}</td>
@@ -511,13 +505,11 @@ export default function LaporanPettyCash() {
                                                             <span className="lpc-code-badge">{ak.kode_akun}</span>
                                                         </td>
                                                         <td style={{ fontWeight: 600 }}>
-                                                            <div className="lpc-cute-table-cell">
+                                                            <div className="lpc-account-cell">
                                                                 <span
-                                                                    className="lpc-cute-table-badge"
-                                                                    style={{ background: pal.bg, color: pal.text, borderColor: pal.border }}
-                                                                >
-                                                                    <meta.icon size={15} strokeWidth={2.2} />
-                                                                </span>
+                                                                    className="lpc-account-dot"
+                                                                    style={{ backgroundColor: pal.color }}
+                                                                />
                                                                 <span>{ak.nama_akun}</span>
                                                             </div>
                                                         </td>
@@ -640,6 +632,14 @@ export default function LaporanPettyCash() {
                                 </div>
                             </div>
 
+                            {/* Line Chart: Pergerakan Saldo Kasir */}
+                            <PettyCashBalanceChart
+                                rekapMutasi={rekapMutasi}
+                                saldoAwal={data.saldo_awal}
+                                saldoAkhir={data.saldo_akhir}
+                                dari={dari}
+                            />
+
                             <div className="lpc-table-card">
                                 <table className="lpc-data-table">
                                     <thead>
@@ -665,8 +665,9 @@ export default function LaporanPettyCash() {
                                                     <td className="lpc-col-center">{idx + 1}</td>
                                                     <td style={{ fontSize: 12, color: '#64748b' }}>{m.waktu}</td>
                                                     <td>
-                                                        <span className={`lpc-pill ${m.jenis === 'penambahan' ? 'lpc-pill-masuk' : 'lpc-pill-keluar'}`}>
-                                                            {m.jenis === 'penambahan' ? 'Masuk' : 'Keluar'}
+                                                        <span className={`lpc-status-inline ${m.jenis === 'penambahan' ? 'is-masuk' : 'is-keluar'}`}>
+                                                            <span className="lpc-status-dot" />
+                                                            <span>{m.jenis === 'penambahan' ? 'Masuk' : 'Keluar'}</span>
                                                         </span>
                                                     </td>
                                                     <td style={{ fontWeight: 500 }}>{m.keterangan}</td>
@@ -802,7 +803,7 @@ export default function LaporanPettyCash() {
                                                             </td>
                                                             <td style={{ fontSize: 12 }}>{dateId(p.tanggal)}</td>
                                                             <td>
-                                                                <span className={`lpc-jenis-tag ${p.jenis === 'Petty Cash' ? 'tag-pc' : 'tag-rb'}`}>
+                                                                <span className={`lpc-jenis-text ${p.jenis === 'Petty Cash' ? 'tag-pc' : 'tag-rb'}`}>
                                                                     {p.jenis}
                                                                 </span>
                                                             </td>
@@ -828,11 +829,12 @@ export default function LaporanPettyCash() {
                                                                 {p.nominal_realisasi ? fmt(p.nominal_realisasi) : (p.status === 'dicairkan' ? fmt(p.nominal) : '-')}
                                                             </td>
                                                             <td className="lpc-col-center">
-                                                                <span
-                                                                    className="lpc-status-tag"
-                                                                    style={{ background: stMeta.bg, color: stMeta.color }}
-                                                                >
-                                                                    {stMeta.label}
+                                                                <span className="lpc-status-inline">
+                                                                    <span
+                                                                        className="lpc-status-dot"
+                                                                        style={{ backgroundColor: stMeta.dot || '#94a3b8' }}
+                                                                    />
+                                                                    <span>{stMeta.label}</span>
                                                                 </span>
                                                             </td>
                                                         </tr>

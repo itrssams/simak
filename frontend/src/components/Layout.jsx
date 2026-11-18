@@ -141,7 +141,7 @@ const MENU_CATATAN_UTANG = [
     {
         label: 'Catatan Utang', icon: 'debt', children: [
             { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
-            { label: 'Master Vendor', path: '/logistik/vendor?sumber=semua' },
+            { label: 'Master Vendor', path: '/keuangan/catatan-utang/vendor' },
         ],
     },
 ];
@@ -418,7 +418,7 @@ const getActiveModuleConfig = (pathname, user) => {
     }
 
     // 2. Catatan Utang (sama persis dengan sidebar sebelumnya)
-    if (pathname.startsWith('/keuangan/catatan-utang') || (pathname.startsWith('/logistik/vendor') && location.search.includes('sumber=semua'))) {
+    if (pathname.startsWith('/keuangan/catatan-utang')) {
         return {
             id: 'catatan-utang',
             title: 'Catatan Utang',
@@ -426,7 +426,7 @@ const getActiveModuleConfig = (pathname, user) => {
             iconColor: '#10b981',
             menus: [
                 { label: 'Daftar Catatan', path: '/keuangan/catatan-utang/obat-bhp' },
-                { label: 'Master Vendor', path: '/logistik/vendor?sumber=semua' },
+                { label: 'Master Vendor', path: '/keuangan/catatan-utang/vendor' },
             ],
         };
     }
@@ -693,7 +693,11 @@ function TopNavSubmenuItem({ item, location, navigate }) {
     if (item.path.includes('?')) {
         isCurrentActive = (location.pathname + location.search) === item.path;
     } else {
-        isCurrentActive = location.pathname === item.path || (item.path === '/sdm/izin-kerja' && location.pathname === '/sdm/approval');
+        isCurrentActive = (
+            location.pathname === item.path
+            || (item.path === '/sdm/izin-kerja' && location.pathname === '/sdm/approval')
+            || (item.path === '/keuangan/invoices' && /^\/keuangan\/invoices\/\d+/.test(location.pathname))
+        );
     }
 
     return (
@@ -1181,7 +1185,7 @@ export default function Layout({ children }) {
                     box-shadow: none;
                 }
                 [data-theme="light"] .topbar-menu-item.active {
-                    color: #1a1f36;
+                    color: #635bff;
                     background: transparent;
                     box-shadow: none;
                 }
@@ -1193,7 +1197,7 @@ export default function Layout({ children }) {
                     bottom: 0;
                     height: 2px;
                     background: #635bff;
-                    border-radius: 1px 1px 0 0;
+                    border-radius: 0;
                 }
                 .topbar-menu-dropdown-wrap { position: relative; }
                 .topbar-dropdown-menu {

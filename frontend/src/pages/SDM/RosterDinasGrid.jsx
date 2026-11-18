@@ -288,6 +288,33 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
     return masterShifts.filter(s => s.kelompok === legendKelompok);
   }, [masterShifts, legendKelompok]);
 
+  // Compact shift code legend in toolbar center (P Pagi, S Siang, M Malam, L Libur, C Cuti)
+  const toolbarLegendItems = useMemo(() => {
+    const coreDefs = [
+      { kode: 'P', label: 'Pagi', fallbackColor: '#10b981' },
+      { kode: 'S', label: 'Siang', fallbackColor: '#f59e0b' },
+      { kode: 'M', label: 'Malam', fallbackColor: '#635bff' },
+      { kode: 'L', label: 'Libur', fallbackColor: '#94a3b8' },
+      { kode: 'C', label: 'Cuti', fallbackColor: '#0ea5e9' },
+    ];
+    return coreDefs.map((def) => {
+      const found =
+        legendShifts.find((s) => String(s.kode || '').toUpperCase() === def.kode) ||
+        masterShifts.find((s) => String(s.kode || '').toUpperCase() === def.kode);
+      const timeHint = found
+        ? found.is_libur
+          ? found.nama
+          : `${found.nama} (${found.jam_masuk ? found.jam_masuk.substring(0, 5) : '-'}–${found.jam_pulang ? found.jam_pulang.substring(0, 5) : '-'})`
+        : def.label;
+      return {
+        kode: def.kode,
+        label: def.label,
+        color: found?.warna || def.fallbackColor,
+        title: timeHint,
+      };
+    });
+  }, [legendShifts, masterShifts]);
+
   return (
     <div className="roster-grid-container">
       {/* ════════════════ TOOLBAR & CONTROLS ════════════════ */}
@@ -341,13 +368,12 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
             <button
               type="button"
               className="btn-secondary-sdm"
-              style={{ padding: '6px 12px', fontSize: '12px' }}
               onClick={() => {
                 setBulan(10);
                 setTahun(2026);
               }}
             >
-              <Calendar size={13} style={{ marginRight: '4px' }} />
+              <Calendar size={14} style={{ marginRight: '6px' }} />
               Ke Data Roster Okt 2026
             </button>
           )}
@@ -389,13 +415,30 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
           </div>
         </div>
 
+        {/* Compact Shift Legend (Center of Toolbar) */}
+        <div className="roster-toolbar-legend" aria-label="Legenda singkat kode shift">
+          {toolbarLegendItems.map((it) => (
+            <span
+              key={it.kode}
+              className="roster-toolbar-legend-chip"
+              title={it.title}
+            >
+              <span
+                className="roster-toolbar-legend-dot"
+                style={{ backgroundColor: it.color }}
+              />
+              <strong>{it.kode}</strong>
+              <span>{it.label}</span>
+            </span>
+          ))}
+        </div>
+
         <div className="roster-toolbar-right">
           {hasSdmAccess && (
             <button
               type="button"
               className="btn-secondary-sdm"
               onClick={() => setIsCopyModalOpen(true)}
-              style={{ padding: '7px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
               title="Salin Jadwal Master dari bulan lain"
             >
               <Copy size={14} style={{ marginRight: '6px' }} />
@@ -407,7 +450,6 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
             type="button"
             className="btn-secondary-sdm"
             onClick={handleExportExcel}
-            style={{ padding: '7px 12px', fontSize: '12px', color: '#10b981', whiteSpace: 'nowrap' }}
             title="Download Jadwal Dinas Bulanan (Final, Master & Koreksi) format Excel (.xlsx)"
           >
             <FileSpreadsheet size={14} style={{ marginRight: '6px' }} />
@@ -419,7 +461,7 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
             className="btn-secondary-sdm"
             onClick={() => setRefreshKey(prev => prev + 1)}
             disabled={loading}
-            style={{ padding: '7px 10px', fontSize: '12px' }}
+            style={{ width: '36px', padding: 0, justifyContent: 'center' }}
             title="Segarkan data jadwal"
           >
             <RefreshCw size={14} className={loading ? 'spin' : ''} />
@@ -449,7 +491,6 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
                 <th className="col-sticky-no">No</th>
                 <th className="col-sticky-pin">PIN</th>
                 <th className="col-sticky-name">Nama Pegawai RS</th>
-                <th className="col-sticky-unit">Unit Kerja</th>
                 {matrixData.days.map(d => (
                   <th
                     key={d.day}
@@ -462,13 +503,16 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
                     </div>
                   </th>
                 ))}
-                <th className="col-stat" title="Total Hari Kerja">Kerja</th>
-                <th className="col-stat" title="Total Hari Libur">Libur</th>
+                <th className="col-stat col-stat-kerja" title="Total Hari Kerja">Kerja</th>
+                <th className="col-stat col-stat-libur" title="Total Hari Libur">Libur</th>
               </tr>
             </thead>
             <tbody>
               {(pageSize === 'all' ? matrixData.pegawai_rows : matrixData.pegawai_rows.slice((page - 1) * pageSize, page * pageSize)).map((pegawai, pIdx) => {
                 const rowNum = (pageSize === 'all' ? 0 : (page - 1) * pageSize) + pIdx + 1;
+                const subText = pegawai.unit_kerja && pegawai.jabatan && pegawai.jabatan !== pegawai.unit_kerja
+                  ? `${pegawai.unit_kerja} • ${pegawai.jabatan}`
+                  : (pegawai.unit_kerja || pegawai.jabatan || '-');
                 return (
                   <tr key={pegawai.id}>
                     <td className="col-sticky-no">
@@ -480,17 +524,12 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
                       </span>
                     </td>
                     <td className="col-sticky-name">
-                      <div className="roster-emp-name">
+                      <div className="roster-emp-name" title={pegawai.nama}>
                         {pegawai.nama}
                       </div>
-                      <div className="roster-emp-role">
-                        {pegawai.jabatan}
+                      <div className="roster-emp-role" title={subText}>
+                        {subText}
                       </div>
-                    </td>
-                    <td className="col-sticky-unit">
-                      <span className="roster-emp-unit">
-                        {pegawai.unit_kerja}
-                      </span>
                     </td>
 
                     {/* Day Cells 1 to 31 */}
@@ -536,13 +575,13 @@ export default function RosterDinasGrid({ hasSdmAccess = true, activeShifts = []
                       );
                     })}
 
-                    {/* Row Statistics */}
-                    <td className="col-stat">
+                    {/* Sticky Row Statistics (Right) */}
+                    <td className="col-stat col-stat-kerja">
                       <span className="roster-stat-pill kerja">
                         {pegawai.stats?.total_kerja || 0}
                       </span>
                     </td>
-                    <td className="col-stat">
+                    <td className="col-stat col-stat-libur">
                       <span className="roster-stat-pill libur">
                         {pegawai.stats?.total_libur || 0}
                       </span>

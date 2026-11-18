@@ -1,0 +1,200 @@
+/* ==========================================================================
+   PETTY CASH LINE CHARTS (Stripe / Linear DESIGN.md Style)
+   Supports Light Mode (#f8fafc canvas) & Dark Mode (#0b0d12 canvas)
+   ========================================================================== */
+
+.lpc-line-section {
+    background: transparent;
+    border-bottom: 1px solid var(--gdg-border, var(--lpc-border, #e3e8ee));
+    padding: 4px 0 22px 0;
+    margin-bottom: 20px;
+}
+
+.lpc-line-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.lpc-line-title-wrap h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--lpc-text, #1a1f36);
+    letter-spacing: -0.01em;
+}
+
+.lpc-line-title-wrap p {
+    margin: 3px 0 0 0;
+    font-size: 12.5px;
+    color: var(--lpc-text-muted, #697386);
+}
+
+.lpc-line-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.lpc-line-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.lpc-line-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lpc-text-muted, #697386);
+}
+
+.lpc-line-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.lpc-balance-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--lpc-text-muted, #697386);
+    font-variant-numeric: tabular-nums;
+}
+
+.lpc-balance-summary strong {
+    color: var(--lpc-text, #1a1f36);
+    font-weight: 600;
+}
+
+.lpc-balance-end {
+    color: #635bff !important;
+}
+
+.lpc-balance-sep {
+    color: var(--lpc-text-faint, #8792a2);
+}
+
+.lpc-line-canvas {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Remove focus outline boxes around Recharts SVG on click */
+.lpc-line-canvas .recharts-wrapper,
+.lpc-line-canvas .recharts-surface {
+    outline: none;
+}
+
+/* Custom Tooltip */
+.lpc-chart-tooltip {
+    background: var(--lpc-surface, #ffffff);
+    border: 1px solid var(--lpc-border-strong, #d8dee4);
+    border-radius: 6px;
+    padding: 10px 12px;
+    min-width: 190px;
+    max-width: 280px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    font-variant-numeric: tabular-nums;
+}
+
+.lpc-chart-tooltip-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lpc-text, #1a1f36);
+    margin-bottom: 4px;
+}
+
+.lpc-chart-tooltip-sub {
+    font-size: 11px;
+    color: var(--lpc-text-muted, #697386);
+    margin-bottom: 8px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lpc-chart-tooltip-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lpc-chart-tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 12px;
+}
+
+.lpc-chart-tooltip-delta {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--lpc-border, #e3e8ee);
+}
+
+.lpc-chart-tooltip-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--lpc-text-muted, #697386);
+}
+
+.lpc-chart-tooltip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.lpc-chart-tooltip-val {
+    font-weight: 600;
+    color: var(--lpc-text, #1a1f36);
+}
+
+/* ── DARK MODE ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .lpc-line-section {
+    border-bottom-color: var(--gdg-border, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .lpc-line-title-wrap h3,
+[data-theme="dark"] .lpc-balance-summary strong,
+[data-theme="dark"] .lpc-chart-tooltip-title,
+[data-theme="dark"] .lpc-chart-tooltip-val {
+    color: #f8fafc;
+}
+
+[data-theme="dark"] .lpc-balance-end {
+    color: #818cf8 !important;
+}
+
+[data-theme="dark"] .lpc-line-title-wrap p,
+[data-theme="dark"] .lpc-line-legend-item,
+[data-theme="dark"] .lpc-balance-summary,
+[data-theme="dark"] .lpc-chart-tooltip-sub,
+[data-theme="dark"] .lpc-chart-tooltip-key {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .lpc-chart-tooltip {
+    background: #111318;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .lpc-chart-tooltip-delta {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}

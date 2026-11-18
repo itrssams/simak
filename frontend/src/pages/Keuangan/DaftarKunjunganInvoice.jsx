@@ -24,6 +24,7 @@ import TableSkeleton from '../../components/TableSkeleton';
 import { useToast } from '../../context/ToastContext';
 import { getCount, getResults, pageParams, SimplePagination } from '../../utils/pagination.jsx';
 import './DaftarKunjunganInvoice.css';
+import './PenagihanClean.css';
 
 const JENIS_OPTIONS = [
     { value: 'semua', label: 'Semua Jenis' },
@@ -440,7 +441,6 @@ export default function DaftarKunjunganInvoice() {
         <div className="dki-page">
             <div className="inv-hero">
                 <div className="inv-title">
-                    <span><ReceiptText size={22} /></span>
                     <div>
                         <h1>Daftar Kunjungan</h1>
                         <p>Pilih transaksi pasien yang sudah done untuk dibuatkan invoice pembiayaan.</p>
@@ -449,10 +449,10 @@ export default function DaftarKunjunganInvoice() {
             </div>
 
             <section className="dki-summary">
-                <SummaryCard icon={ReceiptText} label="Dipilih" value={`${selectedNos.length} kunjungan`} />
-                <SummaryCard icon={BadgeCheck} label="Total Terpilih" value={money(selectedTotal)} accent />
-                <SummaryCard icon={Activity} label="Data Tampil" value={`${total} kunjungan`} />
-                <SummaryCard icon={Banknote} label="Total Nilai Tampil" value={money(totalNilai)} accent />
+                <SummaryCard label="Dipilih" value={`${selectedNos.length} kunjungan`} />
+                <SummaryCard label="Total Terpilih" value={money(selectedTotal)} accent />
+                <SummaryCard label="Data Tampil" value={`${total} kunjungan`} />
+                <SummaryCard label="Total Nilai Tampil" value={money(totalNilai)} accent />
             </section>
 
             <section className="dki-card">
@@ -765,38 +765,36 @@ export default function DaftarKunjunganInvoice() {
                                     <input value={(newPembiayaanOpen ? newPembiayaan.nama : selectedInvoicePembiayaan?.nama) || '-'} readOnly />
                                 </label>
 
-                                <div className="dki-field span-2" style={{ marginTop: 6, padding: '12px 14px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: 10, border: '1px solid rgba(99, 102, 241, 0.16)' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                                <div className="dki-field span-2 pen-cob-box">
+                                    <label className="pen-cob-toggle">
                                         <input
                                             type="checkbox"
                                             checked={Boolean(invoiceForm.is_cob)}
                                             onChange={(e) => setInvoiceForm((prev) => ({ ...prev, is_cob: e.target.checked }))}
-                                            style={{ width: 18, height: 18, accentColor: '#4f46e5' }}
                                         />
                                         <span>Invoice COB (BPJS + Asuransi Tambahan)</span>
                                     </label>
                                     {invoiceForm.is_cob && (
-                                        <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                                        <div className="pen-cob-fields">
                                             <label className="dki-field">
-                                                <span style={{ fontWeight: 600 }}>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
+                                                <span>Tarif INA-CBGs / Tanggungan BPJS (Rp)</span>
                                                 <input
                                                     type="number"
                                                     value={invoiceForm.tanggungan_bpjs}
                                                     onChange={(e) => setInvoiceForm((prev) => ({ ...prev, tanggungan_bpjs: e.target.value }))}
                                                     placeholder="Contoh: 3173800"
-                                                    style={{ background: '#fff', color: '#0f172a', fontWeight: 700 }}
                                                 />
                                             </label>
-                                            <div style={{ padding: '8px 12px', background: 'rgba(15, 23, 42, 0.04)', borderRadius: 8, fontSize: 13, display: 'grid', gap: 4 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                                            <div className="pen-cob-summary">
+                                                <div className="pen-cob-row">
                                                     <span>Total Biaya Riil RS:</span>
                                                     <strong>{money(selectedTotal)}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
+                                                <div className="pen-cob-row bpjs">
                                                     <span>Ditanggung BPJS (INA-CBGs):</span>
                                                     <strong>- {money(Number(invoiceForm.tanggungan_bpjs || 0))}</strong>
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: 4, marginTop: 2, color: '#166534', fontWeight: 800 }}>
+                                                <div className="pen-cob-row net">
                                                     <span>Total Ditagihkan ke Asuransi:</span>
                                                     <span>{money(Math.max(0, selectedTotal - Number(invoiceForm.tanggungan_bpjs || 0)))}</span>
                                                 </div>
@@ -943,11 +941,9 @@ export default function DaftarKunjunganInvoice() {
     );
 }
 
-function SummaryCard({ icon, label, value, accent }) {
-    const IconComponent = icon;
+function SummaryCard({ label, value, accent }) {
     return (
         <div className={`dki-summary-card${accent ? ' accent' : ''}`}>
-            <span><IconComponent size={20} /></span>
             <div>
                 <small>{label}</small>
                 <strong>{value}</strong>

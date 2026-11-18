@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -117,15 +117,51 @@ class PurchasingService:
         return po
 
     @classmethod
+    def _normalize_diskon_items(cls, diskon_items):
+        if not diskon_items:
+            return [], Decimal('0.00')
+        if not isinstance(diskon_items, list):
+            raise ValidationError("Format baris diskon tidak valid.")
+
+        cleaned = []
+        total_diskon = Decimal('0.00')
+        for idx, row in enumerate(diskon_items, start=1):
+            if not isinstance(row, dict):
+                raise ValidationError(f"Format baris diskon #{idx} tidak valid.")
+            desc = str(row.get('deskripsi') or '').strip()
+            raw_val = row.get('nilai')
+            has_val = raw_val not in (None, '', 0, '0')
+            if has_val:
+                try:
+                    val = Decimal(str(raw_val)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                except Exception:
+                    raise ValidationError(f"Nominal potongan pada baris diskon #{idx} tidak valid.")
+            else:
+                val = Decimal('0.00')
+
+            if desc and val <= Decimal('0.00'):
+                raise ValidationError(f"Baris diskon #{idx} memiliki keterangan '{desc}', tetapi nominal potongan harus lebih dari 0.")
+            if not desc and val > Decimal('0.00'):
+                raise ValidationError(f"Baris diskon #{idx} memiliki nominal potongan, tetapi keterangan diskonnya masih kosong.")
+            if desc and val > Decimal('0.00'):
+                cleaned.append({'deskripsi': desc[:150], 'nilai': float(val)})
+                total_diskon += val
+
+        return cleaned, total_diskon
+
+    @classmethod
     @transaction.atomic
     def create_grn(cls, tanggal, vendor_nama, items_data, user=None, po=None,
                    gudang=None, vendor_id=None, no_faktur='', tgl_jatuh_tempo=None,
-                   metode_pembayaran='Kredit', kirim_keuangan=False, catatan='', tutup_po=True):
+                   metode_pembayaran='Kredit', kirim_keuangan=False, catatan='', tutup_po=True,
+                   diskon_items=None):
         tahun = tanggal.year if hasattr(tanggal, 'year') else timezone.now().year
         nomor = NumberingSequence.get_next('GRN', tahun=tahun, width=5)
 
         if not gudang:
             gudang = Gudang.get_default()
+
+        cleaned_diskon, total_diskon = cls._normalize_diskon_items(diskon_items)
 
         grn = Penerimaan.objects.create(
             nomor=nomor,
@@ -137,6 +173,8 @@ class PurchasingService:
             no_faktur=str(no_faktur or '').strip(),
             tgl_jatuh_tempo=tgl_jatuh_tempo,
             metode_pembayaran=metode_pembayaran,
+            diskon_items=cleaned_diskon,
+            diskon_total=total_diskon,
             status=Penerimaan.STATUS_DRAFT,
             tutup_po=bool(tutup_po),
             kirim_keuangan=kirim_keuangan,
@@ -144,6 +182,7 @@ class PurchasingService:
             created_by=user
         )
 
+        subtotal_bruto = Decimal('0.00')
         for item in items_data:
             barang = item['barang']
             if isinstance(barang, (int, str)):
@@ -161,7 +200,7 @@ class PurchasingService:
             if qty_kemasan <= 0:
                 raise ValidationError(f"Jumlah penerimaan untuk {barang.nama} harus lebih dari 0.")
 
-            PenerimaanItem.objects.create(
+            pi = PenerimaanItem.objects.create(
                 penerimaan=grn,
                 po_item=po_item,
                 barang=barang,
@@ -171,6 +210,12 @@ class PurchasingService:
                 harga_kemasan=harga_kemasan,
                 batch_no=str(item.get('batch_no') or '').strip(),
                 exp_date=item.get('exp_date')
+            )
+            subtotal_bruto += pi.subtotal
+
+        if total_diskon > subtotal_bruto:
+            raise ValidationError(
+                f"Total potongan diskon (Rp {total_diskon:,.0f}) tidak boleh melebihi subtotal nilai barang (Rp {subtotal_bruto:,.0f})."
             )
 
         grn.recalculate_total()
@@ -184,20 +229,39 @@ class PurchasingService:
 
         cls._check_approver_permission(user, grn.created_by)
 
-        if not grn.items.exists():
+        items = list(grn.items.select_related('barang', 'po_item').all())
+        if not items:
             raise ValidationError("Penerimaan tidak memiliki item barang.")
 
+        grn.recalculate_total()
+
+        # Hitung HPP net per unit (prorata proporsional bila GRN memiliki potongan diskon)
+        has_discount = grn.diskon_total > Decimal('0.00') and grn.subtotal_bruto > Decimal('0.00')
+        item_hpp_map = {}
+        if has_discount:
+            positive_items = [it for it in items if it.subtotal > Decimal('0.00')]
+            remaining_net = grn.total_nilai
+            for idx, it in enumerate(positive_items):
+                if idx == len(positive_items) - 1:
+                    item_net = max(Decimal('0.00'), remaining_net)
+                else:
+                    item_net = (it.subtotal * grn.total_nilai / grn.subtotal_bruto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    remaining_net -= item_net
+                item_hpp_map[it.id] = (item_net / it.qty_dasar).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP) if it.qty_dasar > 0 else Decimal('0.0000')
+
         # 1. Tambah stok via StockService & update PO fulfillment
-        for item in grn.items.select_related('barang', 'po_item').all():
+        for item in items:
+            harga_unit_hpp = item_hpp_map.get(item.id, item.harga_dasar)
+            ket_diskon = " · Prorata Diskon GRN" if has_discount else ""
             StockService.record_in(
                 barang=item.barang,
                 gudang=grn.gudang,
                 qty=item.qty_dasar,
-                harga_unit=item.harga_dasar,
+                harga_unit=harga_unit_hpp,
                 sumber_tipe='GRN',
                 sumber_id=str(grn.id),
                 sumber_nomor=grn.nomor,
-                keterangan=f"Penerimaan {grn.nomor} dari {grn.vendor_nama} (Faktur: {grn.no_faktur or '-'})",
+                keterangan=f"Penerimaan {grn.nomor} dari {grn.vendor_nama} (Faktur: {grn.no_faktur or '-'}){ket_diskon}",
                 user=user
             )
 

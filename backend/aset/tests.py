@@ -291,3 +291,42 @@ class AsetAndPerbaikanTests(APITestCase):
         self.assertEqual(detail_res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(detail_res.data['log_list']), 5)
 
+    def test_dashboard_summary_kelayakan_aggregation_and_multi_filter(self):
+        self.client.force_authenticate(user=self.admin)
+
+        grades = ['A', 'A', 'A', 'B', 'D', 'E', 'E']
+        for idx, grade in enumerate(grades, start=1):
+            Aset.objects.create(
+                jenis=self.jenis,
+                kode_aset=f'TST.USG.{idx:04d}',
+                deskripsi=f'Unit USG {idx}',
+                merk='Mindray',
+                spesifikasi='Portable',
+                unit=self.unit,
+                ruangan=self.ruangan,
+                lokasi_teks='Poli',
+                status_kelayakan=grade,
+                status_aset='aktif',
+                status_kepemilikan='milik_sendiri',
+                harga_perolehan=Decimal('1000000.00'),
+                status_data='lengkap',
+            )
+
+        summary_res = self.client.get('/api/aset/aset/dashboard_summary/')
+        self.assertEqual(summary_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(summary_res.data['total_aset'], 7)
+        self.assertEqual(summary_res.data['kelayakan_counts'], {
+            'A': 3,
+            'B': 1,
+            'C': 0,
+            'D': 1,
+            'E': 2,
+        })
+        self.assertEqual(summary_res.data['perlu_tindakan_count'], 3)
+
+        de_res = self.client.get('/api/aset/aset/?status_kelayakan=D&status_kelayakan=E')
+        self.assertEqual(de_res.status_code, status.HTTP_200_OK)
+        results = de_res.data.get('results', []) if isinstance(de_res.data, dict) else de_res.data
+        self.assertEqual(len(results), 3)
+        self.assertEqual({r['status_kelayakan'] for r in results}, {'D', 'E'})
+

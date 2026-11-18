@@ -350,53 +350,33 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
 
   return (
     <div className="tukar-dinas-container">
-      {/* ════════════════ SUMMARY STAT CARDS ════════════════ */}
-      <div className="tukar-stat-grid">
-        <div className="tukar-stat-card" onClick={() => setSubTab('koreksi')} style={{ cursor: 'pointer' }}>
-          <div className="tukar-stat-icon blue">
-            <FileText size={22} />
-          </div>
-          <div className="tukar-stat-info">
-            <div className="tukar-stat-num">{koreksiList.length}</div>
-            <div className="tukar-stat-lbl">Total Koreksi &amp; Tukar Shift Aktif</div>
-          </div>
+      {/* ════════════════ FLAT KPI STAT-BAR ════════════════ */}
+      <div className="sdm-stat-bar sdm-stat-bar-4">
+        <div className="sdm-stat-item clickable" onClick={() => setSubTab('koreksi')}>
+          <span className="sdm-stat-lbl">Total Koreksi &amp; Tukar Shift Aktif</span>
+          <span className="sdm-stat-val is-indigo">{koreksiList.length}</span>
         </div>
 
-        <div className="tukar-stat-card" onClick={() => setSubTab('tukar')} style={{ cursor: 'pointer' }}>
-          <div className="tukar-stat-icon yellow">
-            <Clock size={22} />
-          </div>
-          <div className="tukar-stat-info">
-            <div className="tukar-stat-num">{summaryStats?.menunggu_atasan || 0}</div>
-            <div className="tukar-stat-lbl">Menunggu Verifikasi Karu/SDM</div>
-          </div>
+        <div className="sdm-stat-item clickable" onClick={() => setSubTab('tukar')}>
+          <span className="sdm-stat-lbl">Menunggu Verifikasi Karu/SDM</span>
+          <span className="sdm-stat-val is-amber">{summaryStats?.menunggu_atasan || 0}</span>
         </div>
 
-        <div className="tukar-stat-card">
-          <div className="tukar-stat-icon green">
-            <CheckCircle2 size={22} />
-          </div>
-          <div className="tukar-stat-info">
-            <div className="tukar-stat-num">{(summaryStats?.disetujui || 0) + koreksiList.length}</div>
-            <div className="tukar-stat-lbl">Efektif di Jadwal Final</div>
-          </div>
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Efektif di Jadwal Final</span>
+          <span className="sdm-stat-val is-green">{(summaryStats?.disetujui || 0) + koreksiList.length}</span>
         </div>
 
-        <div className="tukar-stat-card">
-          <div className="tukar-stat-icon red">
-            <XCircle size={22} />
-          </div>
-          <div className="tukar-stat-info">
-            <div className="tukar-stat-num">{(summaryStats?.ditolak || 0) + (summaryStats?.dibatalkan || 0)}</div>
-            <div className="tukar-stat-lbl">Ditolak / Dibatalkan</div>
-          </div>
+        <div className="sdm-stat-item">
+          <span className="sdm-stat-lbl">Ditolak / Dibatalkan</span>
+          <span className="sdm-stat-val is-red">{(summaryStats?.ditolak || 0) + (summaryStats?.dibatalkan || 0)}</span>
         </div>
       </div>
 
       {/* ════════════════ TOOLBAR & CONTROLS ════════════════ */}
       <div className="tukar-toolbar">
         <div className="tukar-toolbar-left">
-          {/* Segmented Sub-Tab Switcher */}
+          {/* Segmented Sub-Tab Switcher (Tanpa Ikon) */}
           <div className="tukar-mode-switch" role="tablist" aria-label="Pilih Mode Tukar Dinas">
             <button
               type="button"
@@ -406,7 +386,6 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
               onClick={() => setSubTab('koreksi')}
               title="Daftar Koreksi Jadwal & Tukar Shift"
             >
-              <FileText size={13} />
               <span>Koreksi ({koreksiList.length})</span>
             </button>
             <button
@@ -417,32 +396,32 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
               onClick={() => setSubTab('tukar')}
               title="Pengajuan Tukar Dinas Berpasangan"
             >
-              <ArrowLeftRight size={13} />
               <span>Tukar ({tukarList.length})</span>
             </button>
           </div>
 
-          {/* Month / Year */}
-          <div className="tukar-filter-pill">
-            <Calendar size={14} className="tukar-filter-icon" />
-            <select
-              value={bulan}
-              onChange={(e) => setBulan(parseInt(e.target.value))}
-            >
-              {NAMA_BULAN.map((m, idx) => (
-                <option key={idx + 1} value={idx + 1}>{m}</option>
-              ))}
-            </select>
-            <span className="tukar-pill-sep">/</span>
-            <select
-              value={tahun}
-              onChange={(e) => setTahun(parseInt(e.target.value))}
-            >
-              {[2025, 2026, 2027].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
+          {/* Separate Month & Year Selectors (36px) */}
+          <select
+            className="tukar-select-single"
+            value={bulan}
+            onChange={(e) => setBulan(parseInt(e.target.value))}
+            aria-label="Pilih Bulan"
+          >
+            {NAMA_BULAN.map((m, idx) => (
+              <option key={idx + 1} value={idx + 1}>{m}</option>
+            ))}
+          </select>
+
+          <select
+            className="tukar-select-single"
+            value={tahun}
+            onChange={(e) => setTahun(parseInt(e.target.value))}
+            aria-label="Pilih Tahun"
+          >
+            {[2025, 2026, 2027].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
 
           {/* Jenis / Status Filter */}
           <div className="tukar-filter-pill">
@@ -610,8 +589,9 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                           </div>
                         </td>
                         <td>
-                          <span className="tukar-status-pill disetujui">
-                            {item.jenis_label}
+                          <span className="sdm-status-inline">
+                            <span className="sdm-dot is-green" />
+                            <span>{item.jenis_label}</span>
                           </span>
                         </td>
                         <td className="tukar-td-body">
@@ -683,150 +663,155 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
                   {(pageSize === 'all' ? tukarList : tukarList.slice((page - 1) * pageSize, page * pageSize)).map((item, idx) => {
                     const rowNum = (pageSize === 'all' ? 0 : (page - 1) * pageSize) + idx + 1;
                     return (
-                    <tr key={item.id}>
-                      <td className="tukar-td-muted" style={{ textAlign: 'center', fontWeight: '600' }}>
-                        {rowNum}
-                      </td>
-                      <td>
-                        <div className="tukar-td-strong">
-                          {item.tanggal_pemohon}
-                        </div>
-                        {item.tanggal_pengganti && item.tanggal_pengganti !== item.tanggal_pemohon && (
-                          <div className="tukar-td-sub">
-                            vs {item.tanggal_pengganti}
+                      <tr key={item.id}>
+                        <td className="tukar-td-muted" style={{ textAlign: 'center', fontWeight: '600' }}>
+                          {rowNum}
+                        </td>
+                        <td>
+                          <div className="tukar-td-strong">
+                            {item.tanggal_pemohon}
                           </div>
-                        )}
-                      </td>
+                          {item.tanggal_pengganti && item.tanggal_pengganti !== item.tanggal_pemohon && (
+                            <div className="tukar-td-sub">
+                              vs {item.tanggal_pengganti}
+                            </div>
+                          )}
+                        </td>
 
-                      {/* Pemohon */}
-                      <td>
-                        <div className="tukar-td-strong">
-                          {item.pemohon_nama}
-                        </div>
-                        <div className="tukar-td-sub">
-                          {item.pemohon_unit}
-                        </div>
-                        <div className="swap-badge-flow" style={{ marginTop: '4px' }}>
-                          <span className="shift-tag" style={{ background: item.shift_asal_pemohon_warna || '#64748b' }}>
-                            {item.shift_asal_pemohon_kode}
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#64748b' }}>➔</span>
-                          <span className="shift-tag" style={{ background: item.shift_tujuan_pemohon_warna || '#3b82f6' }}>
-                            {item.shift_tujuan_pemohon_kode}
-                          </span>
-                          <span className="tukar-shift-name">
-                            {item.shift_tujuan_pemohon_nama}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Swap Arrow */}
-                      <td style={{ textAlign: 'center', color: '#94a3b8' }}>
-                        <ArrowLeftRight size={16} />
-                      </td>
-
-                      {/* Pengganti */}
-                      <td>
-                        <div className="tukar-td-strong">
-                          {item.pengganti_nama}
-                        </div>
-                        <div className="tukar-td-sub">
-                          {item.pengganti_unit}
-                        </div>
-                        {item.shift_tujuan_pengganti_kode && item.shift_tujuan_pengganti_kode !== '-' ? (
+                        {/* Pemohon */}
+                        <td>
+                          <div className="tukar-td-strong">
+                            {item.pemohon_nama}
+                          </div>
+                          <div className="tukar-td-sub">
+                            {item.pemohon_unit}
+                          </div>
                           <div className="swap-badge-flow" style={{ marginTop: '4px' }}>
-                            <span className="shift-tag" style={{ background: item.shift_asal_pengganti_warna || '#64748b' }}>
-                              {item.shift_asal_pengganti_kode}
+                            <span className="shift-tag" style={{ background: item.shift_asal_pemohon_warna || '#64748b' }}>
+                              {item.shift_asal_pemohon_kode}
                             </span>
                             <span style={{ fontSize: '10px', color: '#64748b' }}>➔</span>
-                            <span className="shift-tag" style={{ background: item.shift_tujuan_pengganti_warna || '#3b82f6' }}>
-                              {item.shift_tujuan_pengganti_kode}
+                            <span className="shift-tag" style={{ background: item.shift_tujuan_pemohon_warna || '#3b82f6' }}>
+                              {item.shift_tujuan_pemohon_kode}
                             </span>
                             <span className="tukar-shift-name">
-                              {item.shift_tujuan_pengganti_nama}
+                              {item.shift_tujuan_pemohon_nama}
                             </span>
                           </div>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
-                            Pengganti Tunggal
-                          </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Jenis & Alasan */}
-                      <td>
-                        <div className="tukar-td-sub" style={{ fontWeight: '600' }}>
-                          {item.jenis_label}
-                        </div>
-                        <div className="tukar-td-body" style={{ marginTop: '2px' }}>
-                          {item.alasan || '-'}
-                        </div>
-                      </td>
+                        {/* Swap Arrow */}
+                        <td style={{ textAlign: 'center', color: '#94a3b8' }}>
+                          <ArrowLeftRight size={16} />
+                        </td>
 
-                      {/* Status */}
-                      <td>
-                        <span className={`tukar-status-pill ${item.status}`}>
-                          {item.status === 'disetujui' && <CheckCircle2 size={13} />}
-                          {item.status === 'menunggu_atasan' && <Clock size={13} />}
-                          {(item.status === 'ditolak' || item.status === 'dibatalkan') && <XCircle size={13} />}
-                          {item.status_label}
-                        </span>
-                      </td>
-
-                      {/* Verifikasi */}
-                      <td>
-                        <div className="tukar-td-body" style={{ fontWeight: '600' }}>
-                          {item.disetujui_oleh_name || '-'}
-                        </div>
-                        {item.catatan_atasan && (
-                          <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
-                            "{item.catatan_atasan}"
+                        {/* Pengganti */}
+                        <td>
+                          <div className="tukar-td-strong">
+                            {item.pengganti_nama}
                           </div>
-                        )}
-                      </td>
+                          <div className="tukar-td-sub">
+                            {item.pengganti_unit}
+                          </div>
+                          {item.shift_tujuan_pengganti_kode && item.shift_tujuan_pengganti_kode !== '-' ? (
+                            <div className="swap-badge-flow" style={{ marginTop: '4px' }}>
+                              <span className="shift-tag" style={{ background: item.shift_asal_pengganti_warna || '#64748b' }}>
+                                {item.shift_asal_pengganti_kode}
+                              </span>
+                              <span style={{ fontSize: '10px', color: '#64748b' }}>➔</span>
+                              <span className="shift-tag" style={{ background: item.shift_tujuan_pengganti_warna || '#3b82f6' }}>
+                                {item.shift_tujuan_pengganti_kode}
+                              </span>
+                              <span className="tukar-shift-name">
+                                {item.shift_tujuan_pengganti_nama}
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>
+                              Pengganti Tunggal
+                            </span>
+                          )}
+                        </td>
 
-                      {/* Action */}
-                      <td style={{ textAlign: 'center' }}>
-                        {item.status === 'menunggu_atasan' && hasSdmAccess ? (
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                            <button
-                              type="button"
-                              className="btn-primary-sdm"
-                              onClick={() => handleApprove(item)}
-                              disabled={actionLoadingId === item.id}
-                              style={{ padding: '4px 8px', fontSize: '11px', background: '#10b981' }}
-                              title="Setujui dan Perbarui Roster Otomatis"
-                            >
-                              <Check size={12} />
-                              Setujui
-                            </button>
+                        {/* Jenis & Alasan */}
+                        <td>
+                          <div className="tukar-td-sub" style={{ fontWeight: '600' }}>
+                            {item.jenis_label}
+                          </div>
+                          <div className="tukar-td-body" style={{ marginTop: '2px' }}>
+                            {item.alasan || '-'}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td>
+                          <span className="sdm-status-inline">
+                            <span
+                              className={`sdm-dot ${item.status === 'disetujui'
+                                  ? 'is-green'
+                                  : item.status === 'menunggu_atasan'
+                                    ? 'is-amber'
+                                    : 'is-red'
+                                }`}
+                            />
+                            <span>{item.status_label}</span>
+                          </span>
+                        </td>
+
+                        {/* Verifikasi */}
+                        <td>
+                          <div className="tukar-td-body" style={{ fontWeight: '600' }}>
+                            {item.disetujui_oleh_name || '-'}
+                          </div>
+                          {item.catatan_atasan && (
+                            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
+                              "{item.catatan_atasan}"
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Action */}
+                        <td style={{ textAlign: 'center' }}>
+                          {item.status === 'menunggu_atasan' && hasSdmAccess ? (
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-primary-sdm"
+                                onClick={() => handleApprove(item)}
+                                disabled={actionLoadingId === item.id}
+                                style={{ height: 30, padding: '0 10px', fontSize: 12 }}
+                                title="Setujui dan Perbarui Roster Otomatis"
+                              >
+                                <Check size={12} />
+                                Setujui
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary-sdm"
+                                onClick={() => handleReject(item)}
+                                disabled={actionLoadingId === item.id}
+                                style={{ padding: '4px 8px', fontSize: '11px', color: '#ef4444' }}
+                                title="Tolak Pengajuan"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : item.status === 'disetujui' && hasSdmAccess ? (
                             <button
                               type="button"
                               className="btn-secondary-sdm"
-                              onClick={() => handleReject(item)}
+                              onClick={() => handleCancelTukar(item)}
                               disabled={actionLoadingId === item.id}
-                              style={{ padding: '4px 8px', fontSize: '11px', color: '#ef4444' }}
-                              title="Tolak Pengajuan"
+                              style={{ padding: '4px 10px', fontSize: '11px', color: '#d97706' }}
+                              title="Batalkan Tukar Dinas & Kembalikan ke Jadwal Master"
                             >
-                              <X size={12} />
+                              Batalkan
                             </button>
-                          </div>
-                        ) : item.status === 'disetujui' && hasSdmAccess ? (
-                          <button
-                            type="button"
-                            className="btn-secondary-sdm"
-                            onClick={() => handleCancelTukar(item)}
-                            disabled={actionLoadingId === item.id}
-                            style={{ padding: '4px 10px', fontSize: '11px', color: '#d97706' }}
-                            title="Batalkan Tukar Dinas & Kembalikan ke Jadwal Master"
-                          >
-                            Batalkan
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>-</span>
-                        )}
-                      </td>
-                    </tr>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -850,19 +835,16 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
           <div className="tukar-modal-content" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleCreateKoreksiSubmit}>
               <div className="tukar-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FileText size={20} style={{ color: '#2563eb' }} />
-                  <div>
-                    <div className="tukar-modal-title">Catat Koreksi Jadwal / Izin / Cuti</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>
-                      Tersimpan di layer Koreksi tanpa merusak Jadwal Master bulanan
-                    </div>
+                <div>
+                  <div className="tukar-modal-title">Catat Koreksi Jadwal / Izin / Cuti</div>
+                  <div className="tukar-modal-subtitle">
+                    Tersimpan di layer Koreksi tanpa merusak Jadwal Master bulanan
                   </div>
                 </div>
                 <button
                   type="button"
+                  className="tukar-modal-close"
                   onClick={() => setIsKoreksiModalOpen(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
                 >
                   <X size={18} />
                 </button>
@@ -982,19 +964,16 @@ export default function TukarDinasView({ hasSdmAccess = true, activeShifts = [],
           <div className="tukar-modal-content" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleCreateSubmit}>
               <div className="tukar-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <ArrowLeftRight size={20} style={{ color: '#2563eb' }} />
-                  <div>
-                    <div className="tukar-modal-title">Form Pengajuan Tukar Dinas Staf</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>
-                      Pilih pemohon dan rekan pengganti untuk pertukaran shift resmi
-                    </div>
+                <div>
+                  <div className="tukar-modal-title">Form Pengajuan Tukar Dinas Staf</div>
+                  <div className="tukar-modal-subtitle">
+                    Pilih pemohon dan rekan pengganti untuk pertukaran shift resmi
                   </div>
                 </div>
                 <button
                   type="button"
+                  className="tukar-modal-close"
                   onClick={() => setIsCreateModalOpen(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
                 >
                   <X size={18} />
                 </button>
