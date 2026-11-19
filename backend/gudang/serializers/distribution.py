@@ -3,6 +3,7 @@ from decimal import Decimal
 from gudang.models import (
     Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem, Ruang, Barang
 )
+from gudang.services.distribution import DistributionService
 
 
 class PermintaanItemSerializer(serializers.ModelSerializer):
@@ -43,6 +44,7 @@ class PermintaanSerializer(serializers.ModelSerializer):
     can_approve = serializers.SerializerMethodField()
     can_followup_approve = serializers.SerializerMethodField()
     can_issue = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
     bon_pengeluaran_id = serializers.SerializerMethodField()
     bon_pengeluaran_nomor = serializers.SerializerMethodField()
     tanggal_penyerahan = serializers.SerializerMethodField()
@@ -57,7 +59,7 @@ class PermintaanSerializer(serializers.ModelSerializer):
             'catatan', 'status', 'alasan_tolak', 'legacy_out_id',
             'items', 'item_status_counts', 'created_by', 'created_by_nama',
             'approved_by', 'approved_by_nama', 'approved_at',
-            'created_at', 'updated_at', 'can_approve', 'can_followup_approve', 'can_issue',
+            'created_at', 'updated_at', 'can_approve', 'can_followup_approve', 'can_issue', 'can_cancel',
             'bon_pengeluaran_id', 'bon_pengeluaran_nomor', 'pengeluaran_list'
         ]
 
@@ -93,6 +95,12 @@ class PermintaanSerializer(serializers.ModelSerializer):
             and (pi.qty_disetujui or Decimal('0')) > (pi.qty_dikeluarkan or Decimal('0'))
             for pi in obj.items.all()
         )
+
+    def get_can_cancel(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        return DistributionService.can_user_cancel_permintaan(request.user, obj)
 
     def get_item_status_counts(self, obj):
         from gudang.models import StokSaldo
@@ -196,6 +204,7 @@ class PengeluaranSerializer(serializers.ModelSerializer):
     created_by_nama = serializers.CharField(source='created_by.get_full_name', read_only=True)
     approved_by_nama = serializers.CharField(source='approved_by.get_full_name', read_only=True)
     can_approve = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
 
     class Meta:
         model = Pengeluaran
@@ -206,7 +215,7 @@ class PengeluaranSerializer(serializers.ModelSerializer):
             'catatan', 'alasan_batal', 'legacy_out_id', 'items',
             'created_by', 'created_by_nama',
             'approved_by', 'approved_by_nama', 'approved_at',
-            'created_at', 'updated_at', 'can_approve'
+            'created_at', 'updated_at', 'can_approve', 'can_cancel'
         ]
 
     def get_can_approve(self, obj):
@@ -219,4 +228,10 @@ class PengeluaranSerializer(serializers.ModelSerializer):
         if user.is_superuser or getattr(user, 'username', '') == 'super':
             return True
         return bool(getattr(user, 'is_logistik', False) or getattr(user, 'role', '') in ['direktur', 'wakil_direktur'])
+
+    def get_can_cancel(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return False
+        return DistributionService.can_user_cancel_pengeluaran(request.user, obj)
 

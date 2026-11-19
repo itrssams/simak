@@ -824,7 +824,7 @@ export default function MasterPembiayaan() {
                         <div className="mp-modal-body">
                             {autoGroupLoading ? (
                                 <div className="mp-state center" style={{ padding: '40px 0' }}>
-                                    <RefreshCw size={28} className="spin" style={{ margin: '0 auto 12px', color: '#2563eb' }} />
+                                    <RefreshCw size={28} className="spin" style={{ margin: '0 auto 12px', color: '#635bff' }} />
                                     <p>Menganalisis dan mengelompokkan pola nama pembiayaan...</p>
                                 </div>
                             ) : autoGroupData ? (

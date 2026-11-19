@@ -896,7 +896,7 @@ export default function DaftarKunjunganInvoice() {
 
             {detail && createPortal(
                 <div className="dki-modal-backdrop" onMouseDown={() => setDetail(null)}>
-                    <div className="dki-modal" onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="dki-modal dki-detail-modal" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="dki-modal-head">
                             <div>
                                 <span><Stethoscope size={21} /></span>
@@ -906,7 +906,15 @@ export default function DaftarKunjunganInvoice() {
                                     <p>{detail.nama} | RM {detail.noreg}</p>
                                 </div>
                             </div>
-                            <button type="button" onClick={() => setDetail(null)}><X size={18} /> Tutup</button>
+                            <button
+                                type="button"
+                                className="dki-modal-close-icon"
+                                aria-label="Tutup"
+                                title="Tutup"
+                                onClick={() => setDetail(null)}
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
 
                         {detailLoading ? (
@@ -917,22 +925,34 @@ export default function DaftarKunjunganInvoice() {
                                     <Info label="Tanggal Masuk" value={dateLabel(detail.tgl_masuk)} icon={CalendarDays} />
                                     <Info label="Pembiayaan" value={`${detail.nama_pembiayaan || '-'} (${detail.id_pembiayaan || '-'})`} icon={Filter} />
                                     <Info label="Total Biaya" value={money(detail.total_biaya)} icon={ReceiptText} strong />
-                                    <Info label="Status Kunjungan" value={detail.status_invoice_label || (detail.status_done ? 'Sudah Done' : 'Belum Done')} icon={CheckCircle2} />
+                                    <Info
+                                        label="Status Kunjungan"
+                                        value={<DetailVisitStatus detail={detail} />}
+                                        icon={CheckCircle2}
+                                    />
                                 </div>
                                 <div className="dki-section-title">
                                     <h3>Rincian Biaya</h3>
                                     <p>Komponen biaya dari kunjungan pasien.</p>
                                 </div>
                                 <div className="dki-cost-grid">
-                                    {COST_FIELDS.map(([key, label]) => (
-                                        <div key={key} className="dki-cost">
-                                            <small>{label}</small>
-                                            <strong>{money(detail[key])}</strong>
-                                        </div>
-                                    ))}
+                                    {COST_FIELDS.map(([key, label]) => {
+                                        const isZero = Number(detail[key] || 0) === 0;
+                                        return (
+                                            <div key={key} className={`dki-cost${isZero ? ' is-zero' : ''}`}>
+                                                <small>{label}</small>
+                                                <strong>{money(detail[key])}</strong>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
+                        <div className="dki-modal-actions">
+                            <button className="dki-secondary" type="button" onClick={() => setDetail(null)}>
+                                Tutup
+                            </button>
+                        </div>
                     </div>
                 </div>,
                 document.body
@@ -963,6 +983,17 @@ function InvoiceBadge({ row }) {
         return <span className="dki-badge tidak-hadir" title="Biaya <= 25rb, tidak ada pembayaran di app_siaga">Tidak Hadir</span>;
     }
     return <span className="dki-badge open">Belum Invoice</span>;
+}
+
+function DetailVisitStatus({ detail }) {
+    if (detail.status_invoice) {
+        return <InvoiceBadge row={detail} />;
+    }
+    return (
+        <span className={`dki-badge ${detail.status_done ? 'done' : 'pending'}`}>
+            {detail.status_invoice_label || (detail.status_done ? 'Sudah Done' : 'Belum Done')}
+        </span>
+    );
 }
 
 function Info({ label, value, icon, strong }) {

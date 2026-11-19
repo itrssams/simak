@@ -412,123 +412,176 @@
   }
 }
 
-/* ── Dashboard Invoice Panels (Aging Piutang & Top Sisa Piutang: No Box-in-a-Box) ─ */
-.idash-grid {
+/* ── Dashboard Invoice Panels (50:50 Flat Canvas, Vertical & Horizontal Hairline) ─ */
+[data-theme="dark"] .idash-page .idash-grid,
+.idash-page .idash-grid {
   display: grid !important;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr) !important;
-  gap: 20px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
   margin: 0 !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .idash-page .idash-panel,
+.idash-page .idash-panel {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.idash-page .idash-panel.aging {
+  padding: 18px 24px 18px 0 !important;
+}
+
+.idash-page .idash-panel.top {
+  padding: 18px 0 18px 24px !important;
+  border-left: 1px solid var(--gdg-border) !important;
 }
 
 @media (max-width: 1024px) {
-  .idash-grid {
+  [data-theme="dark"] .idash-page .idash-grid,
+  .idash-page .idash-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .idash-page .idash-panel.aging {
+    padding: 16px 0 !important;
+  }
+
+  .idash-page .idash-panel.top {
+    padding: 16px 0 !important;
+    border-left: none !important;
+    border-top: 1px solid var(--gdg-border) !important;
   }
 }
 
-.idash-panel {
-  background: var(--pen-surface) !important;
-  border: 1px solid var(--gdg-border) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  padding: 16px 18px !important;
-}
-
-.idash-panel-head {
+.idash-page .idash-panel-head {
   display: flex !important;
   align-items: flex-start !important;
   justify-content: space-between !important;
   gap: 12px !important;
-  padding-bottom: 10px !important;
+  padding-bottom: 12px !important;
   border-bottom: 1px solid var(--gdg-border) !important;
 }
 
-.idash-panel-head h2 {
+.idash-page .idash-panel-head h2 {
   margin: 0 !important;
   font-size: 14px !important;
   font-weight: 650 !important;
   color: var(--pen-text) !important;
 }
 
-.idash-panel-head p {
+.idash-page .idash-panel-head p {
   margin: 2px 0 0 !important;
   font-size: 12px !important;
   color: var(--pen-muted) !important;
 }
 
-.idash-panel-head svg {
+.idash-page .idash-panel-head svg {
   color: var(--pen-muted) !important;
   width: 16px !important;
   height: 16px !important;
+  flex-shrink: 0 !important;
 }
 
-.idash-aging-list,
-.idash-top-list {
-  margin-top: 4px !important;
+.idash-page .idash-aging-list,
+.idash-page .idash-top-list {
+  margin-top: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 0 !important;
 }
 
-.idash-aging-row,
-.idash-top-item {
+[data-theme="dark"] .idash-page .idash-aging-row,
+[data-theme="dark"] .idash-page .idash-top-item,
+.idash-page .idash-aging-row,
+.idash-page .idash-top-item {
   width: 100% !important;
-  min-height: 44px !important;
+  min-height: 54px !important;
   height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  padding: 10px 6px !important;
+  padding: 10px 8px !important;
   gap: 12px !important;
   color: var(--pen-text) !important;
   transform: none !important;
   transition: background-color 0.14s ease !important;
+  box-sizing: border-box !important;
 }
 
-.idash-aging-row:last-child,
-.idash-top-item:last-child {
+[data-theme="dark"] .idash-page .idash-aging-row:last-child,
+[data-theme="dark"] .idash-page .idash-top-item:last-child,
+.idash-page .idash-aging-row:last-child,
+.idash-page .idash-top-item:last-child {
   border-bottom: none !important;
 }
 
-.idash-aging-row:hover,
-.idash-top-item:hover {
+[data-theme="dark"] .idash-page .idash-aging-row:hover,
+[data-theme="dark"] .idash-page .idash-top-item:hover,
+.idash-page .idash-aging-row:hover,
+.idash-page .idash-top-item:hover {
   background: var(--pen-hover) !important;
   border-color: var(--gdg-border) !important;
   transform: none !important;
 }
 
-.idash-aging-row > span,
-.idash-top-item > span {
+.idash-page .idash-aging-row > span,
+.idash-page .idash-top-item > span {
   width: 3px !important;
   height: 22px !important;
   border-radius: 999px !important;
   flex-shrink: 0 !important;
 }
 
-.idash-aging-row {
-  display: flex !important;
-  align-items: center !important;
-}
-
-.idash-aging-row > div {
-  flex: 1;
+.idash-page .idash-aging-row > div {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   gap: 12px !important;
 }
 
-.idash-aging-row strong,
-.idash-top-item strong {
+.idash-page .idash-top-item > div {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  text-align: left !important;
+}
+
+[data-theme="dark"] .idash-page .idash-aging-row strong,
+[data-theme="dark"] .idash-page .idash-top-item strong,
+.idash-page .idash-aging-row strong,
+.idash-page .idash-top-item strong {
   font-size: 13px !important;
   font-weight: 600 !important;
   color: var(--pen-text) !important;
+  line-height: 1.3 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-.idash-aging-row small {
+[data-theme="dark"] .idash-page .idash-aging-row small,
+.idash-page .idash-aging-row small {
   margin: 0 !important;
   font-size: 13px !important;
   font-weight: 600 !important;
@@ -538,29 +591,32 @@
   white-space: nowrap !important;
 }
 
-.idash-top-item {
-  display: grid !important;
-  grid-template-columns: 3px minmax(0, 1fr) auto !important;
-  align-items: center !important;
-}
-
-.idash-top-item small {
-  margin-top: 2px !important;
+[data-theme="dark"] .idash-page .idash-top-item small,
+.idash-page .idash-top-item small {
+  margin: 0 !important;
   font-size: 11.5px !important;
   font-weight: 500 !important;
   color: var(--pen-muted) !important;
   font-variant-numeric: tabular-nums !important;
+  line-height: 1.25 !important;
 }
 
-.idash-top-item b {
+[data-theme="dark"] .idash-page .idash-top-item b,
+.idash-page .idash-top-item b {
   color: var(--pen-text) !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   font-variant-numeric: tabular-nums !important;
   font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  margin-left: auto !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
 }
 
 /* ── Full-Bleed Table Outer Containers (No Card Frame) ────────────────────── */
+[data-theme="dark"] :is(.idash-card, .dki-card, .inv-page:not(.log-page) .inv-card, .ivf-card, .ap-card, .mp-card),
+[data-theme="light"] :is(.idash-card, .dki-card, .inv-page:not(.log-page) .inv-card, .ivf-card, .ap-card, .mp-card),
 :is(
   .idash-card,
   .dki-card,
@@ -577,6 +633,59 @@
   box-shadow: none !important;
   padding: 0 !important;
   overflow: visible !important;
+}
+
+/* ── Transparent Flat Loading States & #635bff Spinner ───────────────────── */
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-container,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-container,
+:is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-container {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 48px 16px !important;
+}
+
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-spinner-ring,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-spinner-ring,
+:is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-spinner-ring {
+  width: 32px !important;
+  height: 32px !important;
+  border-width: 2.5px !important;
+  border-style: solid !important;
+  border-color: var(--gdg-border) !important;
+  border-top-color: #635bff !important;
+  border-right-color: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-text,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-text,
+:is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay) .simak-loading-text {
+  color: var(--pen-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  animation: none !important;
+}
+
+:is(
+  .dki-modal-backdrop .dki-detail-empty,
+  .pen-modal-backdrop .inv-empty,
+  .inv-page:not(.log-page) .inv-empty,
+  .ivf-page .ivf-state,
+  .mp-page .mp-state,
+  .mp-modal-overlay .mp-state,
+  .ap-page .ap-empty,
+  .ap-modal-backdrop .ap-empty
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--pen-muted) !important;
 }
 
 :is(
@@ -626,7 +735,9 @@
   color: var(--pen-muted) !important;
 }
 
-/* Toolbars / Filter Strips */
+/* Toolbars / Filter Strips & Balanced Filter Row Proportions */
+[data-theme="dark"] :is(.dki-page .dki-filter, .inv-page:not(.log-page) .inv-filter, .ivf-page .ivf-filter, .mp-page .mp-toolbar),
+[data-theme="light"] :is(.dki-page .dki-filter, .inv-page:not(.log-page) .inv-filter, .ivf-page .ivf-filter, .mp-page .mp-toolbar),
 :is(
   .dki-page .dki-filter,
   .inv-page:not(.log-page) .inv-filter,
@@ -640,6 +751,109 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 12px 0 !important;
+}
+
+.dki-page .dki-filter {
+  gap: 8px !important;
+}
+
+.dki-page .dki-filter-row-1,
+.dki-page .dki-filter-row-2 {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+}
+
+.dki-page .dki-filter-row-1 .dki-search {
+  flex: 1.5 !important;
+  min-width: 240px !important;
+}
+
+.dki-page .dki-filter-row-2 .dki-filter-pembiayaan {
+  flex: 1.5 !important;
+  min-width: 220px !important;
+}
+
+.dki-page .dki-filter-row-2 .dki-filter-jenis {
+  flex: 0.9 !important;
+  min-width: 150px !important;
+  width: auto !important;
+}
+
+.dki-page .dki-filter-row-2 .dki-filter-invoice {
+  flex: 1.35 !important;
+  min-width: 230px !important;
+  width: auto !important;
+}
+
+.dki-page .dki-filter-row-2 .dki-filter-nilai {
+  flex: 0.9 !important;
+  min-width: 150px !important;
+  width: auto !important;
+}
+
+.dki-page .dki-filter-row-2 .dki-filter-reset {
+  flex: 0 0 auto !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row .dki-search {
+  flex: 1.25 1 210px !important;
+  min-width: 200px !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row .dki-filter-pembiayaan {
+  flex: 1.5 1 210px !important;
+  min-width: 210px !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row .dki-filter-status {
+  flex: 1 1 165px !important;
+  min-width: 160px !important;
+  width: auto !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row .dki-filter-amount {
+  flex: 1 1 155px !important;
+  min-width: 150px !important;
+  width: auto !important;
+}
+
+.inv-page:not(.log-page) .inv-filter-row .dki-filter-reset {
+  flex: 0 0 auto !important;
+}
+
+.ivf-page .ivf-filter {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.mp-page .mp-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.mp-page .mp-toolbar .mp-search {
+  flex: 1.5 1 260px !important;
+  min-width: 240px !important;
+}
+
+.mp-page .mp-toolbar select.mp-select {
+  flex: 1 1 180px !important;
+  min-width: 170px !important;
 }
 
 /* Master Pembiayaan Underline Tabs */
@@ -719,6 +933,8 @@
 }
 
 /* Verifikasi Segmented Tabs */
+[data-theme="dark"] .ivf-page .ivf-tabs,
+[data-theme="light"] .ivf-page .ivf-tabs,
 .ivf-tabs {
   display: inline-flex !important;
   align-items: center !important;
@@ -727,10 +943,13 @@
   border-radius: 6px !important;
   border: 1px solid var(--pen-border-ctrl) !important;
   background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
   gap: 3px !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .ivf-page .ivf-tabs button,
+[data-theme="light"] .ivf-page .ivf-tabs button,
 .ivf-tabs button {
   height: 28px !important;
   min-height: 28px !important;
@@ -738,20 +957,45 @@
   border-radius: 4px !important;
   border: none !important;
   background: transparent !important;
+  background-color: transparent !important;
   color: var(--pen-muted) !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .ivf-page .ivf-tabs button.active,
+[data-theme="light"] .ivf-page .ivf-tabs button.active,
 .ivf-tabs button.active {
   background: #635bff !important;
+  background-color: #635bff !important;
+  background-image: none !important;
   color: #ffffff !important;
   font-weight: 600 !important;
   box-shadow: none !important;
 }
 
 /* ── Uniform 36px Controls (Search, Input, Select w/ Custom Chevron, Date, Buttons) ── */
+[data-theme="dark"] :is(
+  .idash-page .idash-search,
+  .dki-page .dki-search,
+  .inv-page:not(.log-page) .dki-search,
+  .ivf-page .ivf-search,
+  .ap-page .ap-search,
+  .mp-page .mp-search,
+  .dki-modal-backdrop .dki-search,
+  .ap-modal-backdrop .ap-search
+),
+[data-theme="light"] :is(
+  .idash-page .idash-search,
+  .dki-page .dki-search,
+  .inv-page:not(.log-page) .dki-search,
+  .ivf-page .ivf-search,
+  .ap-page .ap-search,
+  .mp-page .mp-search,
+  .dki-modal-backdrop .dki-search,
+  .ap-modal-backdrop .ap-search
+),
 :is(
   .idash-page .idash-search,
   .dki-page .dki-search,
@@ -785,6 +1029,26 @@
   left: 10px !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-page .idash-search input,
+  .dki-page .dki-search input,
+  .inv-page:not(.log-page) .dki-search input,
+  .ivf-page .ivf-search input,
+  .ap-page .ap-search input,
+  .mp-page .mp-search input,
+  .dki-modal-backdrop .dki-search input,
+  .ap-modal-backdrop .ap-search input
+),
+[data-theme="light"] :is(
+  .idash-page .idash-search input,
+  .dki-page .dki-search input,
+  .inv-page:not(.log-page) .dki-search input,
+  .ivf-page .ivf-search input,
+  .ap-page .ap-search input,
+  .mp-page .mp-search input,
+  .dki-modal-backdrop .dki-search input,
+  .ap-modal-backdrop .ap-search input
+),
 :is(
   .idash-page .idash-search input,
   .dki-page .dki-search input,
@@ -819,6 +1083,14 @@
 }
 
 /* Native <select> filters & modal <select>: 36px, border-radius: 6px, appearance: none + single chevron */
+[data-theme="light"] :is(
+  .dki-page select.dki-select,
+  .inv-page:not(.log-page) select.dki-select,
+  .ap-page select.ap-select-native,
+  .mp-page select.mp-select,
+  .pen-modal-backdrop select.inv-input,
+  .ap-modal-backdrop select.ap-select-native
+),
 :is(
   .dki-page select.dki-select,
   .inv-page:not(.log-page) select.dki-select,
@@ -854,13 +1126,23 @@
   .pen-modal-backdrop select.inv-input,
   .ap-modal-backdrop select.ap-select-native
 ) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
   background-color: #181b23 !important;
   color: #f8fafc !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 30px 0 11px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 10px center !important;
   background-size: 12px 12px !important;
+  box-shadow: none !important;
+  cursor: pointer;
 }
 
 :is(
@@ -995,6 +1277,14 @@
 }
 
 /* DateRangePicker & DateField inside Penagihan (36px, border-radius: 6px, neutral) */
+[data-theme="dark"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger,
+[data-theme="light"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
   .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
@@ -1022,6 +1312,10 @@
   font-weight: 500 !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .drp-trigger.has-value,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
   .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
@@ -1029,6 +1323,7 @@
 .idash-page .idash-head-actions .drp-trigger.has-value {
   border-color: rgba(99, 91, 255, 0.5) !important;
   background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
   color: var(--pen-text) !important;
 }
 
@@ -1041,6 +1336,14 @@
   height: 14px !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .df-input,
+[data-theme="light"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
+  .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
+) .df-input,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page,
   .dki-modal-backdrop, .pen-modal-backdrop, .ap-modal-backdrop, .mp-modal-overlay
@@ -1080,6 +1383,32 @@
 }
 
 /* Primary & Secondary Toolbar / Modal Footer Buttons (36px, #635bff Solid Primary) */
+[data-theme="dark"] :is(
+  .dki-page .dki-primary,
+  .inv-page:not(.log-page) .inv-btn.primary,
+  .ap-page .ap-btn.primary,
+  .mp-page .mp-primary,
+  .dki-modal-backdrop .dki-primary,
+  .pen-modal-backdrop .inv-btn.primary,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.primary,
+  .pen-modal-backdrop .inv-pay-submit,
+  .ap-modal-backdrop .ap-btn.primary,
+  .mp-modal-overlay .mp-primary,
+  .mp-modal-overlay .mp-accent-btn
+),
+[data-theme="light"] :is(
+  .dki-page .dki-primary,
+  .inv-page:not(.log-page) .inv-btn.primary,
+  .ap-page .ap-btn.primary,
+  .mp-page .mp-primary,
+  .dki-modal-backdrop .dki-primary,
+  .pen-modal-backdrop .inv-btn.primary,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.primary,
+  .pen-modal-backdrop .inv-pay-submit,
+  .ap-modal-backdrop .ap-btn.primary,
+  .mp-modal-overlay .mp-primary,
+  .mp-modal-overlay .mp-accent-btn
+),
 :is(
   .dki-page .dki-primary,
   .inv-page:not(.log-page) .inv-btn.primary,
@@ -1122,11 +1451,42 @@
   .mp-modal-overlay .mp-accent-btn:hover:not(:disabled)
 ) {
   background: #5249f5 !important;
+  background-color: #5249f5 !important;
   border-color: #5249f5 !important;
   transform: none !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] :is(
+  .inv-page:not(.log-page) .inv-btn.soft,
+  .dki-page .dki-filter-reset,
+  .ivf-page .ivf-reset,
+  .ap-page .ap-btn.soft,
+  .mp-page .mp-secondary,
+  .mp-page .mp-accent-btn,
+  .dki-modal-backdrop .dki-secondary,
+  .pen-modal-backdrop .inv-btn.soft,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.soft,
+  .ap-modal-backdrop .ap-btn.soft,
+  .ap-modal-backdrop .ap-filter-reset,
+  .ap-confirm-backdrop .ap-btn.soft,
+  .mp-modal-overlay .mp-secondary
+),
+[data-theme="light"] :is(
+  .inv-page:not(.log-page) .inv-btn.soft,
+  .dki-page .dki-filter-reset,
+  .ivf-page .ivf-reset,
+  .ap-page .ap-btn.soft,
+  .mp-page .mp-secondary,
+  .mp-page .mp-accent-btn,
+  .dki-modal-backdrop .dki-secondary,
+  .pen-modal-backdrop .inv-btn.soft,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.soft,
+  .ap-modal-backdrop .ap-btn.soft,
+  .ap-modal-backdrop .ap-filter-reset,
+  .ap-confirm-backdrop .ap-btn.soft,
+  .mp-modal-overlay .mp-secondary
+),
 :is(
   .inv-page:not(.log-page) .inv-btn.soft,
   .dki-page .dki-filter-reset,
@@ -1157,6 +1517,21 @@
   transform: none !important;
 }
 
+[data-theme="dark"] :is(
+  .inv-page:not(.log-page) .inv-btn.soft:hover:not(:disabled),
+  .dki-page .dki-filter-reset:hover,
+  .ivf-page .ivf-reset:hover,
+  .ap-page .ap-btn.soft:hover:not(:disabled),
+  .mp-page .mp-secondary:hover:not(:disabled),
+  .mp-page .mp-accent-btn:hover:not(:disabled),
+  .dki-modal-backdrop .dki-secondary:hover:not(:disabled),
+  .pen-modal-backdrop .inv-btn.soft:hover:not(:disabled),
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions .inv-btn.soft:hover:not(:disabled),
+  .ap-modal-backdrop .ap-btn.soft:hover:not(:disabled),
+  .ap-modal-backdrop .ap-filter-reset:hover,
+  .ap-confirm-backdrop .ap-btn.soft:hover:not(:disabled),
+  .mp-modal-overlay .mp-secondary:hover:not(:disabled)
+),
 :is(
   .inv-page:not(.log-page) .inv-btn.soft:hover:not(:disabled),
   .dki-page .dki-filter-reset:hover,
@@ -1173,20 +1548,35 @@
   .mp-modal-overlay .mp-secondary:hover:not(:disabled)
 ) {
   background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
   border-color: #635bff !important;
   color: var(--pen-text) !important;
 }
 
+/* Sub-header Filter Status Chip (Neutral Secondary — Not Bright Blue) */
+[data-theme="dark"] .dki-page .dki-card-actions .dki-chip,
+[data-theme="light"] .dki-page .dki-card-actions .dki-chip,
+[data-theme="dark"] .dki-page .dki-chip,
+[data-theme="light"] .dki-page .dki-chip,
+.dki-page .dki-chip,
 .dki-chip {
   height: 36px !important;
   min-height: 36px !important;
   border-radius: 6px !important;
-  padding: 0 11px !important;
-  background: var(--pen-surface) !important;
-  border: 1px solid var(--gdg-border) !important;
-  color: var(--pen-muted) !important;
-  font-size: 12.5px !important;
+  padding: 0 12px !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  background-image: none !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .dki-page .dki-chip svg,
+.dki-page .dki-chip svg {
+  color: var(--pen-muted) !important;
 }
 
 /* Danger / Return / Excel buttons in Modals (36px) */
@@ -1250,6 +1640,14 @@
   box-shadow: none !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-table,
+  .dki-table,
+  .inv-page:not(.log-page) .inv-table,
+  .ivf-table,
+  .ap-table,
+  .mp-table
+),
 :is(
   .idash-table,
   .dki-table,
@@ -1262,6 +1660,22 @@
   color: var(--pen-text) !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-table th,
+  .dki-table th,
+  .inv-page:not(.log-page) .inv-table th,
+  .ivf-table th,
+  .ap-table th,
+  .mp-table th
+),
+[data-theme="light"] :is(
+  .idash-table th,
+  .dki-table th,
+  .inv-page:not(.log-page) .inv-table th,
+  .ivf-table th,
+  .ap-table th,
+  .mp-table th
+),
 :is(
   .idash-table th,
   .dki-table th,
@@ -1282,6 +1696,22 @@
   height: 36px !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-table td,
+  .dki-table td,
+  .inv-page:not(.log-page) .inv-table td,
+  .ivf-table td,
+  .ap-table td,
+  .mp-table td
+),
+[data-theme="light"] :is(
+  .idash-table td,
+  .dki-table td,
+  .inv-page:not(.log-page) .inv-table td,
+  .ivf-table td,
+  .ap-table td,
+  .mp-table td
+),
 :is(
   .idash-table td,
   .dki-table td,
@@ -1299,6 +1729,14 @@
   vertical-align: middle !important;
 }
 
+[data-theme="dark"] :is(
+  .idash-table tbody tr:hover td,
+  .dki-table tbody tr:hover td,
+  .inv-page:not(.log-page) .inv-table tbody tr:hover td,
+  .ivf-table tbody tr:hover td,
+  .ap-table tbody tr:hover td,
+  .mp-table tbody tr:hover td
+),
 :is(
   .idash-table tbody tr:hover td,
   .dki-table tbody tr:hover td,
@@ -1311,6 +1749,11 @@
   background-color: var(--pen-hover) !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-table tbody tr.selected td,
+  .inv-page:not(.log-page) .inv-table tbody tr.inv-row-selected td,
+  .ap-master-table tbody tr.selected td
+),
 :is(
   .dki-table tbody tr.selected td,
   .inv-page:not(.log-page) .inv-table tbody tr.inv-row-selected td,
@@ -1352,6 +1795,8 @@
 }
 
 /* Plain Tabular-Nums Counts & IDs (No Blue Pills) */
+[data-theme="dark"] .idash-page .idash-pill,
+.idash-page .idash-pill,
 .idash-pill,
 .ap-id-badge,
 .ap-activity-badge,
@@ -1359,9 +1804,11 @@
 .mp-code-badge,
 .mp-members-count-pill {
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
   border-radius: 0 !important;
   padding: 0 !important;
+  min-width: 0 !important;
   color: var(--pen-text) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
@@ -1406,10 +1853,33 @@
   font-variant-numeric: tabular-nums !important;
 }
 
-/* ── Status Badges → 6px Status Dot + Flat Text ─────────────────────────── */
+/* ── Status Badges → 6px Status Dot + Flat Text (font-size: 13px) ──────── */
+[data-theme="dark"] :is(
+  .dki-page .dki-badge, .dki-page .dki-badge.done, .dki-page .dki-badge.invoiced, .dki-page .dki-badge.open, .dki-page .dki-badge.pending, .dki-page .dki-badge.diluar-tanggungan, .dki-page .dki-badge.tidak-hadir,
+  .dki-modal-backdrop .dki-badge, .dki-modal-backdrop .dki-badge.done, .dki-modal-backdrop .dki-badge.invoiced, .dki-modal-backdrop .dki-badge.open, .dki-modal-backdrop .dki-badge.pending, .dki-modal-backdrop .dki-badge.diluar-tanggungan, .dki-modal-backdrop .dki-badge.tidak-hadir,
+  .dki-badge, .dki-badge.done, .dki-badge.invoiced, .dki-badge.open, .dki-badge.pending, .dki-badge.diluar-tanggungan, .dki-badge.tidak-hadir,
+  .inv-page:not(.log-page) .inv-status, .inv-status.lunas, .inv-status.bayar_sebagian, .inv-status.belum_bayar, .inv-status.batal, .inv-status.unknown,
+  .pen-modal-backdrop .inv-status, .pen-modal-backdrop .inv-verify-badge, .inv-verify-badge, .inv-verify-badge.verified, .inv-verify-badge.pending, .inv-verify-badge.canceled,
+  .ivf-verify-badge, .ivf-verify-badge.terverifikasi, .ivf-verify-badge.dibatalkan, .ivf-verify-badge.ditolak,
+  .ap-flow, .ap-flow.in, .ap-flow.out, .ap-induk-pool-badge,
+  .mp-badge, .mp-badge.active, .mp-badge.inactive
+),
+[data-theme="light"] :is(
+  .dki-page .dki-badge, .dki-page .dki-badge.done, .dki-page .dki-badge.invoiced, .dki-page .dki-badge.open, .dki-page .dki-badge.pending, .dki-page .dki-badge.diluar-tanggungan, .dki-page .dki-badge.tidak-hadir,
+  .dki-modal-backdrop .dki-badge, .dki-modal-backdrop .dki-badge.done, .dki-modal-backdrop .dki-badge.invoiced, .dki-modal-backdrop .dki-badge.open, .dki-modal-backdrop .dki-badge.pending, .dki-modal-backdrop .dki-badge.diluar-tanggungan, .dki-modal-backdrop .dki-badge.tidak-hadir,
+  .dki-badge, .dki-badge.done, .dki-badge.invoiced, .dki-badge.open, .dki-badge.pending, .dki-badge.diluar-tanggungan, .dki-badge.tidak-hadir,
+  .inv-page:not(.log-page) .inv-status, .inv-status.lunas, .inv-status.bayar_sebagian, .inv-status.belum_bayar, .inv-status.batal, .inv-status.unknown,
+  .pen-modal-backdrop .inv-status, .pen-modal-backdrop .inv-verify-badge, .inv-verify-badge, .inv-verify-badge.verified, .inv-verify-badge.pending, .inv-verify-badge.canceled,
+  .ivf-verify-badge, .ivf-verify-badge.terverifikasi, .ivf-verify-badge.dibatalkan, .ivf-verify-badge.ditolak,
+  .ap-flow, .ap-flow.in, .ap-flow.out, .ap-induk-pool-badge,
+  .mp-badge, .mp-badge.active, .mp-badge.inactive
+),
 :is(
+  .dki-page .dki-badge,
+  .dki-modal-backdrop .dki-badge,
   .dki-badge,
   .inv-page:not(.log-page) .inv-status,
+  .pen-modal-backdrop .inv-status,
   .inv-verify-badge,
   .ivf-verify-badge,
   .ap-flow,
@@ -1421,10 +1891,11 @@
   gap: 6px !important;
   background: transparent !important;
   background-color: transparent !important;
+  background-image: none !important;
   border: none !important;
   border-radius: 0 !important;
   padding: 0 !important;
-  font-size: 12.5px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
   line-height: 1.4 !important;
   white-space: nowrap !important;
@@ -1434,6 +1905,7 @@
 :is(
   .dki-badge,
   .inv-page:not(.log-page) .inv-status,
+  .pen-modal-backdrop .inv-status,
   .inv-verify-badge,
   .ivf-verify-badge,
   .ap-flow,
@@ -1459,6 +1931,7 @@
   .dki-badge.done,
   .dki-badge.invoiced,
   .inv-page:not(.log-page) .inv-status.lunas,
+  .pen-modal-backdrop .inv-status.lunas,
   .inv-verify-badge.verified,
   .ivf-verify-badge.terverifikasi,
   .ap-flow.in,
@@ -1470,6 +1943,7 @@
   .dki-badge.done,
   .dki-badge.invoiced,
   .inv-page:not(.log-page) .inv-status.lunas,
+  .pen-modal-backdrop .inv-status.lunas,
   .inv-verify-badge.verified,
   .ivf-verify-badge.terverifikasi,
   .ap-flow.in,
@@ -1481,6 +1955,7 @@
   .dki-badge.done,
   .dki-badge.invoiced,
   .inv-page:not(.log-page) .inv-status.lunas,
+  .pen-modal-backdrop .inv-status.lunas,
   .inv-verify-badge.verified,
   .ivf-verify-badge.terverifikasi,
   .ap-flow.in
@@ -1493,6 +1968,7 @@
 :is(
   .dki-badge.open,
   .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .pen-modal-backdrop .inv-status.bayar_sebagian,
   .ap-induk-pool-badge
 ) {
   color: #4f46e5 !important;
@@ -1500,6 +1976,7 @@
 [data-theme="dark"] :is(
   .dki-badge.open,
   .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .pen-modal-backdrop .inv-status.bayar_sebagian,
   .ap-induk-pool-badge
 ) {
   color: #818cf8 !important;
@@ -1507,6 +1984,7 @@
 :is(
   .dki-badge.open,
   .inv-page:not(.log-page) .inv-status.bayar_sebagian,
+  .pen-modal-backdrop .inv-status.bayar_sebagian,
   .ap-induk-pool-badge
 )::before {
   background: #635bff !important;
@@ -1517,6 +1995,7 @@
   .dki-badge.pending,
   .dki-badge.diluar-tanggungan,
   .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .pen-modal-backdrop .inv-status.belum_bayar,
   .inv-verify-badge.pending,
   .ap-flow.out,
   .mp-badge.inactive
@@ -1527,6 +2006,7 @@
   .dki-badge.pending,
   .dki-badge.diluar-tanggungan,
   .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .pen-modal-backdrop .inv-status.belum_bayar,
   .inv-verify-badge.pending,
   .ap-flow.out,
   .mp-badge.inactive
@@ -1537,6 +2017,7 @@
   .dki-badge.pending,
   .dki-badge.diluar-tanggungan,
   .inv-page:not(.log-page) .inv-status.belum_bayar,
+  .pen-modal-backdrop .inv-status.belum_bayar,
   .inv-verify-badge.pending,
   .ap-flow.out
 )::before,
@@ -1547,6 +2028,7 @@
 /* Danger / Canceled */
 :is(
   .inv-page:not(.log-page) .inv-status.batal,
+  .pen-modal-backdrop .inv-status.batal,
   .inv-verify-badge.canceled,
   .ivf-verify-badge.dibatalkan,
   .ivf-verify-badge.ditolak
@@ -1555,6 +2037,7 @@
 }
 [data-theme="dark"] :is(
   .inv-page:not(.log-page) .inv-status.batal,
+  .pen-modal-backdrop .inv-status.batal,
   .inv-verify-badge.canceled,
   .ivf-verify-badge.dibatalkan,
   .ivf-verify-badge.ditolak
@@ -1563,6 +2046,7 @@
 }
 :is(
   .inv-page:not(.log-page) .inv-status.batal,
+  .pen-modal-backdrop .inv-status.batal,
   .inv-verify-badge.canceled,
   .ivf-verify-badge.dibatalkan,
   .ivf-verify-badge.ditolak
@@ -1571,6 +2055,7 @@
 }
 
 /* Neutral Muted */
+[data-theme="dark"] .dki-page .dki-badge.tidak-hadir,
 .dki-badge.tidak-hadir {
   color: var(--pen-muted) !important;
 }
@@ -1634,6 +2119,19 @@
   white-space: nowrap !important;
 }
 
+[data-theme="dark"] .idash-page .idash-mini-btn {
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .idash-page .idash-mini-btn:hover:not(:disabled) {
+  background: var(--pen-hover) !important;
+  border-color: #635bff !important;
+  color: var(--pen-text) !important;
+}
+
 :is(
   .idash-mini-btn:hover:not(:disabled),
   .dki-icon-btn:hover:not(:disabled),
@@ -1681,24 +2179,37 @@
 }
 
 /* ── Uniform 32px Square Pagination ──────────────────────────────────────── */
+[data-theme="dark"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) :is(.dki-pagination-wrap, .inv-pagination-wrap, .ivf-pagination-wrap, .ap-pagination-wrap, .mp-pagination, .sp-container.dki-pagination-wrap, .sp-container.inv-pagination-wrap, .sp-container.ivf-pagination-wrap, .sp-container.ap-pagination-wrap, .sp-container.mp-pagination),
+[data-theme="light"] :is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) :is(.dki-pagination-wrap, .inv-pagination-wrap, .ivf-pagination-wrap, .ap-pagination-wrap, .mp-pagination, .sp-container.dki-pagination-wrap, .sp-container.inv-pagination-wrap, .sp-container.ivf-pagination-wrap, .sp-container.ap-pagination-wrap, .sp-container.mp-pagination),
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
-) :is(.dki-pagination-wrap, .inv-pagination-wrap, .ivf-pagination-wrap, .mp-pagination) {
+) :is(.dki-pagination-wrap, .inv-pagination-wrap, .ivf-pagination-wrap, .ap-pagination-wrap, .mp-pagination) {
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
+  border-top: none !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
   padding: 10px 0 0 !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-container,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-container,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-container {
   padding: 12px 0 !important;
   background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
   font-variant-numeric: tabular-nums !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-info,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-info {
@@ -1706,6 +2217,7 @@
   font-size: 12.5px !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-info strong,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-info strong {
@@ -1713,6 +2225,7 @@
   font-weight: 600 !important;
 }
 
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-size-select,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-size-select {
@@ -1720,7 +2233,7 @@
   min-height: 32px !important;
   border-radius: 6px !important;
   border: 1px solid var(--pen-border-ctrl) !important;
-  background-color: var(--pen-input) !important;
+  background-color: #ffffff !important;
   color: var(--pen-text) !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
@@ -1737,72 +2250,121 @@
 [data-theme="dark"] :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-size-select {
+  height: 32px !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
   background-color: #181b23 !important;
   color: #f8fafc !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 0 28px 0 10px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 9px center !important;
   background-size: 11px 11px !important;
+  box-shadow: none !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-group,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-group,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-nav-group {
+  display: inline-flex !important;
+  align-items: center !important;
   background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
   gap: 6px !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-btn,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-btn,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-nav-btn {
   width: 32px !important;
   height: 32px !important;
+  min-width: 32px !important;
   min-height: 32px !important;
+  padding: 0 !important;
   border-radius: 6px !important;
   border: 1px solid var(--pen-border-ctrl) !important;
   background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
   color: var(--pen-text) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-btn:hover:not(:disabled),
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-nav-btn:hover:not(:disabled) {
   border-color: #635bff !important;
   background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-nav-btn:disabled,
+:is(
+  .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
+) .sp-nav-btn:disabled {
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  border-color: var(--gdg-border) !important;
+  color: var(--pen-muted) !important;
+  opacity: 0.4 !important;
+}
+
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-page-pill,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-page-pill,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-page-pill {
   border: none !important;
+  background: transparent !important;
   height: 32px !important;
+  padding: 0 6px !important;
   color: var(--pen-muted) !important;
+  font-size: 12.5px !important;
   font-variant-numeric: tabular-nums !important;
 }
 
+[data-theme="dark"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-page-pill strong,
+[data-theme="light"] :is(.idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop) .sp-page-pill strong,
 :is(
   .idash-page, .dki-page, .inv-page:not(.log-page), .ivf-page, .ap-page, .mp-page, .ap-modal-backdrop
 ) .sp-page-pill strong {
   color: var(--pen-text) !important;
+  font-weight: 600 !important;
 }
 
 /* ── Standardized Neutral Modals & Drawers (#111318 Dark / #ffffff Light) ── */
-:is(
+[data-theme="dark"] :is(
   .dki-modal-backdrop,
   .pen-modal-backdrop,
   .ap-modal-backdrop,
   .ap-confirm-backdrop,
   .mp-modal-overlay
-) {
-  background: rgba(15, 23, 42, 0.45) !important;
-  background-image: none !important;
-}
-
-[data-theme="dark"] :is(
+),
+[data-theme="light"] :is(
+  .dki-modal-backdrop,
+  .pen-modal-backdrop,
+  .ap-modal-backdrop,
+  .ap-confirm-backdrop,
+  .mp-modal-overlay
+),
+:is(
   .dki-modal-backdrop,
   .pen-modal-backdrop,
   .ap-modal-backdrop,
@@ -1810,9 +2372,36 @@
   .mp-modal-overlay
 ) {
   background: rgba(0, 0, 0, 0.65) !important;
+  background-color: rgba(0, 0, 0, 0.65) !important;
   background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal,
+  .pen-modal-backdrop .inv-modal,
+  .pen-modal-backdrop .inv-modal.rekap-modal,
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .ap-modal-backdrop .ap-modal,
+  .ap-modal-backdrop .ap-create-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal
+),
+[data-theme="light"] :is(
+  .dki-modal-backdrop .dki-modal,
+  .pen-modal-backdrop .inv-modal,
+  .pen-modal-backdrop .inv-modal.rekap-modal,
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .ap-modal-backdrop .ap-modal,
+  .ap-modal-backdrop .ap-create-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal
+),
 :is(
   .dki-modal-backdrop .dki-modal,
   .pen-modal-backdrop .inv-modal,
@@ -1835,6 +2424,13 @@
   zoom: 1 !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal-head,
+  .pen-modal-backdrop .inv-modal-head,
+  .pen-modal-backdrop .inv-modal-head.compact,
+  .ap-modal-backdrop .ap-detail-head,
+  .mp-modal-overlay .mp-modal-head
+),
 :is(
   .dki-modal-backdrop .dki-modal-head,
   .pen-modal-backdrop .inv-modal-head,
@@ -1843,17 +2439,31 @@
   .mp-modal-overlay .mp-modal-head
 ) {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   background-image: none !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
   padding: 16px 20px !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal-head h2,
+  .pen-modal-backdrop .inv-modal-head h2,
+  .pen-modal-backdrop .rekap-head-left h2,
+  .pen-modal-backdrop .inv-confirm-copy h2,
+  .ap-modal-backdrop .ap-detail-head h2,
+  .ap-modal-backdrop .ap-modal-head-info h2,
+  .ap-confirm-backdrop .ap-confirm-copy h2,
+  .mp-modal-overlay .mp-modal-head h2,
+  .mp-modal-overlay .mp-confirm-head h3
+),
 :is(
   .dki-modal-backdrop .dki-modal-head h2,
   .pen-modal-backdrop .inv-modal-head h2,
+  .pen-modal-backdrop .rekap-head-left h2,
   .pen-modal-backdrop .inv-confirm-copy h2,
   .ap-modal-backdrop .ap-detail-head h2,
+  .ap-modal-backdrop .ap-modal-head-info h2,
   .ap-confirm-backdrop .ap-confirm-copy h2,
   .mp-modal-overlay .mp-modal-head h2,
   .mp-modal-overlay .mp-confirm-head h3
@@ -1870,11 +2480,33 @@
   color: #a5b4fc !important;
 }
 
+[data-theme="dark"] .mp-modal-overlay .mp-modal-count-badge,
+.mp-modal-overlay .mp-modal-count-badge {
+  background: var(--pen-surface-2) !important;
+  border: 1px solid var(--gdg-border) !important;
+  color: var(--pen-muted) !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal-head p,
+  .pen-modal-backdrop .inv-modal-head p,
+  .pen-modal-backdrop .rekap-head-sub,
+  .pen-modal-backdrop .inv-confirm-copy p,
+  .ap-modal-backdrop .ap-detail-head p,
+  .ap-modal-backdrop .ap-modal-head-info p,
+  .ap-confirm-backdrop .ap-confirm-copy p,
+  .mp-modal-overlay .mp-confirm-text
+),
 :is(
   .dki-modal-backdrop .dki-modal-head p,
   .pen-modal-backdrop .inv-modal-head p,
+  .pen-modal-backdrop .rekap-head-sub,
   .pen-modal-backdrop .inv-confirm-copy p,
   .ap-modal-backdrop .ap-detail-head p,
+  .ap-modal-backdrop .ap-modal-head-info p,
   .ap-confirm-backdrop .ap-confirm-copy p,
   .mp-modal-overlay .mp-confirm-text
 ) {
@@ -1889,8 +2521,14 @@
   display: none !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal-head button:not(.dki-modal-close-icon),
+  .pen-modal-backdrop .inv-close,
+  .ap-modal-backdrop .ap-modal-close,
+  .mp-modal-overlay .mp-close-btn
+),
 :is(
-  .dki-modal-backdrop .dki-modal-head button,
+  .dki-modal-backdrop .dki-modal-head button:not(.dki-modal-close-icon),
   .pen-modal-backdrop .inv-close,
   .ap-modal-backdrop .ap-modal-close,
   .mp-modal-overlay .mp-close-btn
@@ -1900,12 +2538,52 @@
   border-radius: 6px !important;
   border: 1px solid var(--pen-border-ctrl) !important;
   background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
   color: var(--pen-text) !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .dki-modal-backdrop .dki-modal-head button.dki-modal-close-icon,
+[data-theme="light"] .dki-modal-backdrop .dki-modal-head button.dki-modal-close-icon,
+.dki-modal-backdrop .dki-modal-head button.dki-modal-close-icon {
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+}
+
+.dki-modal-backdrop .dki-modal-head button.dki-modal-close-icon:hover {
+  background: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+.dki-modal-backdrop .dki-modal-head button.dki-modal-close-icon svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-modal-body,
+  .pen-modal-backdrop #inv-create-form .inv-modal-body,
+  .pen-modal-backdrop .inv-detail-body,
+  .dki-modal-backdrop .dki-create-body,
+  .dki-modal-backdrop .dki-detail-body,
+  .ap-modal-backdrop .ap-create-form,
+  .ap-modal-backdrop .ap-modal-body,
+  .mp-modal-overlay .mp-modal-body
+),
 :is(
   .pen-modal-backdrop .inv-modal-body,
   .pen-modal-backdrop #inv-create-form .inv-modal-body,
@@ -1913,15 +2591,27 @@
   .dki-modal-backdrop .dki-create-body,
   .dki-modal-backdrop .dki-detail-body,
   .ap-modal-backdrop .ap-create-form,
+  .ap-modal-backdrop .ap-modal-body,
   .mp-modal-overlay .mp-modal-body
 ) {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   background-image: none !important;
   color: var(--pen-text) !important;
   padding: 18px 20px !important;
 }
 
 /* Modal Inputs & Textareas (36px inputs, border-radius: 6px, #181b23 dark / #ffffff light) */
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-field input,
+  .pen-modal-backdrop input.inv-input,
+  .pen-modal-backdrop textarea.inv-input,
+  .ap-modal-backdrop input.ap-input,
+  .ap-modal-backdrop textarea.ap-input,
+  .mp-modal-overlay input.mp-input,
+  .mp-modal-overlay textarea.mp-input,
+  .mp-modal-overlay .mp-search-mini
+),
 :is(
   .dki-modal-backdrop .dki-field input,
   .pen-modal-backdrop input.inv-input,
@@ -1964,39 +2654,65 @@
   box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
 }
 
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-field input[readonly],
+  .pen-modal-backdrop .inv-input:read-only,
+  .pen-modal-backdrop .inv-input:disabled
+),
 :is(
   .dki-modal-backdrop .dki-field input[readonly],
   .pen-modal-backdrop .inv-input:read-only,
   .pen-modal-backdrop .inv-input:disabled
 ) {
   background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
+  border-color: var(--gdg-border) !important;
   color: var(--pen-muted) !important;
 }
 
 /* Remove Box-in-a-Box inside Modals (Detail Invoice, Detail Kunjungan, Ledger, Rekap) */
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .rekap-picker-card,
+  .mp-modal-overlay .mp-add-member-panel,
+  .mp-modal-overlay .mp-auto-group-card,
+  .mp-modal-overlay .mp-member-table-container
+),
 :is(
-  .pen-modal-backdrop .inv-detail-section,
-  .pen-modal-backdrop .inv-payment-card,
-  .pen-modal-backdrop .inv-history-section .inv-table-wrap,
   .pen-modal-backdrop .rekap-picker-card,
   .mp-modal-overlay .mp-add-member-panel,
   .mp-modal-overlay .mp-auto-group-card,
   .mp-modal-overlay .mp-member-table-container
 ) {
   background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
   background-image: none !important;
   border: 1px solid var(--gdg-border) !important;
   border-radius: 8px !important;
   box-shadow: none !important;
 }
 
-.pen-modal-backdrop .inv-detail-section,
-.pen-modal-backdrop .inv-payment-card {
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-detail-section,
+  .pen-modal-backdrop .inv-payment-card
+),
+:is(
+  .pen-modal-backdrop .inv-detail-section,
+  .pen-modal-backdrop .inv-payment-card
+) {
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   border: none !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
   padding: 0 0 16px !important;
+}
+
+.pen-modal-backdrop .inv-history-section .inv-table-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .pen-modal-backdrop .inv-history-section {
@@ -2004,20 +2720,30 @@
   padding-bottom: 0 !important;
 }
 
-:is(
-  .pen-modal-backdrop .inv-info-item,
+[data-theme="dark"] :is(
   .pen-modal-backdrop .inv-cost-card,
-  .pen-modal-backdrop .inv-visit-row,
   .pen-modal-backdrop .inv-confirm-detail,
   .pen-modal-backdrop .inv-sent-info-grid > div,
-  .pen-modal-backdrop .inv-check,
   .dki-modal-backdrop .dki-info,
+  .dki-modal-backdrop .dki-info.strong,
+  .dki-modal-backdrop .dki-cost,
+  .dki-modal-backdrop .dki-invoice-search,
+  .dki-modal-backdrop .dki-invoice-result-panel,
+  .ap-confirm-backdrop .ap-confirm-detail
+),
+:is(
+  .pen-modal-backdrop .inv-cost-card,
+  .pen-modal-backdrop .inv-confirm-detail,
+  .pen-modal-backdrop .inv-sent-info-grid > div,
+  .dki-modal-backdrop .dki-info,
+  .dki-modal-backdrop .dki-info.strong,
   .dki-modal-backdrop .dki-cost,
   .dki-modal-backdrop .dki-invoice-search,
   .dki-modal-backdrop .dki-invoice-result-panel,
   .ap-confirm-backdrop .ap-confirm-detail
 ) {
   background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
   background-image: none !important;
   border: 1px solid var(--gdg-border) !important;
   border-radius: 6px !important;
@@ -2026,7 +2752,6 @@
 }
 
 :is(
-  .pen-modal-backdrop .inv-info-item span,
   .pen-modal-backdrop .inv-confirm-detail span,
   .pen-modal-backdrop .inv-sent-info-grid span,
   .dki-modal-backdrop .dki-info small,
@@ -2037,7 +2762,6 @@
 }
 
 :is(
-  .pen-modal-backdrop .inv-info-item strong,
   .pen-modal-backdrop .inv-confirm-detail strong,
   .pen-modal-backdrop .inv-sent-info-grid strong,
   .dki-modal-backdrop .dki-info strong,
@@ -2048,9 +2772,153 @@
   font-variant-numeric: tabular-nums !important;
 }
 
-/* Detail Invoice Balance Strip & Pay Summary -> Clean Flat Stat Strips */
-.pen-modal-backdrop .inv-balance-strip,
-.pen-modal-backdrop .inv-pay-summary,
+/* Detail Kunjungan Modal -> Flat Stat-Bar & 2-Column Cost List (No Box-in-a-Box) */
+.dki-modal-backdrop .dki-detail-modal .dki-detail-body {
+  padding: 18px 22px 20px !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  padding: 0 0 16px !important;
+  margin-bottom: 16px !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .dki-modal-backdrop .dki-detail-modal .dki-info,
+[data-theme="dark"] .dki-modal-backdrop .dki-detail-modal .dki-info.strong,
+.dki-modal-backdrop .dki-detail-modal .dki-info,
+.dki-modal-backdrop .dki-detail-modal .dki-info.strong {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 2px 16px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info:first-child {
+  padding-left: 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info:last-child {
+  padding-right: 0 !important;
+}
+
+[data-theme="dark"] .dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info + .dki-info,
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info + .dki-info {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info > svg {
+  display: none !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info > div {
+  min-width: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info small {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--pen-muted) !important;
+  margin-bottom: 4px !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info strong {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  line-height: 1.35 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-section-title {
+  margin: 0 0 8px !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-section-title h3 {
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  color: var(--pen-text) !important;
+  margin: 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-section-title p {
+  font-size: 12px !important;
+  color: var(--pen-muted) !important;
+  margin: 2px 0 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-cost-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  column-gap: 28px !important;
+  row-gap: 0 !important;
+}
+
+[data-theme="dark"] .dki-modal-backdrop .dki-detail-modal .dki-cost,
+.dki-modal-backdrop .dki-detail-modal .dki-cost {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 9px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-cost small {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--pen-muted) !important;
+  margin: 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-cost strong {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  text-align: right !important;
+  margin: 0 !important;
+}
+
+.dki-modal-backdrop .dki-detail-modal .dki-cost.is-zero strong {
+  color: var(--pen-faint) !important;
+  font-weight: 400 !important;
+}
+
+@media (max-width: 680px) {
+  .dki-modal-backdrop .dki-detail-modal .dki-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: 12px !important;
+  }
+  .dki-modal-backdrop .dki-detail-modal .dki-detail-grid .dki-info:nth-child(odd) {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+  .dki-modal-backdrop .dki-detail-modal .dki-cost-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Ledger Stats in AlokasiPembiayaan Modal */
 .ap-modal-backdrop .ap-modal-stats {
   background: transparent !important;
   border-top: 1px solid var(--gdg-border) !important;
@@ -2059,8 +2927,6 @@
   gap: 0 !important;
 }
 
-.pen-modal-backdrop .inv-balance-strip > span,
-.pen-modal-backdrop .inv-pay-summary > div,
 .ap-modal-backdrop .ap-modal-stats > span {
   background: transparent !important;
   background-image: none !important;
@@ -2071,16 +2937,538 @@
   padding: 6px 14px !important;
 }
 
-.pen-modal-backdrop .inv-balance-strip > span:first-child,
-.pen-modal-backdrop .inv-pay-summary > div:first-child,
 .ap-modal-backdrop .ap-modal-stats > span:first-child {
   padding-left: 0 !important;
 }
 
-.pen-modal-backdrop .inv-balance-strip > span + span,
-.pen-modal-backdrop .inv-pay-summary > div + div,
 .ap-modal-backdrop .ap-modal-stats > span + span {
   border-left: 1px solid var(--gdg-border) !important;
+}
+
+/* ── Detail Invoice Modal (/keuangan/invoices/:id) 100% DESIGN.md ─────────── */
+.pen-modal-backdrop .inv-modal.detail {
+  width: min(1240px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px) !important;
+}
+
+.pen-modal-backdrop .inv-detail-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  flex-wrap: wrap !important;
+}
+
+.pen-modal-backdrop .inv-detail-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-signer-box,
+.pen-modal-backdrop .inv-signer-box {
+  background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  border-radius: 6px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 2px 3px 2px 9px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-signer-label,
+.pen-modal-backdrop .inv-signer-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-signer-toggle,
+.pen-modal-backdrop .inv-signer-toggle {
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  gap: 2px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-signer-pill,
+.pen-modal-backdrop .inv-signer-pill {
+  height: 26px !important;
+  padding: 0 9px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--pen-muted) !important;
+  white-space: nowrap !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-signer-pill.active,
+.pen-modal-backdrop .inv-signer-pill.active {
+  background: #635bff !important;
+  background-color: #635bff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-print-btn,
+.pen-modal-backdrop .inv-print-btn {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-print-btn:hover {
+  border-color: #635bff !important;
+  background: var(--pen-hover) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-close,
+.pen-modal-backdrop .inv-close {
+  white-space: nowrap !important;
+  width: auto !important;
+  padding: 0 12px !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-section-title,
+.pen-modal-backdrop .inv-section-title {
+  margin: 0 0 12px !important;
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  color: var(--pen-text) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+}
+
+.pen-modal-backdrop .inv-section-title svg {
+  width: 15px !important;
+  height: 15px !important;
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-detail-section,
+[data-theme="dark"] .pen-modal-backdrop .inv-payment-card,
+.pen-modal-backdrop .inv-detail-section,
+.pen-modal-backdrop .inv-payment-card {
+  padding: 16px 0 !important;
+  margin: 0 !important;
+}
+
+.pen-modal-backdrop .inv-info-section {
+  padding-top: 0 !important;
+}
+
+.pen-modal-backdrop .inv-history-section {
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+/* Info Invoice: Flat 4-Col Metadata Grid */
+.pen-modal-backdrop .inv-info-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 14px 24px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-info-grid .inv-info-item,
+.pen-modal-backdrop .inv-info-grid .inv-info-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 2px 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-info-grid .inv-info-item > span,
+.pen-modal-backdrop .inv-info-grid .inv-info-item > span {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-info-grid .inv-info-item > strong,
+.pen-modal-backdrop .inv-info-grid .inv-info-item > strong {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  line-height: 1.4 !important;
+}
+
+/* Kunjungan Invoice Rows: Flat Hairline List */
+[data-theme="dark"] .pen-modal-backdrop .inv-visit-row,
+.pen-modal-backdrop .inv-visit-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 0 !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop .inv-visit-row:last-child {
+  border-bottom: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-visit-row strong,
+.pen-modal-backdrop .inv-visit-row strong {
+  color: var(--pen-text) !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-visit-row span,
+.pen-modal-backdrop .inv-visit-row span {
+  color: var(--pen-muted) !important;
+  font-size: 12px !important;
+}
+
+/* Breakdown Biaya: Flat 3-Col Cost List + Tabular-Nums + Dimmed Rp 0,00 */
+.pen-modal-backdrop .inv-breakdown-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  column-gap: 28px !important;
+  row-gap: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-breakdown-grid .inv-info-item,
+.pen-modal-backdrop .inv-breakdown-grid .inv-info-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 9px 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-breakdown-grid .inv-info-item > span,
+.pen-modal-backdrop .inv-breakdown-grid .inv-info-item > span {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--pen-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-breakdown-grid .inv-info-item > strong,
+.pen-modal-backdrop .inv-breakdown-grid .inv-info-item > strong {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-breakdown-grid .inv-info-item.is-zero > strong,
+.pen-modal-backdrop .inv-breakdown-grid .inv-info-item.is-zero > strong {
+  color: var(--pen-faint) !important;
+  font-weight: 400 !important;
+}
+
+/* Total Tagihan, Dibayar, Sisa: Flat 3-Col Stat-Bar */
+[data-theme="dark"] .pen-modal-backdrop .inv-balance-strip,
+.pen-modal-backdrop .inv-balance-strip {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  margin-top: 14px !important;
+  padding: 12px 0 2px !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: none !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-balance-strip > span,
+.pen-modal-backdrop .inv-balance-strip > span {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 2px 16px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--pen-muted) !important;
+}
+
+.pen-modal-backdrop .inv-balance-strip > span:first-child {
+  padding-left: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-balance-strip > span + span,
+.pen-modal-backdrop .inv-balance-strip > span + span {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-balance-strip > span > strong,
+.pen-modal-backdrop .inv-balance-strip > span > strong {
+  display: block !important;
+  margin-top: 4px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  text-transform: none !important;
+}
+
+/* Ajukan Pembayaran: Left-Accent Callout, 4-Metric Stat-Bar, 36px Inputs, Inline Bayar Penuh */
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-locked,
+.pen-modal-backdrop .inv-pay-locked {
+  background: rgba(234, 179, 8, 0.06) !important;
+  background-color: rgba(234, 179, 8, 0.06) !important;
+  background-image: none !important;
+  border: none !important;
+  border-left: 3px solid #eab308 !important;
+  border-radius: 4px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #b45309 !important;
+  box-shadow: none !important;
+}
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-locked {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-summary,
+.pen-modal-backdrop .inv-pay-summary {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  margin-bottom: 16px !important;
+  padding: 12px 0 !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-summary > div,
+.pen-modal-backdrop .inv-pay-summary > div {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 2px 16px !important;
+}
+
+.pen-modal-backdrop .inv-pay-summary > div:first-child {
+  padding-left: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-summary > div + div,
+.pen-modal-backdrop .inv-pay-summary > div + div {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-summary > div > span,
+.pen-modal-backdrop .inv-pay-summary > div > span {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-summary > div > strong,
+.pen-modal-backdrop .inv-pay-summary > div > strong {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  margin-top: 2px !important;
+}
+
+.pen-modal-backdrop .inv-pay-fields.wallet .inv-field-label {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-fields.wallet :is(input.inv-input, .df-input),
+.pen-modal-backdrop .inv-pay-fields.wallet :is(input.inv-input, .df-input) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-pay-fields.wallet small {
+  color: var(--pen-muted) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-pay-footer,
+.pen-modal-backdrop .inv-pay-footer {
+  border-top: none !important;
+  margin-top: 10px !important;
+  padding-top: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-check,
+.pen-modal-backdrop .inv-check {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.pen-modal-backdrop .inv-check input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  accent-color: #635bff !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-check strong,
+.pen-modal-backdrop .inv-check strong {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-check small,
+.pen-modal-backdrop .inv-check small {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--pen-muted) !important;
+}
+
+/* Riwayat Pembayaran Table: Neutral Transparent Headers & Hairline Rows */
+[data-theme="dark"] .pen-modal-backdrop .inv-table.history th,
+[data-theme="light"] .pen-modal-backdrop .inv-table.history th,
+.pen-modal-backdrop .inv-table.history th {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  height: 36px !important;
+  padding: 10px 12px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-table.history td,
+[data-theme="light"] .pen-modal-backdrop .inv-table.history td,
+.pen-modal-backdrop .inv-table.history td {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-text) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  font-size: 13px !important;
+  padding: 10px 12px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-table.history tbody tr:hover td,
+.pen-modal-backdrop .inv-table.history tbody tr:hover td {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+}
+
+@media (max-width: 1120px) {
+  .pen-modal-backdrop .inv-detail-actions {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .pen-modal-backdrop .inv-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .pen-modal-backdrop .inv-breakdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .pen-modal-backdrop .inv-pay-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: 12px !important;
+  }
+  .pen-modal-backdrop .inv-pay-summary > div:nth-child(odd) {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .pen-modal-backdrop .inv-info-grid,
+  .pen-modal-backdrop .inv-breakdown-grid,
+  .pen-modal-backdrop .inv-balance-strip,
+  .pen-modal-backdrop .inv-pay-summary {
+    grid-template-columns: 1fr !important;
+    row-gap: 8px !important;
+  }
+  .pen-modal-backdrop .inv-balance-strip > span,
+  .pen-modal-backdrop .inv-pay-summary > div {
+    padding-left: 0 !important;
+    border-left: none !important;
+  }
 }
 
 .pen-modal-backdrop .inv-total-box {
@@ -2098,25 +3486,33 @@
 }
 
 /* Ledger table inside AlokasiPembiayaan Modal */
+[data-theme="dark"] .ap-modal-backdrop .ap-ledger-tools,
 .ap-modal-backdrop .ap-ledger-tools {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   padding: 12px 20px !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-table,
 .ap-modal-backdrop .ap-modal-table {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   padding: 0 20px 12px !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-table th,
 .ap-modal-backdrop .ap-table th {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   color: var(--pen-muted) !important;
   border-bottom: 1px solid var(--gdg-border) !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-ledger-row td,
 .ap-modal-backdrop .ap-ledger-row td {
   background: transparent !important;
+  background-color: transparent !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   color: var(--pen-text) !important;
 }
@@ -2132,78 +3528,49 @@
 }
 
 /* Tipe selector in AlokasiPembiayaan Modal */
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-btn,
 .ap-modal-backdrop .ap-tipe-btn {
   background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
   border: 1px solid var(--pen-border-ctrl) !important;
   border-radius: 8px !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-btn.active,
 .ap-modal-backdrop .ap-tipe-btn.active {
   background: rgba(99, 91, 255, 0.1) !important;
+  background-color: rgba(99, 91, 255, 0.1) !important;
   border-color: #635bff !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-icon,
 .ap-modal-backdrop .ap-tipe-icon {
   background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
   border: 1px solid var(--gdg-border) !important;
   color: var(--pen-muted) !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-btn.active .ap-tipe-icon,
 .ap-modal-backdrop .ap-tipe-btn.active .ap-tipe-icon {
   background: #635bff !important;
+  background-color: #635bff !important;
   border-color: #635bff !important;
   color: #ffffff !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-text strong,
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-btn.active strong,
 .ap-modal-backdrop .ap-tipe-text strong,
 .ap-modal-backdrop .ap-tipe-btn.active strong {
   color: var(--pen-text) !important;
 }
 
+[data-theme="dark"] .ap-modal-backdrop .ap-tipe-text small,
 .ap-modal-backdrop .ap-tipe-text small {
   color: var(--pen-muted) !important;
-}
-
-/* Signer pill & print buttons in InvoicePembiayaan Detail Header */
-.pen-modal-backdrop .inv-signer-box {
-  background: var(--pen-surface-2) !important;
-  border: 1px solid var(--pen-border-ctrl) !important;
-  border-radius: 6px !important;
-  height: 34px !important;
-}
-
-.pen-modal-backdrop .inv-signer-toggle {
-  background: transparent !important;
-}
-
-.pen-modal-backdrop .inv-signer-pill {
-  border-radius: 4px !important;
-  color: var(--pen-muted) !important;
-}
-
-.pen-modal-backdrop .inv-signer-pill.active {
-  background: #635bff !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-}
-
-.pen-modal-backdrop .inv-print-btn {
-  height: 32px !important;
-  min-height: 32px !important;
-  border-radius: 6px !important;
-  border: 1px solid var(--pen-border-ctrl) !important;
-  background: var(--pen-input) !important;
-  color: var(--pen-text) !important;
-  font-size: 12.5px !important;
-  font-weight: 500 !important;
-  transform: none !important;
-}
-
-.pen-modal-backdrop .inv-print-btn:hover {
-  border-color: #635bff !important;
-  background: var(--pen-hover) !important;
 }
 
 /* COB Box Semantic Styles (Light & Dark Safe) */
@@ -2273,11 +3640,20 @@
 }
 
 /* Right-Aligned Modal Footers Across All Penagihan Modals */
+[data-theme="dark"] :is(
+  .dki-modal-backdrop .dki-modal-actions,
+  .pen-modal-backdrop .inv-modal-actions,
+  .pen-modal-backdrop #inv-create-form .inv-modal-actions,
+  .pen-modal-backdrop .inv-confirm-actions,
+  .pen-modal-backdrop .rekap-actions,
+  .ap-modal-backdrop .ap-create-actions,
+  .ap-confirm-backdrop .ap-confirm-actions,
+  .mp-modal-overlay .mp-modal-actions
+),
 :is(
   .dki-modal-backdrop .dki-modal-actions,
   .pen-modal-backdrop .inv-modal-actions,
   .pen-modal-backdrop #inv-create-form .inv-modal-actions,
-  [data-theme="dark"] .pen-modal-backdrop #inv-create-form .inv-modal-actions,
   .pen-modal-backdrop .inv-confirm-actions,
   .pen-modal-backdrop .rekap-actions,
   .ap-modal-backdrop .ap-create-actions,
@@ -2285,6 +3661,7 @@
   .mp-modal-overlay .mp-modal-actions
 ) {
   background: var(--pen-modal) !important;
+  background-color: var(--pen-modal) !important;
   border-top: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -2357,10 +3734,18 @@
   color: var(--pen-text) !important;
 }
 
+[data-theme="dark"] .dki-modal-backdrop .dki-empty-result,
+.dki-modal-backdrop .dki-empty-result {
+  background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
+  border: 1px solid var(--gdg-border) !important;
+  border-radius: 6px !important;
+  color: var(--pen-muted) !important;
+}
+
 .dki-modal-backdrop .dki-invoice-name,
 .dki-modal-backdrop .dki-invoice-result-head span,
-.dki-modal-backdrop .dki-invoice-result-head small,
-.dki-modal-backdrop .dki-empty-result {
+.dki-modal-backdrop .dki-invoice-result-head small {
   color: var(--pen-muted) !important;
 }
 
@@ -2369,27 +3754,20 @@
   border-bottom: 1px solid var(--gdg-border) !important;
 }
 
+[data-theme="dark"] .dki-modal-backdrop .dki-new-pembiayaan,
 .dki-modal-backdrop .dki-new-pembiayaan {
   background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
   border-color: var(--pen-border-ctrl) !important;
   border-radius: 6px !important;
 }
 
+[data-theme="dark"] .dki-modal-backdrop .dki-link-btn,
 .dki-modal-backdrop .dki-link-btn {
   color: #635bff !important;
 }
 [data-theme="dark"] .dki-modal-backdrop .dki-link-btn {
   color: #a5b4fc !important;
-}
-
-.pen-modal-backdrop .inv-pay-locked {
-  background: rgba(245, 158, 11, 0.08) !important;
-  border: 1px solid rgba(245, 158, 11, 0.28) !important;
-  border-radius: 6px !important;
-  color: #b45309 !important;
-}
-[data-theme="dark"] .pen-modal-backdrop .inv-pay-locked {
-  color: #fbbf24 !important;
 }
 
 .pen-modal-backdrop .inv-cost-label > span {
@@ -2439,3 +3817,178 @@
   border: none !important;
 }
 
+
+
+/* ── Dashboard Invoice Unified Trend Chart Section (Opsi 1) ──────────────── */
+.idash-page .idash-chart-section {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 18px 0 16px !important;
+  margin: 0 !important;
+}
+
+.idash-page .idash-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.idash-page .idash-chart-title-wrap h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--pen-text);
+}
+
+.idash-page .idash-chart-title-wrap p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--pen-muted);
+}
+
+.idash-page .idash-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.idash-page .idash-seg-group {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--gdg-border);
+  background: var(--pen-surface-2);
+  box-sizing: border-box;
+}
+
+.idash-page .idash-seg-btn {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--pen-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.idash-page .idash-seg-btn:hover {
+  color: var(--pen-text);
+}
+
+.idash-page .idash-seg-btn.active {
+  background: var(--pen-surface);
+  color: var(--pen-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+
+.idash-page .idash-chart-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 0 8px;
+}
+
+.idash-page .idash-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pen-muted);
+}
+
+.idash-page .idash-legend-item i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.idash-page .idash-chart-body {
+  width: 100%;
+  min-height: 236px;
+}
+
+.idash-page .idash-chart-empty {
+  height: 236px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--pen-muted);
+}
+
+.idash-chart-tooltip {
+  background: var(--pen-modal);
+  border: 1px solid var(--pen-border-ctrl);
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 210px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+.idash-chart-tooltip-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--pen-text);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gdg-border);
+}
+
+.idash-chart-tooltip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.idash-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.idash-chart-tooltip-row.is-extra {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--gdg-border);
+}
+
+.idash-chart-tooltip-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pen-muted);
+}
+
+.idash-chart-tooltip-key i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.idash-chart-tooltip-val {
+  color: var(--pen-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}

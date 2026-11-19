@@ -22,6 +22,7 @@ import {
     ChevronRight,
     Lock,
     MoreHorizontal,
+    Ban,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
@@ -79,6 +80,11 @@ export default function PermintaanUnit() {
     // Modal: Hapus Permintaan
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+    // Modal: Batalkan Permintaan (Unit / Logistik — belum selesai diserahkan)
+    const [cancelTarget, setCancelTarget] = useState(null);
+    const [cancelAlasan, setCancelAlasan] = useState('');
+    const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
     // Row action dropdown menu (position: fixed via portal)
     const [openMenu, setOpenMenu] = useState(null);
@@ -474,6 +480,34 @@ export default function PermintaanUnit() {
         }
     };
 
+    const handleOpenCancelModal = (req) => {
+        setCancelTarget(req);
+        setCancelAlasan('');
+        setShowDetailModal(false);
+    };
+
+    const handleExecuteCancel = async (e) => {
+        e.preventDefault();
+        if (!cancelTarget) return;
+        if (!cancelAlasan.trim()) {
+            toast.error('Alasan pembatalan wajib diisi.');
+            return;
+        }
+        setCancelSubmitting(true);
+        try {
+            await api.post(`/gudang/permintaan/${cancelTarget.id}/batal/`, {
+                alasan: cancelAlasan.trim()
+            });
+            toast.success(`Permintaan ${cancelTarget.nomor} berhasil dibatalkan.`);
+            setCancelTarget(null);
+            fetchRequests();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal membatalkan permohonan.');
+        } finally {
+            setCancelSubmitting(false);
+        }
+    };
+
     // ── Print SPB Document ──
     const handlePrintSPB = (req) => {
         const printWindow = window.open('', '_blank');
@@ -598,6 +632,8 @@ export default function PermintaanUnit() {
                 return <span className="pu-badge sky"><span className="pu-status-dot" /> Selesai Diserahkan</span>;
             case 'DITOLAK':
                 return <span className="pu-badge rose"><span className="pu-status-dot" /> Ditolak</span>;
+            case 'BATAL':
+                return <span className="pu-badge rose"><span className="pu-status-dot" /> Dibatalkan</span>;
             default:
                 return <span className="pu-badge slate"><span className="pu-status-dot" /> {status}</span>;
         }
@@ -730,8 +766,10 @@ export default function PermintaanUnit() {
                         <option value="">Semua Status</option>
                         <option value="MENUNGGU">Menunggu Otorisasi</option>
                         <option value="DISETUJUI">Disetujui</option>
+                        <option value="PROSES_SEBAGIAN">Dalam Proses / Pengadaan</option>
                         <option value="SELESAI">Selesai</option>
                         <option value="DITOLAK">Ditolak</option>
+                        <option value="BATAL">Dibatalkan</option>
                     </select>
                     {(search || filterRuang || filterStatus) && (
                         <button type="button" className="pu-tool-btn" onClick={handleResetFilter}>
@@ -827,6 +865,8 @@ export default function PermintaanUnit() {
                                                     <span className="pu-approver-ok">{req.approved_by_nama}</span>
                                                 ) : req.status === 'DITOLAK' ? (
                                                     <span className="pu-approver-no">Ditolak</span>
+                                                ) : req.status === 'BATAL' ? (
+                                                    <span className="pu-approver-no">Dibatalkan</span>
                                                 ) : (
                                                     <span className="pu-cell-empty">—</span>
                                                 )}
@@ -836,6 +876,7 @@ export default function PermintaanUnit() {
                                                     const canReject = req.can_approve && req.status === 'MENUNGGU';
                                                     const canDelete = (req.status === 'DRAFT' || req.status === 'MENUNGGU') &&
                                                         (user?.is_superuser || req.created_by === user?.id);
+                                                    const canCancel = Boolean(req.can_cancel);
                                                     const hasMoreActions = canReject || canDelete;
 
                                                     return (
@@ -859,6 +900,18 @@ export default function PermintaanUnit() {
                                                             >
                                                                 <Printer size={15} />
                                                             </button>
+
+                                                            {/* Batalkan Permintaan (untuk yang belum selesai diserahkan) */}
+                                                            {canCancel && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="pu-action-btn reject"
+                                                                    onClick={() => handleOpenCancelModal(req)}
+                                                                    title="Batalkan Permintaan"
+                                                                >
+                                                                    <Ban size={15} />
+                                                                </button>
+                                                            )}
 
                                                             {/* Otorisasi Setujui (Mas Febri / Koordinator / Kasi) */}
                                                             {canReject && (
@@ -1184,12 +1237,17 @@ export default function PermintaanUnit() {
 
                             {/* Compact Horizontal Audit Trail */}
                             {(() => {
+                                const isCanceled = selectedReq.status === 'BATAL';
                                 const authState = selectedReq.status === 'DITOLAK'
                                     ? 'rejected'
-                                    : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'PROSES_SEBAGIAN' || selectedReq.status === 'SELESAI' ? 'done' : 'active');
+                                    : (selectedReq.status === 'DISETUJUI' || selectedReq.status === 'PROSES_SEBAGIAN' || selectedReq.status === 'SELESAI'
+                                        ? 'done'
+                                        : (isCanceled ? (selectedReq.approved_by_nama ? 'done' : 'rejected') : 'active'));
                                 const handState = selectedReq.status === 'SELESAI'
                                     ? 'done'
-                                    : (selectedReq.status === 'PROSES_SEBAGIAN' ? 'active' : 'pending');
+                                    : isCanceled
+                                        ? 'rejected'
+                                        : (selectedReq.status === 'PROSES_SEBAGIAN' ? 'active' : 'pending');
                                 const renderAuditIcon = (state) => {
                                     if (state === 'done') return <CheckCircle2 size={14} className="pu-audit-icon" />;
                                     if (state === 'rejected') return <XCircle size={14} className="pu-audit-icon" />;
@@ -1211,7 +1269,11 @@ export default function PermintaanUnit() {
                                                 <span className="pu-audit-step-title">Otorisasi Koordinator</span>
                                             </div>
                                             <span className="pu-audit-step-sub">
-                                                {selectedReq.status === 'DITOLAK' ? 'Ditolak' : (selectedReq.approved_by_nama || 'Menunggu Otorisasi')}
+                                                {selectedReq.status === 'DITOLAK'
+                                                    ? 'Ditolak'
+                                                    : isCanceled && !selectedReq.approved_by_nama
+                                                        ? 'Dibatalkan'
+                                                        : (selectedReq.approved_by_nama || 'Menunggu Otorisasi')}
                                             </span>
                                         </div>
                                         <div className={`pu-audit-step ${handState}`}>
@@ -1222,21 +1284,25 @@ export default function PermintaanUnit() {
                                             <span className="pu-audit-step-sub">
                                                 {selectedReq.status === 'SELESAI'
                                                     ? (selectedReq.bon_pengeluaran_nomor || 'Selesai')
-                                                    : selectedReq.status === 'PROSES_SEBAGIAN'
-                                                        ? 'Bertahap / Menunggu Pengadaan'
-                                                        : 'Loket Gudang'}
+                                                    : isCanceled
+                                                        ? 'Dibatalkan'
+                                                        : selectedReq.status === 'PROSES_SEBAGIAN'
+                                                            ? 'Bertahap / Menunggu Pengadaan'
+                                                            : 'Loket Gudang'}
                                             </span>
                                         </div>
                                     </div>
                                 );
                             })()}
 
-                            {/* Alasan Ditolak Alert */}
-                            {selectedReq.status === 'DITOLAK' && selectedReq.alasan_tolak && (
+                            {/* Alasan Ditolak / Dibatalkan Alert */}
+                            {(selectedReq.status === 'DITOLAK' || selectedReq.status === 'BATAL') && selectedReq.alasan_tolak && (
                                 <div className="pu-alert-banner danger">
                                     <AlertCircle size={18} style={{ color: '#fb7185', flexShrink: 0 }} />
                                     <div>
-                                        <strong style={{ fontSize: '13px' }}>Permintaan Ditolak:</strong>
+                                        <strong style={{ fontSize: '13px' }}>
+                                            {selectedReq.status === 'BATAL' ? 'Permintaan Dibatalkan:' : 'Permintaan Ditolak:'}
+                                        </strong>
                                         <p style={{ margin: '2px 0 0', fontSize: '12.5px' }}>{selectedReq.alasan_tolak}</p>
                                     </div>
                                 </div>
@@ -1312,6 +1378,17 @@ export default function PermintaanUnit() {
                             <button type="button" className="pu-btn soft" onClick={() => setShowDetailModal(false)}>
                                 Tutup
                             </button>
+
+                            {selectedReq.can_cancel && (
+                                <button
+                                    type="button"
+                                    className="pu-btn soft"
+                                    style={{ color: '#dc2626' }}
+                                    onClick={() => handleOpenCancelModal(selectedReq)}
+                                >
+                                    <Ban size={15} /> Batalkan Permintaan
+                                </button>
+                            )}
 
                             {selectedReq.can_approve && selectedReq.status === 'MENUNGGU' && (
                                 <>
@@ -1667,6 +1744,64 @@ export default function PermintaanUnit() {
                                 {deleteSubmitting ? 'Menghapus...' : 'Hapus Permanen'}
                             </button>
                         </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════════════ */}
+            {/* MODAL 6: KONFIRMASI BATALKAN PERMINTAAN (UNIT / AMPRAHAN) */}
+            {/* ══════════════════════════════════════════════════════════════════════ */}
+            {cancelTarget && createPortal(
+                <div className="pu-modal-overlay" onClick={() => !cancelSubmitting && setCancelTarget(null)}>
+                    <div className="pu-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                        <div className="pu-modal-header">
+                            <div>
+                                <h3 className="pu-modal-title">
+                                    Batalkan Permintaan Barang
+                                </h3>
+                                <div className="pu-modal-meta-row">
+                                    <span className="pu-modal-meta-code">{cancelTarget.nomor}</span>
+                                    <span>Ruang: <strong>{cancelTarget.ruang_nama}</strong></span>
+                                </div>
+                            </div>
+                            <button type="button" className="pu-modal-close" onClick={() => !cancelSubmitting && setCancelTarget(null)} aria-label="Tutup modal">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleExecuteCancel}>
+                            <div className="pu-modal-body">
+                                <p className="pu-modal-desc" style={{ fontSize: '13px', marginBottom: '12px' }}>
+                                    Permintaan yang belum selesai diserahkan akan dibatalkan sehingga tidak lagi diproses oleh petugas gudang.
+                                </p>
+                                <label className="pu-form-label" style={{ display: 'block' }}>
+                                    Alasan Pembatalan *
+                                </label>
+                                <textarea
+                                    rows="3"
+                                    className="pu-form-textarea"
+                                    placeholder="Masukkan alasan pembatalan permintaan..."
+                                    value={cancelAlasan}
+                                    onChange={e => setCancelAlasan(e.target.value)}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="pu-modal-footer">
+                                <button type="button" className="pu-btn soft" onClick={() => setCancelTarget(null)} disabled={cancelSubmitting}>
+                                    Kembali
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="pu-btn danger"
+                                    disabled={cancelSubmitting}
+                                >
+                                    {cancelSubmitting ? 'Membatalkan...' : 'Ya, Batalkan'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>,
                 document.body

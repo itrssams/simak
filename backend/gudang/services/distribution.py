@@ -426,6 +426,117 @@ class DistributionService:
         return permintaan
 
     @classmethod
+    def can_user_cancel_permintaan(cls, user: Any, permintaan: Permintaan) -> bool:
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        if permintaan.status not in (
+            Permintaan.STATUS_DRAFT,
+            Permintaan.STATUS_MENUNGGU,
+            Permintaan.STATUS_DISETUJUI,
+            Permintaan.STATUS_PROSES_SEBAGIAN,
+        ):
+            return False
+        role = getattr(user, 'role', '')
+        if (
+            user.is_superuser
+            or getattr(user, 'username', '') == 'super'
+            or getattr(user, 'is_logistik', False)
+            or role in ('direktur', 'wakil_direktur', 'superadmin')
+        ):
+            return True
+        if permintaan.created_by_id == user.id:
+            return True
+        user_unit = getattr(user, 'unit', None)
+        if user_unit:
+            if permintaan.ruang and permintaan.ruang.unit_id == user_unit.id:
+                return True
+            unit_name = (user_unit.nama or '').strip().lower()
+            ruang_name = (permintaan.ruang_nama or (permintaan.ruang.nama if permintaan.ruang else '')).strip().lower()
+            if unit_name and ruang_name == unit_name:
+                return True
+        return False
+
+    @classmethod
+    def can_user_cancel_pengeluaran(cls, user: Any, pengeluaran: Pengeluaran) -> bool:
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        if pengeluaran.status != Pengeluaran.STATUS_DRAFT:
+            return False
+        role = getattr(user, 'role', '')
+        if (
+            user.is_superuser
+            or getattr(user, 'username', '') == 'super'
+            or getattr(user, 'is_logistik', False)
+            or role in ('direktur', 'wakil_direktur', 'superadmin')
+        ):
+            return True
+        return pengeluaran.created_by_id == user.id
+
+    @classmethod
+    @transaction.atomic
+    def batal_permintaan(cls, permintaan: Permintaan, user: Any, alasan: str = '') -> Permintaan:
+        """
+        Membatalkan permintaan (amprahan) yang belum selesai diserahkan
+        (DRAFT, MENUNGGU, DISETUJUI, atau PROSES_SEBAGIAN).
+        Penyerahan fisik yang sudah telanjur DISETUJUI tidak diubah/dihapus;
+        hanya sisa item yang belum diserahkan dan bon DRAFT yang ditutup/dibatalkan.
+        """
+        permintaan = Permintaan.objects.select_for_update().get(pk=permintaan.pk)
+        if permintaan.status == Permintaan.STATUS_SELESAI:
+            raise ValidationError("Permintaan yang sudah selesai diserahkan tidak dapat dibatalkan.")
+        if permintaan.status in (Permintaan.STATUS_DITOLAK, Permintaan.STATUS_BATAL):
+            raise ValidationError(f"Permintaan dengan status {permintaan.status} tidak dapat dibatalkan.")
+
+        alasan_clean = str(alasan or '').strip()
+
+        # Batalkan bon pengeluaran DRAFT yang belum dipotong stoknya
+        draft_outs = Pengeluaran.objects.select_for_update().filter(
+            permintaan=permintaan,
+            status=Pengeluaran.STATUS_DRAFT
+        )
+        for out in draft_outs:
+            out.status = Pengeluaran.STATUS_BATAL
+            out.alasan_batal = alasan_clean or f"Permintaan {permintaan.nomor} dibatalkan."
+            out.save(update_fields=['status', 'alasan_batal', 'updated_at'])
+
+        for pi in PermintaanItem.objects.select_for_update().filter(permintaan=permintaan):
+            qty_out = pi.qty_dikeluarkan or Decimal('0.000')
+            if qty_out > Decimal('0.000'):
+                # Item sudah pernah diserahkan sebagian/penuh: kunci sesuai realisasi agar stok/histori konsisten
+                pi.qty_disetujui = qty_out
+                pi.status = PermintaanItem.STATUS_SELESAI
+                pi.save(update_fields=['qty_disetujui', 'status'])
+            elif pi.status in (
+                PermintaanItem.STATUS_MENUNGGU,
+                PermintaanItem.STATUS_DISETUJUI,
+                PermintaanItem.STATUS_SEDANG_DIAJUKAN,
+            ):
+                pi.qty_disetujui = Decimal('0.000')
+                pi.status = PermintaanItem.STATUS_BATAL_PENGADAAN
+                update_pi = ['qty_disetujui', 'status']
+                if alasan_clean:
+                    pi.alasan_tolak = alasan_clean[:255]
+                    update_pi.append('alasan_tolak')
+                pi.save(update_fields=update_pi)
+
+        permintaan.status = Permintaan.STATUS_BATAL
+        if alasan_clean:
+            permintaan.alasan_tolak = alasan_clean
+        permintaan.save(update_fields=['status', 'alasan_tolak', 'updated_at'])
+        return permintaan
+
+    @classmethod
+    @transaction.atomic
+    def batal_pengeluaran(cls, pengeluaran: Pengeluaran, user: Any, alasan: str = '') -> Pengeluaran:
+        pengeluaran = Pengeluaran.objects.select_for_update().get(pk=pengeluaran.pk)
+        if pengeluaran.status != Pengeluaran.STATUS_DRAFT:
+            raise ValidationError("Hanya bon pengeluaran berstatus DRAFT (belum diserahkan) yang dapat dibatalkan.")
+        pengeluaran.status = Pengeluaran.STATUS_BATAL
+        pengeluaran.alasan_batal = str(alasan or '').strip()
+        pengeluaran.save(update_fields=['status', 'alasan_batal', 'updated_at'])
+        return pengeluaran
+
+    @classmethod
     @transaction.atomic
     def create_pengeluaran(
         cls,

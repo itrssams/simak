@@ -298,6 +298,24 @@ class PermintaanViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
+    def batal(self, request, pk=None):
+        permintaan = self.get_object()
+        if not DistributionService.can_user_cancel_permintaan(request.user, permintaan):
+            if permintaan.status in (Permintaan.STATUS_SELESAI, Permintaan.STATUS_DITOLAK, Permintaan.STATUS_BATAL):
+                return Response({'error': f'Permintaan dengan status {permintaan.status} tidak dapat dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Anda tidak berwenang membatalkan permintaan unit ini.'}, status=status.HTTP_403_FORBIDDEN)
+
+        alasan = (request.data.get('alasan') or request.data.get('alasan_batal') or '').strip()
+        if not alasan:
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            permintaan = DistributionService.batal_permintaan(permintaan, user=request.user, alasan=alasan)
+            permintaan = self.get_queryset().get(pk=permintaan.pk)
+            return Response(self.get_serializer(permintaan).data)
+        except ValidationError as e:
+            return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
     def serahkan(self, request, pk=None):
         """
         Tahap 3: Penyerahan fisik oleh petugas logistik.
@@ -531,6 +549,22 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': f"Gagal menyetujui pengeluaran: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def batal(self, request, pk=None):
+        pengeluaran = self.get_object()
+        if not DistributionService.can_user_cancel_pengeluaran(request.user, pengeluaran):
+            if pengeluaran.status != Pengeluaran.STATUS_DRAFT:
+                return Response({'error': 'Hanya bon pengeluaran berstatus DRAFT (belum diserahkan) yang dapat dibatalkan.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Anda tidak berwenang membatalkan bon pengeluaran ini.'}, status=status.HTTP_403_FORBIDDEN)
+        alasan = (request.data.get('alasan') or request.data.get('alasan_batal') or '').strip()
+        if not alasan:
+            return Response({'error': 'Alasan pembatalan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            pengeluaran = DistributionService.batal_pengeluaran(pengeluaran, user=request.user, alasan=alasan)
+            return Response(self.get_serializer(pengeluaran).data)
+        except ValidationError as e:
+            return Response({'error': str(e.message if hasattr(e, 'message') else e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         bppb = self.get_object()

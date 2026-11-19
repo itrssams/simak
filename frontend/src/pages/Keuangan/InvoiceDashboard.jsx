@@ -6,6 +6,15 @@ import {
     Search,
     TrendingUp,
 } from 'lucide-react';
+import {
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+} from 'recharts';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
@@ -15,6 +24,16 @@ import './PenagihanClean.css';
 
 const money = (value) =>
     `Rp ${Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtCompactRp = (value) => {
+    const n = Number(value || 0);
+    if (n === 0) return 'Rp 0';
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1_000_000_000) return `${sign}Rp ${(abs / 1_000_000_000).toFixed(1).replace(/\.0$/, '')} M`;
+    if (abs >= 1_000_000) return `${sign}Rp ${(abs / 1_000_000).toFixed(1).replace(/\.0$/, '')} jt`;
+    if (abs >= 1_000) return `${sign}Rp ${Math.round(abs / 1_000)} rb`;
+    return `${sign}Rp ${abs.toLocaleString('id-ID')}`;
+};
 const percent = (value) =>
     `${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`;
 
@@ -23,6 +42,9 @@ const emptyDashboard = {
     aging: {},
     pembiayaan: [],
     top_piutang: [],
+    pendapatan_trend: [],
+    kunjungan_trend: [],
+    trend_meta: { granularity: 'monthly', kunjungan_scope: 'penagihan' },
 };
 
 export default function InvoiceDashboard() {
@@ -34,13 +56,18 @@ export default function InvoiceDashboard() {
     const [range, setRange] = useState({ dari: '', sampai: '' });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+    const [chartTab, setChartTab] = useState('pendapatan'); // 'pendapatan' | 'kunjungan'
+    const [kunjunganScope, setKunjunganScope] = useState('penagihan'); // 'penagihan' | 'semua'
 
     useEffect(() => {
         let mounted = true;
         const fetchDashboard = async () => {
             setLoading(true);
             try {
-                const params = Object.fromEntries(Object.entries(range).filter(([, value]) => value));
+                const params = {
+                    ...Object.fromEntries(Object.entries(range).filter(([, value]) => value)),
+                    kunjungan_scope: kunjunganScope,
+                };
                 const res = await api.get('/keuangan/invoice-dashboard/', { params });
                 if (mounted) setData(res.data || emptyDashboard);
             } catch (err) {
@@ -51,7 +78,7 @@ export default function InvoiceDashboard() {
         };
         fetchDashboard();
         return () => { mounted = false; };
-    }, [range]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [range, kunjunganScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => { setPage(1); }, [search, pageSize]);
 
@@ -126,6 +153,200 @@ export default function InvoiceDashboard() {
                     value={`${summary.overdue_count || 0} invoice`}
                     note="Perlu prioritas follow up"
                 />
+            </section>
+
+            {/* ── Line Chart Panel: Tab Switcher Tren Pendapatan | Tren Kunjungan ── */}
+            <section className="idash-chart-section">
+                <div className="idash-chart-head">
+                    <div className="idash-chart-title-wrap">
+                        <h2>{chartTab === 'pendapatan' ? 'Tren Pendapatan & Penagihan' : 'Tren Kunjungan Pasien'}</h2>
+                        <p>
+                            {chartTab === 'pendapatan'
+                                ? 'Perbandingan nilai invoice terbit terhadap pembayaran terverifikasi.'
+                                : `Volume kunjungan (${kunjunganScope === 'penagihan' ? 'Asuransi & Perusahaan Penagihan' : 'Seluruh Penjamin'}).`}
+                            {data.trend_meta?.granularity ? ` · Interval ${data.trend_meta.granularity === 'daily' ? 'Harian' : 'Bulanan'}` : ''}
+                        </p>
+                    </div>
+
+                    <div className="idash-chart-controls">
+                        {chartTab === 'kunjungan' && (
+                            <div className="idash-seg-group" role="group" aria-label="Cakupan kunjungan">
+                                <button
+                                    type="button"
+                                    className={`idash-seg-btn ${kunjunganScope === 'penagihan' ? 'active' : ''}`}
+                                    onClick={() => setKunjunganScope('penagihan')}
+                                >
+                                    Penagihan
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`idash-seg-btn ${kunjunganScope === 'semua' ? 'active' : ''}`}
+                                    onClick={() => setKunjunganScope('semua')}
+                                >
+                                    Semua Penjamin
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="idash-seg-group" role="tablist" aria-label="Jenis tren dashboard">
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={chartTab === 'pendapatan'}
+                                className={`idash-seg-btn ${chartTab === 'pendapatan' ? 'active' : ''}`}
+                                onClick={() => setChartTab('pendapatan')}
+                            >
+                                Tren Pendapatan
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={chartTab === 'kunjungan'}
+                                className={`idash-seg-btn ${chartTab === 'kunjungan' ? 'active' : ''}`}
+                                onClick={() => setChartTab('kunjungan')}
+                            >
+                                Tren Kunjungan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="idash-chart-legend">
+                    {chartTab === 'pendapatan' ? (
+                        <>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#635bff' }} /> Tagihan Terbit
+                            </span>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#10b981' }} /> Pendapatan Cair (Dibayar)
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#635bff' }} /> Total Kunjungan
+                            </span>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#10b981' }} /> Rawat Jalan
+                            </span>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#f59e0b' }} /> Rawat Inap
+                            </span>
+                            <span className="idash-legend-item">
+                                <i style={{ background: '#ef4444' }} /> UGD
+                            </span>
+                        </>
+                    )}
+                </div>
+
+                <div className="idash-chart-body">
+                    {loading && !(chartTab === 'pendapatan' ? data.pendapatan_trend : data.kunjungan_trend)?.length ? (
+                        <div className="idash-chart-empty">Memuat grafik tren...</div>
+                    ) : chartTab === 'pendapatan' ? (
+                        <ResponsiveContainer width="100%" height={236}>
+                            <LineChart
+                                data={data.pendapatan_trend || []}
+                                margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--gdg-border)" />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fill: 'var(--pen-muted)', fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    minTickGap={16}
+                                />
+                                <YAxis
+                                    tickFormatter={fmtCompactRp}
+                                    tick={{ fill: 'var(--pen-muted)', fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    width={74}
+                                />
+                                <Tooltip content={<TrendTooltip mode="pendapatan" />} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="tagihan"
+                                    name="Tagihan Terbit"
+                                    stroke="#635bff"
+                                    strokeWidth={2}
+                                    dot={{ r: 2.5, strokeWidth: 0, fill: '#635bff' }}
+                                    activeDot={{ r: 5 }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="dibayar"
+                                    name="Pendapatan Cair"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={{ r: 2.5, strokeWidth: 0, fill: '#10b981' }}
+                                    activeDot={{ r: 5 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={236}>
+                            <LineChart
+                                data={data.kunjungan_trend || []}
+                                margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--gdg-border)" />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fill: 'var(--pen-muted)', fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    minTickGap={16}
+                                />
+                                <YAxis
+                                    tickFormatter={(v) => Number(v || 0).toLocaleString('id-ID')}
+                                    tick={{ fill: 'var(--pen-muted)', fontSize: 11 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    width={54}
+                                    allowDecimals={false}
+                                />
+                                <Tooltip content={<TrendTooltip mode="kunjungan" />} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="total"
+                                    name="Total Kunjungan"
+                                    stroke="#635bff"
+                                    strokeWidth={2.2}
+                                    dot={{ r: 2.5, strokeWidth: 0, fill: '#635bff' }}
+                                    activeDot={{ r: 5 }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="rawat_jalan"
+                                    name="Rawat Jalan"
+                                    stroke="#10b981"
+                                    strokeWidth={1.75}
+                                    dot={false}
+                                    activeDot={{ r: 4 }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="rawat_inap"
+                                    name="Rawat Inap"
+                                    stroke="#f59e0b"
+                                    strokeWidth={1.75}
+                                    dot={false}
+                                    activeDot={{ r: 4 }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="ugd"
+                                    name="UGD"
+                                    stroke="#ef4444"
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                    activeDot={{ r: 4 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
             </section>
 
             <section className="idash-grid">
@@ -276,6 +497,37 @@ function ProgressBar({ value }) {
         <div className="idash-progress">
             <div><span style={{ width: `${safeValue}%` }} /></div>
             <small>{percent(safeValue)}</small>
+        </div>
+    );
+}
+
+function TrendTooltip({ active, payload, label, mode }) {
+    if (!active || !payload || !payload.length) return null;
+    const row = payload[0]?.payload;
+    return (
+        <div className="idash-chart-tooltip">
+            <div className="idash-chart-tooltip-title">{label}</div>
+            <div className="idash-chart-tooltip-rows">
+                {payload.map((entry, idx) => (
+                    <div key={idx} className="idash-chart-tooltip-row">
+                        <span className="idash-chart-tooltip-key">
+                            <i style={{ backgroundColor: entry.color }} />
+                            <span>{entry.name}</span>
+                        </span>
+                        <strong className="idash-chart-tooltip-val">
+                            {mode === 'pendapatan'
+                                ? money(entry.value)
+                                : `${Number(entry.value || 0).toLocaleString('id-ID')} kunj.`}
+                        </strong>
+                    </div>
+                ))}
+                {mode === 'kunjungan' && row?.estimasi_nilai > 0 && (
+                    <div className="idash-chart-tooltip-row is-extra">
+                        <span className="idash-chart-tooltip-key">Estimasi Biaya</span>
+                        <strong className="idash-chart-tooltip-val">{money(row.estimasi_nilai)}</strong>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

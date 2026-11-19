@@ -1452,12 +1452,14 @@ export default function InvoicePembiayaan() {
                                             <Info label="Tanggal Kirim" value={dateLabel(selected.tgl_kirim)} />
                                             <Info label="Jatuh Tempo" value={selected.tgl_kirim ? dateLabel(selected.jatuh_tempo) : '-'} />
                                             <Info label="Jenis" value={selected.jenis || '-'} />
-                                            <Info label="Periode" value={selected.periode || '-'} />
+                                             <Info label="Periode" value={selected.periode || '-'} />
                                             <Info label="Beban" value={selected.beban || '-'} />
-                                            <div className="inv-info-item inv-patient-info">
-                                                <span>Pasien</span>
-                                                <PatientNamesList names={selectedPatientNames} />
-                                            </div>
+                                            {selectedPatientNames.length > 0 && (
+                                                <div className="inv-info-item inv-patient-info">
+                                                    <span>Pasien</span>
+                                                    <PatientNamesList names={selectedPatientNames} />
+                                                </div>
+                                            )}
                                             <Info label="Status" value={<StatusBadge status={selected.status} label={selected.status_label} />} />
                                         </div>
                                     </section>
@@ -1502,7 +1504,15 @@ export default function InvoicePembiayaan() {
                                     <section className="inv-detail-section inv-breakdown-section">
                                         <HeaderLine title="Breakdown Biaya" icon={ClipboardList} />
                                         <div className="inv-breakdown-grid">
-                                            {COST_FIELDS.map(([key, label]) => <Info key={key} label={<CostLabel fieldKey={key} label={label} />} value={money(selected[key])} mono />)}
+                                            {COST_FIELDS.map(([key, label]) => (
+                                                <Info
+                                                    key={key}
+                                                    label={<CostLabel fieldKey={key} label={label} />}
+                                                    value={money(selected[key])}
+                                                    mono
+                                                    zero={Number(selected[key] || 0) === 0}
+                                                />
+                                            ))}
                                         </div>
                                         {(selected.is_cob || Number(selected.tanggungan_bpjs || 0) > 0) && (
                                             <div className="pen-cob-summary" style={{ marginTop: 12 }}>
@@ -1535,10 +1545,6 @@ export default function InvoicePembiayaan() {
                                             </div>
                                         )}
                                         <div className="inv-pay-summary">
-                                            <div className="patient">
-                                                <span>Pasien</span>
-                                                <PatientNamesList names={selectedPatientNames} />
-                                            </div>
                                             <div className="due">
                                                 <span>Sisa Tagihan</span>
                                                 <strong>{money(selectedDisplayAmounts.sisa)}</strong>
@@ -1998,9 +2004,9 @@ function HeaderLine({ title, icon = Banknote }) {
     return <h3 className="inv-section-title"><SectionIcon size={16} /> {title}</h3>;
 }
 
-function Info({ label, value, mono = false }) {
+function Info({ label, value, mono = false, zero = false }) {
     return (
-        <div className="inv-info-item">
+        <div className={`inv-info-item${zero ? ' is-zero' : ''}`}>
             <span>{label}</span>
             <strong className={mono ? 'inv-mono' : ''}>{value}</strong>
         </div>

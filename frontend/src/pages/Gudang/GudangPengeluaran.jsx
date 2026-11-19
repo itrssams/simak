@@ -18,6 +18,7 @@ import {
     PackageCheck,
     ChevronDown,
     Clock,
+    Ban,
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useToast } from '../../context/ToastContext';
@@ -94,6 +95,18 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const [rejectTargetReq, setRejectTargetReq] = useState(null);
     const [rejectAlasan, setRejectAlasan] = useState('');
     const [rejectSubmitting, setRejectSubmitting] = useState(false);
+
+    // Modal: Batalkan Permintaan / Amprahan (yang belum selesai diserahkan)
+    const [showCancelReqModal, setShowCancelReqModal] = useState(false);
+    const [cancelTargetReq, setCancelTargetReq] = useState(null);
+    const [cancelReqAlasan, setCancelReqAlasan] = useState('');
+    const [cancelReqSubmitting, setCancelReqSubmitting] = useState(false);
+
+    // Modal: Batalkan Bon Pengeluaran (DRAFT)
+    const [showCancelOutModal, setShowCancelOutModal] = useState(false);
+    const [cancelTargetOut, setCancelTargetOut] = useState(null);
+    const [cancelOutAlasan, setCancelOutAlasan] = useState('');
+    const [cancelOutSubmitting, setCancelOutSubmitting] = useState(false);
 
     // Confirmation Modal State (Approve Permintaan / Approve Pengeluaran)
     const [confirmAction, setConfirmAction] = useState(null);
@@ -573,6 +586,66 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
         }
     };
 
+    // Batalkan Permintaan (untuk yang belum selesai diserahkan)
+    const handleOpenCancelReqModal = (req) => {
+        setCancelTargetReq(req);
+        setCancelReqAlasan('');
+        setShowDetailReqModal(false);
+        setShowCancelReqModal(true);
+    };
+
+    const handleExecuteCancelReq = async (e) => {
+        e.preventDefault();
+        if (!cancelReqAlasan.trim()) {
+            toast.error('Alasan pembatalan wajib diisi.');
+            return;
+        }
+        setCancelReqSubmitting(true);
+        try {
+            await api.post(`/gudang/permintaan/${cancelTargetReq.id}/batal/`, {
+                alasan: cancelReqAlasan.trim()
+            });
+            toast.success(`Permintaan ${cancelTargetReq.nomor} berhasil dibatalkan.`);
+            setShowCancelReqModal(false);
+            setCancelTargetReq(null);
+            fetchPermintaan();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal membatalkan permintaan.');
+        } finally {
+            setCancelReqSubmitting(false);
+        }
+    };
+
+    // Batalkan Bon Pengeluaran (DRAFT)
+    const handleOpenCancelOutModal = (out) => {
+        setCancelTargetOut(out);
+        setCancelOutAlasan('');
+        setShowDetailOutModal(false);
+        setShowCancelOutModal(true);
+    };
+
+    const handleExecuteCancelOut = async (e) => {
+        e.preventDefault();
+        if (!cancelOutAlasan.trim()) {
+            toast.error('Alasan pembatalan bon pengeluaran wajib diisi.');
+            return;
+        }
+        setCancelOutSubmitting(true);
+        try {
+            await api.post(`/gudang/pengeluaran/${cancelTargetOut.id}/batal/`, {
+                alasan: cancelOutAlasan.trim()
+            });
+            toast.success(`Bon pengeluaran ${cancelTargetOut.nomor} berhasil dibatalkan.`);
+            setShowCancelOutModal(false);
+            setCancelTargetOut(null);
+            fetchPengeluaran();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal membatalkan bon pengeluaran.');
+        } finally {
+            setCancelOutSubmitting(false);
+        }
+    };
+
     // Print Receipt from Permintaan (using connected Bon Pengeluaran)
     const handlePrintFromReq = async (req) => {
         try {
@@ -864,6 +937,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     <option value="PROSES_SEBAGIAN">Menunggu Pengadaan / Sebagian</option>
                                     <option value="SELESAI">Selesai (Sudah Diserahkan)</option>
                                     <option value="DITOLAK">Ditolak</option>
+                                    <option value="BATAL">Dibatalkan</option>
                                 </select>
                                 <ChevronDown size={14} className="gdg-ks-select-chevron" />
                             </div>
@@ -930,13 +1004,14 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                             req.status === 'DISETUJUI' ? 'indigo' :
                                             req.status === 'PROSES_SEBAGIAN' ? 'cyan' :
                                             req.status === 'MENUNGGU' ? 'amber' :
-                                            req.status === 'DITOLAK' ? 'rose' : 'slate';
+                                            req.status === 'DITOLAK' || req.status === 'BATAL' ? 'rose' : 'slate';
                                         const statusLabel =
                                             req.status === 'MENUNGGU' ? 'Menunggu Persetujuan' :
                                             req.status === 'DISETUJUI' ? 'Disetujui (Siap Serah)' :
                                             req.status === 'PROSES_SEBAGIAN' ? 'Dalam Proses / Pengadaan' :
                                             req.status === 'SELESAI' ? 'Selesai (Diserahkan)' :
-                                            req.status === 'DITOLAK' ? 'Ditolak' : req.status;
+                                            req.status === 'DITOLAK' ? 'Ditolak' :
+                                            req.status === 'BATAL' ? 'Dibatalkan' : req.status;
 
                                         return (
                                             <tr key={req.id}>
@@ -1032,6 +1107,17 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                                 <Printer size={14} />
                                                             </button>
                                                         )}
+
+                                                        {req.can_cancel && (
+                                                            <button
+                                                                type="button"
+                                                                className="gdg-brg-icon-btn danger"
+                                                                title="Batalkan Permintaan (Belum Selesai Diserahkan)"
+                                                                onClick={() => handleOpenCancelReqModal(req)}
+                                                            >
+                                                                <Ban size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1081,6 +1167,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     <option value="">Semua Status Bon</option>
                                     <option value="DRAFT">Draft (Belum Diserahkan)</option>
                                     <option value="DISETUJUI">Disetujui (Stok Terpotong)</option>
+                                    <option value="BATAL">Dibatalkan</option>
                                 </select>
                                 <ChevronDown size={14} className="gdg-ks-select-chevron" />
                             </div>
@@ -1153,9 +1240,9 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                 {formatRp(out.total_nilai)}
                                             </td>
                                             <td>
-                                                <span className={`gdg-status-text ${out.status === 'DISETUJUI' ? 'emerald' : 'slate'}`}>
+                                                <span className={`gdg-status-text ${out.status === 'DISETUJUI' ? 'emerald' : out.status === 'BATAL' ? 'rose' : 'slate'}`}>
                                                     <span className="gdg-status-dot" />
-                                                    <span>{out.status}</span>
+                                                    <span>{out.status === 'BATAL' ? 'Dibatalkan' : out.status}</span>
                                                 </span>
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
@@ -1184,6 +1271,16 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                             onClick={() => handleApproveOut(out)}
                                                         >
                                                             <Check size={14} />
+                                                        </button>
+                                                    )}
+                                                    {out.can_cancel && (
+                                                        <button
+                                                            type="button"
+                                                            className="gdg-brg-icon-btn danger"
+                                                            title="Batalkan Bon Pengeluaran"
+                                                            onClick={() => handleOpenCancelOutModal(out)}
+                                                        >
+                                                            <Ban size={14} />
                                                         </button>
                                                     )}
                                                 </div>
@@ -1474,13 +1571,118 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                 </div>
                             </div>
 
-                            <div className="gdg-modal-foot">
+                                <div className="gdg-modal-foot">
                                 <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowRejectModal(false)} disabled={rejectSubmitting}>
                                     Batal
                                 </button>
                                 <button type="submit" className="gdg-btn-stripe danger" disabled={rejectSubmitting}>
                                     <X size={14} />
                                     <span>{rejectSubmitting ? 'Memproses...' : 'Tolak Permintaan'}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* MODAL: BATALKAN PERMINTAAN */}
+            {showCancelReqModal && cancelTargetReq && createPortal(
+                <div className="gdg-modal-backdrop" onClick={() => !cancelReqSubmitting && setShowCancelReqModal(false)}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
+                        <div className="gdg-modal-head">
+                            <div className="gdg-modal-header-text">
+                                <h3>Batalkan Permintaan Barang</h3>
+                                <p>{cancelTargetReq.nomor} · {cancelTargetReq.ruang_nama}</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="gdg-brg-icon-btn"
+                                onClick={() => !cancelReqSubmitting && setShowCancelReqModal(false)}
+                                disabled={cancelReqSubmitting}
+                                title="Tutup Modal"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleExecuteCancelReq}>
+                            <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                <div className="gdg-form-group" style={{ margin: 0 }}>
+                                    <label>Alasan Pembatalan *</label>
+                                    <textarea
+                                        rows="3"
+                                        placeholder="Tuliskan alasan pembatalan permintaan ini..."
+                                        value={cancelReqAlasan}
+                                        onChange={(e) => setCancelReqAlasan(e.target.value)}
+                                        required
+                                        autoFocus
+                                        className="gdg-po-textarea"
+                                    />
+                                    <small className="gdg-grn-hint">
+                                        Permintaan yang dibatalkan tidak lagi diproses penyerahan fisiknya oleh gudang.
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div className="gdg-modal-foot">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCancelReqModal(false)} disabled={cancelReqSubmitting}>
+                                    Kembali
+                                </button>
+                                <button type="submit" className="gdg-btn-stripe danger" disabled={cancelReqSubmitting}>
+                                    <Ban size={14} />
+                                    <span>{cancelReqSubmitting ? 'Membatalkan...' : 'Batalkan Permintaan'}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* MODAL: BATALKAN BON PENGELUARAN (DRAFT) */}
+            {showCancelOutModal && cancelTargetOut && createPortal(
+                <div className="gdg-modal-backdrop" onClick={() => !cancelOutSubmitting && setShowCancelOutModal(false)}>
+                    <div className="gdg-modal gdg-po-modal-confirm" onClick={(e) => e.stopPropagation()}>
+                        <div className="gdg-modal-head">
+                            <div className="gdg-modal-header-text">
+                                <h3>Batalkan Bon Pengeluaran</h3>
+                                <p>{cancelTargetOut.nomor} · {cancelTargetOut.ruang_nama}</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="gdg-brg-icon-btn"
+                                onClick={() => !cancelOutSubmitting && setShowCancelOutModal(false)}
+                                disabled={cancelOutSubmitting}
+                                title="Tutup Modal"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleExecuteCancelOut}>
+                            <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                <div className="gdg-form-group" style={{ margin: 0 }}>
+                                    <label>Alasan Pembatalan Bon *</label>
+                                    <textarea
+                                        rows="3"
+                                        placeholder="Tuliskan alasan pembatalan bon pengeluaran draft ini..."
+                                        value={cancelOutAlasan}
+                                        onChange={(e) => setCancelOutAlasan(e.target.value)}
+                                        required
+                                        autoFocus
+                                        className="gdg-po-textarea"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="gdg-modal-foot">
+                                <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowCancelOutModal(false)} disabled={cancelOutSubmitting}>
+                                    Kembali
+                                </button>
+                                <button type="submit" className="gdg-btn-stripe danger" disabled={cancelOutSubmitting}>
+                                    <Ban size={14} />
+                                    <span>{cancelOutSubmitting ? 'Membatalkan...' : 'Batalkan Bon'}</span>
                                 </button>
                             </div>
                         </form>
@@ -1513,10 +1715,13 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                             </button>
                         </div>
                         <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {selectedReq.status === 'DITOLAK' && selectedReq.alasan_tolak && (
+                            {(selectedReq.status === 'DITOLAK' || selectedReq.status === 'BATAL') && selectedReq.alasan_tolak && (
                                 <div className="gdg-out-banner danger">
                                     <XCircle size={15} style={{ flexShrink: 0 }} />
-                                    <span><strong>Alasan Penolakan:</strong> {selectedReq.alasan_tolak}</span>
+                                    <span>
+                                        <strong>{selectedReq.status === 'BATAL' ? 'Alasan Pembatalan:' : 'Alasan Penolakan:'}</strong>{' '}
+                                        {selectedReq.alasan_tolak}
+                                    </span>
                                 </div>
                             )}
 
@@ -1676,6 +1881,12 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                         <span>Serahkan Barang</span>
                                     </button>
                                 )}
+                                {selectedReq.can_cancel && (
+                                    <button type="button" className="gdg-btn-stripe danger" onClick={() => handleOpenCancelReqModal(selectedReq)}>
+                                        <Ban size={14} />
+                                        <span>Batalkan Permintaan</span>
+                                    </button>
+                                )}
                                 {(selectedReq.status === 'SELESAI' || (selectedReq.pengeluaran_list && selectedReq.pengeluaran_list.length > 0)) && (
                                     <button type="button" className="gdg-btn-stripe secondary" onClick={() => handlePrintFromReq(selectedReq)}>
                                         <Printer size={14} />
@@ -1710,6 +1921,12 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                             </button>
                         </div>
                         <div className="gdg-modal-body">
+                            {selectedOut.status === 'BATAL' && selectedOut.alasan_batal && (
+                                <div className="gdg-out-banner danger" style={{ marginBottom: '12px' }}>
+                                    <XCircle size={15} style={{ flexShrink: 0 }} />
+                                    <span><strong>Alasan Pembatalan:</strong> {selectedOut.alasan_batal}</span>
+                                </div>
+                            )}
                             <div className="gdg-table-wrap gdg-table-borderless">
                                 <table className="gdg-table gdg-table-stripe">
                                     <thead>
@@ -1754,6 +1971,12 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                             </button>
                             <div className="gdg-po-foot-group">
                                 <button type="button" className="gdg-btn-stripe secondary" onClick={() => setShowDetailOutModal(false)}>Tutup</button>
+                                {selectedOut.can_cancel && (
+                                    <button type="button" className="gdg-btn-stripe danger" onClick={() => handleOpenCancelOutModal(selectedOut)}>
+                                        <Ban size={14} />
+                                        <span>Batalkan Bon</span>
+                                    </button>
+                                )}
                                 {selectedOut.can_approve && (
                                     <button type="button" className="gdg-btn-stripe primary" onClick={() => handleApproveOut(selectedOut)}>
                                         <CheckCircle2 size={14} />

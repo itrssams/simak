@@ -16,7 +16,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from django.db.models import Sum
 
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncDay, TruncMonth
 
 from django.db import connection, transaction, models
 
@@ -1112,6 +1112,186 @@ class KunjunganInvoiceView(APIView):
             return 'OK'
         return 'Rawat Jalan'
 
+_TREND_SHORT_MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des']
+
+
+def _parse_iso_date(val):
+    if not val:
+        return None
+    try:
+        return date.fromisoformat(str(val)[:10])
+    except ValueError:
+        return None
+
+
+def _shift_month_start(year, month, delta_months):
+    total_m = (year * 12 + (month - 1)) + delta_months
+    new_year, m0 = divmod(total_m, 12)
+    return date(new_year, m0 + 1, 1)
+
+
+def _build_dashboard_trends(today, dari, sampai, kunjungan_scope='penagihan'):
+    start_parsed = _parse_iso_date(dari)
+    end_parsed = _parse_iso_date(sampai)
+
+    if start_parsed and end_parsed and start_parsed <= end_parsed:
+        chart_start, chart_end = start_parsed, end_parsed
+        granularity = 'daily' if (chart_end - chart_start).days <= 45 else 'monthly'
+    elif start_parsed:
+        chart_start = start_parsed
+        chart_end = max(today, start_parsed)
+        granularity = 'daily' if (chart_end - chart_start).days <= 45 else 'monthly'
+    elif end_parsed:
+        chart_end = end_parsed
+        chart_start = _shift_month_start(end_parsed.year, end_parsed.month, -11)
+        granularity = 'monthly'
+    else:
+        chart_end = today
+        chart_start = _shift_month_start(today.year, today.month, -11)
+        granularity = 'monthly'
+
+    # Generate continuous bucket keys
+    buckets = []
+    if granularity == 'daily':
+        cur = chart_start
+        while cur <= chart_end and len(buckets) < 62:
+            buckets.append({
+                'key': cur.strftime('%Y-%m-%d'),
+                'label': f"{cur.day:02d} {_TREND_SHORT_MONTHS[cur.month]}",
+            })
+            cur += timedelta(days=1)
+    else:
+        cur = date(chart_start.year, chart_start.month, 1)
+        end_m = date(chart_end.year, chart_end.month, 1)
+        while cur <= end_m and len(buckets) < 36:
+            buckets.append({
+                'key': cur.strftime('%Y-%m'),
+                'label': f"{_TREND_SHORT_MONTHS[cur.month]} {cur.year}",
+            })
+            cur = _shift_month_start(cur.year, cur.month, 1)
+
+    trunc_fn = TruncDay if granularity == 'daily' else TruncMonth
+    key_fmt = '%Y-%m-%d' if granularity == 'daily' else '%Y-%m'
+
+    # 1. Pendapatan: Faktur terbit vs PembayaranFaktur terverifikasi
+    tagihan_rows = (
+        Faktur.objects.exclude(status='batal')
+        .filter(tanggal__gte=chart_start, tanggal__lte=chart_end)
+        .annotate(bucket=trunc_fn('tanggal'))
+        .values('bucket')
+        .annotate(
+            total=Coalesce(Sum('total_tagihan'), Decimal('0')),
+            cnt=Count('id'),
+        )
+    )
+    tagihan_map = {
+        r['bucket'].strftime(key_fmt): (float(r['total'] or 0), int(r['cnt'] or 0))
+        for r in tagihan_rows if r['bucket']
+    }
+
+    bayar_rows = (
+        PembayaranFaktur.objects.filter(
+            status_verifikasi='terverifikasi',
+            tanggal__gte=chart_start,
+            tanggal__lte=chart_end,
+        )
+        .exclude(faktur__status='batal')
+        .annotate(bucket=trunc_fn('tanggal'))
+        .values('bucket')
+        .annotate(
+            total=Coalesce(Sum('jumlah'), Decimal('0')),
+            cnt=Count('id'),
+        )
+    )
+    bayar_map = {
+        r['bucket'].strftime(key_fmt): (float(r['total'] or 0), int(r['cnt'] or 0))
+        for r in bayar_rows if r['bucket']
+    }
+
+    pendapatan_trend = []
+    for b in buckets:
+        t_val, t_cnt = tagihan_map.get(b['key'], (0.0, 0))
+        b_val, b_cnt = bayar_map.get(b['key'], (0.0, 0))
+        pendapatan_trend.append({
+            'key': b['key'],
+            'label': b['label'],
+            'tagihan': t_val,
+            'dibayar': b_val,
+            'invoice_count': t_cnt,
+            'bayar_count': b_cnt,
+        })
+
+    # 2. Kunjungan dari rssams.kunjung
+    date_expr = "DATE_FORMAT(a.tgl_masuk, '%%Y-%%m-%%d')" if granularity == 'daily' else "DATE_FORMAT(a.tgl_masuk, '%%Y-%%m')"
+    scope_clean = 'semua' if str(kunjungan_scope).lower() == 'semua' else 'penagihan'
+    scope_where = ""
+    scope_params = [f"{chart_start} 00:00:00", f"{chart_end} 23:59:59"]
+    if scope_clean == 'penagihan':
+        scope_where = (
+            " AND (a.id_pembiayaan != 1 "
+            "AND (c.pembiayaan IS NULL OR (c.pembiayaan NOT LIKE %s OR a.id_pembiayaan IN (44, 73) OR c.pembiayaan LIKE %s OR c.pembiayaan LIKE %s)) "
+            "AND LOWER(COALESCE(c.pembiayaan, '')) NOT LIKE %s)"
+        )
+        scope_params.extend(['%BPJS%', '%Ketenagakerjaan%', '%Naker%', '%swadana%'])
+
+    verif_join = "INNER JOIN rssams.verif_kunjung e ON a.no = e.no" if scope_clean == 'penagihan' else ""
+    kunjungan_map = {}
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f"""
+                SELECT
+                    {date_expr} AS bucket_key,
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN substr(a.j_lay,18,1)='1' THEN 1 ELSE 0 END) AS rawat_jalan,
+                    SUM(CASE WHEN substr(a.j_lay,17,1)='1' THEN 1 ELSE 0 END) AS rawat_inap,
+                    SUM(CASE WHEN substr(a.j_lay,16,1)='1' THEN 1 ELSE 0 END) AS ugd,
+                    COALESCE(SUM({KUNJUNGAN_TOTAL_SQL}), 0) AS estimasi_nilai
+                FROM rssams.kunjung a
+                LEFT JOIN rssams.pbiaya c ON a.id_pembiayaan = c.id_pembiayaan
+                {verif_join}
+                WHERE a.cek = 1
+                  AND a.tgl_masuk >= %s
+                  AND a.tgl_masuk <= %s
+                  {scope_where}
+                GROUP BY bucket_key
+                ORDER BY bucket_key ASC
+            """, scope_params)
+            for row in cursor.fetchall():
+                kunjungan_map[str(row[0])] = {
+                    'total': int(row[1] or 0),
+                    'rawat_jalan': int(row[2] or 0),
+                    'rawat_inap': int(row[3] or 0),
+                    'ugd': int(row[4] or 0),
+                    'estimasi_nilai': float(row[5] or 0),
+                }
+    except Exception:
+        kunjungan_map = {}
+
+    kunjungan_trend = []
+    for b in buckets:
+        km = kunjungan_map.get(b['key'], {})
+        kunjungan_trend.append({
+            'key': b['key'],
+            'label': b['label'],
+            'total': km.get('total', 0),
+            'rawat_jalan': km.get('rawat_jalan', 0),
+            'rawat_inap': km.get('rawat_inap', 0),
+            'ugd': km.get('ugd', 0),
+            'estimasi_nilai': km.get('estimasi_nilai', 0.0),
+        })
+
+    return {
+        'pendapatan_trend': pendapatan_trend,
+        'kunjungan_trend': kunjungan_trend,
+        'trend_meta': {
+            'granularity': granularity,
+            'start': str(chart_start),
+            'end': str(chart_end),
+            'kunjungan_scope': scope_clean,
+        },
+    }
+
+
 class InvoiceDashboardView(APIView):
     permission_classes = [IsKeuanganOrManajerPermission]
 
@@ -1220,6 +1400,8 @@ class InvoiceDashboardView(APIView):
         total_tagihan = Decimal(totals['tagihan_total'] or 0)
         total_dibayar = Decimal(totals['dibayar_total'] or 0)
         sisa_piutang = total_tagihan - total_dibayar
+        kunjungan_scope = (request.query_params.get('kunjungan_scope') or 'penagihan').strip().lower()
+        trend_payload = _build_dashboard_trends(today, dari, sampai, kunjungan_scope=kunjungan_scope)
         response = {
             'summary': {
                 'total_tagihan': total_tagihan,
@@ -1238,6 +1420,7 @@ class InvoiceDashboardView(APIView):
             'aging': aging,
             'pembiayaan': rows,
             'top_piutang': rows[:8],
+            **trend_payload,
         }
         return Response(response, status=status.HTTP_200_OK)
 

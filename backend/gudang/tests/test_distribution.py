@@ -379,5 +379,170 @@ class DistributionTestCase(TestCase):
         self.assertEqual(res_close.data['status'], Permintaan.STATUS_DITOLAK)
         self.assertEqual(res_close.data['items'][0]['status'], PermintaanItem.STATUS_BATAL_PENGADAAN)
 
+    def test_unit_and_logistik_can_cancel_unfinished_permintaan(self):
+        unit_igd, _ = Unit.objects.get_or_create(nama='UNIT TEST CANCEL IGD')
+        unit_lain, _ = Unit.objects.get_or_create(nama='UNIT TEST LAIN')
+        self.ruang.unit = unit_igd
+        self.ruang.save(update_fields=['unit'])
+
+        creator, _ = User.objects.get_or_create(
+            username='pemohon_cancel_test',
+            defaults={'role': 'karyawan', 'unit': unit_igd},
+        )
+        creator.unit = unit_igd
+        creator.save(update_fields=['unit'])
+
+        colleague, _ = User.objects.get_or_create(
+            username='rekan_cancel_test',
+            defaults={'role': 'karyawan', 'unit': unit_igd},
+        )
+        colleague.unit = unit_igd
+        colleague.save(update_fields=['unit'])
+
+        outsider, _ = User.objects.get_or_create(
+            username='unit_lain_cancel_test',
+            defaults={'role': 'karyawan', 'unit': unit_lain},
+        )
+        outsider.unit = unit_lain
+        outsider.save(update_fields=['unit'])
+
+        approver, _ = User.objects.get_or_create(
+            username='approver_cancel_test',
+            defaults={'role': 'kepala_seksi', 'is_logistik': True},
+        )
+        approver.role = 'kepala_seksi'
+        approver.is_logistik = True
+        approver.save(update_fields=['role', 'is_logistik'])
+
+        StockService.record_in(
+            barang=self.barang,
+            gudang=self.gudang,
+            qty=Decimal('20'),
+            harga_unit=Decimal('5000'),
+            sumber_tipe='INIT',
+            sumber_id='10',
+            sumber_nomor='INIT-CANCEL',
+            user=approver,
+        )
+
+        # 1. Buat & setujui permintaan (belum diserahkan) -> unit rekan sekantor bisa membatalkan
+        req = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('4')}],
+            user=creator,
+            auto_submit=True,
+        )
+        pi = req.items.first()
+        DistributionService.approve_permintaan(
+            req,
+            user=approver,
+            items_approval=[{'id': pi.id, 'keputusan': 'SETUJUI', 'qty_disetujui': 4}],
+        )
+
+        # Draft bon pengeluaran yang belum disetujui ikut dibatalkan saat permintaan dibatalkan
+        draft_out = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': pi, 'qty': Decimal('4')}],
+            penerima_nama='Perawat IGD',
+            user=approver,
+        )
+
+        client_other = APIClient()
+        client_other.force_authenticate(user=outsider)
+        res_other = client_other.post(
+            f'/api/gudang/permintaan/{req.id}/batal/',
+            {'alasan': 'Bukan unit kami'},
+            format='json',
+        )
+        self.assertIn(res_other.status_code, (403, 404))
+
+        client_unit = APIClient()
+        client_unit.force_authenticate(user=colleague)
+        res_list = client_unit.get(f'/api/gudang/permintaan/{req.id}/')
+        self.assertEqual(res_list.status_code, 200)
+        self.assertTrue(res_list.data['can_cancel'])
+
+        res_cancel = client_unit.post(
+            f'/api/gudang/permintaan/{req.id}/batal/',
+            {'alasan': 'Salah input barang, diganti amprahan baru'},
+            format='json',
+        )
+        self.assertEqual(res_cancel.status_code, 200, res_cancel.content)
+        self.assertEqual(res_cancel.data['status'], Permintaan.STATUS_BATAL)
+        self.assertFalse(res_cancel.data['can_cancel'])
+        self.assertEqual(res_cancel.data['alasan_tolak'], 'Salah input barang, diganti amprahan baru')
+
+        draft_out.refresh_from_db()
+        self.assertEqual(draft_out.status, Pengeluaran.STATUS_BATAL)
+
+        # 2. Permintaan yang sudah SELESAI diserahkan tidak dapat dibatalkan
+        req_done = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('2')}],
+            user=creator,
+            auto_submit=True,
+        )
+        pi_done = req_done.items.first()
+        DistributionService.approve_permintaan(
+            req_done,
+            user=approver,
+            items_approval=[{'id': pi_done.id, 'keputusan': 'SETUJUI', 'qty_disetujui': 2}],
+        )
+        out_done = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req_done,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': pi_done, 'qty': Decimal('2')}],
+            penerima_nama='Perawat IGD',
+            user=approver,
+        )
+        DistributionService.approve_pengeluaran(out_done, user=approver)
+        req_done.refresh_from_db()
+        self.assertEqual(req_done.status, Permintaan.STATUS_SELESAI)
+
+        res_cancel_done = client_unit.post(
+            f'/api/gudang/permintaan/{req_done.id}/batal/',
+            {'alasan': 'Coba batal setelah selesai'},
+            format='json',
+        )
+        self.assertEqual(res_cancel_done.status_code, 400)
+
+        # 3. Pengeluaran DRAFT dapat dibatalkan, namun Pengeluaran DISETUJUI tidak dapat dibatalkan
+        req2 = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('1')}],
+            user=creator,
+            auto_submit=True,
+        )
+        pi2 = req2.items.first()
+        out_draft2 = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req2,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': pi2, 'qty': Decimal('1')}],
+            penerima_nama='Perawat IGD',
+            user=approver,
+        )
+        client_logistik = APIClient()
+        client_logistik.force_authenticate(user=approver)
+        res_out_batal = client_logistik.post(
+            f'/api/gudang/pengeluaran/{out_draft2.id}/batal/',
+            {'alasan': 'Draft dibatalkan petugas'},
+            format='json',
+        )
+        self.assertEqual(res_out_batal.status_code, 200, res_out_batal.content)
+        self.assertEqual(res_out_batal.data['status'], Pengeluaran.STATUS_BATAL)
+        self.assertEqual(res_out_batal.data['alasan_batal'], 'Draft dibatalkan petugas')
+
+        res_out_done_batal = client_logistik.post(
+            f'/api/gudang/pengeluaran/{out_done.id}/batal/',
+            {'alasan': 'Sudah dipotong stok'},
+            format='json',
+        )
+        self.assertEqual(res_out_done_batal.status_code, 400)
+
+
 
 
