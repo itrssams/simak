@@ -182,19 +182,34 @@ def generate_jadwal_penyusutan(aset):
     }
 
 
-def generate_kode_aset(jenis):
+def _resolve_kode_aset_year(tahun=None):
+    """Normalisasi parameter tahun (date/datetime/int/str/None) menjadi integer tahun."""
+    if tahun is None:
+        return timezone.now().year
+    if hasattr(tahun, 'year'):
+        return tahun.year
+    try:
+        return int(tahun)
+    except (TypeError, ValueError):
+        return timezone.now().year
+
+
+def generate_kode_aset(jenis, tahun=None):
     """
-    Format otomatis: [KATEGORI].[JENIS].[0001]
-    Contoh: PE.AC.0001, PE.TV.0015, AM.USG.0002
+    Format otomatis: [KATEGORI].[JENIS].[TAHUN].[0001]
+    Contoh: PE.AC.2026.0001, PE.TV.2026.0015, AM.USG.2026.0002
+    Nomor urut dimulai dari 0001 dan reset setiap ganti tahun per jenis aset.
     """
-    prefix = f'{jenis.kategori.kode}.{jenis.kode}.'
+    tahun_int = _resolve_kode_aset_year(tahun)
+    prefix = f'{jenis.kategori.kode}.{jenis.kode}.{tahun_int}.'
     existing_kodes = Aset.objects.filter(kode_aset__startswith=prefix).values_list('kode_aset', flat=True)
 
     max_num = 0
+    prefix_len = len(prefix)
     for kode in existing_kodes:
-        parts = kode.split('.')
-        if len(parts) >= 3 and parts[-1].isdigit():
-            num = int(parts[-1])
+        suffix = kode[prefix_len:]
+        if suffix.isdigit():
+            num = int(suffix)
             if num > max_num:
                 max_num = num
 

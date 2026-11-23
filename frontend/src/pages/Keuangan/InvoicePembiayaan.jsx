@@ -1281,11 +1281,13 @@ export default function InvoicePembiayaan() {
                 <div className="inv-modal-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeCreate}>
                     <div className="inv-modal create inv-create-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-modal-head">
-                            <span className="inv-modal-head-icon"><FilePlus2 size={20} /></span>
-                            <div>
+                            <div className="inv-create-head-title">
                                 <h2>{editingInvoice ? 'Edit Invoice' : 'Tambah Invoice'}</h2>
                                 <p>{editingInvoice ? 'Perbarui informasi invoice sebelum dikirim.' : 'Isi informasi invoice dan rincian tagihan pembiayaan.'}</p>
                             </div>
+                            <button className="pen-confirm-close" type="button" onClick={closeCreate} disabled={saving} aria-label="Tutup" title="Tutup">
+                                <X size={18} />
+                            </button>
                         </div>
                         <form id="inv-create-form" onSubmit={saveInvoice}>
                             <div className="inv-modal-body">
@@ -1392,7 +1394,7 @@ export default function InvoicePembiayaan() {
                             <div className="inv-modal-actions">
                                 <button className="inv-btn soft" type="button" onClick={closeCreate}>Batal</button>
                                 <button className="inv-btn primary" type="submit" disabled={saving}>
-                                    {editingInvoice ? <Pencil size={16} /> : <FilePlus2 size={16} />} {saving ? 'Menyimpan...' : editingInvoice ? 'Simpan Perubahan' : 'Simpan Invoice'}
+                                    {saving ? 'Menyimpan...' : editingInvoice ? 'Simpan Perubahan' : 'Simpan Invoice'}
                                 </button>
                             </div>
                         </form>
@@ -1416,7 +1418,7 @@ export default function InvoicePembiayaan() {
                                     </div>
                                     <div className="inv-detail-actions">
                                         <div className="inv-signer-box">
-                                            <span className="inv-signer-label">TTD:</span>
+                                            <span className="inv-signer-label">TTD</span>
                                             <div className="inv-signer-toggle">
                                                 <button
                                                     type="button"
@@ -1436,12 +1438,16 @@ export default function InvoicePembiayaan() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice')}><Printer size={15} /> Invoice</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian')}><ReceiptText size={15} /> Rincian</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('kwitansi')}><ReceiptText size={15} /> Kwitansi</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice_ppn')}><FileText size={15} /> Invoice PPN</button>
-                                        <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian_ppn')}><ClipboardList size={15} /> Rincian PPN</button>
-                                        <button className="inv-close" type="button" onClick={closeDetail}>Tutup</button>
+                                        <div className="inv-print-group" role="group" aria-label="Cetak Dokumen">
+                                            <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice')}>Invoice</button>
+                                            <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian')}>Rincian</button>
+                                            <button className="inv-print-btn" type="button" onClick={() => printInvoice('kwitansi')}>Kwitansi</button>
+                                            <button className="inv-print-btn" type="button" onClick={() => printInvoice('invoice_ppn')}>Invoice PPN</button>
+                                            <button className="inv-print-btn" type="button" onClick={() => printInvoice('rincian_ppn')}>Rincian PPN</button>
+                                        </div>
+                                        <button className="inv-close inv-detail-close-icon" type="button" onClick={closeDetail} aria-label="Tutup" title="Tutup">
+                                            <X size={18} />
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="inv-detail-body">
@@ -1655,11 +1661,13 @@ export default function InvoicePembiayaan() {
             {visitToRemove && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeRemoveVisit}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-remove-visit-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon">
-                            <Trash2 size={24} />
-                        </div>
                         <div className="inv-confirm-copy">
-                            <h2 id="inv-remove-visit-title">Hapus Kunjungan dari Invoice?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-remove-visit-title">Hapus Kunjungan dari Invoice?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeRemoveVisit} disabled={Boolean(removingVisitNo)} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Kunjungan <strong>{visitToRemove.no}</strong> atas nama {visitToRemove.nama} akan dilepas dari invoice <strong>{selected?.nomor_faktur}</strong>.
                                 Status kunjungan akan kembali menjadi belum invoice.
@@ -1672,7 +1680,7 @@ export default function InvoicePembiayaan() {
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeRemoveVisit} disabled={Boolean(removingVisitNo)}>Batal</button>
                             <button className="inv-danger-btn" type="button" onClick={confirmRemoveVisit} disabled={Boolean(removingVisitNo)}>
-                                <Trash2 size={16} /> {removingVisitNo ? 'Menghapus...' : 'Hapus Kunjungan'}
+                                {removingVisitNo ? 'Menghapus...' : 'Hapus Kunjungan'}
                             </button>
                         </div>
                     </div>
@@ -1683,11 +1691,13 @@ export default function InvoicePembiayaan() {
             {paymentToDelete && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeDeletePayment}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-delete-payment-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon">
-                            <AlertTriangle size={22} />
-                        </div>
                         <div className="inv-confirm-copy">
-                            <h2 id="inv-delete-payment-title">Batalkan Pembayaran?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-delete-payment-title">Batalkan Pembayaran?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeDeletePayment} disabled={Boolean(deletingPaymentId)} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Pembayaran sebesar <strong>{money(paymentToDelete.jumlah)}</strong> pada {dateLabel(paymentToDelete.tanggal)} akan dibatalkan.
                                 {paymentToDelete.status_verifikasi === 'terverifikasi'
@@ -1703,7 +1713,7 @@ export default function InvoicePembiayaan() {
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeDeletePayment} disabled={Boolean(deletingPaymentId)}>Batal</button>
                             <button className="inv-danger-btn" type="button" onClick={confirmDeletePayment} disabled={Boolean(deletingPaymentId)}>
-                                <X size={16} /> {deletingPaymentId ? 'Membatalkan...' : 'Batalkan Pembayaran'}
+                                {deletingPaymentId ? 'Membatalkan...' : 'Batalkan Pembayaran'}
                             </button>
                         </div>
                     </div>
@@ -1714,11 +1724,13 @@ export default function InvoicePembiayaan() {
             {paymentToVerify && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeVerifyPayment}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-verify-payment-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon send">
-                            <CheckCircle2 size={22} />
-                        </div>
                         <div className="inv-confirm-copy">
-                            <h2 id="inv-verify-payment-title">Verifikasi Pembayaran?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-verify-payment-title">Verifikasi Pembayaran?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeVerifyPayment} disabled={Boolean(verifyingPaymentId)} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Pembayaran sebesar <strong>{money(paymentToVerify.jumlah)}</strong> pada {dateLabel(paymentToVerify.tanggal)} akan diverifikasi.
                                 Setelah diverifikasi, saldo pembiayaan akan terpotong dan invoice otomatis terbayarkan.
@@ -1731,7 +1743,7 @@ export default function InvoicePembiayaan() {
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeVerifyPayment} disabled={Boolean(verifyingPaymentId)}>Batal</button>
                             <button className="inv-btn primary" type="button" onClick={confirmVerifyPayment} disabled={Boolean(verifyingPaymentId)}>
-                                <CheckCircle2 size={16} /> {verifyingPaymentId ? 'Memverifikasi...' : 'Verifikasi'}
+                                {verifyingPaymentId ? 'Memverifikasi...' : 'Verifikasi'}
                             </button>
                         </div>
                     </div>
@@ -1742,11 +1754,13 @@ export default function InvoicePembiayaan() {
             {invoiceToCancel && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeCancelInvoice}>
                     <div className="inv-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="inv-cancel-invoice-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon">
-                            <AlertTriangle size={22} />
-                        </div>
                         <div className="inv-confirm-copy">
-                            <h2 id="inv-cancel-invoice-title">Batalkan Invoice?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-cancel-invoice-title">Batalkan Invoice?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeCancelInvoice} disabled={Boolean(cancelingInvoiceId)} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Invoice <strong>{invoiceToCancel.nomor_faktur}</strong> atas nama {resolvePembiayaanName(invoiceToCancel)} akan diberi status batal.
                                 Data invoice tetap tersimpan sebagai track record.
@@ -1759,7 +1773,7 @@ export default function InvoicePembiayaan() {
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeCancelInvoice} disabled={Boolean(cancelingInvoiceId)}>Kembali</button>
                             <button className="inv-danger-btn" type="button" onClick={confirmCancelInvoice} disabled={Boolean(cancelingInvoiceId)}>
-                                <X size={16} /> {cancelingInvoiceId ? 'Membatalkan...' : 'Batalkan Invoice'}
+                                {cancelingInvoiceId ? 'Membatalkan...' : 'Batalkan Invoice'}
                             </button>
                         </div>
                     </div>
@@ -1770,11 +1784,13 @@ export default function InvoicePembiayaan() {
             {invoiceToReturn && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeReturnInvoice}>
                     <div className="inv-confirm-modal inv-return-modal" role="dialog" aria-modal="true" aria-labelledby="inv-return-invoice-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon return">
-                            <UndoDot size={22} />
-                        </div>
                         <div className="inv-confirm-copy">
-                            <h2 id="inv-return-invoice-title">Kembalikan Invoice?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-return-invoice-title">Kembalikan Invoice?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeReturnInvoice} disabled={Boolean(returningInvoiceId)} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Invoice <strong>{invoiceToReturn.nomor_faktur}</strong> atas nama {resolvePembiayaanName(invoiceToReturn)} akan dibatalkan
                                 karena dikembalikan oleh asuransi. Semua kunjungan yang terikat akan <strong>dilepas otomatis</strong> dan bisa di-invoice ulang.
@@ -1782,7 +1798,7 @@ export default function InvoicePembiayaan() {
                         </div>
                         <div className="inv-confirm-detail">
                             <span>Tanggal Kirim</span>
-                            <strong>{invoiceToReturn.tgl_kirim || '-'}</strong>
+                            <strong>{dateLabel(invoiceToReturn.tgl_kirim)}</strong>
                         </div>
                         <div className="inv-return-alasan">
                             <label htmlFor="inv-alasan-kembalikan">
@@ -1806,7 +1822,7 @@ export default function InvoicePembiayaan() {
                                 onClick={confirmReturnInvoice}
                                 disabled={Boolean(returningInvoiceId) || !alasanKembalikan.trim()}
                             >
-                                <UndoDot size={16} /> {returningInvoiceId ? 'Memproses...' : 'Kembalikan Invoice'}
+                                {returningInvoiceId ? 'Memproses...' : 'Kembalikan Invoice'}
                             </button>
                         </div>
                     </div>
@@ -1816,12 +1832,14 @@ export default function InvoicePembiayaan() {
 
             {sentInfoTarget && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeSentInfo}>
-                    <div className="inv-sent-info-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon send">
-                            <CalendarCheck size={22} />
-                        </div>
+                    <div className="inv-sent-info-modal" role="dialog" aria-modal="true" aria-labelledby="inv-sent-info-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-copy">
-                            <h2>Invoice Terkirim</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-sent-info-title">Invoice Terkirim</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeSentInfo} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Invoice <strong>{sentInfoTarget.nomor_faktur}</strong> sudah dicatat terkirim untuk {resolvePembiayaanName(sentInfoTarget)}.
                             </p>
@@ -1846,30 +1864,32 @@ export default function InvoicePembiayaan() {
 
             {sendTarget && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeSendInvoice}>
-                    <form className="inv-send-modal" role="dialog" aria-modal="true" onSubmit={confirmSendInvoice} onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon send">
-                            <Send size={22} />
-                        </div>
+                    <form className="inv-send-modal" role="dialog" aria-modal="true" aria-labelledby="inv-send-title" onSubmit={confirmSendInvoice} onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-copy">
-                            <h2>Kirim Invoice</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-send-title">Kirim Invoice</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeSendInvoice} disabled={sendingInvoice} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Isi tanggal kirim untuk <strong>{sendTarget.nomor_faktur}</strong>. Tanggal jatuh tempo otomatis dihitung 45 hari dari tanggal kirim.
                             </p>
                         </div>
                         <div className="inv-send-fields">
                             <label>
-                                <span className="inv-field-label"><CalendarDays size={15} /> Tanggal Kirim</span>
+                                <span className="inv-field-label">Tanggal Kirim</span>
                                 <DateInput value={sendForm.tgl_kirim} onChange={(e) => setTanggalKirimInvoice(e.target.value)} />
                             </label>
                             <label>
-                                <span className="inv-field-label"><CalendarCheck size={15} /> Jatuh Tempo</span>
+                                <span className="inv-field-label">Jatuh Tempo</span>
                                 <DateInput value={sendForm.jatuh_tempo} onChange={() => { }} disabled />
                             </label>
                         </div>
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeSendInvoice} disabled={sendingInvoice}>Batal</button>
                             <button className="inv-btn primary" type="submit" disabled={sendingInvoice}>
-                                <Send size={16} /> {sendingInvoice ? 'Menyimpan...' : 'Konfirmasi Kirim'}
+                                {sendingInvoice ? 'Menyimpan...' : 'Konfirmasi Kirim'}
                             </button>
                         </div>
                     </form>
@@ -1879,12 +1899,14 @@ export default function InvoicePembiayaan() {
 
             {receiptOpen && createPortal(
                 <div className="inv-confirm-backdrop pen-modal-backdrop" role="presentation" onMouseDown={closeReceiptDialog}>
-                    <form className="inv-send-modal inv-receipt-modal" role="dialog" aria-modal="true" onSubmit={printReceipt} onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="inv-confirm-icon send">
-                            <Printer size={23} />
-                        </div>
+                    <form className="inv-send-modal inv-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="inv-receipt-title" onSubmit={printReceipt} onMouseDown={(event) => event.stopPropagation()}>
                         <div className="inv-confirm-copy">
-                            <h2>Cetak Tanda Terima</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="inv-receipt-title">Cetak Tanda Terima</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeReceiptDialog} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>{receiptSelection.size} invoice dipilih dengan total {money(selectedReceiptTotal)}.</p>
                         </div>
                         <div className="inv-send-fields">
@@ -1909,7 +1931,7 @@ export default function InvoicePembiayaan() {
                         <div className="inv-confirm-actions">
                             <button className="inv-btn soft" type="button" onClick={closeReceiptDialog}>Batal</button>
                             <button className="inv-btn primary" type="submit">
-                                <Printer size={16} /> Cetak
+                                Cetak
                             </button>
                         </div>
                     </form>

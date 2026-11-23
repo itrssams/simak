@@ -23,24 +23,246 @@ class Akun(models.Model):
         ('pendapatan_lainnya', 'Pendapatan Lainnya'),
     ]
     SALDO_NORMAL_CHOICES = [('debit', 'Debit'), ('kredit', 'Kredit')]
+    KATEGORI_LAPORAN_CHOICES = [
+        ('neraca', 'Neraca (Balance Sheet)'),
+        ('laba_rugi', 'Laba Rugi (Income Statement)'),
+    ]
 
-    kode_akun     = models.CharField(max_length=20, unique=True)
-    nama_akun     = models.CharField(max_length=100)
-    tipe          = models.CharField(max_length=30, choices=TIPE_CHOICES, default='aset_lancar')
-    saldo_normal  = models.CharField(max_length=10, choices=SALDO_NORMAL_CHOICES, default='debit')
-    is_kas_setara = models.BooleanField(default=False)
-    keterangan    = models.TextField(blank=True, null=True)
-    is_active     = models.BooleanField(default=True)
-    created_at    = models.DateTimeField(auto_now_add=True)
+    NERACA_TIPES = {
+        'aset_lancar',
+        'aset_tetap',
+        'aset_lainnya',
+        'kewajiban_lancar',
+        'kewajiban_jangka_panjang',
+        'ekuitas',
+    }
+    LABA_RUGI_TIPES = {
+        'pendapatan',
+        'harga_pokok',
+        'beban_operasional',
+        'beban_lainnya',
+        'pendapatan_lainnya',
+    }
+    DEFAULT_KREDIT_TIPES = {
+        'kewajiban_lancar',
+        'kewajiban_jangka_panjang',
+        'ekuitas',
+        'pendapatan',
+        'pendapatan_lainnya',
+    }
+
+    kode_akun        = models.CharField(max_length=20, unique=True)
+    nama_akun        = models.CharField(max_length=120)
+    parent           = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='children',
+        help_text='Akun induk (Header) dalam hierarki Chart of Accounts',
+    )
+    tipe             = models.CharField(max_length=30, choices=TIPE_CHOICES, default='aset_lancar')
+    kategori_laporan = models.CharField(max_length=20, choices=KATEGORI_LAPORAN_CHOICES, default='neraca')
+    saldo_normal     = models.CharField(max_length=10, choices=SALDO_NORMAL_CHOICES, default='debit')
+    is_postable      = models.BooleanField(
+        default=True,
+        help_text='False untuk akun Header/Induk yang tidak boleh dipilih langsung pada baris jurnal',
+    )
+    is_reconcilable  = models.BooleanField(
+        default=False,
+        help_text='True untuk akun Piutang, Utang, Bank, atau Deposit yang memerlukan pelacakan Partner/Buku Pembantu',
+    )
+    is_kas_setara    = models.BooleanField(default=False)
+    keterangan       = models.TextField(blank=True, null=True)
+    is_active        = models.BooleanField(default=True)
+    created_at       = models.DateTimeField(auto_now_add=True)
+    updated_at       = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'keuangan_akun'
         ordering = ['kode_akun']
+        indexes = [
+            models.Index(fields=['tipe', 'is_postable', 'is_active'], name='akun_tipe_post_act_idx'),
+            models.Index(fields=['kategori_laporan', 'kode_akun'], name='akun_kat_kode_idx'),
+        ]
         verbose_name = 'Akun'
         verbose_name_plural = 'Daftar Akun'
 
+    @classmethod
+    def infer_kategori_laporan(cls, tipe):
+        return 'laba_rugi' if tipe in cls.LABA_RUGI_TIPES else 'neraca'
+
+    @classmethod
+    def infer_default_saldo_normal(cls, tipe):
+        return 'kredit' if tipe in cls.DEFAULT_KREDIT_TIPES else 'debit'
+
+    def clean(self):
+        if self.pk and self.parent_id == self.pk:
+            raise ValidationError({'parent': 'Akun tidak boleh menjadi induk bagi dirinya sendiri.'})
+        curr = self.parent
+        visited = {self.pk} if self.pk else set()
+        while curr is not None:
+            if curr.pk in visited:
+                raise ValidationError({'parent': 'Terdeteksi siklus melingkar (circular hierarchy) pada induk akun.'})
+            visited.add(curr.pk)
+            curr = curr.parent
+
+    def save(self, *args, **kwargs):
+        self.kode_akun = str(self.kode_akun or '').strip()
+        self.nama_akun = str(self.nama_akun or '').strip()
+        self.kategori_laporan = self.infer_kategori_laporan(self.tipe)
+        if not self.saldo_normal:
+            self.saldo_normal = self.infer_default_saldo_normal(self.tipe)
+        self.clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.kode_akun} - {self.nama_akun}"
+
+
+class AccountingPeriod(models.Model):
+    STATUS_OPEN = 'open'
+    STATUS_SOFT_LOCKED = 'soft_locked'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_OPEN, 'Terbuka (Open)'),
+        (STATUS_SOFT_LOCKED, 'Terkunci Sementara (Soft Locked)'),
+        (STATUS_CLOSED, 'Tutup Buku Permanen (Closed)'),
+    ]
+
+    BULAN_NAMES = {
+        1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+        5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+        9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember',
+    }
+
+    tahun           = models.PositiveSmallIntegerField()
+    bulan           = models.PositiveSmallIntegerField()
+    nama_periode    = models.CharField(max_length=50, blank=True)
+    tanggal_mulai   = models.DateField()
+    tanggal_selesai = models.DateField()
+    status          = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True)
+    closed_by       = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='closed_accounting_periods',
+    )
+    closed_at       = models.DateTimeField(null=True, blank=True)
+    catatan         = models.TextField(blank=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'keuangan_accounting_period'
+        unique_together = ('tahun', 'bulan')
+        ordering = ['-tahun', '-bulan']
+        indexes = [
+            models.Index(fields=['tanggal_mulai', 'tanggal_selesai', 'status'], name='acc_period_range_sts_idx'),
+        ]
+        verbose_name = 'Periode Akuntansi'
+        verbose_name_plural = 'Periode Akuntansi'
+
+    def clean(self):
+        if not (1 <= int(self.bulan or 0) <= 12):
+            raise ValidationError({'bulan': 'Bulan harus berada di antara 1 sampai 12.'})
+        if self.tanggal_mulai and self.tanggal_selesai and self.tanggal_selesai < self.tanggal_mulai:
+            raise ValidationError({'tanggal_selesai': 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.'})
+
+    def save(self, *args, **kwargs):
+        if not self.nama_periode and self.bulan in self.BULAN_NAMES and self.tahun:
+            self.nama_periode = f"{self.BULAN_NAMES[self.bulan]} {self.tahun}"
+        if self.status == self.STATUS_CLOSED and not self.closed_at:
+            self.closed_at = timezone.now()
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nama_periode or f'{self.tahun}-{self.bulan:02d}'} ({self.status})"
+
+
+class AccountMapping(models.Model):
+    EVENT_CHOICES = [
+        ('GRN_INVENTORY', 'Persediaan Masuk (Debit Penerimaan Barang / GRN)'),
+        ('GRN_AP', 'Utang Usaha / GRNI (Kredit Penerimaan Barang Kredit)'),
+        ('GRN_CASH', 'Kas / Bank Pembelian Tunai (Kredit Penerimaan Barang Tunai)'),
+        ('GOODS_OUT_EXPENSE', 'Beban Pemakaian BHP / Logistik Unit (Debit Pengeluaran Gudang)'),
+        ('STOCK_OPNAME_DIFF', 'Selisih Stock Opname Persediaan (Default)'),
+        ('STOCK_OPNAME_GAIN', 'Pendapatan / Penyesuaian Selisih Lebih Stock Opname'),
+        ('STOCK_OPNAME_LOSS', 'Beban Selisih Kurang Stock Opname'),
+        ('CLAIM_AR', 'Piutang Pasien / Klaim Penjamin (Default)'),
+        ('CLAIM_AR_BPJS', 'Piutang Klaim BPJS Kesehatan'),
+        ('CLAIM_AR_ASURANSI', 'Piutang Klaim Asuransi & Perusahaan'),
+        ('CLAIM_REVENUE_DEFAULT', 'Pendapatan Pelayanan RS (Default)'),
+        ('CLAIM_REVENUE_COMPONENT', 'Pendapatan Pelayanan Per Komponen Tarif RS'),
+        ('CLAIM_COB_DIFF', 'Selisih / Potongan Klaim COB BPJS'),
+        ('AP_DEPOSIT_USED', 'Deposit Retur Vendor (Pemotongan Pembayaran Utang)'),
+        ('PETTY_CASH_DEFAULT', 'Kas Kecil / Petty Cash (Default)'),
+        ('KAS_BESAR_DEFAULT', 'Kas Besar Operasional (Default)'),
+        ('REIMBURSEMENT_PAYABLE', 'Utang Reimbursement Karyawan'),
+        ('DEPRECIATION_EXPENSE', 'Beban Penyusutan Aset Tetap'),
+        ('DEPRECIATION_ACCUM', 'Akumulasi Penyusutan Aset Tetap'),
+    ]
+
+    event_code          = models.CharField(max_length=50, choices=EVENT_CHOICES, db_index=True)
+    komponen_pendapatan = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        help_text="Opsional: kode komponen tarif Faktur ('adm', 'jasa', 'farmasi', 'tindakan', 'fisio', 'lab', 'rad', 'kamar', 'bhp', 'ambulan', 'alat', 'ppn_farmasi', 'lainnya')",
+    )
+    golongan_barang     = models.ForeignKey(
+        'gudang.GolonganBarang',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='account_mappings',
+        help_text='Opsional: mapping akun spesifik per golongan barang gudang',
+    )
+    kategori_aset       = models.ForeignKey(
+        'aset.AsetKategori',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='account_mappings',
+        help_text='Opsional: mapping akun spesifik per kategori aset tetap',
+    )
+    akun                = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='account_mappings')
+    keterangan          = models.CharField(max_length=255, blank=True)
+    is_active           = models.BooleanField(default=True)
+    updated_by          = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='account_mapping_updates',
+    )
+    created_at          = models.DateTimeField(auto_now_add=True)
+    updated_at          = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'keuangan_account_mapping'
+        ordering = ['event_code', 'komponen_pendapatan', 'id']
+        indexes = [
+            models.Index(fields=['event_code', 'is_active'], name='accmapping_event_act_idx'),
+            models.Index(fields=['event_code', 'komponen_pendapatan'], name='accmapping_event_komp_idx'),
+        ]
+        verbose_name = 'Pemetaan Akun Otomatis'
+        verbose_name_plural = 'Pemetaan Akun Otomatis'
+
+    def clean(self):
+        if self.akun_id and not self.akun.is_postable:
+            raise ValidationError({'akun': f"Akun '{self.akun}' adalah akun Header (is_postable=False) dan tidak boleh dijadikan target mapping jurnal."})
+
+    def save(self, *args, **kwargs):
+        self.komponen_pendapatan = str(self.komponen_pendapatan or '').strip().lower()
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        suffix = f" [{self.komponen_pendapatan}]" if self.komponen_pendapatan else ""
+        return f"{self.event_code}{suffix} -> {self.akun}"
 
 class Pelanggan(models.Model):
     TIPE_CHOICES = [
@@ -100,19 +322,80 @@ class Pemasok(models.Model):
         return f"{self.kode} - {self.nama}"
 
 class Jurnal(models.Model):
-    STATUS_CHOICES = [('draft', 'Draft'), ('posted', 'Diposting')]
+    STATUS_DRAFT = 'draft'
+    STATUS_POSTED = 'posted'
+    STATUS_REVERSED = 'reversed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_POSTED, 'Diposting'),
+        (STATUS_REVERSED, 'Dibalik (Reversed)'),
+    ]
 
-    nomor_jurnal = models.CharField(max_length=50, unique=True)
-    tanggal      = models.DateField()
-    keterangan   = models.TextField()
-    status       = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft')
-    created_by   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='jurnal')
-    created_at   = models.DateTimeField(auto_now_add=True)
-    updated_at   = models.DateTimeField(auto_now=True)
+    JENIS_UMUM = 'umum'
+    JENIS_PENJUALAN = 'penjualan'
+    JENIS_PEMBELIAN = 'pembelian'
+    JENIS_KAS_BANK = 'kas_bank'
+    JENIS_PERSEDIAAN = 'persediaan'
+    JENIS_PENYUSUTAN = 'penyusutan'
+    JENIS_PENYESUAIAN = 'penyesuaian'
+    JENIS_JURNAL_CHOICES = [
+        (JENIS_UMUM, 'Jurnal Umum'),
+        (JENIS_PENJUALAN, 'Jurnal Penjualan / Klaim'),
+        (JENIS_PEMBELIAN, 'Jurnal Pembelian / Pengadaan'),
+        (JENIS_KAS_BANK, 'Jurnal Kas & Bank'),
+        (JENIS_PERSEDIAAN, 'Jurnal Persediaan & Pemakaian'),
+        (JENIS_PENYUSUTAN, 'Jurnal Penyusutan Aset'),
+        (JENIS_PENYESUAIAN, 'Jurnal Penyesuaian / Koreksi'),
+    ]
+
+    nomor_jurnal  = models.CharField(max_length=50, unique=True)
+    tanggal       = models.DateField(db_index=True)
+    jenis_jurnal  = models.CharField(max_length=25, choices=JENIS_JURNAL_CHOICES, default=JENIS_UMUM, db_index=True)
+    keterangan    = models.TextField()
+    source_type   = models.CharField(
+        max_length=60,
+        null=True,
+        blank=True,
+        default=None,
+        db_index=True,
+        help_text="Model sumber dokumen otomatis (misal 'gudang.Penerimaan', 'keuangan.Faktur'). NULL untuk jurnal manual/reversal.",
+    )
+    source_id     = models.PositiveBigIntegerField(null=True, blank=True, default=None, db_index=True)
+    source_number = models.CharField(max_length=80, blank=True, default='')
+    status        = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    reversal_of   = models.OneToOneField(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reversed_by',
+        help_text='Merujuk ke jurnal asal yang dibalik oleh jurnal reversal ini',
+    )
+    created_by    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='jurnal')
+    posted_by     = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='jurnal_posted',
+    )
+    posted_at     = models.DateTimeField(null=True, blank=True)
+    created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'keuangan_jurnal'
         ordering = ['-tanggal', '-created_at']
+        indexes = [
+            models.Index(fields=['status', 'tanggal'], name='jurnal_status_tgl_idx'),
+            models.Index(fields=['jenis_jurnal', 'tanggal'], name='jurnal_jenis_tgl_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['source_type', 'source_id'],
+                name='jurnal_source_type_id_uniq',
+            ),
+        ]
         verbose_name = 'Jurnal'
         verbose_name_plural = 'Entri Jurnal'
 
@@ -121,28 +404,148 @@ class Jurnal(models.Model):
 
     @property
     def total_debit(self):
-        return sum(item.debit for item in self.items.all())
+        return sum((item.debit for item in self.items.all()), Decimal('0.00'))
 
     @property
     def total_kredit(self):
-        return sum(item.kredit for item in self.items.all())
+        return sum((item.kredit for item in self.items.all()), Decimal('0.00'))
 
     @property
     def is_balanced(self):
-        return self.total_debit == self.total_kredit
+        total_d = self.total_debit
+        total_k = self.total_kredit
+        return total_d > Decimal('0.00') and total_d == total_k
+
+    def save(self, *args, **kwargs):
+        if self.source_type is not None:
+            cleaned_src = str(self.source_type).strip()
+            self.source_type = cleaned_src if cleaned_src else None
+        if self.source_type is None:
+            self.source_id = None
+        if self.reversal_of_id is not None:
+            # Jurnal reversal tidak menduplikasi (source_type, source_id) dokumen sumber
+            self.source_type = None
+            self.source_id = None
+
+        if self.pk:
+            old = Jurnal.objects.filter(pk=self.pk).values(
+                'status', 'nomor_jurnal', 'tanggal', 'jenis_jurnal', 'keterangan', 'source_type', 'source_id'
+            ).first()
+            if old:
+                old_status = old['status']
+                if old_status == self.STATUS_REVERSED:
+                    raise ValidationError(
+                        'Jurnal yang sudah dibalik (reversed) bersifat immutable dan tidak dapat diubah.'
+                    )
+                if old_status == self.STATUS_POSTED:
+                    is_reversing_only = (
+                        self.status == self.STATUS_REVERSED
+                        and self.nomor_jurnal == old['nomor_jurnal']
+                        and self.tanggal == old['tanggal']
+                        and self.jenis_jurnal == old['jenis_jurnal']
+                    )
+                    if not is_reversing_only:
+                        raise ValidationError(
+                            'Jurnal yang sudah diposting bersifat immutable dan tidak dapat diubah atau di-unpost. '
+                            'Gunakan mekanisme Jurnal Pembalik (Reversal).'
+                        )
+
+        if self.status == self.STATUS_POSTED and not self.posted_at:
+            self.posted_at = timezone.now()
+
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in (self.STATUS_POSTED, self.STATUS_REVERSED):
+            raise ValidationError(
+                'Jurnal yang sudah diposting atau dibalik (reversed) tidak dapat dihapus. '
+                'Gunakan mekanisme Jurnal Pembalik (Reversal).'
+            )
+        return super().delete(*args, **kwargs)
+
 
 class JurnalItem(models.Model):
-    jurnal     = models.ForeignKey(Jurnal, on_delete=models.CASCADE, related_name='items')
-    akun       = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='jurnal_items')
-    keterangan = models.CharField(max_length=200, blank=True)
-    debit      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    kredit     = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    PARTNER_PELANGGAN = 'pelanggan'
+    PARTNER_PEMASOK = 'pemasok'
+    PARTNER_KARYAWAN = 'karyawan'
+    PARTNER_TYPE_CHOICES = [
+        (PARTNER_PELANGGAN, 'Pelanggan / Penjamin'),
+        (PARTNER_PEMASOK, 'Pemasok / Vendor'),
+        (PARTNER_KARYAWAN, 'Karyawan'),
+    ]
+
+    jurnal              = models.ForeignKey(Jurnal, on_delete=models.CASCADE, related_name='items')
+    akun                = models.ForeignKey(Akun, on_delete=models.PROTECT, related_name='jurnal_items')
+    keterangan          = models.CharField(max_length=255, blank=True)
+    debit               = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
+    kredit              = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
+    partner_type        = models.CharField(max_length=20, choices=PARTNER_TYPE_CHOICES, null=True, blank=True, db_index=True)
+    partner_id          = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    unit                = models.ForeignKey(
+        'users.Unit',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='jurnal_items',
+        help_text='Unit Kerja / Cost Center',
+    )
+    tanggal_jatuh_tempo = models.DateField(null=True, blank=True, db_index=True)
+    reconcile_ref       = models.CharField(max_length=60, null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = 'keuangan_jurnal_item'
+        indexes = [
+            models.Index(fields=['akun', 'jurnal'], name='jurnalitem_akun_jurnal_idx'),
+            models.Index(fields=['partner_type', 'partner_id'], name='jurnalitem_partner_idx'),
+            models.Index(fields=['reconcile_ref'], name='jurnalitem_reconcile_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(debit__gte=0)
+                    & models.Q(kredit__gte=0)
+                    & ~(models.Q(debit__gt=0) & models.Q(kredit__gt=0))
+                ),
+                name='jurnal_item_debit_kredit_valid_chk',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.akun} | D:{self.debit} K:{self.kredit}"
+
+    def clean(self):
+        debit_val = Decimal(str(self.debit or 0))
+        kredit_val = Decimal(str(self.kredit or 0))
+        if debit_val < Decimal('0.00') or kredit_val < Decimal('0.00'):
+            raise ValidationError('Nilai debit dan kredit tidak boleh negatif.')
+        if debit_val > Decimal('0.00') and kredit_val > Decimal('0.00'):
+            raise ValidationError('Satu baris jurnal tidak boleh memiliki nilai debit dan kredit sekaligus (> 0).')
+        if self.akun_id and not self.akun.is_postable:
+            raise ValidationError(
+                {'akun': f"Akun '{self.akun}' merupakan akun induk/header (is_postable=False) dan tidak boleh diposting langsung."}
+            )
+
+    def save(self, *args, **kwargs):
+        if self.pk and self.jurnal_id:
+            if Jurnal.objects.filter(
+                pk=self.jurnal_id,
+                status__in=[Jurnal.STATUS_POSTED, Jurnal.STATUS_REVERSED],
+            ).exists():
+                raise ValidationError(
+                    'Baris jurnal pada entri yang sudah diposting atau dibalik (reversed) bersifat immutable.'
+                )
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.jurnal_id and Jurnal.objects.filter(
+            pk=self.jurnal_id,
+            status__in=[Jurnal.STATUS_POSTED, Jurnal.STATUS_REVERSED],
+        ).exists():
+            raise ValidationError(
+                'Baris jurnal pada entri yang sudah diposting atau dibalik (reversed) tidak dapat dihapus.'
+            )
+        return super().delete(*args, **kwargs)
 
 class Transaksi(models.Model):
     JENIS_CHOICES = [('masuk', 'Kas Masuk'), ('keluar', 'Kas Keluar')]
@@ -810,6 +1213,14 @@ class RekeningBank(models.Model):
     nama_bank      = models.CharField(max_length=100, blank=True)
     nomor_rekening = models.CharField(max_length=50, unique=True)
     saldo          = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    akun_akuntansi = models.ForeignKey(
+        Akun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rekening_bank_list',
+        help_text='Akun CoA Bank terkait di Buku Besar',
+    )
     keterangan     = models.TextField(blank=True)
     is_active      = models.BooleanField(default=True)
     updated_by     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='rekening_updates')
@@ -954,6 +1365,14 @@ class LaporanPenggunaan(models.Model):
 
 class ItemLaporanPenggunaan(models.Model):
     laporan     = models.ForeignKey(LaporanPenggunaan, on_delete=models.CASCADE, related_name='items')
+    akun        = models.ForeignKey(
+        Akun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='item_laporan_petty_cash',
+        help_text='Referensi langsung ke Master Akun (CoA)',
+    )
     kode_akun   = models.CharField(max_length=30)
     nama_akun   = models.CharField(max_length=150)
     pos_biaya   = models.CharField(max_length=100, blank=True)
@@ -968,6 +1387,21 @@ class ItemLaporanPenggunaan(models.Model):
         ordering = ['id']
         verbose_name = 'Item Laporan Penggunaan'
         verbose_name_plural = 'Item Laporan Penggunaan'
+
+    def save(self, *args, **kwargs):
+        if self.akun_id:
+            if not self.kode_akun:
+                self.kode_akun = self.akun.kode_akun
+            if not self.nama_akun:
+                self.nama_akun = self.akun.nama_akun
+        elif self.kode_akun:
+            clean_code = str(self.kode_akun).replace('.', '').strip()
+            matched = Akun.objects.filter(kode_akun__in=[self.kode_akun.strip(), clean_code], is_postable=True).first()
+            if matched:
+                self.akun = matched
+                if not self.nama_akun:
+                    self.nama_akun = matched.nama_akun
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.kode_akun} - {self.nama_akun}: {self.nilai}"
@@ -1179,6 +1613,14 @@ class LaporanPenggunaanKasBesar(models.Model):
 
 class ItemLaporanKasBesar(models.Model):
     laporan = models.ForeignKey(LaporanPenggunaanKasBesar, on_delete=models.CASCADE, related_name='items')
+    akun = models.ForeignKey(
+        Akun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='item_laporan_kas_besar',
+        help_text='Referensi langsung ke Master Akun (CoA)',
+    )
     kode_akun = models.CharField(max_length=30)
     nama_akun = models.CharField(max_length=150)
     pos_biaya = models.CharField(max_length=100, blank=True)
@@ -1193,6 +1635,21 @@ class ItemLaporanKasBesar(models.Model):
         ordering = ['id']
         verbose_name = 'Item Laporan Kas Besar'
         verbose_name_plural = 'Item Laporan Kas Besar'
+
+    def save(self, *args, **kwargs):
+        if self.akun_id:
+            if not self.kode_akun:
+                self.kode_akun = self.akun.kode_akun
+            if not self.nama_akun:
+                self.nama_akun = self.akun.nama_akun
+        elif self.kode_akun:
+            clean_code = str(self.kode_akun).replace('.', '').strip()
+            matched = Akun.objects.filter(kode_akun__in=[self.kode_akun.strip(), clean_code], is_postable=True).first()
+            if matched:
+                self.akun = matched
+                if not self.nama_akun:
+                    self.nama_akun = matched.nama_akun
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.kode_akun} - {self.nama_akun}: {self.nilai}"
@@ -1227,8 +1684,16 @@ class FotoLaporanKasBesar(models.Model):
 
 class SaldoPettyCash(models.Model):
     """Singleton — hanya ada 1 row (pk=1)"""
-    saldo      = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    updated_by = models.ForeignKey(
+    saldo          = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    akun_akuntansi = models.ForeignKey(
+        Akun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='saldo_petty_cash_list',
+        help_text='Akun CoA Kas Kecil terkait di Buku Besar',
+    )
+    updated_by     = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='saldo_pc_updates'
     )

@@ -966,11 +966,13 @@ export default function MasterPembiayaan() {
 
             {/* CONFIRM HAPUS INDUK MODAL */}
             {deleteIndukTarget && createPortal(
-                <div className="mp-modal-overlay">
-                    <div className="mp-modal confirm">
+                <div className="mp-modal-overlay" role="presentation" onMouseDown={() => !saving && setDeleteIndukTarget(null)}>
+                    <div className="mp-modal confirm" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="mp-confirm-head">
-                            <div className="mp-confirm-icon"><ShieldAlert size={24} /></div>
                             <h3>Hapus Induk Pembiayaan?</h3>
+                            <button className="pen-confirm-close" type="button" onClick={() => setDeleteIndukTarget(null)} disabled={saving} aria-label="Tutup" title="Tutup">
+                                <X size={18} />
+                            </button>
                         </div>
                         <p className="mp-confirm-text">
                             Induk <strong>{deleteIndukTarget.nama}</strong> akan dihapus. Pembiayaan anak yang tergabung di dalamnya akan dilepaskan menjadi pembiayaan mandiri (tanpa induk).
@@ -988,11 +990,13 @@ export default function MasterPembiayaan() {
 
             {/* CONFIRM NONAKTIFKAN PEMBIAYAAN MODAL */}
             {deleteTarget && createPortal(
-                <div className="mp-modal-overlay">
-                    <div className="mp-modal confirm">
+                <div className="mp-modal-overlay" role="presentation" onMouseDown={() => !saving && setDeleteTarget(null)}>
+                    <div className="mp-modal confirm" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
                         <div className="mp-confirm-head">
-                            <div className="mp-confirm-icon"><ShieldAlert size={24} /></div>
                             <h3>Nonaktifkan Pembiayaan?</h3>
+                            <button className="pen-confirm-close" type="button" onClick={() => setDeleteTarget(null)} disabled={saving} aria-label="Tutup" title="Tutup">
+                                <X size={18} />
+                            </button>
                         </div>
                         <p className="mp-confirm-text">
                             Pembiayaan <strong>{deleteTarget.nama}</strong> (ID {deleteTarget.id_pembiayaan}) akan dinonaktifkan dari daftar pilihan invoice.

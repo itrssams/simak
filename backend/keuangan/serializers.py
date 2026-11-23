@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 
 from .models import (
-    Akun, Transaksi, Jurnal, JurnalItem,
+    Akun, AccountingPeriod, AccountMapping, Transaksi, Jurnal, JurnalItem,
     Pelanggan, Pemasok,
     Faktur, FakturItem, PembayaranFaktur, AlokasiDana,
     IndukPembiayaan, PembiayaanIndukMapping,
@@ -99,9 +99,37 @@ def infer_riwayat_saldo_user(obj):
     return None
 
 class AkunSerializer(serializers.ModelSerializer):
+    tipe_label = serializers.CharField(source='get_tipe_display', read_only=True)
+    parent_kode = serializers.CharField(source='parent.kode_akun', read_only=True)
+    parent_nama = serializers.CharField(source='parent.nama_akun', read_only=True)
+
     class Meta:
         model  = Akun
         fields = '__all__'
+
+
+class AccountingPeriodSerializer(serializers.ModelSerializer):
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    closed_by_name = serializers.CharField(source='closed_by.username', read_only=True)
+
+    class Meta:
+        model = AccountingPeriod
+        fields = '__all__'
+        read_only_fields = ['closed_by', 'closed_at', 'created_at', 'updated_at']
+
+
+class AccountMappingSerializer(serializers.ModelSerializer):
+    event_label = serializers.CharField(source='get_event_code_display', read_only=True)
+    akun_kode = serializers.CharField(source='akun.kode_akun', read_only=True)
+    akun_nama = serializers.CharField(source='akun.nama_akun', read_only=True)
+    golongan_barang_nama = serializers.CharField(source='golongan_barang.nama', read_only=True)
+    kategori_aset_nama = serializers.CharField(source='kategori_aset.nama', read_only=True)
+    updated_by_name = serializers.CharField(source='updated_by.username', read_only=True)
+
+    class Meta:
+        model = AccountMapping
+        fields = '__all__'
+        read_only_fields = ['updated_by', 'created_at', 'updated_at']
 
 class PelangganSerializer(serializers.ModelSerializer):
     tipe_label = serializers.CharField(source='get_tipe_display', read_only=True)
@@ -141,43 +169,85 @@ class JurnalItemSerializer(serializers.ModelSerializer):
 class JurnalItemInputSerializer(serializers.ModelSerializer):
     class Meta:
         model  = JurnalItem
-        fields = ['akun', 'keterangan', 'debit', 'kredit']
+        fields = [
+            'akun', 'keterangan', 'debit', 'kredit',
+            'partner_type', 'partner_id', 'unit',
+            'tanggal_jatuh_tempo', 'reconcile_ref',
+        ]
 
 class JurnalSerializer(serializers.ModelSerializer):
     items           = JurnalItemSerializer(many=True, read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
-    total_debit     = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
-    total_kredit    = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True)
+    posted_by_name  = serializers.CharField(source='posted_by.username', read_only=True)
+    total_debit     = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    total_kredit    = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
     is_balanced     = serializers.BooleanField(read_only=True)
 
     class Meta:
         model  = Jurnal
         fields = '__all__'
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'posted_by', 'posted_at', 'created_at', 'updated_at']
 
 class JurnalInputSerializer(serializers.ModelSerializer):
     items = JurnalItemInputSerializer(many=True)
+    nomor_jurnal = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model  = Jurnal
-        fields = ['nomor_jurnal', 'tanggal', 'keterangan', 'status', 'items']
+        fields = [
+            'nomor_jurnal', 'tanggal', 'jenis_jurnal', 'keterangan',
+            'source_type', 'source_id', 'source_number', 'status', 'items',
+        ]
 
     def create(self, validated_data):
+        from keuangan.services import AccountingPostingService
+
         items_data = validated_data.pop('items')
-        jurnal = Jurnal.objects.create(**validated_data)
-        for item in items_data:
-            JurnalItem.objects.create(jurnal=jurnal, **item)
-        return jurnal
+        target_status = validated_data.pop('status', Jurnal.STATUS_DRAFT)
+        created_by = validated_data.pop('created_by', None)
+        auto_post = target_status == Jurnal.STATUS_POSTED
+
+        try:
+            return AccountingPostingService.create_and_post_journal(
+                tanggal=validated_data['tanggal'],
+                jenis_jurnal=validated_data.get('jenis_jurnal', Jurnal.JENIS_UMUM),
+                keterangan=validated_data.get('keterangan', ''),
+                lines=items_data,
+                source_type=validated_data.get('source_type'),
+                source_id=validated_data.get('source_id'),
+                source_number=validated_data.get('source_number', ''),
+                nomor_jurnal=validated_data.get('nomor_jurnal'),
+                user=created_by,
+                auto_post=auto_post,
+            )
+        except Exception as exc:
+            raise serializers.ValidationError({'detail': str(exc)}) from exc
 
     def update(self, instance, validated_data):
+        from django.db import transaction
+        from keuangan.services import AccountingPostingService
+
+        if instance.status in (Jurnal.STATUS_POSTED, Jurnal.STATUS_REVERSED):
+            raise serializers.ValidationError(
+                'Jurnal yang sudah diposting atau dibalik (reversed) bersifat immutable dan tidak dapat diubah.'
+            )
         items_data = validated_data.pop('items', [])
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        if items_data:
-            instance.items.all().delete()
-            for item in items_data:
-                JurnalItem.objects.create(jurnal=instance, **item)
+        target_status = validated_data.pop('status', instance.status)
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            if items_data:
+                instance.items.all().delete()
+                for item in items_data:
+                    JurnalItem.objects.create(jurnal=instance, **item)
+            if target_status == Jurnal.STATUS_POSTED:
+                try:
+                    request = self.context.get('request')
+                    user = getattr(request, 'user', None)
+                    instance = AccountingPostingService.post_draft_journal(instance.pk, user=user)
+                except Exception as exc:
+                    raise serializers.ValidationError({'detail': str(exc)}) from exc
         return instance
 
 class FakturItemSerializer(serializers.ModelSerializer):
@@ -750,7 +820,7 @@ class UpdateSaldoSerializer(serializers.Serializer):
 class ItemLaporanPenggunaanSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemLaporanPenggunaan
-        fields = ['id', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai', 'created_at']
+        fields = ['id', 'akun', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai', 'created_at']
 
 class LaporanPenggunaanSerializer(serializers.ModelSerializer):
     dikonfirmasi_oleh_name = serializers.CharField(source='dikonfirmasi_oleh.username', read_only=True)
@@ -831,7 +901,7 @@ class ItemLaporanKasBesarSerializer(serializers.ModelSerializer):
 class ItemLaporanKasBesarInputSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemLaporanKasBesar
-        fields = ['kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai']
+        fields = ['akun', 'kode_akun', 'nama_akun', 'pos_biaya', 'deskripsi', 'qty', 'harga_satuan', 'nilai']
 
 class FotoLaporanKasBesarSerializer(serializers.ModelSerializer):
     foto_url = serializers.SerializerMethodField()

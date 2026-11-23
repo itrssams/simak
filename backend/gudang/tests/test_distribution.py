@@ -543,6 +543,144 @@ class DistributionTestCase(TestCase):
         )
         self.assertEqual(res_out_done_batal.status_code, 400)
 
+    def test_concurrent_duplicate_request_warnings_across_open_statuses(self):
+        StockService.record_in(
+            barang=self.barang,
+            gudang=self.gudang,
+            qty=Decimal('100'),
+            harga_unit=Decimal('5000'),
+            sumber_tipe='INIT',
+            sumber_id='99',
+            sumber_nomor='INIT-99',
+            user=self.user_gudang,
+        )
+
+        barang_empty, _ = Barang.objects.get_or_create(
+            kode='B1-DIST-EMPTY',
+            defaults={'nama': 'AIR MINERAL GALON TEST', 'golongan': self.gol, 'satuan_dasar': self.sat_pcs, 'merk': 'CLEO'}
+        )
+        StokLedger.objects.filter(barang=barang_empty, reversal_of__isnull=False).delete()
+        StokLedger.objects.filter(barang=barang_empty).delete()
+        StokSaldo.objects.filter(barang=barang_empty).delete()
+
+        other_ruang, _ = Ruang.objects.get_or_create(kode='R-POLI-TEST', defaults={'nama': 'POLI TEST'})
+        approver, _ = User.objects.get_or_create(
+            username='approver_dup_test',
+            defaults={'role': 'kepala_seksi', 'is_logistik': True},
+        )
+        approver.role = 'kepala_seksi'
+        approver.is_logistik = True
+        approver.save(update_fields=['role', 'is_logistik'])
+
+        # 1. UGD mengajukan Cleo 10 pcs (REQ-1 MENUNGGU)
+        req1 = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[
+                {'barang': self.barang, 'qty_minta': Decimal('10')},
+                {'barang': barang_empty, 'qty_minta': Decimal('5')},
+            ],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+
+        # Ruangan lain meminta barang yang sama tidak dianggap duplikat untuk UGD
+        req_other_ruang = DistributionService.create_permintaan(
+            ruang=other_ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('3')}],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=approver)
+
+        # 2. Pre-submit check saat UGD hendak membuat permintaan ke-2 -> mendeteksi REQ-1 status MENUNGGU
+        chk1 = client.post(
+            '/api/gudang/permintaan/check-duplicates/',
+            {'ruang': self.ruang.id, 'barang_ids': [self.barang.id]},
+            format='json',
+        )
+        self.assertEqual(chk1.status_code, 200, chk1.content)
+        self.assertTrue(chk1.data['has_duplicates'])
+        self.assertEqual(len(chk1.data['duplicates']), 1)
+        entry1 = chk1.data['duplicates'][0]['active_requests'][0]
+        self.assertEqual(entry1['nomor'], req1.nomor)
+        self.assertEqual(entry1['item_status'], PermintaanItem.STATUS_MENUNGGU)
+        self.assertEqual(entry1['item_status_label'], 'Menunggu ACC')
+        self.assertEqual(entry1['qty_minta'], 10.0)
+
+        # 3. UGD tetap lanjut membuat REQ-2 (Cleo 20 pcs) -> list & detail REQ-2 tampilkan alert REQ-1 (dan sebaliknya)
+        req2 = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('20')}],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+
+        res_list = client.get(f'/api/gudang/permintaan/?ruang={self.ruang.id}')
+        self.assertEqual(res_list.status_code, 200)
+        by_id = {r['id']: r for r in res_list.data['results']}
+        self.assertEqual(by_id[req2.id]['concurrent_duplicate_count'], 1)
+        req2_item = by_id[req2.id]['items'][0]
+        self.assertEqual(len(req2_item['concurrent_active_requests']), 1)
+        self.assertEqual(req2_item['concurrent_active_requests'][0]['nomor'], req1.nomor)
+        self.assertEqual(req2_item['concurrent_active_requests'][0]['item_status_label'], 'Menunggu ACC')
+
+        # 4. REQ-1 disetujui parsial (self.barang DISETUJUI 10 belum diambil, barang_empty SEDANG_DIAJUKAN)
+        pi_ready = req1.items.get(barang=self.barang)
+        pi_empty = req1.items.get(barang=barang_empty)
+        DistributionService.approve_permintaan(
+            req1,
+            user=approver,
+            items_approval=[
+                {'id': pi_ready.id, 'keputusan': 'SETUJUI', 'qty_disetujui': 10},
+                {'id': pi_empty.id, 'keputusan': 'AJUKAN', 'qty_disetujui': 0},
+            ],
+        )
+
+        res_detail_req2 = client.get(f'/api/gudang/permintaan/{req2.id}/')
+        self.assertEqual(res_detail_req2.status_code, 200)
+        conc_after_acc = res_detail_req2.data['items'][0]['concurrent_active_requests'][0]
+        self.assertEqual(conc_after_acc['item_status'], PermintaanItem.STATUS_DISETUJUI)
+        self.assertEqual(conc_after_acc['item_status_label'], 'Disetujui (Belum Diambil)')
+        self.assertEqual(conc_after_acc['sisa_belum_serah'], 10.0)
+
+        # Cek status SEDANG_DIAJUKAN (Menunggu Pengadaan)
+        chk_empty = client.post(
+            '/api/gudang/permintaan/check-duplicates/',
+            {'ruang': self.ruang.id, 'barang_ids': [barang_empty.id]},
+            format='json',
+        )
+        self.assertTrue(chk_empty.data['has_duplicates'])
+        self.assertEqual(
+            chk_empty.data['duplicates'][0]['active_requests'][0]['item_status_label'],
+            'Menunggu Pengadaan',
+        )
+
+        # 5. Setelah barang REQ-1 selesai diserahkan fisik (qty_dikeluarkan == qty_disetujui),
+        #    self.barang di REQ-1 tidak lagi dianggap gantung meski REQ-1 masih PROSES_SEBAGIAN (karena barang_empty)
+        out1 = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req1,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': pi_ready, 'qty': Decimal('10')}],
+            penerima_nama='Perawat UGD',
+            user=approver,
+        )
+        DistributionService.approve_pengeluaran(out1, user=approver)
+
+        res_detail_req2_done = client.get(f'/api/gudang/permintaan/{req2.id}/')
+        self.assertEqual(res_detail_req2_done.data['concurrent_duplicate_count'], 0)
+        self.assertEqual(res_detail_req2_done.data['items'][0]['concurrent_active_requests'], [])
+
+        # Cleanup
+        req_other_ruang.delete()
+        other_ruang.delete()
+        Permintaan.objects.filter(id=req1.id).delete()
+        Permintaan.objects.filter(id=req2.id).delete()
+        barang_empty.delete()
+
+
 
 
 

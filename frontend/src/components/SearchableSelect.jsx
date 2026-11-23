@@ -32,7 +32,7 @@ export default function SearchableSelect({
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
-    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, openUp: false });
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 360, openUp: false });
 
     // Find selected option object
     const selectedOption = useMemo(() => {
@@ -119,24 +119,28 @@ export default function SearchableSelect({
             left = viewportPadding;
         }
 
-        // Vertical alignment: check space below vs above
+        // Vertical alignment: clamp height within viewport & flip upward if tighter below
         const gap = 6;
-        const estimatedHeight = popoverRef.current?.offsetHeight || 320;
-        const spaceBelow = viewportHeight - triggerRect.bottom - viewportPadding;
-        const spaceAbove = triggerRect.top - viewportPadding;
+        const measuredHeight = popoverRef.current?.scrollHeight || 350;
+        const spaceBelow = Math.max(160, viewportHeight - triggerRect.bottom - viewportPadding - gap);
+        const spaceAbove = Math.max(160, triggerRect.top - viewportPadding - gap);
 
         let openUp = false;
+        let maxHeight = Math.min(370, spaceBelow);
         let top = triggerRect.bottom + gap;
 
-        if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
+        if (spaceBelow < Math.min(measuredHeight, 260) && spaceAbove > spaceBelow) {
             openUp = true;
-            top = Math.max(viewportPadding, triggerRect.top - estimatedHeight - gap);
+            maxHeight = Math.min(370, spaceAbove);
+            const actualHeight = Math.min(measuredHeight, maxHeight);
+            top = Math.max(viewportPadding, triggerRect.top - actualHeight - gap);
         }
 
         setPosition({
             top,
             left,
             width: desiredWidth,
+            maxHeight,
             openUp,
         });
     }, [minDropdownWidth, maxDropdownWidth]);
@@ -161,6 +165,12 @@ export default function SearchableSelect({
             clearTimeout(timer);
         };
     }, [open, updatePosition]);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const raf = window.requestAnimationFrame(updatePosition);
+        return () => window.cancelAnimationFrame(raf);
+    }, [open, filteredOptions.length, updatePosition]);
 
     // Scroll active item into view
     useEffect(() => {
@@ -238,6 +248,7 @@ export default function SearchableSelect({
                 top: `${position.top}px`,
                 left: `${position.left}px`,
                 width: `${position.width}px`,
+                maxHeight: `${position.maxHeight}px`,
                 zIndex: 10000050,
             }}
             onKeyDown={handlePopoverKeyDown}

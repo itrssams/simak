@@ -66,6 +66,11 @@ class AuditedTokenObtainPairView(TokenObtainPairView):
             pass
         return response
 
+def serve_static_root(request, path):
+    """Serve static root files reading settings.STATIC_ROOT dynamically."""
+    return serve(request, path=path, document_root=settings.STATIC_ROOT)
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -88,11 +93,11 @@ urlpatterns = [
     path('api/aset/', include('aset.urls')),
     
     # Serve React assets explicitly
-    re_path(r'^(?P<path>assets/.*)$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>vite\.svg)$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>logo\.png)$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>login-isometric\.(?:png|jpg))$', serve, {'document_root': settings.STATIC_ROOT}),
-    re_path(r'^(?P<path>[^/]+\.(?:png|jpg|jpeg|webp|svg|ico|json|webmanifest|js|txt))$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^(?P<path>assets/.*)$', serve_static_root),
+    re_path(r'^(?P<path>vite\.svg)$', serve_static_root),
+    re_path(r'^(?P<path>logo\.png)$', serve_static_root),
+    re_path(r'^(?P<path>login-isometric\.(?:png|jpg))$', serve_static_root),
+    re_path(r'^(?P<path>[^/]+\.(?:png|jpg|jpeg|webp|svg|ico|json|webmanifest|js|txt))$', serve_static_root),
 ]
 
 # Serve static & uploaded media files.
@@ -100,17 +105,24 @@ urlpatterns = [
 # keeping these routes explicit ensures uploaded photos/files still open when
 # Django is the public app server behind simak.rssiaga.id.
 urlpatterns += [
-    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT}),
+    re_path(r'^static/(?P<path>.*)$', serve_static_root),
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
 ]
 
+# Serve file verifikasi SSL/well-known jika tersedia di STATIC_ROOT (404 jika tidak ada, bukan SPA index.html)
+urlpatterns += [
+    re_path(r'^(?P<path>\.well-known/.*)$', serve_static_root, name='well_known_serve'),
+]
+
 # React SPA fallback - MUST be LAST
-# Catch-all untuk React Router - serve index.html untuk semua route yang bukan API/admin/static
+# Catch-all untuk React Router - serve index.html untuk semua route yang bukan API/admin/static/well-known
 urlpatterns += [
     path('', TemplateView.as_view(template_name='index.html'), name='index'),
     # Fallback untuk React Router (untuk /login, /dashboard, etc)
-    re_path(r'^(?!api|admin|static|media|assets)(?P<path>.*)$', 
-            TemplateView.as_view(template_name='index.html'), 
-            name='spa_fallback'),
+    re_path(
+        r'^(?!(?:api|admin|static|media|assets|\.well-known)(?:/|$))(?!.*\.[a-zA-Z]{2,8}$)(?P<path>.*)$',
+        TemplateView.as_view(template_name='index.html'),
+        name='spa_fallback',
+    ),
 ]
 

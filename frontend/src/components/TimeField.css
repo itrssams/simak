@@ -1,0 +1,477 @@
+/* Custom TimeField Input + 24h Material Analog Clock Popover (DESIGN.md aligned) */
+
+.tp-wrap {
+    --gdg-border: rgba(255, 255, 255, 0.12);
+    position: relative;
+    width: 100%;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    display: flex;
+    align-items: center;
+}
+
+.tp-wrap .tp-input,
+[data-theme="dark"] .tp-wrap .tp-input {
+    display: block !important;
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 32px 0 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid var(--gdg-border) !important;
+    background-color: #181b23 !important;
+    background-image: none !important;
+    color: #f1f5f9 !important;
+    font-family: inherit;
+    font-size: 13px !important;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.tp-wrap .tp-input::placeholder,
+[data-theme="dark"] .tp-wrap .tp-input::placeholder {
+    color: #64748b !important;
+}
+
+.tp-wrap .tp-input:focus,
+.tp-wrap.is-open .tp-input,
+[data-theme="dark"] .tp-wrap .tp-input:focus,
+[data-theme="dark"] .tp-wrap.is-open .tp-input {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.18) !important;
+}
+
+.tp-wrap.is-disabled .tp-input {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tp-trigger-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    min-height: 26px !important;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.tp-trigger-btn:hover:not(:disabled) {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.tp-wrap.is-open .tp-trigger-btn {
+    color: #635bff;
+}
+
+.tp-trigger-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Light mode input overrides */
+[data-theme="light"] .tp-wrap {
+    --gdg-border: #e3e8ee;
+}
+
+[data-theme="light"] .tp-wrap .tp-input {
+    background-color: #ffffff !important;
+    border: 1px solid var(--gdg-border) !important;
+    color: #1a1f36 !important;
+}
+
+[data-theme="light"] .tp-wrap .tp-input::placeholder {
+    color: #8792a2 !important;
+}
+
+[data-theme="light"] .tp-wrap .tp-input:focus,
+[data-theme="light"] .tp-wrap.is-open .tp-input {
+    border-color: #635bff !important;
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15) !important;
+}
+
+[data-theme="light"] .tp-trigger-btn {
+    color: #697386;
+}
+
+[data-theme="light"] .tp-trigger-btn:hover:not(:disabled) {
+    color: #1a1f36;
+    background: #f7f9fc;
+}
+
+/* ── Popover Portal Surface (Highest Modal Z-Index) ── */
+.tp-popover {
+    --gdg-border: rgba(255, 255, 255, 0.12);
+    position: fixed;
+    z-index: 2147482900;
+    padding: 14px 16px;
+    background: #181b23;
+    border: 1px solid var(--gdg-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    color: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+[data-theme="light"] .tp-popover {
+    --gdg-border: #e3e8ee;
+    background: #ffffff;
+    border: 1px solid var(--gdg-border);
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+    color: #1a1f36;
+}
+
+/* ── Interactive Digital Header ── */
+.tp-clock-header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.tp-clock-mode-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    line-height: 1;
+}
+
+[data-theme="light"] .tp-clock-mode-label {
+    color: #697386;
+}
+
+.tp-clock-digital {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tp-digital-seg {
+    min-width: 56px;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
+    font-family: inherit;
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.tp-digital-seg:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.24);
+    color: #ffffff;
+}
+
+.tp-digital-seg.active {
+    background: #635bff;
+    border-color: #635bff;
+    color: #ffffff;
+}
+
+[data-theme="light"] .tp-digital-seg {
+    background: #f7f9fc;
+    border-color: #e3e8ee;
+    color: #3c4257;
+}
+
+[data-theme="light"] .tp-digital-seg:hover:not(.active) {
+    background: #eef2f7;
+    border-color: #d8dee4;
+    color: #1a1f36;
+}
+
+[data-theme="light"] .tp-digital-seg.active {
+    background: #635bff;
+    border-color: #635bff;
+    color: #ffffff;
+}
+
+.tp-digital-sep {
+    font-size: 24px;
+    font-weight: 700;
+    color: #64748b;
+    line-height: 1;
+    margin-top: -2px;
+}
+
+[data-theme="light"] .tp-digital-sep {
+    color: #697386;
+}
+
+/* ── 24h Material Analog Clock Dial (220x220) ── */
+.tp-dial {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: #111318;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+[data-theme="light"] .tp-dial {
+    background: #f7f9fc;
+    border-color: #e3e8ee;
+}
+
+.tp-dial-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.tp-dial-num {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition: color 0.1s ease;
+}
+
+.tp-dial.is-interacting .tp-dial-num,
+.tp-dial.is-interacting .tp-dial-svg,
+.tp-dial.is-interacting .tp-dial-svg * {
+    transition: none !important;
+}
+
+.tp-dial-num.outer {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.tp-dial-num.inner {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+}
+
+[data-theme="light"] .tp-dial-num.outer {
+    color: #1a1f36;
+}
+
+[data-theme="light"] .tp-dial-num.inner {
+    color: #697386;
+}
+
+.tp-dial-num.active,
+[data-theme="light"] .tp-dial-num.active {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* ── Popover Footer (Sekarang & OK) ── */
+.tp-clock-footer {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tp-footer-btn {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.tp-footer-now {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: transparent;
+    color: #cbd5e1;
+}
+
+.tp-footer-now:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+}
+
+[data-theme="light"] .tp-footer-now {
+    border-color: #d8dee4;
+    background: #ffffff;
+    color: #3c4257;
+}
+
+[data-theme="light"] .tp-footer-now:hover {
+    background: #f7f9fc;
+    border-color: #cbd5e1;
+    color: #1a1f36;
+}
+
+.tp-footer-ok {
+    min-width: 64px;
+    border: 1px solid #635bff;
+    background: #635bff;
+    color: #ffffff;
+}
+
+.tp-footer-ok:hover {
+    background: #544dff;
+    border-color: #544dff;
+}
+
+/* ── Quick Duration Chips & Duration Badge (DESIGN.md aligned) ── */
+.tp-quick-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tp-quick-chips {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tp-quick-chip {
+    height: 26px;
+    padding: 0 9px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #181b23;
+    color: #cbd5e1;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.tp-quick-chip:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.26);
+    background: rgba(255, 255, 255, 0.05);
+    color: #f8fafc;
+}
+
+.tp-quick-chip.active,
+.tp-quick-chip.active:hover:not(:disabled) {
+    background: #635bff;
+    border-color: #635bff;
+    color: #ffffff;
+}
+
+.tp-quick-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+[data-theme="light"] .tp-quick-chip {
+    background: #ffffff;
+    border-color: #d8dee4;
+    color: #3c4257;
+}
+
+[data-theme="light"] .tp-quick-chip:hover:not(:disabled) {
+    background: #f7f9fc;
+    border-color: #cbd5e1;
+    color: #1a1f36;
+}
+
+[data-theme="light"] .tp-quick-chip.active,
+[data-theme="light"] .tp-quick-chip.active:hover:not(:disabled) {
+    background: #635bff;
+    border-color: #635bff;
+    color: #ffffff;
+}
+
+.tp-duration-badge {
+    height: 26px;
+    padding: 0 9px;
+    border-radius: 6px;
+    border: 1px solid rgba(99, 91, 255, 0.32);
+    background: rgba(99, 91, 255, 0.14);
+    color: #c7d2fe;
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.tp-duration-badge strong {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+[data-theme="light"] .tp-duration-badge {
+    background: #f5f7ff;
+    border-color: #d9d6fe;
+    color: #4f46e5;
+}
+
+[data-theme="light"] .tp-duration-badge strong {
+    color: #1a1f36;
+}

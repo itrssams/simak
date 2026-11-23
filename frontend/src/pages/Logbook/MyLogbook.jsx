@@ -28,6 +28,7 @@ import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
 import DateField from '../../components/DateField';
+import TimeField, { TimeQuickDurationBar } from '../../components/TimeField';
 import DateRangePicker from '../../components/DateRangePicker';
 // import TaskLogbook from './TaskLogbook';
 import './MyLogbook.css';
@@ -851,33 +852,33 @@ export default function MyLogbook() {
 
                                     <div className="logbook-field-group">
                                         <label>Jam Mulai *</label>
-                                        <input
-                                            type="time"
+                                        <TimeField
+                                            name="jam_mulai"
                                             value={formData.jam_mulai}
-                                            onChange={(e) => setFormData({ ...formData, jam_mulai: e.target.value })}
+                                            onChange={(val) => setFormData(prev => ({ ...prev, jam_mulai: val }))}
+                                            ariaLabel="Jam Mulai"
                                             required
-                                            className="logbook-input"
                                         />
                                     </div>
 
                                     <div className="logbook-field-group">
                                         <label>Jam Selesai *</label>
-                                        <input
-                                            type="time"
+                                        <TimeField
+                                            name="jam_selesai"
                                             value={formData.jam_selesai}
-                                            onChange={(e) => setFormData({ ...formData, jam_selesai: e.target.value })}
+                                            onChange={(val) => setFormData(prev => ({ ...prev, jam_selesai: val }))}
+                                            ariaLabel="Jam Selesai"
                                             required
-                                            className="logbook-input"
                                         />
                                     </div>
                                 </div>
 
-                                {calculatedFormDuration && (
-                                    <div className="logbook-duration-indicator">
-                                        <Clock size={13} />
-                                        <span>Durasi Terhitung: <strong>{calculatedFormDuration}</strong></span>
-                                    </div>
-                                )}
+                                <TimeQuickDurationBar
+                                    startTime={formData.jam_mulai}
+                                    endTime={formData.jam_selesai}
+                                    onSetStartTime={(startVal) => setFormData(prev => ({ ...prev, jam_mulai: startVal }))}
+                                    onSetStartAndEnd={(startVal, endVal) => setFormData(prev => ({ ...prev, jam_mulai: startVal, jam_selesai: endVal }))}
+                                />
 
                                 <div className="logbook-field-group">
                                     <label>Uraian / Deskripsi Pekerjaan *</label>

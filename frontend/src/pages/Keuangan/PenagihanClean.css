@@ -27,6 +27,7 @@
   --pen-border-ctrl: #d8dee4;
   --pen-text: #1a1f36;
   --pen-muted: #697386;
+  --gdg-text-muted: #697386;
   --pen-faint: #8792a2;
   --pen-accent: #635bff;
   --pen-accent-hover: #5249f5;
@@ -56,6 +57,7 @@
   --pen-border-ctrl: rgba(255, 255, 255, 0.14);
   --pen-text: #f8fafc;
   --pen-muted: #94a3b8;
+  --gdg-text-muted: #94a3b8;
   --pen-faint: #64748b;
   --pen-accent: #635bff;
   --pen-accent-hover: #5249f5;
@@ -335,22 +337,22 @@
   font-feature-settings: "tnum" 1, "lnum" 1 !important;
 }
 
-.ap-stat-value.ok,
-.mp-stat-value.emerald {
-  color: #10b981 !important;
-}
+[data-theme="dark"] .ap-stat-value.ok,
 [data-theme="light"] .ap-stat-value.ok,
-[data-theme="light"] .mp-stat-value.emerald {
-  color: #059669 !important;
+.ap-stat-value.ok,
+[data-theme="dark"] .ap-stat-value.warn,
+[data-theme="light"] .ap-stat-value.warn,
+.ap-stat-value.warn {
+  color: var(--pen-text) !important;
 }
 
-.ap-stat-value.warn,
+[data-theme="dark"] .mp-page .mp-stat-value.emerald,
+[data-theme="light"] .mp-page .mp-stat-value.emerald,
+.mp-stat-value.emerald,
+[data-theme="dark"] .mp-page .mp-stat-value.amber,
+[data-theme="light"] .mp-page .mp-stat-value.amber,
 .mp-stat-value.amber {
-  color: #f59e0b !important;
-}
-[data-theme="light"] .ap-stat-value.warn,
-[data-theme="light"] .mp-stat-value.amber {
-  color: #d97706 !important;
+  color: var(--pen-text) !important;
 }
 
 :is(.idash-metric-note, .inv-summary-sub, .ap-stat-desc) {
@@ -857,6 +859,9 @@
 }
 
 /* Master Pembiayaan Underline Tabs */
+[data-theme="dark"] .mp-page .mp-tab-container,
+[data-theme="light"] .mp-page .mp-tab-container,
+.mp-page .mp-tab-container,
 .mp-tab-container {
   display: flex !important;
   align-items: center !important;
@@ -867,10 +872,15 @@
   border-bottom: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   box-shadow: none !important;
   width: 100% !important;
 }
 
+[data-theme="dark"] .mp-page .mp-tab-btn,
+[data-theme="light"] .mp-page .mp-tab-btn,
+.mp-page .mp-tab-btn,
 .mp-tab-btn {
   position: relative !important;
   height: 40px !important;
@@ -879,6 +889,8 @@
   border: none !important;
   border-radius: 0 !important;
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   box-shadow: none !important;
   color: var(--pen-muted) !important;
   font-size: 13px !important;
@@ -886,22 +898,39 @@
   gap: 8px !important;
 }
 
+[data-theme="dark"] .mp-page .mp-tab-btn:hover:not(.active),
+[data-theme="light"] .mp-page .mp-tab-btn:hover:not(.active),
+.mp-page .mp-tab-btn:hover:not(.active),
 .mp-tab-btn:hover:not(.active) {
   background: transparent !important;
+  background-color: transparent !important;
   color: var(--pen-text) !important;
 }
 
+[data-theme="light"] .mp-page .mp-tab-btn.active,
+.mp-page .mp-tab-btn.active,
 .mp-tab-btn.active {
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
   color: var(--pen-accent) !important;
   font-weight: 600 !important;
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .mp-page .mp-tab-btn.active,
 [data-theme="dark"] .mp-tab-btn.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
   color: #f8fafc !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
 }
 
+.mp-page .mp-tab-btn.active::after,
 .mp-tab-btn.active::after {
   content: '';
   position: absolute;
@@ -912,23 +941,30 @@
   background: #635bff;
 }
 
+[data-theme="dark"] .mp-page .mp-tab-badge,
+[data-theme="light"] .mp-page .mp-tab-badge,
+[data-theme="dark"] .mp-page .mp-tab-btn.active .mp-tab-badge,
+[data-theme="light"] .mp-page .mp-tab-btn.active .mp-tab-badge,
+.mp-page .mp-tab-badge,
 .mp-tab-badge {
-  background: var(--pen-surface-2) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
   color: var(--pen-muted) !important;
-  border: 1px solid var(--gdg-border) !important;
-  padding: 1px 7px !important;
-  border-radius: 999px !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
   font-variant-numeric: tabular-nums !important;
 }
 
-.mp-tab-btn.active .mp-tab-badge {
-  background: rgba(99, 91, 255, 0.12) !important;
+.mp-page .mp-tab-btn.active .mp-tab-badge {
   color: var(--pen-accent) !important;
-  border-color: rgba(99, 91, 255, 0.25) !important;
+  font-weight: 600 !important;
 }
-[data-theme="dark"] .mp-tab-btn.active .mp-tab-badge {
+[data-theme="dark"] .mp-page .mp-tab-btn.active .mp-tab-badge {
   color: #a5b4fc !important;
 }
 
@@ -1360,18 +1396,31 @@
   padding: 0 11px !important;
 }
 
-/* Ensure portaled DateRangePicker & DateField popovers use #111318/#181b23 in dark mode (overriding index.css) */
+/* Ensure portaled DateRangePicker & DateField popovers appear above all modals and use #181b23 / #ffffff */
+[data-theme="light"] .drp-popover,
+[data-theme="light"] .df-popover,
+.drp-popover,
+.df-popover {
+  z-index: 2147483000 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 [data-theme="dark"] .drp-popover,
 [data-theme="dark"] .df-popover {
-  background: #111318 !important;
-  background-color: #111318 !important;
+  z-index: 2147483000 !important;
+  background: #181b23 !important;
+  background-color: #181b23 !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="dark"] .drp-preset-btn {
-  background: #181b23 !important;
-  background-color: #181b23 !important;
+  background: #111318 !important;
+  background-color: #111318 !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
@@ -1598,17 +1647,37 @@
   box-shadow: none !important;
 }
 
+[data-theme="dark"] .pen-modal-backdrop .inv-return-btn,
+[data-theme="light"] .pen-modal-backdrop .inv-return-btn,
 .pen-modal-backdrop .inv-return-btn {
   height: 36px !important;
   min-height: 36px !important;
   padding: 0 14px !important;
   border-radius: 6px !important;
-  border: 1px solid #d97706 !important;
-  background: #d97706 !important;
+  border: 1px solid #b45309 !important;
+  background: #b45309 !important;
+  background-color: #b45309 !important;
   background-image: none !important;
   color: #ffffff !important;
   font-size: 13px !important;
   font-weight: 600 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop .inv-return-btn:hover:not(:disabled) {
+  background: #92400e !important;
+  background-color: #92400e !important;
+  background-image: none !important;
+  border-color: #92400e !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop .inv-return-btn:disabled {
+  opacity: 0.55 !important;
+  color: #ffffff !important;
+  cursor: not-allowed !important;
 }
 
 .pen-modal-backdrop .inv-btn.excel-btn {
@@ -2162,6 +2231,7 @@
   .ivf-unverify:hover:not(:disabled),
   .inv-page:not(.log-page) .inv-action-btn.danger:hover:not(:disabled),
   .pen-modal-backdrop .inv-action-btn.danger:hover:not(:disabled),
+  .pen-modal-backdrop .inv-visit-row .inv-action-btn.danger:hover:not(:disabled),
   .pen-modal-backdrop .inv-icon-btn.danger:hover:not(:disabled),
   .ap-modal-backdrop .ap-icon-btn.danger:hover:not(:disabled),
   .mp-icon-btn.danger:hover:not(:disabled),
@@ -2169,7 +2239,13 @@
 ) {
   border-color: #ef4444 !important;
   color: #ef4444 !important;
-  background: rgba(239, 68, 68, 0.1) !important;
+  background: rgba(239, 68, 68, 0.14) !important;
+  background-color: rgba(239, 68, 68, 0.14) !important;
+}
+
+.pen-modal-backdrop .inv-visit-row .inv-action-btn.danger:disabled {
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
 }
 
 .inv-page:not(.log-page) .inv-action-btn.return:hover:not(:disabled) {
@@ -2428,6 +2504,15 @@
   .dki-modal-backdrop .dki-modal-head,
   .pen-modal-backdrop .inv-modal-head,
   .pen-modal-backdrop .inv-modal-head.compact,
+  .pen-modal-backdrop .inv-detail-head,
+  .ap-modal-backdrop .ap-detail-head,
+  .mp-modal-overlay .mp-modal-head
+),
+[data-theme="light"] :is(
+  .dki-modal-backdrop .dki-modal-head,
+  .pen-modal-backdrop .inv-modal-head,
+  .pen-modal-backdrop .inv-modal-head.compact,
+  .pen-modal-backdrop .inv-detail-head,
   .ap-modal-backdrop .ap-detail-head,
   .mp-modal-overlay .mp-modal-head
 ),
@@ -2435,14 +2520,19 @@
   .dki-modal-backdrop .dki-modal-head,
   .pen-modal-backdrop .inv-modal-head,
   .pen-modal-backdrop .inv-modal-head.compact,
+  .pen-modal-backdrop .inv-detail-head,
   .ap-modal-backdrop .ap-detail-head,
   .mp-modal-overlay .mp-modal-head
 ) {
-  background: var(--pen-modal) !important;
-  background-color: var(--pen-modal) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
+  border: none !important;
   border-bottom: 1px solid var(--gdg-border) !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   padding: 16px 20px !important;
 }
 
@@ -2524,13 +2614,13 @@
 [data-theme="dark"] :is(
   .dki-modal-backdrop .dki-modal-head button:not(.dki-modal-close-icon),
   .pen-modal-backdrop .inv-close,
-  .ap-modal-backdrop .ap-modal-close,
+  .ap-modal-backdrop .ap-modal-close:not(.pen-confirm-close),
   .mp-modal-overlay .mp-close-btn
 ),
 :is(
   .dki-modal-backdrop .dki-modal-head button:not(.dki-modal-close-icon),
   .pen-modal-backdrop .inv-close,
-  .ap-modal-backdrop .ap-modal-close,
+  .ap-modal-backdrop .ap-modal-close:not(.pen-confirm-close),
   .mp-modal-overlay .mp-close-btn
 ) {
   height: 32px !important;
@@ -2584,6 +2674,16 @@
   .ap-modal-backdrop .ap-modal-body,
   .mp-modal-overlay .mp-modal-body
 ),
+[data-theme="light"] :is(
+  .pen-modal-backdrop .inv-modal-body,
+  .pen-modal-backdrop #inv-create-form .inv-modal-body,
+  .pen-modal-backdrop .inv-detail-body,
+  .dki-modal-backdrop .dki-create-body,
+  .dki-modal-backdrop .dki-detail-body,
+  .ap-modal-backdrop .ap-create-form,
+  .ap-modal-backdrop .ap-modal-body,
+  .mp-modal-overlay .mp-modal-body
+),
 :is(
   .pen-modal-backdrop .inv-modal-body,
   .pen-modal-backdrop #inv-create-form .inv-modal-body,
@@ -2594,9 +2694,10 @@
   .ap-modal-backdrop .ap-modal-body,
   .mp-modal-overlay .mp-modal-body
 ) {
-  background: var(--pen-modal) !important;
-  background-color: var(--pen-modal) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   background-image: none !important;
+  border-radius: 0 !important;
   color: var(--pen-text) !important;
   padding: 18px 20px !important;
 }
@@ -2721,26 +2822,18 @@
 }
 
 [data-theme="dark"] :is(
-  .pen-modal-backdrop .inv-cost-card,
-  .pen-modal-backdrop .inv-confirm-detail,
-  .pen-modal-backdrop .inv-sent-info-grid > div,
   .dki-modal-backdrop .dki-info,
   .dki-modal-backdrop .dki-info.strong,
   .dki-modal-backdrop .dki-cost,
   .dki-modal-backdrop .dki-invoice-search,
-  .dki-modal-backdrop .dki-invoice-result-panel,
-  .ap-confirm-backdrop .ap-confirm-detail
+  .dki-modal-backdrop .dki-invoice-result-panel
 ),
 :is(
-  .pen-modal-backdrop .inv-cost-card,
-  .pen-modal-backdrop .inv-confirm-detail,
-  .pen-modal-backdrop .inv-sent-info-grid > div,
   .dki-modal-backdrop .dki-info,
   .dki-modal-backdrop .dki-info.strong,
   .dki-modal-backdrop .dki-cost,
   .dki-modal-backdrop .dki-invoice-search,
-  .dki-modal-backdrop .dki-invoice-result-panel,
-  .ap-confirm-backdrop .ap-confirm-detail
+  .dki-modal-backdrop .dki-invoice-result-panel
 ) {
   background: var(--pen-surface-2) !important;
   background-color: var(--pen-surface-2) !important;
@@ -2752,21 +2845,15 @@
 }
 
 :is(
-  .pen-modal-backdrop .inv-confirm-detail span,
-  .pen-modal-backdrop .inv-sent-info-grid span,
   .dki-modal-backdrop .dki-info small,
-  .dki-modal-backdrop .dki-cost small,
-  .ap-confirm-backdrop .ap-confirm-detail span
+  .dki-modal-backdrop .dki-cost small
 ) {
   color: var(--pen-muted) !important;
 }
 
 :is(
-  .pen-modal-backdrop .inv-confirm-detail strong,
-  .pen-modal-backdrop .inv-sent-info-grid strong,
   .dki-modal-backdrop .dki-info strong,
-  .dki-modal-backdrop .dki-cost strong,
-  .ap-confirm-backdrop .ap-confirm-detail strong
+  .dki-modal-backdrop .dki-cost strong
 ) {
   color: var(--pen-text) !important;
   font-variant-numeric: tabular-nums !important;
@@ -2946,59 +3033,123 @@
 }
 
 /* ── Detail Invoice Modal (/keuangan/invoices/:id) 100% DESIGN.md ─────────── */
-.pen-modal-backdrop .inv-modal.detail {
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.detail {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
   width: min(1240px, calc(100vw - 32px)) !important;
   max-height: calc(100vh - 32px) !important;
 }
 
+[data-theme="light"] .pen-modal-backdrop .inv-modal.detail,
+.pen-modal-backdrop .inv-modal.detail {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 10px !important;
+  width: min(1240px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head,
+.pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head,
 .pen-modal-backdrop .inv-detail-head {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   gap: 14px !important;
   flex-wrap: wrap !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 16px 20px !important;
 }
 
+[data-theme="dark"] .pen-modal-backdrop .inv-detail-title,
+[data-theme="light"] .pen-modal-backdrop .inv-detail-title,
+.pen-modal-backdrop .inv-detail-title,
+.pen-modal-backdrop .inv-detail-title > div {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-detail-actions,
+[data-theme="light"] .pen-modal-backdrop .inv-detail-actions,
 .pen-modal-backdrop .inv-detail-actions {
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  gap: 6px !important;
+  gap: 10px !important;
   flex-wrap: nowrap !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-signer-box,
+[data-theme="light"] .pen-modal-backdrop .inv-signer-box,
 .pen-modal-backdrop .inv-signer-box {
-  background: var(--pen-surface-2) !important;
-  background-color: var(--pen-surface-2) !important;
-  border: 1px solid var(--pen-border-ctrl) !important;
-  border-radius: 6px !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 2px 3px 2px 9px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  gap: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-signer-label,
+[data-theme="light"] .pen-modal-backdrop .inv-signer-label,
 .pen-modal-backdrop .inv-signer-label {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  color: var(--pen-muted) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--gdg-text-muted, var(--pen-muted)) !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-signer-toggle,
+[data-theme="light"] .pen-modal-backdrop .inv-signer-toggle,
 .pen-modal-backdrop .inv-signer-toggle {
-  background: transparent !important;
-  background-color: transparent !important;
-  padding: 0 !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--gdg-border) !important;
+  background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
+  padding: 2px !important;
   gap: 2px !important;
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-signer-pill,
+[data-theme="light"] .pen-modal-backdrop .inv-signer-pill,
 .pen-modal-backdrop .inv-signer-pill {
-  height: 26px !important;
-  padding: 0 9px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
   border-radius: 4px !important;
   font-size: 12px !important;
   font-weight: 500 !important;
@@ -3007,6 +3158,7 @@
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-signer-pill.active,
+[data-theme="light"] .pen-modal-backdrop .inv-signer-pill.active,
 .pen-modal-backdrop .inv-signer-pill.active {
   background: #635bff !important;
   background-color: #635bff !important;
@@ -3015,15 +3167,35 @@
   box-shadow: none !important;
 }
 
-[data-theme="dark"] .pen-modal-backdrop .inv-print-btn,
-.pen-modal-backdrop .inv-print-btn {
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 0 10px !important;
+[data-theme="dark"] .pen-modal-backdrop .inv-print-group,
+[data-theme="light"] .pen-modal-backdrop .inv-print-group,
+.pen-modal-backdrop .inv-print-group {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  height: 34px !important;
+  min-height: 34px !important;
   border-radius: 6px !important;
-  border: 1px solid var(--pen-border-ctrl) !important;
+  border: 1px solid var(--gdg-border) !important;
   background: var(--pen-input) !important;
   background-color: var(--pen-input) !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-print-group .inv-print-btn,
+[data-theme="light"] .pen-modal-backdrop .inv-print-group .inv-print-btn,
+.pen-modal-backdrop .inv-print-group .inv-print-btn,
+[data-theme="dark"] .pen-modal-backdrop .inv-print-btn,
+.pen-modal-backdrop .inv-print-btn {
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 11px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   color: var(--pen-text) !important;
   font-size: 12.5px !important;
   font-weight: 500 !important;
@@ -3032,19 +3204,63 @@
   flex-shrink: 0 !important;
   transform: none !important;
   box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: background-color 0.14s ease, color 0.14s ease !important;
 }
 
-.pen-modal-backdrop .inv-print-btn:hover {
-  border-color: #635bff !important;
+[data-theme="dark"] .pen-modal-backdrop .inv-print-group .inv-print-btn + .inv-print-btn,
+[data-theme="light"] .pen-modal-backdrop .inv-print-group .inv-print-btn + .inv-print-btn,
+.pen-modal-backdrop .inv-print-group .inv-print-btn + .inv-print-btn {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-print-group .inv-print-btn:hover,
+[data-theme="light"] .pen-modal-backdrop .inv-print-group .inv-print-btn:hover,
+.pen-modal-backdrop .inv-print-group .inv-print-btn:hover {
+  border-color: var(--gdg-border) !important;
   background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
 }
 
-[data-theme="dark"] .pen-modal-backdrop .inv-close,
-.pen-modal-backdrop .inv-close {
-  white-space: nowrap !important;
-  width: auto !important;
-  padding: 0 12px !important;
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head .inv-close.inv-detail-close-icon,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head .inv-close.inv-detail-close-icon,
+.pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head .inv-close.inv-detail-close-icon,
+.pen-modal-backdrop .inv-detail-head .inv-close.inv-detail-close-icon {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   flex-shrink: 0 !important;
+  cursor: pointer !important;
+  transition: background-color 0.14s ease, color 0.14s ease !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head .inv-close.inv-detail-close-icon:hover,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head .inv-close.inv-detail-close-icon:hover,
+.pen-modal-backdrop .inv-detail-head .inv-close.inv-detail-close-icon:hover {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+.pen-modal-backdrop .inv-detail-head .inv-close.inv-detail-close-icon svg {
+  width: 18px !important;
+  height: 18px !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-section-title,
@@ -3065,15 +3281,36 @@
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-detail-section,
+[data-theme="light"] .pen-modal-backdrop .inv-detail-section,
 [data-theme="dark"] .pen-modal-backdrop .inv-payment-card,
+[data-theme="light"] .pen-modal-backdrop .inv-payment-card,
 .pen-modal-backdrop .inv-detail-section,
 .pen-modal-backdrop .inv-payment-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   padding: 16px 0 !important;
   margin: 0 !important;
 }
 
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.detail .inv-detail-section.inv-info-section,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.detail .inv-detail-section.inv-info-section,
 .pen-modal-backdrop .inv-info-section {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   padding-top: 0 !important;
+  padding-bottom: 16px !important;
 }
 
 .pen-modal-backdrop .inv-history-section {
@@ -3082,13 +3319,26 @@
 }
 
 /* Info Invoice: Flat 4-Col Metadata Grid */
+[data-theme="dark"] .pen-modal-backdrop .inv-info-grid,
+[data-theme="light"] .pen-modal-backdrop .inv-info-grid,
 .pen-modal-backdrop .inv-info-grid {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 14px 24px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 [data-theme="dark"] .pen-modal-backdrop .inv-info-grid .inv-info-item,
+[data-theme="light"] .pen-modal-backdrop .inv-info-grid .inv-info-item,
 .pen-modal-backdrop .inv-info-grid .inv-info-item {
   background: transparent !important;
   background-color: transparent !important;
@@ -3433,9 +3683,19 @@
 }
 
 @media (max-width: 1120px) {
+  .pen-modal-backdrop .inv-modal.detail > .inv-modal-head.inv-detail-head {
+    position: relative !important;
+    padding-right: 52px !important;
+  }
   .pen-modal-backdrop .inv-detail-actions {
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
+    width: 100% !important;
+  }
+  .pen-modal-backdrop .inv-detail-head .inv-close.inv-detail-close-icon {
+    position: absolute !important;
+    top: 14px !important;
+    right: 16px !important;
   }
 }
 
@@ -3457,6 +3717,13 @@
 }
 
 @media (max-width: 600px) {
+  .pen-modal-backdrop .inv-print-group {
+    flex-wrap: wrap !important;
+    height: auto !important;
+  }
+  .pen-modal-backdrop .inv-print-group .inv-print-btn {
+    height: 32px !important;
+  }
   .pen-modal-backdrop .inv-info-grid,
   .pen-modal-backdrop .inv-breakdown-grid,
   .pen-modal-backdrop .inv-balance-strip,
@@ -3573,22 +3840,29 @@
   color: var(--pen-muted) !important;
 }
 
-/* COB Box Semantic Styles (Light & Dark Safe) */
+/* COB Inline Checkbox (No Box-in-a-Box Wrapper) */
+[data-theme="dark"] .pen-modal-backdrop .pen-cob-box,
+[data-theme="light"] .pen-modal-backdrop .pen-cob-box,
+.pen-modal-backdrop .pen-cob-box,
 .pen-cob-box {
-  margin-top: 10px;
-  padding: 12px 14px;
-  background: var(--pen-surface-2);
-  border: 1px solid var(--gdg-border);
-  border-radius: 8px;
+  margin-top: 16px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
+[data-theme="dark"] .pen-cob-toggle,
+[data-theme="light"] .pen-cob-toggle,
 .pen-cob-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--pen-text);
 }
 
@@ -3991,4 +4265,1523 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* ── Action & Confirmation Modals (Kembalikan, Terkirim, Batal, Hapus) ──── */
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-return-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-receipt-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal.confirm
+) {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #f8fafc !important;
+  padding: 20px !important;
+}
+
+[data-theme="light"] :is(
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-return-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-receipt-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal.confirm
+),
+:is(
+  .pen-modal-backdrop .inv-confirm-modal,
+  .pen-modal-backdrop .inv-return-modal,
+  .pen-modal-backdrop .inv-sent-info-modal,
+  .pen-modal-backdrop .inv-send-modal,
+  .pen-modal-backdrop .inv-receipt-modal,
+  .ap-confirm-backdrop .ap-confirm-modal,
+  .mp-modal-overlay .mp-modal.confirm
+) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #1a1f36 !important;
+  padding: 20px !important;
+}
+
+.ap-confirm-backdrop .ap-confirm-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-confirm-icon,
+  .ap-confirm-backdrop .ap-confirm-icon,
+  .mp-modal-overlay .mp-confirm-icon
+) {
+  display: none !important;
+}
+
+.pen-modal-backdrop .pen-confirm-head,
+.ap-confirm-backdrop .pen-confirm-head,
+.mp-modal-overlay .mp-confirm-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+}
+
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .pen-confirm-head h2,
+  .ap-confirm-backdrop .pen-confirm-head h2,
+  .mp-modal-overlay .mp-confirm-head h3
+) {
+  margin: 0 !important;
+  min-height: 0 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] :is(
+  .pen-modal-backdrop .pen-confirm-head h2,
+  .ap-confirm-backdrop .pen-confirm-head h2,
+  .mp-modal-overlay .mp-confirm-head h3
+),
+:is(
+  .pen-modal-backdrop .pen-confirm-head h2,
+  .ap-confirm-backdrop .pen-confirm-head h2,
+  .mp-modal-overlay .mp-confirm-head h3
+) {
+  margin: 0 !important;
+  min-height: 0 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  color: #1a1f36 !important;
+}
+
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .pen-confirm-close,
+  .ap-confirm-backdrop .pen-confirm-close,
+  .mp-modal-overlay .pen-confirm-close
+),
+[data-theme="light"] :is(
+  .pen-modal-backdrop .pen-confirm-close,
+  .ap-confirm-backdrop .pen-confirm-close,
+  .mp-modal-overlay .pen-confirm-close
+),
+:is(
+  .pen-modal-backdrop .pen-confirm-close,
+  .ap-confirm-backdrop .pen-confirm-close,
+  .mp-modal-overlay .pen-confirm-close
+) {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  transition: background-color 0.14s ease, color 0.14s ease !important;
+}
+
+:is(
+  .pen-modal-backdrop .pen-confirm-close,
+  .ap-confirm-backdrop .pen-confirm-close,
+  .mp-modal-overlay .pen-confirm-close
+):hover:not(:disabled) {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-confirm-copy p,
+  .ap-confirm-backdrop .ap-confirm-copy p,
+  .mp-modal-overlay .mp-modal.confirm .mp-confirm-text
+) {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] :is(
+  .pen-modal-backdrop .inv-confirm-copy p,
+  .ap-confirm-backdrop .ap-confirm-copy p,
+  .mp-modal-overlay .mp-modal.confirm .mp-confirm-text
+),
+:is(
+  .pen-modal-backdrop .inv-confirm-copy p,
+  .ap-confirm-backdrop .ap-confirm-copy p,
+  .mp-modal-overlay .mp-modal.confirm .mp-confirm-text
+) {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  color: #697386 !important;
+}
+
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-confirm-copy strong,
+  .ap-confirm-backdrop .ap-confirm-copy strong,
+  .mp-modal-overlay .mp-modal.confirm .mp-confirm-text strong
+) {
+  color: #f8fafc !important;
+  font-weight: 600 !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-confirm-copy strong,
+  .ap-confirm-backdrop .ap-confirm-copy strong,
+  .mp-modal-overlay .mp-modal.confirm .mp-confirm-text strong
+) {
+  color: #1a1f36 !important;
+  font-weight: 600 !important;
+}
+
+/* Flat Hairline Metadata Rows (Tanggal Kirim, Jatuh Tempo, Nomor RM, etc.) */
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-confirm-detail,
+  .ap-confirm-backdrop .ap-confirm-detail
+),
+[data-theme="light"] :is(
+  .pen-modal-backdrop .inv-confirm-detail,
+  .ap-confirm-backdrop .ap-confirm-detail
+),
+:is(
+  .pen-modal-backdrop .inv-confirm-detail,
+  .ap-confirm-backdrop .ap-confirm-detail
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 11px 0 !important;
+  margin-top: 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-sent-info-grid,
+[data-theme="light"] .pen-modal-backdrop .inv-sent-info-grid,
+.pen-modal-backdrop .inv-sent-info-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  margin-top: 14px !important;
+  padding: 12px 0 !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-sent-info-grid > div,
+[data-theme="light"] .pen-modal-backdrop .inv-sent-info-grid > div,
+.pen-modal-backdrop .inv-sent-info-grid > div {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 2px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop .inv-sent-info-grid > div:first-child {
+  padding-left: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-sent-info-grid > div + div,
+[data-theme="light"] .pen-modal-backdrop .inv-sent-info-grid > div + div,
+.pen-modal-backdrop .inv-sent-info-grid > div + div {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-confirm-detail span,
+  .pen-modal-backdrop .inv-sent-info-grid span,
+  .ap-confirm-backdrop .ap-confirm-detail span
+) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--pen-muted) !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-confirm-detail strong,
+  .pen-modal-backdrop .inv-sent-info-grid strong,
+  .ap-confirm-backdrop .ap-confirm-detail strong
+) {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Labels & Textarea Contrast inside Return / Send / Receipt Modals */
+.pen-modal-backdrop .inv-return-alasan {
+  margin-top: 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-return-alasan label,
+[data-theme="dark"] .pen-modal-backdrop .inv-send-fields label,
+[data-theme="dark"] .pen-modal-backdrop .inv-send-fields .inv-field-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop .inv-return-alasan label,
+[data-theme="light"] .pen-modal-backdrop .inv-send-fields label,
+[data-theme="light"] .pen-modal-backdrop .inv-send-fields .inv-field-label,
+.pen-modal-backdrop .inv-return-alasan label,
+.pen-modal-backdrop .inv-send-fields label,
+.pen-modal-backdrop .inv-send-fields .inv-field-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #334155 !important;
+}
+
+.pen-modal-backdrop .inv-return-alasan .inv-required {
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-return-alasan .inv-required {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop textarea.inv-input.inv-return-textarea {
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 6px !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  padding: 10px 12px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop textarea.inv-input.inv-return-textarea,
+.pen-modal-backdrop textarea.inv-input.inv-return-textarea {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 6px !important;
+  color: #1a1f36 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  padding: 10px 12px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop textarea.inv-input.inv-return-textarea::placeholder {
+  color: #64748b !important;
+}
+
+.pen-modal-backdrop textarea.inv-input.inv-return-textarea::placeholder {
+  color: #8792a2 !important;
+}
+
+/* Transparent Confirm Modal Footer + Uniform 36px High-Contrast Action Buttons */
+[data-theme="dark"] :is(
+  .pen-modal-backdrop .inv-confirm-actions,
+  .ap-confirm-backdrop .ap-confirm-actions,
+  .mp-modal-overlay .mp-modal.confirm .mp-modal-actions.confirm
+),
+[data-theme="light"] :is(
+  .pen-modal-backdrop .inv-confirm-actions,
+  .ap-confirm-backdrop .ap-confirm-actions,
+  .mp-modal-overlay .mp-modal.confirm .mp-modal-actions.confirm
+),
+:is(
+  .pen-modal-backdrop .inv-confirm-actions,
+  .ap-confirm-backdrop .ap-confirm-actions,
+  .mp-modal-overlay .mp-modal.confirm .mp-modal-actions.confirm
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 0 0 !important;
+  margin: 16px 0 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.pen-modal-backdrop .inv-sent-info-modal .inv-confirm-actions {
+  border-top: none !important;
+  margin-top: 14px !important;
+  padding-top: 0 !important;
+}
+
+:is(
+  .pen-modal-backdrop .inv-confirm-actions button,
+  .ap-confirm-backdrop .ap-confirm-actions button,
+  .mp-modal-overlay .mp-modal.confirm .mp-modal-actions.confirm button
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  width: auto !important;
+}
+
+@media (max-width: 600px) {
+  .pen-modal-backdrop .inv-sent-info-grid {
+    grid-template-columns: 1fr !important;
+    padding: 0 !important;
+  }
+  .pen-modal-backdrop .inv-sent-info-grid > div {
+    padding: 10px 0 !important;
+  }
+  .pen-modal-backdrop .inv-sent-info-grid > div + div {
+    border-left: none !important;
+    border-top: 1px solid var(--gdg-border) !important;
+  }
+  .ap-confirm-backdrop .ap-confirm-actions {
+    flex-direction: row !important;
+  }
+}
+
+/* ── Edit & Buat Invoice Modal (.inv-create-modal / #inv-create-form) ───── */
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.inv-create-modal {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop .inv-modal.inv-create-modal,
+.pen-modal-backdrop .inv-modal.inv-create-modal {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.inv-create-modal > .inv-modal-head,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.inv-create-modal > .inv-modal-head,
+.pen-modal-backdrop .inv-modal.inv-create-modal > .inv-modal-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 16px 20px !important;
+}
+
+.pen-modal-backdrop .inv-modal.inv-create-modal .inv-create-head-title {
+  min-width: 0 !important;
+}
+
+.pen-modal-backdrop .inv-modal.inv-create-modal .inv-create-head-title h2 {
+  margin: 0 !important;
+}
+
+.pen-modal-backdrop .inv-modal.inv-create-modal .inv-create-head-title p {
+  margin: 3px 0 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop #inv-create-form .inv-modal-body,
+[data-theme="light"] .pen-modal-backdrop #inv-create-form .inv-modal-body,
+.pen-modal-backdrop #inv-create-form .inv-modal-body {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  padding: 18px 20px !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-form-grid .inv-date-compact {
+  width: 100% !important;
+  max-width: none !important;
+  justify-self: stretch !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-form-grid .df-wrap,
+.pen-modal-backdrop #inv-create-form .inv-form-grid .df-input,
+.pen-modal-backdrop #inv-create-form .inv-form-grid .pbiaya-select-wrap,
+.pen-modal-backdrop #inv-create-form .inv-form-grid .pbiaya-select-control,
+.pen-modal-backdrop #inv-create-form .inv-form-grid .inv-input,
+.pen-modal-backdrop #inv-create-form .inv-form-grid select.inv-input {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Labels in #inv-create-form (#cbd5e1 dark / #334155 light, 13px, 500) */
+[data-theme="dark"] .pen-modal-backdrop #inv-create-form :is(
+  .inv-form-grid label,
+  .inv-form-grid label > .inv-field-label,
+  .inv-cost-grid label,
+  .inv-cost-grid .inv-cost-label,
+  .pen-cob-fields label > span,
+  .inv-note
+) {
+  color: #cbd5e1 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop #inv-create-form :is(
+  .inv-form-grid label,
+  .inv-form-grid label > .inv-field-label,
+  .inv-cost-grid label,
+  .inv-cost-grid .inv-cost-label,
+  .pen-cob-fields label > span,
+  .inv-note
+),
+.pen-modal-backdrop #inv-create-form :is(
+  .inv-form-grid label,
+  .inv-form-grid label > .inv-field-label,
+  .inv-cost-grid label,
+  .inv-cost-grid .inv-cost-label,
+  .pen-cob-fields label > span,
+  .inv-note
+) {
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-form-grid label,
+.pen-modal-backdrop #inv-create-form .inv-note {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+/* Uniform 36px Neutral Controls inside Edit / Create Invoice */
+[data-theme="dark"] .pen-modal-backdrop #inv-create-form :is(
+  input.inv-input,
+  select.inv-input,
+  textarea.inv-input,
+  .df-input,
+  .pbiaya-select-control
+) {
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 6px !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop #inv-create-form :is(
+  input.inv-input,
+  select.inv-input,
+  textarea.inv-input,
+  .df-input,
+  .pbiaya-select-control
+),
+.pen-modal-backdrop #inv-create-form :is(
+  input.inv-input,
+  select.inv-input,
+  textarea.inv-input,
+  .df-input,
+  .pbiaya-select-control
+) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 6px !important;
+  color: #1a1f36 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop #inv-create-form select.inv-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop #inv-create-form select.inv-input,
+.pen-modal-backdrop #inv-create-form select.inv-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23697386' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px 12px !important;
+}
+
+.pen-modal-backdrop #inv-create-form :is(
+  input.inv-input,
+  select.inv-input,
+  .df-input,
+  .pbiaya-select-control
+) {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
+.pen-modal-backdrop #inv-create-form textarea.inv-input.inv-jenis-textarea {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 7px 11px !important;
+  line-height: 20px !important;
+  resize: vertical !important;
+}
+
+.pen-modal-backdrop #inv-create-form textarea.inv-input:not(.inv-jenis-textarea) {
+  min-height: 76px !important;
+  padding: 9px 11px !important;
+  line-height: 1.5 !important;
+}
+
+/* Rincian Tagihan: Flat 3-Col Grid without Box-in-a-Box Cards */
+.pen-modal-backdrop #inv-create-form .inv-create-section {
+  margin: 20px 0 12px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid var(--gdg-border) !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-cost-grid.inv-create-cost-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px 16px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop #inv-create-form .inv-cost-card,
+[data-theme="light"] .pen-modal-backdrop #inv-create-form .inv-cost-card,
+.pen-modal-backdrop #inv-create-form .inv-cost-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  transform: none !important;
+}
+
+.pen-modal-backdrop #inv-create-form .inv-cost-card input.inv-input.inv-input-right {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  padding: 0 11px !important;
+}
+
+/* Edit / Create Invoice Footer (Overrides InvoicePembiayaan.css #inv-create-form ID specificity) */
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 20px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions,
+.pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 20px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+.pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions .inv-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions .inv-btn.primary,
+[data-theme="light"] .pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions .inv-btn.primary,
+.pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions .inv-btn.primary {
+  background: #635bff !important;
+  background-color: #635bff !important;
+  background-image: none !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.pen-modal-backdrop .inv-modal.inv-create-modal #inv-create-form .inv-modal-actions .inv-btn.primary:hover:not(:disabled) {
+  background: #5249f5 !important;
+  background-color: #5249f5 !important;
+  border-color: #5249f5 !important;
+}
+
+@media (max-width: 900px) {
+  .pen-modal-backdrop #inv-create-form .inv-cost-grid.inv-create-cost-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .pen-modal-backdrop #inv-create-form .inv-form-grid,
+  .pen-modal-backdrop #inv-create-form .inv-cost-grid.inv-create-cost-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .pen-modal-backdrop #inv-create-form .inv-form-grid .span-2 {
+    grid-column: span 1 !important;
+  }
+}
+
+/* ── Kirim Invoice Modal (.inv-send-modal) Horizontal 140px 1fr Alignment ─ */
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields {
+  margin-top: 16px !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields label {
+  display: grid !important;
+  grid-template-columns: 140px 1fr !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields label > .inv-field-label {
+  width: auto !important;
+  flex: none !important;
+  margin: 0 !important;
+}
+
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields .df-wrap {
+  width: 100% !important;
+  flex: none !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields :is(.df-input, .df-input:disabled) {
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields .df-input:disabled {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] .pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields :is(.df-input, .df-input:disabled),
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields :is(.df-input, .df-input:disabled) {
+  width: 100% !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  border: 1px solid #d8dee4 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #1a1f36 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important;
+  box-shadow: none !important;
+}
+
+.pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields .df-input:disabled {
+  color: #697386 !important;
+}
+
+@media (max-width: 520px) {
+  .pen-modal-backdrop .inv-send-modal:not(.inv-receipt-modal) .inv-send-fields label {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+}
+
+/* ── Alokasi Pembiayaan Page + Rincian Transaksi & Tambah Alokasi Modals ─ */
+[data-theme="dark"] .ap-page .ap-induk-pool-badge,
+[data-theme="light"] .ap-page .ap-induk-pool-badge,
+.ap-page .ap-induk-pool-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: var(--pen-muted) !important;
+}
+
+.ap-page .ap-induk-pool-badge::before {
+  content: "" !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: #635bff !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="light"] .ap-modal-backdrop .ap-modal,
+.ap-modal-backdrop .ap-modal {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal > .ap-detail-head,
+[data-theme="light"] .ap-modal-backdrop .ap-modal > .ap-detail-head,
+.ap-modal-backdrop .ap-modal > .ap-detail-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 16px 20px !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-detail-head .ap-modal-close.pen-confirm-close,
+[data-theme="light"] .ap-modal-backdrop .ap-detail-head .ap-modal-close.pen-confirm-close,
+.ap-modal-backdrop .ap-detail-head .ap-modal-close.pen-confirm-close {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+.ap-modal-backdrop .ap-detail-head .ap-modal-close.pen-confirm-close:hover {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+/* Stat-Bar Saldo / Masuk / Keluar (No Boxes, No Colorful Icons) */
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats,
+.ap-modal-backdrop .ap-modal-stats.ap-detail-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  padding: 12px 20px !important;
+  gap: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span,
+.ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 2px 16px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--pen-muted) !important;
+}
+
+.ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span:first-child {
+  padding-left: 0 !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span + span,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span + span,
+.ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span + span {
+  border-left: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span > strong,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span > strong,
+.ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span > strong {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+/* Tools Row & Controls inside Rincian Transaksi (36px, border-radius: 6px, #181b23 dark / #ffffff light) */
+[data-theme="dark"] .ap-modal-backdrop .ap-ledger-tools,
+[data-theme="light"] .ap-modal-backdrop .ap-ledger-tools,
+.ap-modal-backdrop .ap-ledger-tools {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  padding: 12px 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-ledger-tools :is(.ap-search, select.ap-ledger-type, .drp-trigger) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .ap-modal-backdrop .ap-ledger-tools :is(.ap-search, select.ap-ledger-type, .drp-trigger),
+.ap-modal-backdrop .ap-ledger-tools :is(.ap-search, select.ap-ledger-type, .drp-trigger) {
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
+  box-shadow: none !important;
+}
+
+.ap-modal-backdrop .ap-ledger-tools .ap-search input.ap-input {
+  height: 100% !important;
+  min-height: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--pen-text) !important;
+  font-size: 13px !important;
+}
+
+/* Sticky Table Header & Plain Operator Column inside Rincian Transaksi */
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-table,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-table,
+.ap-modal-backdrop .ap-modal-table {
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 20px 14px !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-table .ap-table th {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .ap-modal-backdrop .ap-modal-table .ap-table th,
+.ap-modal-backdrop .ap-modal-table .ap-table th {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #697386 !important;
+  border-bottom: 1px solid #e3e8ee !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-modal-table .ap-ledger-row td,
+[data-theme="light"] .ap-modal-backdrop .ap-modal-table .ap-ledger-row td,
+.ap-modal-backdrop .ap-modal-table .ap-ledger-row td {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  color: var(--pen-text) !important;
+}
+
+.ap-modal-backdrop .ap-modal-table .ap-ledger-row:hover td {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+}
+
+.ap-modal-backdrop .ap-operator-cell {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--pen-muted) !important;
+}
+
+/* Tambah Alokasi Modal (.ap-create-modal) Clean Controls & Footer */
+[data-theme="dark"] .ap-modal-backdrop .ap-create-form label {
+  color: #cbd5e1 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .ap-modal-backdrop .ap-create-form label,
+.ap-modal-backdrop .ap-create-form label {
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-create-form :is(input.ap-input, select.ap-input, textarea.ap-input, .df-input, .pbiaya-select-control) {
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 6px !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .ap-modal-backdrop .ap-create-form :is(input.ap-input, select.ap-input, textarea.ap-input, .df-input, .pbiaya-select-control),
+.ap-modal-backdrop .ap-create-form :is(input.ap-input, select.ap-input, textarea.ap-input, .df-input, .pbiaya-select-control) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 6px !important;
+  color: #1a1f36 !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.ap-modal-backdrop .ap-create-form :is(input.ap-input, select.ap-input, .df-input, .pbiaya-select-control) {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
+[data-theme="dark"] .ap-modal-backdrop .ap-create-actions,
+[data-theme="light"] .ap-modal-backdrop .ap-create-actions,
+.ap-modal-backdrop .ap-create-actions {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  padding: 14px 0 0 !important;
+  margin-top: 16px !important;
+}
+
+@media (max-width: 680px) {
+  .ap-modal-backdrop .ap-modal-stats.ap-detail-stats {
+    grid-template-columns: 1fr !important;
+    padding: 8px 16px !important;
+  }
+  .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span {
+    padding: 8px 0 !important;
+  }
+  .ap-modal-backdrop .ap-modal-stats.ap-detail-stats > span + span {
+    border-left: none !important;
+    border-top: 1px solid var(--gdg-border) !important;
+  }
+}
+
+/* ── Master Pembiayaan Page & Modals (Beats late MasterPembiayaan.css) ─── */
+[data-theme="dark"] .mp-page .mp-table,
+[data-theme="light"] .mp-page .mp-table,
+.mp-page .mp-table {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-table th,
+[data-theme="light"] .mp-page .mp-table th,
+.mp-page .mp-table th {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-table td,
+[data-theme="light"] .mp-page .mp-table td,
+.mp-page .mp-table td {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-text) !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-table tbody tr:hover td,
+[data-theme="light"] .mp-page .mp-table tbody tr:hover td,
+.mp-page .mp-table tbody tr:hover td {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+}
+
+/* Plain NO / ID / Code / Member Count Text (Zero Boxes or Green/Blue Pills) */
+[data-theme="dark"] .mp-page :is(.mp-id-badge, .mp-code-badge, .mp-members-count-pill),
+[data-theme="light"] .mp-page :is(.mp-id-badge, .mp-code-badge, .mp-members-count-pill),
+[data-theme="dark"] .mp-modal-overlay :is(.mp-id-badge, .mp-code-badge),
+[data-theme="light"] .mp-modal-overlay :is(.mp-id-badge, .mp-code-badge),
+.mp-page :is(.mp-id-badge, .mp-code-badge, .mp-members-count-pill),
+.mp-modal-overlay :is(.mp-id-badge, .mp-code-badge) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--pen-text) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+[data-theme="dark"] .mp-page .mp-id-badge,
+[data-theme="light"] .mp-page .mp-id-badge,
+[data-theme="dark"] .mp-modal-overlay .mp-id-badge,
+[data-theme="light"] .mp-modal-overlay .mp-id-badge {
+  color: var(--pen-muted) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-members-count-pill strong,
+[data-theme="light"] .mp-page .mp-members-count-pill strong,
+.mp-page .mp-members-count-pill strong {
+  color: var(--pen-text) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Table Action Buttons: Neutral 30px Anggota + 30x30 Edit/Delete */
+[data-theme="dark"] .mp-page :is(.mp-mini-btn, .mp-mini-btn.kelola, .mp-mini-btn.reactivate),
+[data-theme="light"] .mp-page :is(.mp-mini-btn, .mp-mini-btn.kelola, .mp-mini-btn.reactivate),
+.mp-page :is(.mp-mini-btn, .mp-mini-btn.kelola, .mp-mini-btn.reactivate) {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  background-image: none !important;
+  color: var(--pen-text) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .mp-page .mp-mini-btn.kelola:hover:not(:disabled),
+[data-theme="light"] .mp-page .mp-mini-btn.kelola:hover:not(:disabled),
+.mp-page .mp-mini-btn.kelola:hover:not(:disabled) {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  border-color: #635bff !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-mini-btn.reactivate:hover:not(:disabled),
+[data-theme="light"] .mp-page .mp-mini-btn.reactivate:hover:not(:disabled),
+.mp-page .mp-mini-btn.reactivate:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.12) !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+[data-theme="dark"] .mp-page .mp-icon-btn,
+[data-theme="light"] .mp-page .mp-icon-btn,
+.mp-page .mp-icon-btn {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .mp-page .mp-icon-btn.edit:hover:not(:disabled),
+[data-theme="light"] .mp-page .mp-icon-btn.edit:hover:not(:disabled),
+.mp-page .mp-icon-btn.edit:hover:not(:disabled) {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  border-color: #635bff !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .mp-page .mp-icon-btn.danger:hover:not(:disabled),
+[data-theme="light"] .mp-page .mp-icon-btn.danger:hover:not(:disabled),
+.mp-page .mp-icon-btn.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14) !important;
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .mp-page .mp-badge,
+[data-theme="dark"] .mp-page .mp-badge.active,
+[data-theme="dark"] .mp-page .mp-badge.inactive,
+[data-theme="light"] .mp-page .mp-badge,
+[data-theme="light"] .mp-page .mp-badge.active,
+[data-theme="light"] .mp-page .mp-badge.inactive {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+[data-theme="dark"] .mp-page .mp-badge.active {
+  color: #34d399 !important;
+}
+[data-theme="dark"] .mp-page .mp-badge.inactive {
+  color: #fbbf24 !important;
+}
+
+/* Tab 2 Inline Induk Select */
+[data-theme="dark"] .mp-page select.mp-inline-induk-select {
+  height: 32px !important;
+  border-radius: 6px !important;
+  background-color: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+}
+[data-theme="light"] .mp-page select.mp-inline-induk-select,
+.mp-page select.mp-inline-induk-select {
+  height: 32px !important;
+  border-radius: 6px !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  color: #1a1f36 !important;
+}
+
+/* Master Pembiayaan Modals (#111318 Dark / #ffffff Light, 36px Buttons) */
+[data-theme="dark"] .mp-modal-overlay .mp-modal {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  background-image: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="light"] .mp-modal-overlay .mp-modal,
+.mp-modal-overlay .mp-modal {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 10px !important;
+  color: #1a1f36 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-head,
+[data-theme="light"] .mp-modal-overlay .mp-modal-head,
+.mp-modal-overlay .mp-modal-head {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  padding: 16px 20px !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-head h2,
+[data-theme="light"] .mp-modal-overlay .mp-modal-head h2,
+.mp-modal-overlay .mp-modal-head h2 {
+  color: var(--pen-text) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-title-with-badge h2 span.highlight {
+  color: #a5b4fc !important;
+}
+[data-theme="light"] .mp-modal-overlay .mp-modal-title-with-badge h2 span.highlight,
+.mp-modal-overlay .mp-modal-title-with-badge h2 span.highlight {
+  color: #635bff !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-count-badge,
+[data-theme="light"] .mp-modal-overlay .mp-modal-count-badge,
+.mp-modal-overlay .mp-modal-count-badge {
+  background: var(--pen-surface-2) !important;
+  background-color: var(--pen-surface-2) !important;
+  border: 1px solid var(--gdg-border) !important;
+  color: var(--pen-muted) !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-close-btn,
+[data-theme="light"] .mp-modal-overlay .mp-close-btn,
+.mp-modal-overlay .mp-close-btn {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--pen-muted) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-close-btn:hover,
+[data-theme="light"] .mp-modal-overlay .mp-close-btn:hover,
+.mp-modal-overlay .mp-close-btn:hover {
+  background: var(--pen-hover) !important;
+  background-color: var(--pen-hover) !important;
+  color: var(--pen-text) !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-body,
+[data-theme="light"] .mp-modal-overlay .mp-modal-body,
+.mp-modal-overlay .mp-modal-body {
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 18px 20px !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-form-group > span {
+  color: #cbd5e1 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+[data-theme="light"] .mp-modal-overlay .mp-form-group > span,
+.mp-modal-overlay .mp-form-group > span {
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay :is(input.mp-input, textarea.mp-input, .mp-search-mini, .pbiaya-select-control) {
+  background: #181b23 !important;
+  background-color: #181b23 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 6px !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .mp-modal-overlay :is(input.mp-input, textarea.mp-input, .mp-search-mini, .pbiaya-select-control),
+.mp-modal-overlay :is(input.mp-input, textarea.mp-input, .mp-search-mini, .pbiaya-select-control) {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #d8dee4 !important;
+  border-radius: 6px !important;
+  color: #1a1f36 !important;
+  box-shadow: none !important;
+}
+
+.mp-modal-overlay :is(input.mp-input, .mp-search-mini, .pbiaya-select-control) {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-table.inner-table th {
+  background: #111318 !important;
+  background-color: #111318 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="light"] .mp-modal-overlay .mp-table.inner-table th,
+.mp-modal-overlay .mp-table.inner-table th {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #697386 !important;
+  border-bottom: 1px solid #e3e8ee !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-danger-mini-btn,
+[data-theme="light"] .mp-modal-overlay .mp-danger-mini-btn,
+.mp-modal-overlay .mp-danger-mini-btn {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--pen-border-ctrl) !important;
+  background: var(--pen-input) !important;
+  background-color: var(--pen-input) !important;
+  color: #ef4444 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-danger-mini-btn:hover:not(:disabled),
+[data-theme="light"] .mp-modal-overlay .mp-danger-mini-btn:hover:not(:disabled),
+.mp-modal-overlay .mp-danger-mini-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14) !important;
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-actions,
+[data-theme="light"] .mp-modal-overlay .mp-modal-actions,
+.mp-modal-overlay .mp-modal-actions {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-top: 1px solid var(--gdg-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 14px 20px !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay .mp-modal-actions button,
+[data-theme="light"] .mp-modal-overlay .mp-modal-actions button,
+.mp-modal-overlay .mp-modal-actions button,
+.mp-modal-overlay .add-member-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay :is(.mp-primary, .mp-accent-btn),
+[data-theme="light"] .mp-modal-overlay :is(.mp-primary, .mp-accent-btn),
+.mp-modal-overlay :is(.mp-primary, .mp-accent-btn) {
+  background: #635bff !important;
+  background-color: #635bff !important;
+  background-image: none !important;
+  border: 1px solid #635bff !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .mp-modal-overlay :is(.mp-primary, .mp-accent-btn):hover:not(:disabled),
+[data-theme="light"] .mp-modal-overlay :is(.mp-primary, .mp-accent-btn):hover:not(:disabled),
+.mp-modal-overlay :is(.mp-primary, .mp-accent-btn):hover:not(:disabled) {
+  background: #5249f5 !important;
+  background-color: #5249f5 !important;
+  border-color: #5249f5 !important;
 }

@@ -34,8 +34,10 @@ def _is_logistik_operator(user):
     )
 
 
-def _resolve_or_create_ruang_for_unit(unit_obj):
-    """Cari Ruang yang sesuai dengan Unit user; jika belum ada, buatkan otomatis."""
+def _find_ruang_for_unit(unit_obj):
+    """Cari Ruang yang cocok dengan Unit user tanpa membuat data baru."""
+    if not unit_obj:
+        return None
     unit_name = (unit_obj.nama or '').strip()
     matched_ruang = (
         Ruang.objects.filter(unit=unit_obj).first()
@@ -43,9 +45,16 @@ def _resolve_or_create_ruang_for_unit(unit_obj):
     )
     if not matched_ruang and len(unit_name) > 2:
         matched_ruang = Ruang.objects.filter(nama__icontains=unit_name).first()
+    return matched_ruang
+
+
+def _resolve_or_create_ruang_for_unit(unit_obj):
+    """Cari Ruang yang sesuai dengan Unit user; jika belum ada, buatkan otomatis."""
+    matched_ruang = _find_ruang_for_unit(unit_obj)
     if matched_ruang:
         return matched_ruang
 
+    unit_name = (unit_obj.nama or '').strip()
     base_kode = f"U-{unit_obj.id:03d}"
     kode_ruang = base_kode
     suffix = 1
@@ -107,6 +116,55 @@ class PermintaanViewSet(viewsets.ModelViewSet):
         if ruang_param:
             qs = qs.filter(ruang_id=ruang_param)
         return qs
+
+    @action(detail=False, methods=['post'], url_path='check-duplicates')
+    def check_duplicates(self, request):
+        """
+        Cek apakah unit/ruangan masih memiliki permintaan barang aktif (belum selesai)
+        untuk barang-barang yang hendak diajukan agar pemohon mendapat peringatan & konfirmasi.
+        """
+        ruang_id = request.data.get('ruang')
+        raw_barang_ids = request.data.get('barang_ids') or []
+        exclude_id = request.data.get('exclude_permintaan_id')
+
+        ruang_obj = None
+        if ruang_id:
+            ruang_obj = Ruang.objects.filter(pk=ruang_id).first()
+        elif getattr(request.user, 'unit', None):
+            ruang_obj = _find_ruang_for_unit(request.user.unit)
+
+        clean_barang_ids = []
+        for bid in raw_barang_ids:
+            try:
+                val = int(bid)
+                if val > 0 and val not in clean_barang_ids:
+                    clean_barang_ids.append(val)
+            except (TypeError, ValueError):
+                continue
+
+        exclude_pk = None
+        if exclude_id:
+            try:
+                exclude_pk = int(exclude_id)
+            except (TypeError, ValueError):
+                exclude_pk = None
+
+        duplicates = (
+            DistributionService.find_active_duplicate_items_for_ruang(
+                ruang_id=ruang_obj.id,
+                barang_ids=clean_barang_ids,
+                exclude_permintaan_id=exclude_pk,
+            )
+            if ruang_obj and clean_barang_ids
+            else []
+        )
+
+        return Response({
+            'ruang_id': ruang_obj.id if ruang_obj else None,
+            'ruang_nama': ruang_obj.nama if ruang_obj else (getattr(getattr(request.user, 'unit', None), 'nama', '') or ''),
+            'has_duplicates': len(duplicates) > 0,
+            'duplicates': duplicates,
+        })
 
     def create(self, request, *args, **kwargs):
         data = request.data

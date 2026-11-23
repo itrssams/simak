@@ -13,6 +13,140 @@ from gudang.services.stock import StockService
 
 
 class DistributionService:
+    ACTIVE_PERMINTAAN_STATUSES = (
+        Permintaan.STATUS_MENUNGGU,
+        Permintaan.STATUS_DISETUJUI,
+        Permintaan.STATUS_PROSES_SEBAGIAN,
+    )
+    ACTIVE_PERMINTAAN_ITEM_STATUSES = (
+        PermintaanItem.STATUS_MENUNGGU,
+        PermintaanItem.STATUS_DISETUJUI,
+        PermintaanItem.STATUS_SEDANG_DIAJUKAN,
+    )
+    ACTIVE_ITEM_STATUS_LABELS = {
+        PermintaanItem.STATUS_MENUNGGU: 'Menunggu ACC',
+        PermintaanItem.STATUS_DISETUJUI: 'Disetujui (Belum Diambil)',
+        PermintaanItem.STATUS_SEDANG_DIAJUKAN: 'Menunggu Pengadaan',
+    }
+
+    @classmethod
+    def _serialize_active_item_entry(cls, pi: PermintaanItem) -> Optional[Dict[str, Any]]:
+        qty_minta = pi.qty_minta or Decimal('0')
+        qty_disetujui = pi.qty_disetujui or Decimal('0')
+        qty_dikeluarkan = pi.qty_dikeluarkan or Decimal('0')
+        sisa = max(Decimal('0'), qty_disetujui - qty_dikeluarkan)
+
+        # Item yang sudah disetujui dan fisik sudah diambil penuh tidak dianggap masih gantung
+        if pi.status == PermintaanItem.STATUS_DISETUJUI and sisa <= Decimal('0'):
+            return None
+
+        created_by = pi.permintaan.created_by
+        created_by_nama = (created_by.get_full_name() or created_by.username) if created_by else ''
+        satuan_txt = pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang and pi.barang.satuan_dasar else '')
+
+        return {
+            'id': pi.id,
+            'permintaan_id': pi.permintaan_id,
+            'nomor': pi.permintaan.nomor,
+            'tanggal': str(pi.permintaan.tanggal) if pi.permintaan.tanggal else None,
+            'ruang_id': pi.permintaan.ruang_id,
+            'ruang_nama': pi.permintaan.ruang_nama or (pi.permintaan.ruang.nama if pi.permintaan.ruang else '-'),
+            'barang_id': pi.barang_id,
+            'barang_kode': pi.barang.kode if pi.barang else '',
+            'barang_nama': pi.barang.nama if pi.barang else '',
+            'satuan': satuan_txt,
+            'qty_minta': float(qty_minta),
+            'qty_disetujui': float(qty_disetujui),
+            'qty_dikeluarkan': float(qty_dikeluarkan),
+            'sisa_belum_serah': float(sisa),
+            'item_status': pi.status,
+            'item_status_label': cls.ACTIVE_ITEM_STATUS_LABELS.get(pi.status, pi.get_status_display()),
+            'permintaan_status': pi.permintaan.status,
+            'permintaan_status_label': pi.permintaan.get_status_display(),
+            'created_by_nama': created_by_nama,
+        }
+
+    @classmethod
+    def get_concurrent_active_items_map(cls, permintaan_list: List[Permintaan]) -> Dict[tuple, List[Dict[str, Any]]]:
+        """
+        Ambil peta {(ruang_id, barang_id): [entry...]} untuk semua PermintaanItem lain yang belum selesai
+        dalam satu query batch agar bebas N+1.
+        """
+        active_reqs = [p for p in permintaan_list if p and p.status in cls.ACTIVE_PERMINTAAN_STATUSES]
+        if not active_reqs:
+            return {}
+
+        ruang_ids = {p.ruang_id for p in active_reqs if p.ruang_id}
+        barang_ids = {pi.barang_id for p in active_reqs for pi in p.items.all()}
+        if not ruang_ids or not barang_ids:
+            return {}
+
+        qs = (
+            PermintaanItem.objects.filter(
+                permintaan__ruang_id__in=ruang_ids,
+                barang_id__in=barang_ids,
+                permintaan__status__in=cls.ACTIVE_PERMINTAAN_STATUSES,
+                status__in=cls.ACTIVE_PERMINTAAN_ITEM_STATUSES,
+            )
+            .select_related('permintaan', 'permintaan__ruang', 'permintaan__created_by', 'barang', 'barang__satuan_dasar')
+            .order_by('-permintaan__tanggal', '-permintaan_id', 'id')
+        )
+
+        grouped: Dict[tuple, List[Dict[str, Any]]] = {}
+        for pi in qs:
+            entry = cls._serialize_active_item_entry(pi)
+            if not entry:
+                continue
+            key = (pi.permintaan.ruang_id, pi.barang_id)
+            grouped.setdefault(key, []).append(entry)
+        return grouped
+
+    @classmethod
+    def find_active_duplicate_items_for_ruang(
+        cls,
+        ruang_id: int,
+        barang_ids: List[int],
+        exclude_permintaan_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Cek apakah suatu ruangan masih memiliki permintaan aktif (belum selesai)
+        untuk daftar barang tertentu, dikelompokkan per barang.
+        """
+        if not ruang_id or not barang_ids:
+            return []
+
+        qs = PermintaanItem.objects.filter(
+            permintaan__ruang_id=ruang_id,
+            barang_id__in=barang_ids,
+            permintaan__status__in=cls.ACTIVE_PERMINTAAN_STATUSES,
+            status__in=cls.ACTIVE_PERMINTAAN_ITEM_STATUSES,
+        )
+        if exclude_permintaan_id:
+            qs = qs.exclude(permintaan_id=exclude_permintaan_id)
+
+        qs = qs.select_related(
+            'permintaan', 'permintaan__ruang', 'permintaan__created_by', 'barang', 'barang__satuan_dasar'
+        ).order_by('-permintaan__tanggal', '-permintaan_id', 'id')
+
+        grouped_by_barang: Dict[int, Dict[str, Any]] = {}
+        for pi in qs:
+            entry = cls._serialize_active_item_entry(pi)
+            if not entry:
+                continue
+            bucket = grouped_by_barang.get(pi.barang_id)
+            if not bucket:
+                bucket = {
+                    'barang_id': pi.barang_id,
+                    'barang_kode': entry['barang_kode'],
+                    'barang_nama': entry['barang_nama'],
+                    'satuan': entry['satuan'],
+                    'active_requests': [],
+                }
+                grouped_by_barang[pi.barang_id] = bucket
+            bucket['active_requests'].append(entry)
+
+        return list(grouped_by_barang.values())
+
     @classmethod
     @transaction.atomic
     def create_permintaan(
@@ -693,6 +827,10 @@ class DistributionService:
         pengeluaran.approved_by = user
         pengeluaran.approved_at = timezone.now()
         pengeluaran.save(update_fields=['total_nilai', 'status', 'approved_by', 'approved_at', 'updated_at'])
+
+        # 5. Auto-post Jurnal Pemakaian Persediaan ke Unit / Cost Center (FASE 3 Accounting Hook)
+        from keuangan.services import AutoPostingService
+        AutoPostingService.post_goods_out_approved(pengeluaran, user=user)
 
         return pengeluaran
 

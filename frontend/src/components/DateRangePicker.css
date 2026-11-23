@@ -341,10 +341,11 @@
 }
 
 [data-theme="dark"] .drp-popover {
-    background: #111318 !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: #181b23 !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
     box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35) !important;
     color: #e2e8f0 !important;
+    z-index: 2147483000 !important;
 }
 
 [data-theme="dark"] .drp-preset-btn {

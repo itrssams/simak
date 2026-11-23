@@ -30,6 +30,7 @@ services:
       - ./backend/.env.example
     environment:
       ALLOWED_HOSTS: localhost,127.0.0.1,192.168.44.15,backend
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: simak_dev

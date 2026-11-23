@@ -6,6 +6,16 @@ from gudang.models import (
 from gudang.services.distribution import DistributionService
 
 
+def _get_concurrent_items_map_for_permintaan(permintaan, context):
+    if not permintaan or permintaan.status not in DistributionService.ACTIVE_PERMINTAAN_STATUSES:
+        return {}
+    cache = context.get('_concurrent_items_map')
+    if cache is None:
+        cache = DistributionService.get_concurrent_active_items_map([permintaan])
+        context['_concurrent_items_map'] = cache
+    return cache
+
+
 class PermintaanItemSerializer(serializers.ModelSerializer):
     barang_nama = serializers.CharField(source='barang.nama', read_only=True)
     barang_kode = serializers.CharField(source='barang.kode', read_only=True)
@@ -13,6 +23,7 @@ class PermintaanItemSerializer(serializers.ModelSerializer):
     stok_tersedia = serializers.SerializerMethodField()
     status_label = serializers.CharField(source='get_status_display', read_only=True)
     sisa_belum_serah = serializers.SerializerMethodField()
+    concurrent_active_requests = serializers.SerializerMethodField()
 
     class Meta:
         model = PermintaanItem
@@ -20,7 +31,7 @@ class PermintaanItemSerializer(serializers.ModelSerializer):
             'id', 'barang', 'barang_nama', 'barang_kode', 'satuan_dasar_kode',
             'qty_minta', 'satuan', 'qty_disetujui', 'qty_dikeluarkan',
             'status', 'status_label', 'alasan_tolak', 'sisa_belum_serah',
-            'keterangan', 'stok_tersedia'
+            'keterangan', 'stok_tersedia', 'concurrent_active_requests'
         ]
 
     def get_stok_tersedia(self, obj):
@@ -34,6 +45,28 @@ class PermintaanItemSerializer(serializers.ModelSerializer):
             return 0.0
         sisa = (obj.qty_disetujui or Decimal('0')) - (obj.qty_dikeluarkan or Decimal('0'))
         return float(max(Decimal('0'), sisa))
+
+    def get_concurrent_active_requests(self, obj):
+        permintaan = getattr(obj, 'permintaan', None)
+        if not permintaan or permintaan.status not in DistributionService.ACTIVE_PERMINTAAN_STATUSES:
+            return []
+        sisa = (obj.qty_disetujui or Decimal('0')) - (obj.qty_dikeluarkan or Decimal('0'))
+        is_open_item = (
+            obj.status in (PermintaanItem.STATUS_MENUNGGU, PermintaanItem.STATUS_SEDANG_DIAJUKAN)
+            or (obj.status == PermintaanItem.STATUS_DISETUJUI and sisa > Decimal('0'))
+        )
+        if not is_open_item:
+            return []
+        concurrent_map = _get_concurrent_items_map_for_permintaan(permintaan, self.context)
+        entries = concurrent_map.get((permintaan.ruang_id, obj.barang_id), [])
+        return [e for e in entries if e['permintaan_id'] != obj.permintaan_id]
+
+
+class PermintaanListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        iterable = list(data.all()) if hasattr(data, 'all') else list(data)
+        self.child.context['_concurrent_items_map'] = DistributionService.get_concurrent_active_items_map(iterable)
+        return [self.child.to_representation(item) for item in iterable]
 
 
 class PermintaanSerializer(serializers.ModelSerializer):
@@ -51,16 +84,20 @@ class PermintaanSerializer(serializers.ModelSerializer):
     penerima_nama = serializers.SerializerMethodField()
     pengeluaran_list = serializers.SerializerMethodField()
     item_status_counts = serializers.SerializerMethodField()
+    concurrent_duplicate_count = serializers.SerializerMethodField()
+    concurrent_duplicate_items = serializers.SerializerMethodField()
 
     class Meta:
         model = Permintaan
+        list_serializer_class = PermintaanListSerializer
         fields = [
             'id', 'nomor', 'tanggal', 'tanggal_penyerahan', 'penerima_nama', 'ruang', 'ruang_nama',
             'catatan', 'status', 'alasan_tolak', 'legacy_out_id',
             'items', 'item_status_counts', 'created_by', 'created_by_nama',
             'approved_by', 'approved_by_nama', 'approved_at',
             'created_at', 'updated_at', 'can_approve', 'can_followup_approve', 'can_issue', 'can_cancel',
-            'bon_pengeluaran_id', 'bon_pengeluaran_nomor', 'pengeluaran_list'
+            'bon_pengeluaran_id', 'bon_pengeluaran_nomor', 'pengeluaran_list',
+            'concurrent_duplicate_count', 'concurrent_duplicate_items'
         ]
 
     def _has_approver_permission(self, request):
@@ -180,6 +217,38 @@ class PermintaanSerializer(serializers.ModelSerializer):
     def get_penerima_nama(self, obj):
         out = self._get_active_pengeluaran(obj)
         return out.penerima_nama if out and out.penerima_nama else None
+
+    def get_concurrent_duplicate_items(self, obj):
+        if not obj or obj.status not in DistributionService.ACTIVE_PERMINTAAN_STATUSES:
+            return []
+        concurrent_map = _get_concurrent_items_map_for_permintaan(obj, self.context)
+        result = []
+        for pi in obj.items.all():
+            sisa = (pi.qty_disetujui or Decimal('0')) - (pi.qty_dikeluarkan or Decimal('0'))
+            is_open_item = (
+                pi.status in (PermintaanItem.STATUS_MENUNGGU, PermintaanItem.STATUS_SEDANG_DIAJUKAN)
+                or (pi.status == PermintaanItem.STATUS_DISETUJUI and sisa > Decimal('0'))
+            )
+            if not is_open_item:
+                continue
+            others = [
+                entry for entry in concurrent_map.get((obj.ruang_id, pi.barang_id), [])
+                if entry['permintaan_id'] != obj.id
+            ]
+            if others:
+                result.append({
+                    'item_id': pi.id,
+                    'barang_id': pi.barang_id,
+                    'barang_kode': pi.barang.kode if pi.barang else '',
+                    'barang_nama': pi.barang.nama if pi.barang else '',
+                    'qty_minta': float(pi.qty_minta or 0),
+                    'satuan': pi.satuan or (pi.barang.satuan_dasar.kode if pi.barang and pi.barang.satuan_dasar else ''),
+                    'other_requests': others,
+                })
+        return result
+
+    def get_concurrent_duplicate_count(self, obj):
+        return len(self.get_concurrent_duplicate_items(obj))
 
 
 class PengeluaranItemSerializer(serializers.ModelSerializer):

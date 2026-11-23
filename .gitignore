@@ -92,3 +92,22 @@ Siaga/
 # Scratch / Temp Notes
 # ==========================
 pertanyaan.*
+
+# ==========================
+# Mobile (Flutter / Android / iOS)
+# ==========================
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/**/*.jks
+mobile/android/**/*.keystore
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/ephemeral/
+*.apk
+*.aab
+*.ipa

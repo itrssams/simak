@@ -30,6 +30,17 @@ import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import DateField from '../../components/DateField';
 import SearchableSelect from '../../components/SearchableSelect';
+import {
+    useConcurrentPermintaanCheck,
+    checkPermintaanDuplicatesApi,
+} from './concurrentRequestUtils';
+import {
+    ConcurrentApproverBanner,
+    ConcurrentCreateWarningBanner,
+    ConcurrentDuplicateConfirmModal,
+    ConcurrentItemInlineList,
+    ConcurrentTableBadge,
+} from './ConcurrentRequestNotice';
 import './PermintaanUnit.css';
 
 export default function PermintaanUnit() {
@@ -62,6 +73,7 @@ export default function PermintaanUnit() {
     const [formItems, setFormItems] = useState([
         { barang_id: '', qty: 1, satuan: 'PCS', keterangan: '' }
     ]);
+    const [pendingDuplicateConfirm, setPendingDuplicateConfirm] = useState(null);
 
     // Modal: Detail & Tracking
     const [selectedReq, setSelectedReq] = useState(null);
@@ -320,6 +332,26 @@ export default function PermintaanUnit() {
         setFormItems(next);
     };
 
+    const executeSubmitCreate = async (payload, effectiveRuangId) => {
+        setSaving(true);
+        try {
+            await api.post('/gudang/permintaan/', payload);
+
+            if (!effectiveRuangId) {
+                api.get('/gudang/ruang/').then(r => setRuangList(r.data || [])).catch(() => {});
+            }
+
+            toast.success('Permintaan barang berhasil diajukan!');
+            setPendingDuplicateConfirm(null);
+            setShowCreateModal(false);
+            fetchRequests();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message || 'Gagal mengajukan permohonan.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSubmitCreate = async (e) => {
         e.preventDefault();
 
@@ -341,33 +373,40 @@ export default function PermintaanUnit() {
             return;
         }
 
+        const payload = {
+            ruang: effectiveRuangId || undefined,
+            tanggal: formTanggal,
+            catatan: formCatatan,
+            auto_submit: true, // Status otomatis MENUNGGU siap diverifikasi Koordinator
+            items: validItems.map(it => ({
+                barang: it.barang_id,
+                qty_minta: it.qty,
+                satuan: it.satuan,
+                keterangan: it.keterangan || ''
+            }))
+        };
+
         setSaving(true);
         try {
-            await api.post('/gudang/permintaan/', {
-                ruang: effectiveRuangId || undefined,
-                tanggal: formTanggal,
-                catatan: formCatatan,
-                auto_submit: true, // Status otomatis MENUNGGU siap diverifikasi Koordinator
-                items: validItems.map(it => ({
-                    barang: it.barang_id,
-                    qty_minta: it.qty,
-                    satuan: it.satuan,
-                    keterangan: it.keterangan || ''
-                }))
+            const dupRes = await checkPermintaanDuplicatesApi({
+                ruangId: effectiveRuangId,
+                barangIds: validItems.map(it => it.barang_id),
             });
-
-            if (!effectiveRuangId) {
-                api.get('/gudang/ruang/').then(r => setRuangList(r.data || [])).catch(() => {});
+            if (dupRes?.has_duplicates && dupRes.duplicates?.length > 0) {
+                setSaving(false);
+                setPendingDuplicateConfirm({
+                    ruangNama: dupRes.ruang_nama || userRuang?.nama || userUnitNama || '',
+                    duplicates: dupRes.duplicates,
+                    payload,
+                    effectiveRuangId,
+                });
+                return;
             }
-
-            toast.success('Permintaan barang berhasil diajukan!');
-            setShowCreateModal(false);
-            fetchRequests();
-        } catch (err) {
-            toast.error(err.response?.data?.error || err.message || 'Gagal mengajukan permohonan.');
-        } finally {
-            setSaving(false);
+        } catch {
+            // Jika check-duplicates gagal sementara, lanjutkan submit standar
         }
+
+        await executeSubmitCreate(payload, effectiveRuangId);
     };
 
     // ── Approve Handlers (Mas Febri / Koordinator) ──
@@ -388,7 +427,8 @@ export default function PermintaanUnit() {
                     stok_tersedia: stokTersedia,
                     keputusan,
                     qty_disetujui: keputusan === 'SETUJUI' ? (disetujui > 0 ? Math.min(disetujui, stokTersedia) : Math.min(minta, stokTersedia)) : 0,
-                    catatan_verif: it.alasan_tolak || ''
+                    catatan_verif: it.alasan_tolak || '',
+                    concurrent_active_requests: it.concurrent_active_requests || [],
                 };
             })
         );
@@ -662,22 +702,11 @@ export default function PermintaanUnit() {
             .filter(b => b && Number(b.stok_saat_ini || 0) <= 0);
     }, [formItems, barangList]);
 
-    const duplicatePendingItemNames = useMemo(() => {
-        const selectedIds = new Set(formItems.map(it => String(it.barang_id)).filter(Boolean));
-        if (!selectedIds.size) return [];
-        const targetRuangId = String(formRuangId || userRuang?.id || '');
-        const names = new Set();
-        requests.forEach(r => {
-            if (!['MENUNGGU', 'PROSES_SEBAGIAN'].includes(r.status)) return;
-            if (targetRuangId && String(r.ruang) !== targetRuangId) return;
-            (r.items || []).forEach(it => {
-                if (selectedIds.has(String(it.barang)) && ['MENUNGGU', 'SEDANG_DIAJUKAN'].includes(it.status)) {
-                    names.add(it.barang_nama);
-                }
-            });
-        });
-        return Array.from(names);
-    }, [formItems, requests, formRuangId, userRuang]);
+    const { ruangNama: liveDupRuangNama, duplicates: liveCreateDuplicates } = useConcurrentPermintaanCheck({
+        isOpen: showCreateModal,
+        ruangId: formRuangId || userRuang?.id || '',
+        formItems,
+    });
 
     return (
         <div className="pu-page">
@@ -688,7 +717,7 @@ export default function PermintaanUnit() {
                     <p>Ajukan barang kebutuhan ruangan, pantau persetujuan Koordinator, dan ambil barang di loket gudang.</p>
                 </div>
                 <button type="button" className="pu-btn-create" onClick={handleOpenCreateModal}>
-                    <Plus size={16} /> Ajukan Permintaan Barang
+                    Ajukan Permintaan Barang
                 </button>
             </div>
 
@@ -831,7 +860,6 @@ export default function PermintaanUnit() {
                                             </td>
                                             <td>
                                                 <div className="pu-ruang-cell">
-                                                    <Building2 size={13} />
                                                     <span>{req.ruang_nama}</span>
                                                 </div>
                                             </td>
@@ -852,6 +880,10 @@ export default function PermintaanUnit() {
                                             </td>
                                             <td>
                                                 {renderStatusBadge(req.status)}
+                                                <ConcurrentTableBadge
+                                                    count={req.concurrent_duplicate_count}
+                                                    duplicateItems={req.concurrent_duplicate_items}
+                                                />
                                             </td>
                                             <td>
                                                 {req.created_by_nama ? (
@@ -1170,12 +1202,12 @@ export default function PermintaanUnit() {
                                         </div>
                                     )}
 
-                                    {duplicatePendingItemNames.length > 0 && (
-                                        <div className="pu-alert-banner info" style={{ marginTop: '8px' }}>
-                                            <Clock size={16} color="#0ea5e9" style={{ flexShrink: 0 }} />
-                                            <span>
-                                                Catatan: Unit Anda sudah memiliki pengajuan aktif untuk <strong>{duplicatePendingItemNames.join(', ')}</strong> yang masih menunggu ACC / pengadaan.
-                                            </span>
+                                    {liveCreateDuplicates.length > 0 && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <ConcurrentCreateWarningBanner
+                                                duplicates={liveCreateDuplicates}
+                                                ruangNama={liveDupRuangNama || userRuang?.nama || userUnitNama || ''}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -1314,8 +1346,15 @@ export default function PermintaanUnit() {
                                 </p>
                             )}
 
+                            {selectedReq.concurrent_duplicate_count > 0 && (
+                                <ConcurrentApproverBanner
+                                    duplicateItems={selectedReq.concurrent_duplicate_items}
+                                    ruangNama={selectedReq.ruang_nama}
+                                />
+                            )}
+
                             {/* Tabel Item Rincian */}
-                            <div className="pu-table-wrap">
+                            <div className="pu-table-wrap pu-detail-table-wrap">
                                 <table className="pu-table">
                                     <thead>
                                         <tr>
@@ -1332,7 +1371,7 @@ export default function PermintaanUnit() {
                                     <tbody>
                                         {(selectedReq.items || []).map((it, idx) => (
                                             <tr key={it.id}>
-                                                <td>{idx + 1}</td>
+                                                <td className="pu-num-cell">{idx + 1}</td>
                                                 <td><span className="pu-code-badge">{it.barang_kode}</span></td>
                                                 <td>
                                                     <strong>{it.barang_nama}</strong>
@@ -1344,14 +1383,15 @@ export default function PermintaanUnit() {
                                                             Alasan: {it.alasan_tolak}
                                                         </small>
                                                     )}
+                                                    <ConcurrentItemInlineList entries={it.concurrent_active_requests} />
                                                 </td>
-                                                <td align="right">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
-                                                <td align="right" style={{ color: Number(it.qty_disetujui) > 0 ? '#10b981' : '#94a3b8', fontWeight: 700 }}>
+                                                <td align="right" className="pu-num-cell">{Number(it.qty_minta).toLocaleString('id-ID')}</td>
+                                                <td align="right" className="pu-num-cell" style={{ color: Number(it.qty_disetujui) > 0 ? '#10b981' : '#94a3b8', fontWeight: 700 }}>
                                                     {it.status === 'MENUNGGU'
                                                         ? '-'
                                                         : Number(it.qty_disetujui || 0).toLocaleString('id-ID')}
                                                 </td>
-                                                <td align="right">{Number(it.qty_dikeluarkan || 0).toLocaleString('id-ID')}</td>
+                                                <td align="right" className="pu-num-cell">{Number(it.qty_dikeluarkan || 0).toLocaleString('id-ID')}</td>
                                                 <td>{renderItemStatusBadge(it)}</td>
                                                 <td>{it.satuan}</td>
                                             </tr>
@@ -1382,8 +1422,7 @@ export default function PermintaanUnit() {
                             {selectedReq.can_cancel && (
                                 <button
                                     type="button"
-                                    className="pu-btn soft"
-                                    style={{ color: '#dc2626' }}
+                                    className="pu-btn soft pu-btn-danger-text"
                                     onClick={() => handleOpenCancelModal(selectedReq)}
                                 >
                                     <Ban size={15} /> Batalkan Permintaan
@@ -1394,8 +1433,7 @@ export default function PermintaanUnit() {
                                 <>
                                     <button
                                         type="button"
-                                        className="pu-btn soft"
-                                        style={{ color: '#dc2626' }}
+                                        className="pu-btn soft pu-btn-danger-text"
                                         onClick={() => handleOpenRejectModal(selectedReq)}
                                     >
                                         <X size={15} /> Tolak
@@ -1462,6 +1500,13 @@ export default function PermintaanUnit() {
                                 </div>
                             </div>
 
+                            {approveTarget.concurrent_duplicate_count > 0 && (
+                                <ConcurrentApproverBanner
+                                    duplicateItems={approveTarget.concurrent_duplicate_items}
+                                    ruangNama={approveTarget.ruang_nama}
+                                />
+                            )}
+
                             <div className="pu-table-wrap">
                                 <table className="pu-table">
                                     <thead>
@@ -1489,6 +1534,7 @@ export default function PermintaanUnit() {
                                                     <td>
                                                         <strong>{it.barang_nama}</strong>
                                                         <small style={{ display: 'block', color: 'var(--pu-muted)' }}>{it.barang_kode}</small>
+                                                        <ConcurrentItemInlineList entries={it.concurrent_active_requests} />
                                                     </td>
                                                     <td
                                                         align="right"
@@ -1806,6 +1852,18 @@ export default function PermintaanUnit() {
                 </div>,
                 document.body
             )}
+
+            <ConcurrentDuplicateConfirmModal
+                isOpen={Boolean(pendingDuplicateConfirm)}
+                ruangNama={pendingDuplicateConfirm?.ruangNama || ''}
+                duplicates={pendingDuplicateConfirm?.duplicates || []}
+                submitting={saving}
+                onCancel={() => setPendingDuplicateConfirm(null)}
+                onConfirm={() => {
+                    if (!pendingDuplicateConfirm) return;
+                    executeSubmitCreate(pendingDuplicateConfirm.payload, pendingDuplicateConfirm.effectiveRuangId);
+                }}
+            />
         </div>
     );
 }

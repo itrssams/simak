@@ -538,7 +538,7 @@ export default function AsetJenis() {
                                         required
                                     />
                                     <span style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '2px', display: 'block' }}>
-                                        Digunakan pada pembentukan kode aset fisik, contoh: <code>PE.AC.0001</code>
+                                        Digunakan pada pembentukan kode aset fisik, contoh: <code>PE.AC.2026.0001</code>
                                     </span>
                                 </div>
 

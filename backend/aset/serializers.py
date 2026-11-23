@@ -344,10 +344,11 @@ class AsetInputSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = request.user if request else None
 
-        # Auto kode aset jika kosong
+        # Auto kode aset jika kosong (menyertakan tahun dari tanggal perolehan)
         if not validated_data.get('kode_aset'):
             jenis = validated_data['jenis']
-            validated_data['kode_aset'] = generate_kode_aset(jenis)
+            bulan_perolehan = validated_data.get('bulan_perolehan')
+            validated_data['kode_aset'] = generate_kode_aset(jenis, tahun=bulan_perolehan)
 
         if user and user.is_authenticated:
             validated_data['created_by'] = user

@@ -25,13 +25,26 @@ class BlockExploitScannersMiddleware:
     scanner sebelum mencapai URL routing Django.
 
     Mendeteksi:
-    - Ekstensi file terlarang (.php, .asp, .aspx, .jsp, .cgi)
-    - Path exploit umum (jquery-file-upload, phpinfo, wp-admin, dll)
-    - File sensitif (.env, .git, .htaccess, web.config)
+    - Ekstensi file terlarang (.php, .asp, .log, .sql, .bak, .yml, .py, .sh, dll)
+    - Path exploit umum (jquery-file-upload, phpinfo, wp-admin, storage/logs, dll)
+    - File sensitif (.env, .git, .htaccess, web.config, config.js, dll)
+
+    Path verifikasi SSL resmi (/.well-known/acme-challenge/, /.well-known/pki-validation/)
+    tetap diloloskan selama tidak mengarah ke ekstensi skrip/eksploit atau path traversal.
     """
+
+    SAFE_WELL_KNOWN_PREFIXES = (
+        '/.well-known/acme-challenge/',
+        '/.well-known/pki-validation/',
+        '/.well-known/assetlinks.json',
+    )
 
     BLOCKED_EXTENSIONS = (
         '.php', '.asp', '.aspx', '.jsp', '.cgi',
+        '.log', '.sql', '.bak', '.old', '.orig', '.swp', '.swo',
+        '.ini', '.conf', '.yml', '.yaml', '.toml',
+        '.pem', '.key', '.p12', '.sqlite', '.sqlite3', '.db',
+        '.py', '.sh', '.bash', '.bat', '.cmd', '.ps1',
     )
 
     BLOCKED_PATTERNS = (
@@ -53,46 +66,88 @@ class BlockExploitScannersMiddleware:
         'shell',
         'eval-stdin',
         'telescope',
+        'storage/logs',
+        'laravel.log',
+        '/_profiler',
+        '/actuator',
+        'aws-credentials',
+        '/api/fs/exec',
+        '/api/v1/validate/code',
+        '/api/graphql',
+        '/api/gql',
+        '/api/templates/preview',
+        '/api/designer/',
+        '/api/inngest',
+        '/api/events',
+        'node-load-method',
     )
 
-    BLOCKED_FILES = (
+    BLOCKED_DOTFILE_PREFIXES = (
         '.env',
         '.git',
         '.htaccess',
         '.htpasswd',
+        '.aws',
+        '.ssh',
+        '.ds_store',
+        '.vscode',
+        '.idea',
+    )
+
+    BLOCKED_EXACT_FILES = (
         'web.config',
         'composer.json',
         'composer.lock',
         'package-lock.json',
         'yarn.lock',
-        'Gemfile',
-        '.aws',
-        '.ssh',
+        'gemfile',
+    )
+
+    BLOCKED_NON_STATIC_EXACT_FILES = (
+        'config.js',
+        'config.json',
+        'settings.json',
+        'secrets.json',
+        'package.json',
+        'dockerfile',
+        'docker-compose.yml',
+        'id_rsa',
+        'id_dsa',
     )
 
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def _is_blocked(self, path):
+        if any(path.endswith(ext) for ext in self.BLOCKED_EXTENSIONS):
+            return True
+
+        # Pastikan path challenge SSL tidak pernah terblokir secara tidak sengaja
+        if '..' not in path and any(path.startswith(prefix) for prefix in self.SAFE_WELL_KNOWN_PREFIXES):
+            return False
+
+        if any(pattern in path for pattern in self.BLOCKED_PATTERNS):
+            return True
+
+        segments = [seg for seg in path.rstrip('/').split('/') if seg]
+        if segments:
+            last_segment = segments[-1]
+            if any(last_segment.startswith(prefix) for prefix in self.BLOCKED_DOTFILE_PREFIXES):
+                return True
+            if last_segment in self.BLOCKED_EXACT_FILES:
+                return True
+            if (
+                not path.startswith(('/assets/', '/static/', '/media/'))
+                and last_segment in self.BLOCKED_NON_STATIC_EXACT_FILES
+            ):
+                return True
+
+        return False
+
     def __call__(self, request):
         path = request.path.lower()
 
-        # Cek ekstensi terlarang
-        blocked = any(path.endswith(ext) for ext in self.BLOCKED_EXTENSIONS)
-
-        # Cek pola path exploit
-        if not blocked:
-            blocked = any(pattern in path for pattern in self.BLOCKED_PATTERNS)
-
-        # Cek file sensitif
-        if not blocked:
-            # Ambil nama file / segment terakhir dari path
-            segments = path.rstrip('/').split('/')
-            if segments:
-                last_segment = segments[-1]
-                blocked = any(last_segment == f or last_segment.startswith(f)
-                              for f in self.BLOCKED_FILES)
-
-        if blocked:
+        if self._is_blocked(path):
             client_ip = get_client_ip(request)
             user_agent = request.META.get('HTTP_USER_AGENT', '-')[:200]
             now = datetime.now().strftime('%H:%M:%S')

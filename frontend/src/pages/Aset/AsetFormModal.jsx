@@ -80,8 +80,7 @@ const STATUS_ASET_OPTIONS = [
 ];
 
 const KEPEMILIKAN_OPTIONS = [
-    { value: 'milik_sendiri', label: 'Milik Sendiri', subtext: 'Aset inventaris milik RS' },
-    { value: 'sewa', label: 'Sewa', subtext: 'Aset sewa pihak ketiga' },
+    { value: 'milik_sendiri', label: 'Milik Sendiri', subtext: 'Aset inventaris milik RS' },    
     { value: 'pinjam_pakai', label: 'Pinjam Pakai', subtext: 'Kerja sama pinjam pakai' },
     { value: 'hibah', label: 'Hibah', subtext: 'Penerimaan hibah' },
     { value: 'kso', label: 'KSO', subtext: 'Kerja Sama Operasional' },
@@ -541,7 +540,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                 <input
                                     type="text"
                                     className="aset-form-input"
-                                    placeholder="Contoh: AM.USG.0001"
+                                    placeholder="Contoh: AM.USG.2026.0001"
                                     value={formData.kode_aset}
                                     onChange={e => setFormData({ ...formData, kode_aset: e.target.value })}
                                 />

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Edit2, Trash2, X, FileText, Search, Clock, RotateCcw, Eye, MessageSquareText } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, FileText, Search, RotateCcw, Eye, MessageSquareText } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import api from '../../api/axiosConfig';
 import useDebounce from '../../hooks/useDebounce';
 import DateRangePicker from '../../components/DateRangePicker';
 import DateField from '../../components/DateField';
+import TimeField, { TimeQuickDurationBar } from '../../components/TimeField';
 import SearchableSelect from '../../components/SearchableSelect';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import './MyLogbook.css';
@@ -94,21 +95,6 @@ export default function LogbookAktivitas() {
         jam_selesai: '',
         deskripsi: ''
     });
-
-    // Live duration computation for modal
-    const durationPreview = useMemo(() => {
-        if (!formData.jam_mulai || !formData.jam_selesai) return null;
-        const [h1, m1] = formData.jam_mulai.split(':').map(Number);
-        const [h2, m2] = formData.jam_selesai.split(':').map(Number);
-        if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
-        let diffMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-        if (diffMinutes < 0) diffMinutes += 24 * 60; // overnight
-        const jam = Math.floor(diffMinutes / 60);
-        const menit = diffMinutes % 60;
-        if (jam > 0 && menit > 0) return `${jam} jam ${menit} mnt`;
-        if (jam > 0) return `${jam} jam`;
-        return `${menit} menit`;
-    }, [formData.jam_mulai, formData.jam_selesai]);
 
     const selectedUraianTugas = useMemo(() => {
         if (!formData.uraian_tugas_id || formData.uraian_tugas_id === 'lainnya') return null;
@@ -637,40 +623,34 @@ export default function LogbookAktivitas() {
                                             </div>
                                             <div className="lb-field-group">
                                                 <label>Jam Mulai <span className="lb-req">*</span></label>
-                                                <input
-                                                    type="time"
+                                                <TimeField
                                                     name="jam_mulai"
                                                     value={formData.jam_mulai}
-                                                    onChange={handleFormChange}
-                                                    className="lb-input"
+                                                    onChange={(val) => setFormData(prev => ({ ...prev, jam_mulai: val }))}
+                                                    ariaLabel="Jam Mulai"
                                                     required
                                                 />
                                             </div>
                                             <div className="lb-field-group">
                                                 <label>Jam Selesai <span className="lb-req">*</span></label>
-                                                <input
-                                                    type="time"
+                                                <TimeField
                                                     name="jam_selesai"
                                                     value={formData.jam_selesai}
-                                                    onChange={handleFormChange}
-                                                    className="lb-input"
+                                                    onChange={(val) => setFormData(prev => ({ ...prev, jam_selesai: val }))}
+                                                    ariaLabel="Jam Selesai"
                                                     required
                                                 />
                                             </div>
                                         </div>
 
-                                        {/* Durasi Live Info */}
+                                        {/* Pintasan Durasi Cepat & Durasi Live Info */}
                                         <div className="lb-duration-line">
-                                            {durationPreview ? (
-                                                <span className="lb-duration-inline">
-                                                    <Clock size={13} className="lb-icon-muted" />
-                                                    Total Durasi Terhitung: <strong>{durationPreview}</strong>
-                                                </span>
-                                            ) : (
-                                                <span className="lb-field-hint">
-                                                    Pilih jam mulai dan jam selesai untuk menghitung durasi aktivitas secara otomatis.
-                                                </span>
-                                            )}
+                                            <TimeQuickDurationBar
+                                                startTime={formData.jam_mulai}
+                                                endTime={formData.jam_selesai}
+                                                onSetStartTime={(startVal) => setFormData(prev => ({ ...prev, jam_mulai: startVal }))}
+                                                onSetStartAndEnd={(startVal, endVal) => setFormData(prev => ({ ...prev, jam_mulai: startVal, jam_selesai: endVal }))}
+                                            />
                                         </div>
 
                                         {/* Row 2: Uraian Tugas */}

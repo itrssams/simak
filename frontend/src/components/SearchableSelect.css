@@ -236,6 +236,8 @@
 
 /* Scrollable Options List */
 .searchable-select-list {
+    flex: 1 1 auto;
+    min-height: 0;
     max-height: 290px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -262,7 +264,9 @@
 
 /* Individual Option Item */
 .searchable-select-item {
+    flex: 0 0 auto;
     width: 100%;
+    height: auto;
     padding: 9px 12px;
     background: transparent;
     border: 1px solid transparent;

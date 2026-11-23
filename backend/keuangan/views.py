@@ -1699,35 +1699,45 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tanggal = serializer.validated_data.get('tanggal') or timezone.localdate()
 
-        faktur = serializer.save(
-            created_by=self.request.user,
-            nomor_faktur=generate_nomor_faktur(tanggal)
-        )
-        total_real = (
-            faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
-            faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
-            faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
-        )
-        faktur.total_real_rs = total_real
-        if faktur.is_cob and faktur.tanggungan_bpjs:
-            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
-        else:
-            faktur.total_tagihan = total_real
-        faktur.save()
+        with transaction.atomic():
+            faktur = serializer.save(
+                created_by=self.request.user,
+                nomor_faktur=generate_nomor_faktur(tanggal)
+            )
+            total_real = (
+                faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
+                faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
+                faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
+            )
+            faktur.total_real_rs = total_real
+            if faktur.is_cob and faktur.tanggungan_bpjs:
+                faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
+            else:
+                faktur.total_tagihan = total_real
+            faktur.save()
+
+            if faktur.tgl_kirim and faktur.status != 'batal':
+                from .services import AutoPostingService
+                AutoPostingService.post_faktur_finalized(faktur, user=self.request.user)
 
     def perform_update(self, serializer):
-        faktur = serializer.save()
-        total_real = (
-            faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
-            faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
-            faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
-        )
-        faktur.total_real_rs = total_real
-        if faktur.is_cob and faktur.tanggungan_bpjs:
-            faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
-        else:
-            faktur.total_tagihan = total_real
-        faktur.save()
+        with transaction.atomic():
+            faktur = serializer.save()
+            total_real = (
+                faktur.adm + faktur.jasa + faktur.farmasi + faktur.tindakan +
+                faktur.fisio + faktur.lab + faktur.rad + faktur.kamar +
+                faktur.bhp + faktur.lainnya + faktur.ambulan + faktur.alat
+            )
+            faktur.total_real_rs = total_real
+            if faktur.is_cob and faktur.tanggungan_bpjs:
+                faktur.total_tagihan = max(Decimal('0'), Decimal(str(total_real)) - Decimal(str(faktur.tanggungan_bpjs)))
+            else:
+                faktur.total_tagihan = total_real
+            faktur.save()
+
+            if faktur.tgl_kirim and faktur.status != 'batal':
+                from .services import AutoPostingService
+                AutoPostingService.post_faktur_finalized(faktur, user=self.request.user)
         
     def generate_nomor_faktur(self, tanggal):
         prefix = f"{tanggal:%y}"
@@ -1907,6 +1917,21 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             pembayaran.verified_by = request.user
             pembayaran.verified_at = timezone.now()
             pembayaran.save()
+
+            # Auto-post Jurnal Penerimaan Pembayaran Faktur (dan pastikan jurnal Faktur asal sudah terposting)
+            from .services import AutoPostingService
+            AutoPostingService.post_faktur_finalized(faktur, user=request.user)
+            raw_selisih_cob = request.data.get('selisih_cob') or request.data.get('potongan_cob') or 0
+            try:
+                selisih_cob_val = Decimal(str(raw_selisih_cob or 0))
+            except Exception:
+                selisih_cob_val = Decimal('0')
+            AutoPostingService.post_pembayaran_faktur_verified(
+                pembayaran,
+                user=request.user,
+                selisih_cob=selisih_cob_val,
+                rekening_bank_id=request.data.get('rekening_bank_id'),
+            )
         faktur.refresh_from_db()
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
@@ -1933,6 +1958,14 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             pembayaran.verified_by = None
             pembayaran.verified_at = None
             pembayaran.save()
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.PembayaranFaktur',
+                pembayaran.id,
+                user=request.user,
+                alasan=f'Batal verifikasi pembayaran invoice {faktur.nomor_faktur}',
+            )
 
         faktur.refresh_from_db()
         return Response({
@@ -1972,6 +2005,14 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             pembayaran.save()
             for alokasi in alokasi_terpakai:
                 alokasi.save()
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.PembayaranFaktur',
+                pembayaran.id,
+                user=request.user,
+                alasan=f'Batal pembayaran invoice {faktur.nomor_faktur}',
+            )
         faktur.refresh_from_db()
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
@@ -1985,9 +2026,13 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             tanggal_kirim = datetime.strptime(str(tanggal_kirim), '%Y-%m-%d').date()
         except ValueError:
             return Response({'tgl_kirim': 'Format tanggal kirim harus YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        faktur.tgl_kirim = tanggal_kirim
-        faktur.jatuh_tempo = tanggal_kirim + timedelta(days=45)
-        faktur.save()
+        with transaction.atomic():
+            faktur.tgl_kirim = tanggal_kirim
+            faktur.jatuh_tempo = tanggal_kirim + timedelta(days=45)
+            faktur.save()
+
+            from .services import AutoPostingService
+            AutoPostingService.post_faktur_finalized(faktur, user=request.user)
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='batal')
@@ -2002,11 +2047,21 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         with transaction.atomic():
             faktur.status = 'batal'
             faktur.save()
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
-                    [faktur.nomor_faktur],
-                )
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.Faktur',
+                faktur.id,
+                user=request.user,
+                alasan=f'Pembatalan Invoice {faktur.nomor_faktur}',
+            )
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
+                        [faktur.nomor_faktur],
+                    )
+            except Exception:
+                pass
         return Response(FakturSerializer(faktur).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='kembalikan')
@@ -2039,11 +2094,21 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             faktur.dibatalkan_oleh = request.user
             faktur.dibatalkan_at = timezone.now()
             faktur.save()
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
-                    [faktur.nomor_faktur],
-                )
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.Faktur',
+                faktur.id,
+                user=request.user,
+                alasan=f'Pengembalian Invoice {faktur.nomor_faktur}: {alasan}',
+            )
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
+                        [faktur.nomor_faktur],
+                    )
+            except Exception:
+                pass
 
         return Response(FakturSerializer(faktur, context={'view': self}).data, status=status.HTTP_200_OK)
 
@@ -6565,6 +6630,8 @@ def _handle_petty_cash_payment_realisasi(pembayaran, user):
                             kb.laporan.pengembalian_selesai = True
                             kb.laporan.dikonfirmasi_oleh = user
                             kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+                        from .services import AutoPostingService
+                        AutoPostingService.post_kas_besar_completed(kb, user=user)
 
                 if rb.petty_cash:
                     pc = rb.petty_cash
@@ -6575,6 +6642,8 @@ def _handle_petty_cash_payment_realisasi(pembayaran, user):
                             pc.laporan.pengembalian_selesai = True
                             pc.laporan.dikonfirmasi_oleh = user
                             pc.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+                        from .services import AutoPostingService
+                        AutoPostingService.post_petty_cash_completed(pc, user=user)
         except Exception:
             pass
         return
@@ -6785,7 +6854,11 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             pembayaran.tanggal_proses = tanggal_realisasi
             if not pembayaran.tanggal_app:
                 pembayaran.tanggal_app = tanggal_realisasi
-            pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar'])
+            pembayaran.jumlah_kas_keluar = max(
+                Decimal('0'),
+                Decimal(str(pembayaran.jumlah_bayar or 0)) - Decimal(str(pembayaran.potongan_deposit or 0)),
+            )
+            pembayaran.save(update_fields=['status', 'tanggal_proses', 'tanggal_app', 'jumlah_bayar', 'jumlah_kas_keluar'])
 
             # Potong terpakai pada DepositVendor jika menggunakan potongan_deposit
             if pembayaran.potongan_deposit and pembayaran.potongan_deposit > 0:
@@ -6804,6 +6877,14 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
             # Jika utang adalah pengisian petty cash, tambahkan saldo kas kecil
             _handle_petty_cash_payment_realisasi(pembayaran, request.user)
+
+            # Auto-post Jurnal Realisasi Pembayaran Utang Supplier (FASE 3 Accounting Hook)
+            from .services import AutoPostingService
+            AutoPostingService.post_pembayaran_utang_realized(
+                pembayaran,
+                user=request.user,
+                rekening_bank_id=request.data.get('rekening_bank_id'),
+            )
 
             utang = pembayaran.utang
             utang.refresh_status()
@@ -6856,6 +6937,14 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             
             # Jika utang adalah pengisian petty cash, tarik kembali penambahan saldo
             _handle_petty_cash_payment_batal_realisasi(pembayaran, request.user)
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.PembayaranUtang',
+                pembayaran.id,
+                user=request.user,
+                alasan=f'Batal realisasi pembayaran utang {utang.nomor_faktur or utang.nomor_spb}',
+            )
 
             utang.refresh_status()
             
@@ -6918,6 +7007,13 @@ class PembayaranUtangViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
                 # Jika utang adalah pengisian petty cash, tambahkan saldo kas kecil
                 _handle_petty_cash_payment_realisasi(pembayaran, request.user)
+
+                from .services import AutoPostingService
+                AutoPostingService.post_pembayaran_utang_realized(
+                    pembayaran,
+                    user=request.user,
+                    rekening_bank_id=request.data.get('rekening_bank_id'),
+                )
 
                 utang = pembayaran.utang
                 utang.refresh_status()
@@ -8787,8 +8883,12 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     val = Decimal('0')
                 if val > 0 or it.get('deskripsi'):
                     clean_kode = str(it.get('kode_akun') or '').replace('.', '').strip()
+                    akun_id_val = it.get('akun') or it.get('akun_id') or None
+                    if akun_id_val is not None and not str(akun_id_val).isdigit():
+                        akun_id_val = None
                     ItemLaporanPenggunaan.objects.create(
                         laporan=laporan,
+                        akun_id=int(akun_id_val) if akun_id_val else None,
                         kode_akun=clean_kode,
                         nama_akun=str(it.get('nama_akun') or '').strip(),
                         pos_biaya=str(it.get('pos_biaya') or '').strip(),
@@ -8927,6 +9027,9 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.nominal = nominal_pakai
             instance.status = 'selesai'
             instance.save(update_fields=['nominal_awal', 'nominal', 'status', 'updated_at'])
+
+            from .services import AutoPostingService
+            AutoPostingService.post_petty_cash_completed(instance, user=request.user)
  
         msg = 'Kekurangan dana berhasil dicairkan. Nominal Petty Cash disesuaikan menjadi nominal riil dan transaksi selesai.' if selisih < 0 else 'Pengembalian dikonfirmasi. Petty cash selesai.'
         return Response({'message': msg, 'status': instance.status})
@@ -8992,6 +9095,14 @@ class PettyCashViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.status = 'dibatalkan'
             instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
             instance.save()
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.PettyCash',
+                instance.id,
+                user=request.user,
+                alasan=f'Batal Petty Cash {instance.no_pengajuan}: {str(alasan).strip()}',
+            )
 
         return Response({
             'message': 'Pengajuan berhasil dibatalkan.',
@@ -9300,8 +9411,12 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                     val = Decimal('0')
                 if val > 0 or it.get('deskripsi'):
                     clean_kode = str(it.get('kode_akun') or '').replace('.', '').strip()
+                    akun_id_val = it.get('akun') or it.get('akun_id') or None
+                    if akun_id_val is not None and not str(akun_id_val).isdigit():
+                        akun_id_val = None
                     ItemLaporanKasBesar.objects.create(
                         laporan=laporan,
+                        akun_id=int(akun_id_val) if akun_id_val else None,
                         kode_akun=clean_kode,
                         nama_akun=str(it.get('nama_akun') or '').strip(),
                         pos_biaya=str(it.get('pos_biaya') or '').strip(),
@@ -9367,6 +9482,10 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.laporan_disetujui_oleh = request.user
             instance.laporan_disetujui_at = timezone.now()
             instance.save()
+
+            if instance.status == 'selesai':
+                from .services import AutoPostingService
+                AutoPostingService.post_kas_besar_completed(instance, user=request.user)
 
             if laporan.selisih < 0:
                 kekurangan = abs(laporan.selisih)
@@ -9434,6 +9553,9 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
  
             instance.status = 'selesai'
             instance.save()
+
+            from .services import AutoPostingService
+            AutoPostingService.post_kas_besar_completed(instance, user=request.user)
  
         return Response({'message': 'Pengembalian dikonfirmasi. Kas Besar selesai.', 'status': instance.status})
 
@@ -9484,6 +9606,14 @@ class KasBesarViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.status = 'dibatalkan'
             instance.alasan_batal = str(alasan).strip()
             instance.save()
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.KasBesar',
+                instance.id,
+                user=request.user,
+                alasan=f'Batal Kas Besar {instance.no_pengajuan}: {str(alasan).strip()}',
+            )
 
         return Response({
             'message': 'Pengajuan Kas Besar berhasil dibatalkan.',
@@ -9620,6 +9750,8 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         kb.laporan.pengembalian_selesai = True
                         kb.laporan.dikonfirmasi_oleh = request.user
                         kb.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+                    from .services import AutoPostingService
+                    AutoPostingService.post_kas_besar_completed(kb, user=request.user)
 
             if instance.petty_cash:
                 pc = instance.petty_cash
@@ -9630,6 +9762,8 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                         pc.laporan.pengembalian_selesai = True
                         pc.laporan.dikonfirmasi_oleh = request.user
                         pc.laporan.save(update_fields=['pengembalian_selesai', 'dikonfirmasi_oleh', 'updated_at'])
+                    from .services import AutoPostingService
+                    AutoPostingService.post_petty_cash_completed(pc, user=request.user)
 
         return Response({'message': 'Reimbursement berhasil dicairkan.', 'status': instance.status})
 
@@ -9687,6 +9821,14 @@ class ReimbursementViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             instance.status = 'dibatalkan'
             instance.catatan_tolak = f"Dibatalkan: {str(alasan).strip()}"
             instance.save()
+
+            from .services import AutoPostingService
+            AutoPostingService._try_reverse_existing_journal(
+                'keuangan.Reimbursement',
+                instance.id,
+                user=request.user,
+                alasan=f'Batal Reimbursement {instance.no_reimbursement}: {str(alasan).strip()}',
+            )
 
         return Response({
             'message': 'Reimbursement berhasil dibatalkan.',

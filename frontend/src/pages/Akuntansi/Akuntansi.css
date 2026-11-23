@@ -1,0 +1,640 @@
+/* ==========================================================================
+   MODUL AKUNTANSI & LAPORAN KEUANGAN — 100% DESIGN.md (Stripe Clean Enterprise)
+   Flat White Canvas ([data-theme="light"]) & Dark Mode ([data-theme="dark"])
+   Underline Tabs (#635bff), Unboxed Stat-Bar, 32px Compact Controls, Tabular Nums
+   ========================================================================== */
+
+.akt-page,
+.akt-modal-backdrop {
+  --pu-bg: #ffffff;
+  --pu-surface: #ffffff;
+  --pu-surface-2: #f7fafc;
+  --pu-input-bg: #ffffff;
+  --pu-border: #e3e8ee;
+  --pu-border-ctrl: #d8dee4;
+  --pu-text: #1a1f36;
+  --pu-muted: #697386;
+  --pu-faint: #8792a2;
+  --pu-accent: #635bff;
+  --pu-accent-hover: #544dc9;
+  --pu-accent-fg: #ffffff;
+  --pu-tab-active-text: #635bff;
+  --pu-tab-active-line: #635bff;
+  --pu-ctrl-shadow: 0 1px 2px rgba(26, 31, 54, 0.06);
+}
+
+[data-theme="dark"] .akt-page,
+[data-theme="dark"] .akt-modal-backdrop {
+  --pu-bg: #0b0f17;
+  --pu-surface: #12161f;
+  --pu-input-bg: #090c12;
+  --pu-surface-2: #161b24;
+  --pu-border: rgba(255, 255, 255, 0.1);
+  --pu-border-ctrl: rgba(255, 255, 255, 0.12);
+  --pu-text: #f8fafc;
+  --pu-muted: #94a3b8;
+  --pu-faint: #64748b;
+  --pu-accent: #635bff;
+  --pu-accent-hover: #544dc9;
+  --pu-accent-fg: #ffffff;
+  --pu-tab-active-text: #f8fafc;
+  --pu-tab-active-line: #818cf8;
+  --pu-ctrl-shadow: none;
+}
+
+[data-theme="light"] :is(.app-shell, .body-shell, .content-shell, .main-content):has(.akt-page) {
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"] :is(.app-shell, .body-shell, .content-shell, .main-content):has(.akt-page) {
+  background: #0b0f17 !important;
+  background-image: none !important;
+}
+
+.akt-page {
+  width: 100%;
+  min-height: calc(100vh - 88px);
+  padding: 8px 12px 28px;
+  background: var(--pu-bg);
+  color: var(--pu-text);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ── Page Header ─────────────────────────────────────────────────────────── */
+.akt-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.akt-header-titles h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pu-text);
+  line-height: 1.25;
+}
+
+.akt-header-titles p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--pu-muted);
+  line-height: 1.4;
+}
+
+.akt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Underline Tabs (No Pill / No Box) ───────────────────────────────────── */
+.akt-tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--pu-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.akt-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.akt-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 2px;
+  margin-bottom: -1px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pu-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.akt-tab:hover {
+  color: var(--pu-text);
+}
+
+.akt-tab.active {
+  color: var(--pu-tab-active-text);
+  font-weight: 600;
+  border-bottom-color: var(--pu-tab-active-line);
+}
+
+/* Secondary sub-tabs for Financial Reports */
+.akt-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--pu-border);
+  margin-bottom: 4px;
+}
+
+.akt-subtab {
+  padding: 8px 2px;
+  margin-bottom: -1px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pu-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.akt-subtab:hover {
+  color: var(--pu-text);
+}
+
+.akt-subtab.active {
+  color: var(--pu-tab-active-text);
+  font-weight: 600;
+  border-bottom-color: var(--pu-tab-active-line);
+}
+
+/* ── Unboxed Stat-Bar ────────────────────────────────────────────────────── */
+.akt-stat-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  border-top: 1px solid var(--pu-border);
+  border-bottom: 1px solid var(--pu-border);
+  background: transparent;
+}
+
+.akt-stat-item {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.akt-stat-item:first-child {
+  padding-left: 0;
+}
+
+.akt-stat-item + .akt-stat-item {
+  border-left: 1px solid var(--pu-border);
+}
+
+.akt-stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pu-muted);
+}
+
+.akt-stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--pu-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.akt-stat-sub {
+  font-size: 11.5px;
+  color: var(--pu-faint);
+}
+
+/* ── Compact Inline Toolbar (32px height) ────────────────────────────────── */
+.akt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.akt-toolbar-left,
+.akt-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.akt-input,
+.akt-select {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: var(--pu-text);
+  background: var(--pu-input-bg);
+  border: 1px solid var(--pu-border-ctrl);
+  border-radius: 6px;
+  box-shadow: var(--pu-ctrl-shadow);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.akt-input::placeholder {
+  color: var(--pu-faint);
+}
+
+.akt-input:focus,
+.akt-select:focus {
+  border-color: var(--pu-accent);
+}
+
+.akt-textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--pu-text);
+  background: var(--pu-input-bg);
+  border: 1px solid var(--pu-border-ctrl);
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.akt-textarea:focus {
+  border-color: var(--pu-accent);
+}
+
+/* ── Buttons (DESIGN.md Hierarchy) ───────────────────────────────────────── */
+.akt-btn {
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.akt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.akt-btn-primary {
+  background: var(--pu-accent);
+  color: var(--pu-accent-fg);
+  border: 1px solid var(--pu-accent);
+  font-weight: 600;
+}
+
+.akt-btn-primary:hover:not(:disabled) {
+  background: var(--pu-accent-hover);
+  border-color: var(--pu-accent-hover);
+}
+
+.akt-btn-secondary {
+  background: var(--pu-surface);
+  color: var(--pu-text);
+  border: 1px solid var(--pu-border-ctrl);
+  box-shadow: var(--pu-ctrl-shadow);
+}
+
+.akt-btn-secondary:hover:not(:disabled) {
+  background: var(--pu-surface-2);
+}
+
+.akt-btn-approve {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+  background: transparent;
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .akt-btn-approve {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.akt-btn-approve:hover:not(:disabled) {
+  background: #ecfdf5;
+}
+
+[data-theme="dark"] .akt-btn-approve:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.akt-btn-danger {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .akt-btn-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.akt-btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+[data-theme="dark"] .akt-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.akt-btn-neutral {
+  height: 28px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pu-muted);
+  background: transparent;
+  border: 1px solid var(--pu-border-ctrl);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.akt-btn-neutral:hover:not(:disabled) {
+  color: var(--pu-text);
+  background: var(--pu-surface-2);
+}
+
+/* ── Minimalist Unboxed Tables & Accounting Typography ───────────────────── */
+.akt-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.akt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.akt-table thead th {
+  padding: 9px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pu-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--pu-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.akt-table thead th.akt-num {
+  text-align: right;
+}
+
+.akt-table tbody td {
+  padding: 10px 12px;
+  color: var(--pu-text);
+  border-bottom: 1px solid var(--pu-border);
+  vertical-align: middle;
+}
+
+.akt-table tbody tr:hover {
+  background: var(--pu-surface-2);
+}
+
+.akt-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.akt-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accounting Section Headers, Subtotals & Grand Totals */
+.akt-row-section td {
+  padding: 12px 12px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pu-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--pu-border);
+}
+
+.akt-row-subtotal td {
+  font-weight: 600;
+  color: var(--pu-text);
+  background: var(--pu-surface-2);
+  border-top: 1px solid var(--pu-border);
+  border-bottom: 1px solid var(--pu-border);
+}
+
+.akt-row-grandtotal td {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--pu-text);
+  background: var(--pu-surface-2);
+  border-top: 1px solid var(--pu-border);
+  border-bottom: 2px solid var(--pu-text) !important;
+}
+
+/* ── Status Badges (Soft Pastel High-Contrast) ───────────────────────────── */
+.akt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.akt-badge-posted,
+.akt-badge-open {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+[data-theme="dark"] .akt-badge-posted,
+[data-theme="dark"] .akt-badge-open {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+}
+
+.akt-badge-draft,
+.akt-badge-soft {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+[data-theme="dark"] .akt-badge-draft,
+[data-theme="dark"] .akt-badge-soft {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fcd34d;
+}
+
+.akt-badge-reversed,
+.akt-badge-closed {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+[data-theme="dark"] .akt-badge-reversed,
+[data-theme="dark"] .akt-badge-closed {
+  background: rgba(244, 63, 94, 0.16);
+  color: #fda4af;
+}
+
+.akt-badge-info {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+[data-theme="dark"] .akt-badge-info {
+  background: rgba(14, 165, 233, 0.16);
+  color: #7dd3fc;
+}
+
+.akt-badge-muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+[data-theme="dark"] .akt-badge-muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}
+
+/* ── Modal & Drawer (Clean Flat Surface, No Blur) ────────────────────────── */
+.akt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.akt-modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  background: var(--pu-surface);
+  color: var(--pu-text);
+  border: 1px solid var(--pu-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.akt-modal-lg {
+  max-width: 980px;
+}
+
+.akt-modal-sm {
+  max-width: 460px;
+}
+
+.akt-modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--pu-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.akt-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pu-text);
+}
+
+.akt-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.akt-modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--pu-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.akt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.akt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.akt-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pu-muted);
+}
+
+.akt-empty {
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--pu-muted);
+  font-size: 13px;
+  border-bottom: 1px solid var(--pu-border);
+}
+
+.akt-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .akt-split-grid {
+    grid-template-columns: 1fr;
+  }
+}

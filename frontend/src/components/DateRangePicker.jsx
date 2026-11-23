@@ -253,7 +253,7 @@ export default function DateRangePicker({ dari = '', sampai = '', onChange, plac
                         position: 'fixed',
                         top: `${coords.top}px`,
                         left: `${coords.left}px`,
-                        zIndex: 999999,
+                        zIndex: 2147483000,
                     }}
                     role="dialog"
                     onMouseDown={(e) => e.stopPropagation()}

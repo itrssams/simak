@@ -292,4 +292,8 @@ class PurchasingService:
         grn.approved_at = timezone.now()
         grn.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
 
+        # 3. Auto-sync UtangSupplier & Auto-post Jurnal Pembelian (FASE 3 Accounting Hook)
+        from keuangan.services import AutoPostingService
+        AutoPostingService.post_grn_approved(grn, user=user)
+
         return grn

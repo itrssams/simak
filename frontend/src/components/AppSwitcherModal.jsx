@@ -148,13 +148,13 @@ export default function AppSwitcherModal({ isOpen, onClose }) {
         },
         {
             id: 'akuntansi',
-            name: 'Akuntansi & Kas',
+            name: 'Akuntansi & Laporan',
             icon: Landmark,
             color: '#c084fc',
             glowColor: 'rgba(168, 85, 247, 0.45)',
             glassGlow: 'rgba(168, 85, 247, 0.22)',
-            path: '/dashboard-analytics',
-            allowed: Boolean(canAkuntansi),
+            path: '/akuntansi',
+            allowed: Boolean(canAkuntansi || isKeuangan || isManajerUp),
         },
         {
             id: 'pengumuman',

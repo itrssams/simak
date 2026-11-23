@@ -545,9 +545,12 @@ export default function AlokasiPembiayaan() {
                     <div className="ap-modal ap-create-modal" role="dialog" aria-modal="true" aria-labelledby="ap-add-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="ap-detail-head">
                             <div className="ap-modal-head-info">
-                                <h2 id="ap-add-title"><Plus size={20} /> Tambah Alokasi Dana</h2>
+                                <h2 id="ap-add-title">Tambah Alokasi Dana</h2>
                                 <p>Catat pembayaran rekening koran masuk dari Induk Asuransi atau Pembiayaan Mandiri.</p>
                             </div>
+                            <button className="ap-modal-close pen-confirm-close" type="button" title="Tutup" aria-label="Tutup" onClick={closeCreateModal}>
+                                <X size={18} />
+                            </button>
                         </div>
                         <form className="ap-create-form" onSubmit={save}>
                             {/* Pilihan Tipe Alokasi */}
@@ -675,20 +678,17 @@ export default function AlokasiPembiayaan() {
                     <div className="ap-modal ap-ledger-modal" role="dialog" aria-modal="true" aria-labelledby="ap-ledger-title" onMouseDown={(event) => event.stopPropagation()}>
                         <div className="ap-detail-head">
                             <div>
-                                <h2 id="ap-ledger-title">
-                                    {selectedGroup.is_induk ? <Layers size={19} style={{ color: '#8b5cf6' }} /> : <Building2 size={19} />} {selectedGroup.nama_pembiayaan}
-                                </h2>
+                                <h2 id="ap-ledger-title">{selectedGroup.nama_pembiayaan}</h2>
                                 <p>{selectedGroup.is_induk ? 'Alokasi Pool Induk Pembiayaan' : `ID Pembiayaan: ${selectedGroup.id_pembiayaan}`}</p>
                             </div>
-                            <button className="ap-modal-close" type="button" title="Tutup" onClick={closeLedgerModal}>
+                            <button className="ap-modal-close pen-confirm-close" type="button" title="Tutup" aria-label="Tutup" onClick={closeLedgerModal}>
                                 <X size={18} />
-                                <span>Tutup</span>
                             </button>
                         </div>
                         <div className="ap-modal-stats ap-detail-stats">
-                            <span className="ok"><WalletCards size={15} /> Saldo: <strong>{money(selectedGroup.sisa)}</strong></span>
-                            <span className="in"><ArrowDownCircle size={15} /> Masuk: <strong>{money(selectedGroup.dana_masuk)}</strong></span>
-                            <span className="warn"><ArrowUpCircle size={15} /> Keluar: <strong>{money(selectedGroup.digunakan)}</strong></span>
+                            <span>Saldo <strong>{money(selectedGroup.sisa)}</strong></span>
+                            <span>Masuk <strong>{money(selectedGroup.dana_masuk)}</strong></span>
+                            <span>Keluar <strong>{money(selectedGroup.digunakan)}</strong></span>
                         </div>
                         <div className="ap-ledger-tools">
                             <div className="ap-search">
@@ -743,12 +743,7 @@ export default function AlokasiPembiayaan() {
                                                     </td>
                                                     <td className="ap-ref-cell">{entry.ref}</td>
                                                     <td className="ap-note-cell">{entry.keterangan || '-'}</td>
-                                                    <td className="ap-operator-cell">
-                                                        <span className="ap-operator-badge" title={`Operator: ${entry.operator}`}>
-                                                            <User size={13} style={{ opacity: 0.7 }} />
-                                                            {entry.operator}
-                                                        </span>
-                                                    </td>
+                                                    <td className="ap-operator-cell">{entry.operator || '-'}</td>
                                                     <td className={`ap-right ap-mono ${entry.masuk ? 'ap-money-in' : ''}`}>{entry.masuk ? money(entry.masuk) : '—'}</td>
                                                     <td className={`ap-right ap-mono ${entry.keluar ? 'ap-money-out' : ''}`}>{entry.keluar ? money(entry.keluar) : '—'}</td>
                                                     <td className="ap-right ap-mono ap-strong">{money(entry.saldo)}</td>
@@ -793,11 +788,13 @@ export default function AlokasiPembiayaan() {
             {deleteTarget && createPortal(
                 <div className="ap-confirm-backdrop" role="presentation" onMouseDown={closeDeleteModal}>
                     <div className="ap-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="ap-delete-title" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="ap-confirm-icon">
-                            <AlertTriangle size={22} />
-                        </div>
                         <div className="ap-confirm-copy">
-                            <h2 id="ap-delete-title">Hapus Alokasi?</h2>
+                            <div className="pen-confirm-head">
+                                <h2 id="ap-delete-title">Hapus Alokasi?</h2>
+                                <button className="pen-confirm-close" type="button" onClick={closeDeleteModal} disabled={saving} aria-label="Tutup" title="Tutup">
+                                    <X size={18} />
+                                </button>
+                            </div>
                             <p>
                                 Dana masuk <strong>{money(deleteTarget.jumlah_penerimaan)}</strong> untuk {deleteTarget.nama_pembiayaan} akan dihapus dari tampungan.
                             </p>
@@ -809,7 +806,7 @@ export default function AlokasiPembiayaan() {
                         <div className="ap-confirm-actions">
                             <button className="ap-btn soft" type="button" onClick={closeDeleteModal} disabled={saving}>Batal</button>
                             <button className="ap-danger-btn" type="button" onClick={confirmRemove} disabled={saving}>
-                                <Trash2 size={16} /> {saving ? 'Menghapus...' : 'Hapus Alokasi'}
+                                {saving ? 'Menghapus...' : 'Hapus Alokasi'}
                             </button>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ import InputTransaksi from './pages/Transaksi/InputTransaksi';
 import ListTransaksi from './pages/Transaksi/ListTransaksi';
 import BaganAkun from './pages/Akuntansi/BaganAkun';
 import EntriJurnal from './pages/Akuntansi/EntriJurnal';
+import AkuntansiIndex from './pages/Akuntansi/AkuntansiIndex';
 import DataPelanggan from './pages/Pelanggan/DataPelanggan';
 import FakturPelanggan from './pages/Pelanggan/FakturPelanggan';
 import DataPemasok from './pages/Pemasok/DataPemasok';
@@ -72,7 +73,7 @@ const isLogistik = (u) => u?.is_superuser || u?.is_logistik || u?.view_logistik;
 const canAset = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || u?.akses_aset || isManajerUp(u) || u?.unit);
 const isAsetAdminOnly = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || isManajerUp(u) || (u?.role === 'kepala_seksi' && u?.unit?.nama?.toLowerCase().includes('umum')));
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
-const canAkuntansi = (u) => u?.is_superuser || u?.is_akuntansi;
+const canAkuntansi = (u) => Boolean(u?.is_superuser || u?.is_akuntansi || u?.is_keuangan || isManajerUp(u));
 const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || u?.view_kas_besar || isDirekturUp(u);
 const canReimbursement = (u) => u?.is_superuser || u?.akses_reimbursement || u?.is_keuangan || isDirekturUp(u);
 const canPettyCash = (u) => Boolean(u?.is_superuser || isManajerUp(u) || u?.is_keuangan || u?.is_petty_cash_cashier || u?.view_petty_cash);
@@ -175,13 +176,15 @@ const AppRoutes = () => {
             <Route path="/sdm/rekapitulasi" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
             <Route path="/sdm/struktur" element={<ProtectedRoute><SdmLayout><IzinMeninggalkanKerja /></SdmLayout></ProtectedRoute>} />
 
-            {/* Akuntansi & Kas (Hanya user dengan fitur is_akuntansi aktif atau superuser) */}
+            {/* Akuntansi & Laporan Keuangan */}
+            <Route path="/akuntansi" element={<ProtectedRoute allow={canAkuntansi}><AkuntansiIndex /></ProtectedRoute>} />
+            <Route path="/keuangan/akuntansi" element={<ProtectedRoute allow={canAkuntansi}><AkuntansiIndex /></ProtectedRoute>} />
             <Route path="/pelanggan" element={<ProtectedRoute allow={canAkuntansi}><DataPelanggan /></ProtectedRoute>} />
             <Route path="/pelanggan/faktur" element={<ProtectedRoute allow={canAkuntansi}><FakturPelanggan /></ProtectedRoute>} />
             <Route path="/pemasok" element={<ProtectedRoute allow={canAkuntansi}><DataPemasok /></ProtectedRoute>} />
             <Route path="/pemasok/tagihan" element={<ProtectedRoute allow={canAkuntansi}><TagihanPemasok /></ProtectedRoute>} />
-            <Route path="/akuntansi/bagan-akun" element={<ProtectedRoute allow={canAkuntansi}><BaganAkun /></ProtectedRoute>} />
-            <Route path="/akuntansi/entri-jurnal" element={<ProtectedRoute allow={canAkuntansi}><EntriJurnal /></ProtectedRoute>} />
+            <Route path="/akuntansi/bagan-akun" element={<ProtectedRoute allow={canAkuntansi}><AkuntansiIndex initialTab="coa" /></ProtectedRoute>} />
+            <Route path="/akuntansi/entri-jurnal" element={<ProtectedRoute allow={canAkuntansi}><AkuntansiIndex initialTab="jurnal" /></ProtectedRoute>} />
             <Route path="/transaksi/input" element={<ProtectedRoute allow={canAkuntansi}><InputTransaksi /></ProtectedRoute>} />
             <Route path="/transaksi/list" element={<ProtectedRoute allow={canAkuntansi}><ListTransaksi /></ProtectedRoute>} />
             <Route path="/laporan/arus-kas" element={<ProtectedRoute allow={canAkuntansi}><ArusKas /></ProtectedRoute>} />

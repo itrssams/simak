@@ -15,6 +15,7 @@ def safe_rename_tables(apps, schema_editor):
             ('keuangan_announcement', 'system_announcement'),
             ('keuangan_announcementread', 'system_announcement_read'),
             ('keuangan_auditlog', 'system_audit_log'),
+            ('deposit_vendor', 'keuangan_deposit_vendor'),
             ('keuangan_depositvendor', 'keuangan_deposit_vendor'),
             ('keuangan_faktur', 'keuangan_faktur'),
             ('keuangan_fakturitem', 'keuangan_faktur_item'),

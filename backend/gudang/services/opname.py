@@ -159,6 +159,10 @@ class OpnameService:
         opname.approved_at = timezone.now()
         opname.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
 
+        # 3. Auto-post Jurnal Selisih Stock Opname jika terdapat selisih nilai (FASE 3 Accounting Hook)
+        from keuangan.services import AutoPostingService
+        AutoPostingService.post_stock_opname_approved(opname, user=user)
+
         return opname
 
     @classmethod

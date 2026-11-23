@@ -330,3 +330,130 @@ class AsetAndPerbaikanTests(APITestCase):
         self.assertEqual(len(results), 3)
         self.assertEqual({r['status_kelayakan'] for r in results}, {'D', 'E'})
 
+    def test_auto_generate_kode_aset_per_tahun_perolehan_and_reset(self):
+        from .services import generate_kode_aset
+
+        self.client.force_authenticate(user=self.admin)
+
+        # Data aset format lama (tanpa segmen tahun) tidak mengganggu urutan tahun baru
+        Aset.objects.create(
+            jenis=self.jenis,
+            kode_aset='TST_AM.TST_USG.0005',
+            deskripsi='USG Legacy',
+            merk='Mindray',
+            spesifikasi='Legacy',
+            unit=self.unit,
+            ruangan=self.ruangan,
+            lokasi_teks='Poli Legacy',
+            status_kelayakan='B',
+            status_aset='aktif',
+            status_kepemilikan='milik_sendiri',
+            bulan_perolehan=date(2022, 5, 1),
+            harga_perolehan=Decimal('10000000.00'),
+            status_data='lengkap',
+        )
+
+        # Aset ke-1 tahun perolehan 2026 -> mulai dari 0001
+        res_2026_1 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2026 Unit A',
+                bulan_perolehan='2026-03-10',
+                nomor_seri='SN-2026-01',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_2026_1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_2026_1.data['kode_aset'], 'TST_AM.TST_USG.2026.0001')
+
+        # Aset ke-2 tahun perolehan 2026 -> lanjut ke 0002
+        res_2026_2 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2026 Unit B',
+                bulan_perolehan='2026-11-21',
+                nomor_seri='SN-2026-02',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_2026_2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_2026_2.data['kode_aset'], 'TST_AM.TST_USG.2026.0002')
+
+        # Input manual di tahun 2026 dengan nomor lompat -> auto berikutnya melanjutkan di atasnya
+        res_manual = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2026 Unit Manual',
+                bulan_perolehan='2026-12-01',
+                nomor_seri='SN-2026-10',
+                kode_aset='TST_AM.TST_USG.2026.0010',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_manual.status_code, status.HTTP_201_CREATED)
+
+        res_2026_11 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2026 Unit C',
+                bulan_perolehan='2026-12-05',
+                nomor_seri='SN-2026-11',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_2026_11.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_2026_11.data['kode_aset'], 'TST_AM.TST_USG.2026.0011')
+
+        # Ganti tahun perolehan ke 2027 -> reset kembali ke 0001
+        res_2027_1 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2027 Unit A',
+                bulan_perolehan='2027-01-05',
+                nomor_seri='SN-2027-01',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_2027_1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_2027_1.data['kode_aset'], 'TST_AM.TST_USG.2027.0001')
+
+        # Tahun perolehan mundur (backdate 2024) mengikuti tahun bulan_perolehan
+        res_2024_1 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                deskripsi='USG 2024 Unit Backdate',
+                bulan_perolehan='2024-06-15',
+                nomor_seri='SN-2024-01',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_2024_1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_2024_1.data['kode_aset'], 'TST_AM.TST_USG.2024.0001')
+
+        # Jenis aset berbeda tetap punya nomor urut terpisah per jenis & tahun
+        kat_pe = AsetKategori.objects.create(kode='TST_PE', nama='Elektronik Test')
+        jenis_ac = AsetJenis.objects.create(
+            kategori=kat_pe,
+            kode='TST_AC',
+            nama='AC Split Test',
+            kelompok_default=self.kelompok,
+        )
+        res_ac = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                jenis=jenis_ac.id,
+                deskripsi='AC Split Daikin',
+                bulan_perolehan='2026-04-01',
+                nomor_seri='SN-AC-2026-01',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_ac.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_ac.data['kode_aset'], 'TST_PE.TST_AC.2026.0001')
+
+        # Pemanggilan langsung tanpa tahun fallback ke tahun berjalan
+        current_year = timezone.now().year
+        self.assertTrue(
+            generate_kode_aset(jenis_ac).startswith(f'TST_PE.TST_AC.{current_year}.')
+        )
+

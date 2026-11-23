@@ -25,6 +25,17 @@ import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination.jsx';
 import { useAuth } from '../../context/AuthContext';
 import DateField from '../../components/DateField';
+import {
+    useConcurrentPermintaanCheck,
+    checkPermintaanDuplicatesApi,
+} from './concurrentRequestUtils';
+import {
+    ConcurrentApproverBanner,
+    ConcurrentCreateWarningBanner,
+    ConcurrentDuplicateConfirmModal,
+    ConcurrentItemInlineList,
+    ConcurrentTableBadge,
+} from './ConcurrentRequestNotice';
 
 export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -117,6 +128,13 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
     const [formTanggal, setFormTanggal] = useState(new Date().toISOString().slice(0, 10));
     const [formCatatan, setFormCatatan] = useState('');
     const [formItems, setFormItems] = useState([]);
+    const [pendingDuplicateConfirm, setPendingDuplicateConfirm] = useState(null);
+
+    const { ruangNama: liveDupRuangNama, duplicates: liveCreateDuplicates } = useConcurrentPermintaanCheck({
+        isOpen: showCreateReqModal,
+        ruangId: formRuangId,
+        formItems,
+    });
 
     const fetchRuang = async () => {
         try {
@@ -344,7 +362,8 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                 keputusan: defaultDecision,
                 qty_disetujui: initialQty,
                 catatan_verif: it.alasan_tolak || '',
-                keterangan: it.keterangan || ''
+                keterangan: it.keterangan || '',
+                concurrent_active_requests: it.concurrent_active_requests || []
             };
         });
         setApproveItems(items);
@@ -466,6 +485,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                     keputusan: stok > 0 ? 'SETUJUI' : 'AJUKAN',
                     qty_disetujui: stok > 0 ? Math.min(minta, stok) : 0,
                     alasan_tolak: '',
+                    concurrent_active_requests: it.concurrent_active_requests || [],
                 };
             });
         setFollowupItems(pendingItems);
@@ -691,6 +711,21 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
         setFormItems(formItems.filter((_, i) => i !== idx));
     };
 
+    const executeCreateReqPayload = async (payload) => {
+        setSaving(true);
+        try {
+            await api.post('/gudang/permintaan/', payload);
+            setPendingDuplicateConfirm(null);
+            setShowCreateReqModal(false);
+            toast.success('Permintaan unit berhasil dibuat & diajukan.');
+            fetchPermintaan();
+        } catch (err) {
+            toast.error(err.response?.data?.error || err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // Submit Permintaan
     const handleSubmitCreateReq = async (e) => {
         e.preventDefault();
@@ -700,28 +735,40 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
             return;
         }
 
+        const payload = {
+            ruang: formRuangId,
+            tanggal: formTanggal,
+            catatan: formCatatan,
+            auto_submit: true,
+            items: validItems.map(it => ({
+                barang: it.barang_id,
+                qty_minta: it.qty,
+                satuan: it.satuan,
+                keterangan: it.keterangan
+            }))
+        };
+
         setSaving(true);
         try {
-            await api.post('/gudang/permintaan/', {
-                ruang: formRuangId,
-                tanggal: formTanggal,
-                catatan: formCatatan,
-                auto_submit: true,
-                items: validItems.map(it => ({
-                    barang: it.barang_id,
-                    qty_minta: it.qty,
-                    satuan: it.satuan,
-                    keterangan: it.keterangan
-                }))
+            const dupRes = await checkPermintaanDuplicatesApi({
+                ruangId: formRuangId,
+                barangIds: validItems.map(it => it.barang_id),
             });
-            setShowCreateReqModal(false);
-            toast.success('Permintaan unit berhasil dibuat & diajukan.');
-            fetchPermintaan();
-        } catch (err) {
-            toast.error(err.response?.data?.error || err.message);
-        } finally {
-            setSaving(false);
+            if (dupRes?.has_duplicates && dupRes.duplicates?.length > 0) {
+                const ruangFallback = ruangList.find(r => String(r.id) === String(formRuangId))?.nama || '';
+                setSaving(false);
+                setPendingDuplicateConfirm({
+                    ruangNama: dupRes.ruang_nama || ruangFallback,
+                    duplicates: dupRes.duplicates,
+                    payload,
+                });
+                return;
+            }
+        } catch {
+            // Jika check-duplicates gagal sementara, lanjutkan submit standar
         }
+
+        await executeCreateReqPayload(payload);
     };
 
     // Approve Permintaan (Custom Modal Confirm oleh Kasi)
@@ -1031,6 +1078,10 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                         <span className="gdg-status-dot" />
                                                         <span>{statusLabel}</span>
                                                     </span>
+                                                    <ConcurrentTableBadge
+                                                        count={req.concurrent_duplicate_count}
+                                                        duplicateItems={req.concurrent_duplicate_items}
+                                                    />
                                                     {req.item_status_counts?.ready_followup > 0 && (
                                                         <span style={{ display: 'block', fontSize: '11px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>
                                                             {req.item_status_counts.ready_followup} item stok masuk (siap ACC)
@@ -1374,6 +1425,14 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                             </div>
                                         ))}
                                     </div>
+                                    {liveCreateDuplicates.length > 0 && (
+                                        <div style={{ marginTop: '10px' }}>
+                                            <ConcurrentCreateWarningBanner
+                                                duplicates={liveCreateDuplicates}
+                                                ruangNama={liveDupRuangNama || ruangList.find(r => String(r.id) === String(formRuangId))?.nama || ''}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="gdg-modal-foot">
@@ -1725,6 +1784,13 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                 </div>
                             )}
 
+                            {selectedReq.concurrent_duplicate_count > 0 && (
+                                <ConcurrentApproverBanner
+                                    duplicateItems={selectedReq.concurrent_duplicate_items}
+                                    ruangNama={selectedReq.ruang_nama}
+                                />
+                            )}
+
                             <div className="gdg-table-wrap gdg-table-borderless">
                                 <table className="gdg-table gdg-table-stripe">
                                     <thead>
@@ -1771,6 +1837,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                                 Alasan: {it.alasan_tolak}
                                                             </div>
                                                         )}
+                                                        <ConcurrentItemInlineList entries={it.concurrent_active_requests} />
                                                     </td>
                                                     <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                         {Number(it.qty_minta).toLocaleString('id-ID')} {it.satuan}
@@ -2031,6 +2098,13 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     </div>
                                 </div>
 
+                                {approveTargetReq.concurrent_duplicate_count > 0 && (
+                                    <ConcurrentApproverBanner
+                                        duplicateItems={approveTargetReq.concurrent_duplicate_items}
+                                        ruangNama={approveTargetReq.ruang_nama}
+                                    />
+                                )}
+
                                 <div>
                                     <div className="gdg-po-items-head">
                                         <span className="gdg-detail-section-title">Keputusan &amp; Kuantitas per Baris Barang</span>
@@ -2069,6 +2143,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                             <td>
                                                                 <div className="gdg-po-vendor-name">{item.barang_nama}</div>
                                                                 <span className="gdg-code-cell" style={{ fontSize: '11px' }}>{item.barang_kode}</span>
+                                                                <ConcurrentItemInlineList entries={item.concurrent_active_requests} />
                                                             </td>
                                                             <td className="gdg-num-cell gdg-po-meta-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                                 {Number(item.qty_minta).toLocaleString('id-ID')} {item.satuan}
@@ -2248,6 +2323,15 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     Tentukan kuantitas yang disetujui untuk item pengadaan setelah stok baru masuk gudang, atau tutup/tolak jika pengadaan tidak dilanjutkan.
                                 </div>
 
+                                {followupItems.some(fi => (fi.concurrent_active_requests || []).length > 0) && (
+                                    <ConcurrentApproverBanner
+                                        duplicateItems={(followupTargetReq.concurrent_duplicate_items || []).filter(d =>
+                                            followupItems.some(fi => fi.id === d.item_id)
+                                        )}
+                                        ruangNama={followupTargetReq.ruang_nama}
+                                    />
+                                )}
+
                                 <div className="gdg-table-wrap gdg-table-borderless">
                                     <table className="gdg-table gdg-table-stripe">
                                         <thead>
@@ -2269,6 +2353,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                                         <td>
                                                             <div className="gdg-po-vendor-name">{it.barang_nama}</div>
                                                             <span className="gdg-code-cell" style={{ fontSize: '11px' }}>{it.barang_kode}</span>
+                                                            <ConcurrentItemInlineList entries={it.concurrent_active_requests} />
                                                         </td>
                                                         <td className="gdg-num-cell" style={{ textAlign: 'right', fontWeight: 600 }}>
                                                             {Number(it.qty_minta).toLocaleString('id-ID')} {it.satuan}
@@ -2430,10 +2515,16 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                             </button>
                         </div>
 
-                        <div className="gdg-modal-body">
+                        <div className="gdg-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <p className="gdg-po-confirm-msg">
                                 {confirmAction.message}
                             </p>
+                            {confirmAction.type === 'APPROVE_REQ' && confirmAction.target?.concurrent_duplicate_count > 0 && (
+                                <ConcurrentApproverBanner
+                                    duplicateItems={confirmAction.target.concurrent_duplicate_items}
+                                    ruangNama={confirmAction.target.ruang_nama}
+                                />
+                            )}
                         </div>
 
                         <div className="gdg-modal-foot">
@@ -2458,6 +2549,18 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                 </div>,
                 document.body
             )}
+
+            <ConcurrentDuplicateConfirmModal
+                isOpen={Boolean(pendingDuplicateConfirm)}
+                ruangNama={pendingDuplicateConfirm?.ruangNama || ''}
+                duplicates={pendingDuplicateConfirm?.duplicates || []}
+                submitting={saving}
+                onCancel={() => setPendingDuplicateConfirm(null)}
+                onConfirm={() => {
+                    if (!pendingDuplicateConfirm) return;
+                    executeCreateReqPayload(pendingDuplicateConfirm.payload);
+                }}
+            />
         </div>
     );
 }

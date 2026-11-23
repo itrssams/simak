@@ -145,6 +145,18 @@ const MENU_CATATAN_UTANG = [
         ],
     },
 ];
+const MENU_AKUNTANSI = [
+    {
+        label: 'Akuntansi', icon: 'akuntansi', children: [
+            { label: 'Jurnal Umum', path: '/akuntansi?tab=jurnal' },
+            { label: 'Buku Besar', path: '/akuntansi?tab=buku_besar' },
+            { label: 'Laporan Keuangan', path: '/akuntansi?tab=laporan' },
+            { label: 'Chart of Accounts', path: '/akuntansi?tab=coa' },
+            { label: 'Periode & Tutup Buku', path: '/akuntansi?tab=pengaturan' },
+            { label: 'Rekening Bank', path: '/rekening-bank' },
+        ],
+    },
+];
 const MENU_LOGISTIK = [
     {
         label: 'Gudang Logistik', icon: 'inventory', children: [
@@ -176,7 +188,7 @@ const MENU_LOGISTIK = [
 
 const FEATURE_INVENTARIS_ENABLED = false;
 const FEATURE_IT_ENABLED = true;
-const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Gudang Logistik v.2', 'Gudang Logistik (Legacy / v1)', 'Gudang Logistik', 'Petty Cash', 'SDM', 'Izin Meninggalkan Tempat Kerja', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
+const MENU_ORDER = ['Dashboard', 'Penagihan', 'Catatan Utang', 'Akuntansi', 'Gudang Logistik v.2', 'Gudang Logistik (Legacy / v1)', 'Gudang Logistik', 'Petty Cash', 'SDM', 'Izin Meninggalkan Tempat Kerja', 'Driver', 'Laporan', 'Pengumuman', 'Audit Log', 'Manajemen User', 'Manajemen Sistem'];
 
 const MENU_SDM = [
     { label: 'SDM', path: '/sdm/izin-kerja', icon: 'pelanggan' },
@@ -232,14 +244,15 @@ function getMenuItems(user) {
         ? { label: 'SDM', path: '/sdm/presensi', icon: 'pelanggan' }
         : { label: 'Izin Meninggalkan Tempat Kerja', path: '/sdm/izin-kerja', icon: 'izin' };
 
-    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_LOGISTIK, sdmMenuItem])));
-    if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY);
-    else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR);
+    if (user?.is_superuser) return orderMenus(filterDisabledMenus(uniqueMenus([...MENU_SUPERUSER_ONLY, ...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_IT, ...MENU_KEUANGAN, ...MENU_CATATAN_UTANG, ...MENU_AKUNTANSI, ...MENU_LOGISTIK, sdmMenuItem])));
+    if (role === 'direktur' || role === 'wakil_direktur') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_DIREKTUR_ONLY, ...MENU_AKUNTANSI);
+    else if (role === 'manajer') base.push(...MENU_MANAJER_DIREKTUR, ...MENU_AKUNTANSI);
     else if (role === 'kepala_seksi') base.push(...MENU_KEPALA_SEKSI);
     else base.push(...MENU_KARYAWAN_KASIR);
     if (user?.is_driver) base.push(...MENU_DRIVER);
     if (user?.is_it) base.push(...MENU_IT);
-    if (user?.is_keuangan) base.push(...MENU_KEUANGAN);
+    if (user?.is_keuangan) base.push(...MENU_KEUANGAN, ...MENU_AKUNTANSI);
+    if (user?.is_akuntansi) base.push(...MENU_AKUNTANSI);
     if (user?.akses_catatan_utang) base.push(...MENU_CATATAN_UTANG);
     if (user?.is_logistik || user?.view_logistik) base.push(...MENU_LOGISTIK);
     if (canPC && !['manajer', 'wakil_direktur', 'direktur'].includes(role) && !user?.is_superuser) {

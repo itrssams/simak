@@ -520,7 +520,7 @@ class Command(BaseCommand):
 
             spesifikasi = extract_spesifikasi(merk_raw)
             lokasi_teks = lok_raw or ruangan_nama
-            kode_aset = generate_kode_aset(jenis_obj)
+            kode_aset = generate_kode_aset(jenis_obj, tahun=bulan_perolehan or thn_pembuatan)
 
             catatan_parts = [import_marker]
             if not kelayakan_raw:
