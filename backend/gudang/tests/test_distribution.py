@@ -680,6 +680,137 @@ class DistributionTestCase(TestCase):
         Permintaan.objects.filter(id=req2.id).delete()
         barang_empty.delete()
 
+    def test_reverse_pengeluaran_returns_permintaan_to_siap_serah_and_restores_stock(self):
+        StockService.record_in(
+            barang=self.barang,
+            gudang=self.gudang,
+            qty=Decimal('20'),
+            harga_unit=Decimal('5000'),
+            sumber_tipe='INIT',
+            sumber_id='REV-TEST-1',
+            sumber_nomor='INIT-REV-1',
+            user=self.user_gudang,
+        )
+
+        req = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('6')}],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+        req = DistributionService.approve_permintaan(req, user=self.user_gudang)
+        req_item = req.items.first()
+
+        out1 = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': req_item, 'qty': Decimal('6')}],
+            penerima_nama='Petugas Unit',
+            user=self.user_gudang,
+        )
+        out1 = DistributionService.approve_pengeluaran(out1, user=self.user_gudang)
+
+        saldo_after_out = StokSaldo.objects.get(barang=self.barang, gudang=self.gudang)
+        self.assertEqual(saldo_after_out.qty, Decimal('14.000'))
+        req.refresh_from_db()
+        req_item.refresh_from_db()
+        self.assertEqual(req.status, Permintaan.STATUS_SELESAI)
+        self.assertEqual(req_item.status, PermintaanItem.STATUS_SELESAI)
+        self.assertEqual(req_item.qty_dikeluarkan, Decimal('6.000'))
+
+        # Reverse pengeluaran karena barang belum diserahkan ke unit
+        rev_out = DistributionService.reverse_pengeluaran(
+            out1,
+            user=self.user_gudang,
+            alasan='Barang belum diambil oleh unit',
+        )
+        self.assertEqual(rev_out.status, Pengeluaran.STATUS_BATAL)
+        self.assertEqual(rev_out.alasan_batal, 'Barang belum diambil oleh unit')
+
+        # Stok & ledger REV_OUT pulih sempurna
+        saldo_after_rev = StokSaldo.objects.get(barang=self.barang, gudang=self.gudang)
+        self.assertEqual(saldo_after_rev.qty, Decimal('20.000'))
+        self.assertEqual(saldo_after_rev.nilai, Decimal('100000.00'))
+        self.assertEqual(saldo_after_rev.avg_cost, Decimal('5000.0000'))
+        rev_ledger = StokLedger.objects.get(jenis='REV_OUT', sumber_nomor=out1.nomor)
+        self.assertEqual(rev_ledger.qty_dasar, Decimal('6.000'))
+        self.assertEqual(rev_ledger.nilai_total, Decimal('30000.00'))
+
+        # Permintaan & PermintaanItem kembali ke DISETUJUI (Siap Serah)
+        req.refresh_from_db()
+        req_item.refresh_from_db()
+        self.assertEqual(req.status, Permintaan.STATUS_DISETUJUI)
+        self.assertEqual(req_item.status, PermintaanItem.STATUS_DISETUJUI)
+        self.assertEqual(req_item.qty_dikeluarkan, Decimal('0.000'))
+
+        # Tidak boleh double-reverse
+        with self.assertRaises(ValidationError):
+            DistributionService.reverse_pengeluaran(rev_out, user=self.user_gudang)
+
+        # Bisa diserahkan ulang lewat serahkan / create_pengeluaran + approve_pengeluaran
+        out2 = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': req_item, 'qty': Decimal('6')}],
+            penerima_nama='Petugas Unit (Aktual)',
+            user=self.user_gudang,
+        )
+        DistributionService.approve_pengeluaran(out2, user=self.user_gudang)
+        req.refresh_from_db()
+        self.assertEqual(req.status, Permintaan.STATUS_SELESAI)
+        self.assertEqual(StokSaldo.objects.get(barang=self.barang, gudang=self.gudang).qty, Decimal('14.000'))
+
+    def test_kartu_stok_ledger_api_hides_batal_out_and_reversed_out_pair(self):
+        StockService.record_in(
+            barang=self.barang,
+            gudang=self.gudang,
+            qty=Decimal('10'),
+            harga_unit=Decimal('4000'),
+            sumber_tipe='GRN',
+            sumber_id='LGR-1',
+            sumber_nomor='GRN-LGR-1',
+            user=self.user_gudang,
+        )
+
+        req = DistributionService.create_permintaan(
+            ruang=self.ruang,
+            items_data=[{'barang': self.barang, 'qty_minta': Decimal('4')}],
+            user=self.user_unit,
+            auto_submit=True,
+        )
+        req = DistributionService.approve_permintaan(req, user=self.user_gudang)
+        pi = req.items.first()
+        out = DistributionService.create_pengeluaran(
+            ruang=self.ruang,
+            permintaan=req,
+            gudang=self.gudang,
+            items_data=[{'barang': self.barang, 'permintaan_item': pi, 'qty': Decimal('4')}],
+            penerima_nama='Perawat',
+            user=self.user_gudang,
+        )
+        out = DistributionService.approve_pengeluaran(out, user=self.user_gudang)
+        DistributionService.reverse_pengeluaran(out, user=self.user_gudang, alasan='Belum diambil')
+
+        client = APIClient()
+        client.force_authenticate(user=self.user_gudang)
+
+        res_default = client.get(f'/api/gudang/ledger/?barang={self.barang.id}')
+        self.assertEqual(res_default.status_code, 200)
+        rows = res_default.data.get('results', res_default.data)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['jenis'], 'IN')
+        self.assertEqual(rows[0]['sumber_nomor'], 'GRN-LGR-1')
+
+        # Audit trail immutable di DB tetap ada & masih bisa diakses dengan include_reversed=1
+        res_all = client.get(f'/api/gudang/ledger/?barang={self.barang.id}&include_reversed=1')
+        self.assertEqual(res_all.status_code, 200)
+        all_rows = res_all.data.get('results', res_all.data)
+        self.assertEqual([r['jenis'] for r in all_rows], ['REV_OUT', 'OUT', 'IN'])
+
+
+
 
 
 

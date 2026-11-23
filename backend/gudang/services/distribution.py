@@ -8,7 +8,7 @@ from django.utils import timezone
 from gudang.models.master import Gudang, Barang, Ruang
 from gudang.models.numbering import NumberingSequence
 from gudang.models.distribution import Permintaan, PermintaanItem, Pengeluaran, PengeluaranItem
-from gudang.models.ledger import StokSaldo
+from gudang.models.ledger import StokSaldo, StokLedger
 from gudang.services.stock import StockService
 
 
@@ -668,6 +668,80 @@ class DistributionService:
         pengeluaran.status = Pengeluaran.STATUS_BATAL
         pengeluaran.alasan_batal = str(alasan or '').strip()
         pengeluaran.save(update_fields=['status', 'alasan_batal', 'updated_at'])
+        return pengeluaran
+
+    @classmethod
+    @transaction.atomic
+    def reverse_pengeluaran(
+        cls,
+        pengeluaran: Pengeluaran,
+        user: Any = None,
+        alasan: str = '',
+    ) -> Pengeluaran:
+        """
+        Membalik (reverse) bon pengeluaran barang yang sudah DISETUJUI tetapi
+        belum diserahkan fisiknya ke unit:
+        1. Membuat mutasi pembalik REV_OUT pada StokLedger & mengembalikan StokSaldo.
+        2. Mengurangi qty_dikeluarkan pada PermintaanItem & mengembalikannya ke DISETUJUI (Siap Serah).
+        3. Menyinkronkan kembali status Permintaan asal agar siap diserahkan ulang.
+        4. Membalik jurnal akuntansi terkait jika sempat ter-post.
+        5. Menandai bon Pengeluaran ini sebagai BATAL beserta alasan reversal.
+        """
+        pengeluaran = Pengeluaran.objects.select_for_update().get(pk=pengeluaran.pk)
+        if pengeluaran.status != Pengeluaran.STATUS_DISETUJUI:
+            raise ValidationError(
+                f"Hanya bon pengeluaran berstatus DISETUJUI yang dapat di-reverse (status saat ini: {pengeluaran.status})."
+            )
+
+        alasan_clean = str(alasan or '').strip() or (
+            "Reversal penyerahan: barang belum diserahkan ke unit, dikembalikan ke status Siap Serah."
+        )
+
+        ledgers = list(
+            StokLedger.objects.select_for_update()
+            .filter(sumber_tipe='OUT', sumber_id=str(pengeluaran.id), jenis='OUT')
+            .order_by('id')
+        )
+        if not ledgers:
+            raise ValidationError(
+                f"Tidak ditemukan mutasi kartu stok OUT untuk bon {pengeluaran.nomor}."
+            )
+
+        for ledger in ledgers:
+            StockService.record_reversal(ledger, alasan=alasan_clean, user=user)
+
+        for item in pengeluaran.items.select_related('permintaan_item').all():
+            if not item.permintaan_item_id:
+                continue
+            pi = PermintaanItem.objects.select_for_update().get(pk=item.permintaan_item_id)
+            new_qty_out = max(
+                Decimal('0.000'),
+                (pi.qty_dikeluarkan or Decimal('0.000')) - (item.qty or Decimal('0.000')),
+            )
+            pi.qty_dikeluarkan = new_qty_out
+            update_pi_fields = ['qty_dikeluarkan']
+            if (pi.qty_disetujui or Decimal('0.000')) > new_qty_out and pi.status == PermintaanItem.STATUS_SELESAI:
+                pi.status = PermintaanItem.STATUS_DISETUJUI
+                update_pi_fields.append('status')
+            pi.save(update_fields=update_pi_fields)
+
+        if pengeluaran.permintaan_id:
+            permintaan = Permintaan.objects.select_for_update().get(pk=pengeluaran.permintaan_id)
+            if permintaan.status != Permintaan.STATUS_BATAL:
+                cls.recompute_permintaan_status(permintaan, save=True)
+
+        pengeluaran.status = Pengeluaran.STATUS_BATAL
+        pengeluaran.alasan_batal = alasan_clean
+        pengeluaran.save(update_fields=['status', 'alasan_batal', 'updated_at'])
+
+        from keuangan.services import AutoPostingService
+        AutoPostingService._try_reverse_existing_journal(
+            source_type='gudang.Pengeluaran',
+            source_id=pengeluaran.id,
+            user=user,
+            alasan=alasan_clean,
+        )
+
         return pengeluaran
 
     @classmethod

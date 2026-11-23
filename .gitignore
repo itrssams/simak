@@ -96,6 +96,8 @@ pertanyaan.*
 # ==========================
 # Mobile (Flutter / Android / iOS)
 # ==========================
+# Sementara kecualikan folder project mobile dari git changes
+mobile/
 mobile/.dart_tool/
 mobile/build/
 mobile/.flutter-plugins

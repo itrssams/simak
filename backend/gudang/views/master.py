@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.db import transaction
 from decimal import Decimal
 
@@ -324,6 +324,22 @@ class StokLedgerViewSet(viewsets.ReadOnlyModelViewSet):
         jenis = self.request.query_params.get('jenis')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        include_reversed = str(self.request.query_params.get('include_reversed', '')).strip().lower() in (
+            '1', 'true', 'yes'
+        )
+
+        # Kartu stok default hanya menampilkan mutasi aktif; pasangan OUT yang sudah
+        # di-reverse dan baris REV_OUT ("Batal Out") disembunyikan kecuali include_reversed=1.
+        if not include_reversed and jenis != 'REV_OUT':
+            rev_out_exists = StokLedger.objects.filter(
+                reversal_of=OuterRef('pk'),
+                jenis='REV_OUT',
+            )
+            qs = (
+                qs.annotate(_has_rev_out=Exists(rev_out_exists))
+                .exclude(jenis='REV_OUT')
+                .exclude(jenis='OUT', _has_rev_out=True)
+            )
 
         if barang_id:
             qs = qs.filter(barang_id=barang_id)
