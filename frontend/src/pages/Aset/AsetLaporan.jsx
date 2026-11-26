@@ -37,7 +37,7 @@ export default function AsetLaporan() {
     const loadRekap = async () => {
         setLoading(true);
         try {
-            const res = await api.get('/aset/aset/');
+            const res = await api.get('/aset/aset/', { params: { status_verifikasi: 'terverifikasi' } });
             setAssets(res.data.results || res.data || []);
         } catch (err) {
             console.error('Failed to load assets for report', err);
@@ -62,7 +62,9 @@ export default function AsetLaporan() {
     const loadKirAssets = async (ruanganId) => {
         setLoadingKir(true);
         try {
-            const res = await api.get('/aset/aset/', { params: { ruangan_id: ruanganId } });
+            const res = await api.get('/aset/aset/', {
+                params: { ruangan_id: ruanganId, status_verifikasi: 'terverifikasi' },
+            });
             setKirAssets(res.data.results || res.data || []);
         } catch (err) {
             console.error('Failed to load KIR assets', err);

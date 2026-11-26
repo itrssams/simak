@@ -2,9 +2,16 @@ from rest_framework import serializers
 from decimal import Decimal
 from .models import (
     AsetKelompok, AsetKategori, AsetJenis, AsetRuangan,
-    Aset, AsetRiwayat, AsetPerbaikan, AsetPerbaikanLog
+    Aset, AsetRiwayat, AsetPerbaikan, AsetPerbaikanLog,
+    AsetPengaturan, AsetTeknisi,
 )
 from .services import hitung_penyusutan_aset, generate_kode_aset, catat_riwayat_kelayakan, catat_mutasi_ruangan
+
+
+def _display_user_name(user):
+    if not user:
+        return None
+    return user.get_full_name() or user.username
 
 
 def is_financial_viewer(user):
@@ -14,9 +21,9 @@ def is_financial_viewer(user):
     """
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser or user.is_staff or getattr(user, 'is_aset_admin', False) or getattr(user, 'is_akuntansi', False):
+    if is_aset_manager(user):
         return True
-    if getattr(user, 'role', '') in ('direktur', 'wakil_direktur', 'manajer', 'kepala_seksi') and getattr(user, 'unit', None) and 'umum' in user.unit.nama.lower():
+    if user.is_staff or getattr(user, 'is_akuntansi', False):
         return True
     return False
 
@@ -24,7 +31,7 @@ def is_financial_viewer(user):
 def is_aset_manager(user):
     """
     Menentukan apakah user memiliki hak akses utama manajemen aset
-    (tindak lanjut perbaikan, update status aset, pendaftaran aset, dsb).
+    (verifikasi aset unit, tindak lanjut perbaikan, update status aset, pendaftaran aset admin, dsb).
     """
     if not user or not user.is_authenticated:
         return False
@@ -122,6 +129,9 @@ class AsetListSerializer(serializers.ModelSerializer):
     status_kelayakan_label = serializers.CharField(source='get_status_kelayakan_display', read_only=True)
     status_aset_label = serializers.CharField(source='get_status_aset_display', read_only=True)
     status_data_label = serializers.CharField(source='get_status_data_display', read_only=True)
+    status_verifikasi_label = serializers.CharField(source='get_status_verifikasi_display', read_only=True)
+    verified_by_nama = serializers.SerializerMethodField()
+    created_by_nama = serializers.SerializerMethodField()
     penyusutan = serializers.SerializerMethodField()
 
     class Meta:
@@ -133,6 +143,9 @@ class AsetListSerializer(serializers.ModelSerializer):
             'status_kelayakan', 'status_kelayakan_label',
             'status_aset', 'status_aset_label',
             'status_data', 'status_data_label',
+            'status_verifikasi', 'status_verifikasi_label',
+            'verified_by', 'verified_by_nama', 'verified_at', 'catatan_verifikasi',
+            'created_by', 'created_by_nama',
             'status_kepemilikan',
             'tahun_pembuatan', 'bulan_perolehan',
             'foto', 'foto_awal', 'foto_terkini', 'rekomendasi_tindakan', 'catatan',
@@ -141,6 +154,12 @@ class AsetListSerializer(serializers.ModelSerializer):
             # Bagian finansial (akan disensor jika bukan admin/finansial):
             'harga_perolehan', 'penyusutan'
         ]
+
+    def get_verified_by_nama(self, obj):
+        return _display_user_name(obj.verified_by)
+
+    def get_created_by_nama(self, obj):
+        return _display_user_name(obj.created_by)
 
     def get_penyusutan(self, obj):
         request = self.context.get('request')
@@ -173,9 +192,18 @@ class AsetDetailSerializer(serializers.ModelSerializer):
     status_kelayakan_label = serializers.CharField(source='get_status_kelayakan_display', read_only=True)
     status_aset_label = serializers.CharField(source='get_status_aset_display', read_only=True)
     status_data_label = serializers.CharField(source='get_status_data_display', read_only=True)
+    status_verifikasi_label = serializers.CharField(source='get_status_verifikasi_display', read_only=True)
+    verified_by_nama = serializers.SerializerMethodField()
+    created_by_nama = serializers.SerializerMethodField()
     penyusutan = serializers.SerializerMethodField()
     riwayat_list = AsetRiwayatSerializer(many=True, read_only=True)
     perbaikan_list = serializers.SerializerMethodField()
+
+    def get_verified_by_nama(self, obj):
+        return _display_user_name(obj.verified_by)
+
+    def get_created_by_nama(self, obj):
+        return _display_user_name(obj.created_by)
 
     def get_perbaikan_list(self, obj):
         return AsetPerbaikanSerializer(obj.perbaikan_list.all()[:10], many=True, context=self.context).data
@@ -189,6 +217,9 @@ class AsetDetailSerializer(serializers.ModelSerializer):
             'status_kelayakan', 'status_kelayakan_label',
             'status_aset', 'status_aset_label',
             'status_data', 'status_data_label',
+            'status_verifikasi', 'status_verifikasi_label',
+            'verified_by', 'verified_by_nama', 'verified_at', 'catatan_verifikasi',
+            'created_by', 'created_by_nama',
             'status_kepemilikan',
             'tahun_pembuatan', 'bulan_perolehan',
             'kelompok', 'kelompok_nama', 'masa_manfaat_bulan',
@@ -218,9 +249,14 @@ class AsetDetailSerializer(serializers.ModelSerializer):
 
 class AsetInputSerializer(serializers.ModelSerializer):
     """
-    Serializer untuk input / edit aset oleh Admin Aset.
+    Serializer untuk input / edit aset oleh Admin Aset maupun pendaftaran mandiri unit.
+    Tanggal Perolehan, Harga Perolehan, Rekomendasi Tindakan, dan Catatan Tambahan bersifat opsional.
     """
     kode_aset = serializers.CharField(required=False, allow_blank=True)
+    bulan_perolehan = serializers.DateField(required=False, allow_null=True)
+    harga_perolehan = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
+    rekomendasi_tindakan = serializers.CharField(required=False, allow_blank=True, default='')
+    catatan = serializers.CharField(required=False, allow_blank=True, default='')
 
     class Meta:
         model = Aset
@@ -230,13 +266,29 @@ class AsetInputSerializer(serializers.ModelSerializer):
             'status_kelayakan', 'status_aset', 'status_kepemilikan',
             'tahun_pembuatan', 'bulan_perolehan', 'harga_perolehan',
             'kelompok', 'masa_manfaat_bulan',
-            'rekomendasi_tindakan', 'catatan', 'foto', 'foto_awal', 'foto_terkini'
+            'rekomendasi_tindakan', 'catatan', 'foto', 'foto_awal', 'foto_terkini',
+            'status_verifikasi', 'catatan_verifikasi',
         ]
+        read_only_fields = ['status_verifikasi', 'catatan_verifikasi']
+
+    def to_internal_value(self, data):
+        nullable_fields = ('bulan_perolehan', 'harga_perolehan', 'kelompok', 'masa_manfaat_bulan', 'tahun_pembuatan', 'ruangan')
+        if hasattr(data, 'copy'):
+            mutable = data.copy()
+        else:
+            mutable = dict(data)
+        for field in nullable_fields:
+            if field in mutable:
+                val = mutable.get(field)
+                if isinstance(val, str) and not val.strip():
+                    mutable[field] = None
+        return super().to_internal_value(mutable)
 
     def validate(self, data):
         errors = {}
 
-        # 1. Validasi Kolom Mandatori (Wajib semua KECUALI nomor_seri, nomor_registrasi, foto_terkini, dan kode_aset auto-generate)
+        # 1. Validasi Kolom Mandatori (KECUALI nomor_seri, nomor_registrasi, foto_terkini, kode_aset,
+        # tanggal/harga perolehan yang sementara dinonaktifkan, serta rekomendasi_tindakan dan catatan)
         required_fields = {
             'jenis': 'Jenis barang',
             'deskripsi': 'Deskripsi / nama barang',
@@ -248,9 +300,6 @@ class AsetInputSerializer(serializers.ModelSerializer):
             'status_kelayakan': 'Tingkat kelayakan',
             'status_aset': 'Status operasional',
             'status_kepemilikan': 'Status kepemilikan',
-            'bulan_perolehan': 'Tanggal perolehan',
-            'rekomendasi_tindakan': 'Rekomendasi tindakan',
-            'catatan': 'Catatan tambahan',
         }
 
         # Jika sedang edit (instance ada), gunakan value eksisting jika tidak dikirim dalam data partial
@@ -259,14 +308,17 @@ class AsetInputSerializer(serializers.ModelSerializer):
             if val is None or (isinstance(val, str) and not val.strip()):
                 errors[field] = f'{label} wajib diisi.'
 
-        # Validasi harga perolehan harus > 0
+        # Validasi harga perolehan opsional (boleh 0 / kosong saat pendataan awal, asal tidak negatif)
         harga = data.get('harga_perolehan', getattr(self.instance, 'harga_perolehan', None) if self.instance else None)
         if harga is None:
-            errors['harga_perolehan'] = 'Harga perolehan wajib diisi.'
+            harga = Decimal('0')
+            if not self.instance or 'harga_perolehan' in data:
+                data['harga_perolehan'] = Decimal('0')
         else:
             try:
-                if Decimal(str(harga)) <= 0:
-                    errors['harga_perolehan'] = 'Harga perolehan wajib lebih dari 0.'
+                harga = Decimal(str(harga))
+                if harga < 0:
+                    errors['harga_perolehan'] = 'Harga perolehan tidak boleh bernilai negatif.'
             except Exception:
                 errors['harga_perolehan'] = 'Format harga perolehan tidak valid.'
 
@@ -357,6 +409,9 @@ class AsetInputSerializer(serializers.ModelSerializer):
         aset = super().create(validated_data)
 
         # Catat riwayat pendaftaran pertama kali
+        catatan_riwayat = f'Aset terdaftar pertama kali dengan kode {aset.kode_aset}'
+        if aset.status_verifikasi == 'menunggu_verifikasi':
+            catatan_riwayat += ' (menunggu verifikasi admin aset).'
         AsetRiwayat.objects.create(
             aset=aset,
             aksi='dibuat',
@@ -366,7 +421,7 @@ class AsetInputSerializer(serializers.ModelSerializer):
             unit_baru=aset.unit.nama if aset.unit else '',
             ruangan_lama='',
             ruangan_baru=aset.lokasi_teks or (aset.ruangan.nama if aset.ruangan else ''),
-            catatan=f'Aset terdaftar pertama kali dengan kode {aset.kode_aset}',
+            catatan=catatan_riwayat,
             dilakukan_oleh=user,
         )
 
@@ -401,7 +456,7 @@ class AsetInputSerializer(serializers.ModelSerializer):
                 ruangan_baru=lokasi_teks_baru or (ruangan_baru.nama if ruangan_baru else ''),
                 status_kelayakan_lama=kelayakan_lama,
                 status_kelayakan_baru=kelayakan_baru,
-                catatan='Mutasi lokasi aset diperbarui oleh admin.',
+                catatan='Mutasi lokasi aset diperbarui.',
                 dilakukan_oleh=user,
             )
 
@@ -412,7 +467,7 @@ class AsetInputSerializer(serializers.ModelSerializer):
                 aksi='perubahan_kelayakan',
                 status_kelayakan_lama=kelayakan_lama,
                 status_kelayakan_baru=kelayakan_baru,
-                catatan='Status kelayakan diubah oleh admin.',
+                catatan='Status kelayakan diubah.',
                 dilakukan_oleh=user,
             )
 
@@ -578,4 +633,27 @@ class AsetPerbaikanFinishSerializer(serializers.Serializer):
         if not data.get('kondisi_setelah_perbaikan'):
             data['kondisi_setelah_perbaikan'] = 'berfungsi_normal'
         return data
+
+
+class AsetPengaturanSerializer(serializers.ModelSerializer):
+    updated_by_nama = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AsetPengaturan
+        fields = ['id', 'izinkan_pendaftaran_unit', 'updated_by', 'updated_by_nama', 'updated_at']
+        read_only_fields = ['id', 'updated_by', 'updated_by_nama', 'updated_at']
+
+    def get_updated_by_nama(self, obj):
+        return _display_user_name(obj.updated_by)
+
+
+class AsetTeknisiSerializer(serializers.ModelSerializer):
+    kategori_label = serializers.CharField(source='get_kategori_display', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True, default=None)
+
+    class Meta:
+        model = AsetTeknisi
+        fields = ['id', 'nama', 'kategori', 'kategori_label', 'user', 'user_username', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
 

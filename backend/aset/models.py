@@ -132,6 +132,12 @@ class Aset(models.Model):
         ('belum_lengkap', 'Data Belum Lengkap'),
     ]
 
+    STATUS_VERIFIKASI_CHOICES = [
+        ('menunggu_verifikasi', 'Menunggu Verifikasi'),
+        ('terverifikasi', 'Terverifikasi'),
+        ('ditolak', 'Ditolak'),
+    ]
+
     STATUS_KEPEMILIKAN_CHOICES = [
         ('milik_sendiri', 'Milik Sendiri'),
         ('sewa', 'Sewa'),
@@ -156,7 +162,24 @@ class Aset(models.Model):
     status_kelayakan = models.CharField(max_length=5, choices=STATUS_KELAYAKAN_CHOICES, default='A')
     status_aset = models.CharField(max_length=25, choices=STATUS_ASET_CHOICES, default='aktif')
     status_data = models.CharField(max_length=25, choices=STATUS_DATA_CHOICES, default='lengkap')
+    status_verifikasi = models.CharField(
+        max_length=25,
+        choices=STATUS_VERIFIKASI_CHOICES,
+        default='terverifikasi',
+        db_index=True,
+        verbose_name='Status Verifikasi',
+    )
     status_kepemilikan = models.CharField(max_length=30, choices=STATUS_KEPEMILIKAN_CHOICES, default='milik_sendiri')
+
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='aset_verified_by',
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    catatan_verifikasi = models.TextField(blank=True, verbose_name='Catatan Verifikasi / Penolakan')
 
     tahun_pembuatan = models.PositiveIntegerField(null=True, blank=True)
     bulan_perolehan = models.DateField(null=True, blank=True, verbose_name='Bulan/Tahun Perolehan')
@@ -183,6 +206,7 @@ class Aset(models.Model):
             models.Index(fields=['unit', 'status_aset'], name='aset_unit_status_idx'),
             models.Index(fields=['jenis', 'status_kelayakan'], name='aset_jenis_kelayakan_idx'),
             models.Index(fields=['status_data'], name='aset_status_data_idx'),
+            models.Index(fields=['status_verifikasi'], name='aset_status_verifikasi_idx'),
         ]
         verbose_name = 'Master Aset'
         verbose_name_plural = 'Master Aset'
@@ -330,3 +354,71 @@ class AsetPerbaikanLog(models.Model):
 
     def __str__(self):
         return f'[{self.created_at.strftime("%Y-%m-%d %H:%M")}] {self.perbaikan.nomor_tiket} ({self.status_sesudah})'
+
+
+class AsetPengaturan(models.Model):
+    """
+    Pengaturan global modul Manajemen Aset (singleton), antara lain kontrol buka/tutup
+    pendaftaran aset mandiri oleh seluruh unit/role saat sosialisasi & pendataan.
+    """
+    izinkan_pendaftaran_unit = models.BooleanField(
+        default=True,
+        verbose_name='Buka Pendaftaran Aset Oleh Unit',
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='aset_pengaturan_updated',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'aset_pengaturan'
+        verbose_name = 'Pengaturan Modul Aset'
+        verbose_name_plural = 'Pengaturan Modul Aset'
+
+    @classmethod
+    def get_solo(cls):
+        obj = cls.objects.order_by('id').first()
+        if obj is None:
+            obj = cls.objects.create(izinkan_pendaftaran_unit=True)
+        return obj
+
+    def __str__(self):
+        state = 'Dibuka' if self.izinkan_pendaftaran_unit else 'Ditutup'
+        return f'Pengaturan Aset (Pendaftaran Unit: {state})'
+
+
+class AsetTeknisi(models.Model):
+    """
+    Master daftar Teknisi IPSRS dan Elektromedis untuk dropdown penugasan perbaikan aset.
+    """
+    KATEGORI_CHOICES = [
+        ('teknisi_ipsrs', 'Teknisi IPSRS'),
+        ('elektromedis', 'Elektromedis'),
+        ('it', 'Teknisi IT / Sarpras'),
+    ]
+
+    nama = models.CharField(max_length=120, unique=True)
+    kategori = models.CharField(max_length=30, choices=KATEGORI_CHOICES, default='teknisi_ipsrs')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='aset_teknisi_profiles',
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'aset_teknisi'
+        ordering = ['kategori', 'nama']
+        verbose_name = 'Master Teknisi Aset'
+        verbose_name_plural = 'Master Teknisi Aset'
+
+    def __str__(self):
+        return f'{self.nama} ({self.get_kategori_display()})'

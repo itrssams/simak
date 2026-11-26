@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import './Aset.css';
 import AsetFormModal from './AsetFormModal';
 import UpdateKelayakanModal from './UpdateKelayakanModal';
+import { isAsetManagerUser, isFinancialViewerUser } from './asetPermissions';
 
 export default function AsetDashboard() {
     const { user } = useAuth();
@@ -18,14 +19,8 @@ export default function AsetDashboard() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedAsetForUpdate, setSelectedAsetForUpdate] = useState(null);
 
-    const isAsetAdmin = Boolean(
-        user?.is_superuser ||
-        user?.is_aset_admin ||
-        ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role) ||
-        (user?.role === 'kepala_seksi' && user?.unit?.nama?.toLowerCase().includes('umum'))
-    );
-
-    const isFinancialViewer = Boolean(isAsetAdmin || user?.is_akuntansi);
+    const isAsetAdmin = isAsetManagerUser(user);
+    const isFinancialViewer = isFinancialViewerUser(user);
 
     useEffect(() => {
         loadDashboard();
@@ -36,7 +31,7 @@ export default function AsetDashboard() {
         try {
             const [sumRes, urgRes] = await Promise.all([
                 api.get('/aset/aset/dashboard_summary/'),
-                api.get('/aset/aset/?status_kelayakan=D&status_kelayakan=E'),
+                api.get('/aset/aset/?status_kelayakan=D&status_kelayakan=E&status_verifikasi=terverifikasi'),
             ]);
             setSummary(sumRes.data);
             setUrgentAssets(urgRes.data.results || urgRes.data || []);
@@ -60,6 +55,9 @@ export default function AsetDashboard() {
     const totalAsetCount = Number(summary?.total_aset || 0);
     const perluTindakanCount = Number(summary?.perlu_tindakan_count || 0);
     const belumLengkapCount = Number(summary?.belum_lengkap_count || 0);
+    const menungguVerifCount = Number(summary?.menunggu_verifikasi_count || 0);
+    const ditolakCount = Number(summary?.ditolak_count || 0);
+    const canCreateAsset = Boolean(isAsetAdmin || (summary?.unit_registration_open && (user?.unit || user?.unit_nama)));
 
     return (
         <div className="aset-dash-root" aria-busy={loading}>
@@ -75,7 +73,7 @@ export default function AsetDashboard() {
                     <Link to="/aset/daftar" className="aset-btn-stripe secondary">
                         <List size={14} strokeWidth={1.75} /> Buka Daftar Aset
                     </Link>
-                    {isAsetAdmin && (
+                    {canCreateAsset && (
                         <button
                             type="button"
                             className="aset-btn-stripe primary"
@@ -86,6 +84,31 @@ export default function AsetDashboard() {
                     )}
                 </div>
             </div>
+
+            {(menungguVerifCount > 0 || ditolakCount > 0) && (
+                <div className="aset-verif-banner">
+                    <div className="aset-verif-banner-text">
+                        <strong>Antrean Verifikasi Pendaftaran Unit:</strong>{' '}
+                        {menungguVerifCount > 0 && (
+                            <span>{menungguVerifCount} pengajuan menunggu verifikasi</span>
+                        )}
+                        {menungguVerifCount > 0 && ditolakCount > 0 && <span> &bull; </span>}
+                        {ditolakCount > 0 && (
+                            <span>{ditolakCount} pengajuan perlu perbaikan data</span>
+                        )}
+                        <span className="aset-verif-banner-note">
+                            {' '}(tidak dihitung pada statistik resmi &amp; KIR sebelum diverifikasi)
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        className="aset-btn-stripe secondary"
+                        onClick={() => navigate(`/aset/daftar?status_verifikasi=${menungguVerifCount > 0 ? 'menunggu_verifikasi' : 'ditolak'}`)}
+                    >
+                        {isAsetAdmin ? 'Tinjau Antrean Verifikasi' : 'Lihat Pengajuan Unit'}
+                    </button>
+                </div>
+            )}
 
             {/* ── Flat Horizontal KPI Stat-Bar (6 Metrik) ── */}
             <div className={`aset-stat-bar${!isFinancialViewer ? ' is-compact' : ''}`}>

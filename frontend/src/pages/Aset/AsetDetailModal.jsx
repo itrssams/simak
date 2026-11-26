@@ -238,6 +238,33 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                 </span>
                                             </div>
                                         </div>
+                                        <div className="aset-form-grid-2" style={{ marginTop: '14px' }}>
+                                            <div>
+                                                <div className="aset-detail-label">Status Verifikasi</div>
+                                                <span className={`aset-status-text ${
+                                                    data.status_verifikasi === 'terverifikasi'
+                                                        ? 'emerald'
+                                                        : data.status_verifikasi === 'ditolak'
+                                                            ? 'rose'
+                                                            : 'amber'
+                                                }`}>
+                                                    <span className="aset-status-dot" />
+                                                    <span>{data.status_verifikasi_label || data.status_verifikasi}</span>
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Diverifikasi Oleh</div>
+                                                <div className="aset-detail-value">
+                                                    {data.verified_by_nama || (data.status_verifikasi === 'terverifikasi' ? 'Admin Aset' : 'Menunggu Verifikasi')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {data.catatan_verifikasi && (
+                                            <div style={{ marginTop: '12px' }}>
+                                                <div className="aset-detail-label">Catatan Verifikasi</div>
+                                                <div className="aset-detail-prose">{data.catatan_verifikasi}</div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Bagian Finansial (Hanya untuk Admin / Keuangan) */}

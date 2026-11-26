@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Save, Package, Lock, Image as ImageIcon, Camera, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { X, Save, Package, Sparkles, Loader2, Camera, Trash2, Lock } from 'lucide-react';
 import api from '../../api/axiosConfig';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import DateField from '../../components/DateField';
 import SearchableSelect from '../../components/SearchableSelect';
 import useBodyScrollLock from './useBodyScrollLock';
+import { isAsetManagerUser, getUserUnitId } from './asetPermissions';
 import './Aset.css';
 import resolveMediaUrl from '../../utils/resolveMediaUrl';
 
@@ -87,8 +89,12 @@ const KEPEMILIKAN_OPTIONS = [
 ];
 
 export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData = null }) {
+    const { user } = useAuth();
     const toast = useToast();
     const isEdit = Boolean(initialData);
+    const isAsetAdmin = isAsetManagerUser(user);
+    const userUnitId = getUserUnitId(user);
+    const lockUnitToUser = !isAsetAdmin && Boolean(userUnitId);
 
     // Kunci scroll halaman belakang saat modal pendaftaran aset terbuka
     useBodyScrollLock(isOpen, onClose);
@@ -188,7 +194,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                     nomor_seri: '',
                     nomor_registrasi: '',
                     perlu_kalibrasi: false,
-                    unit: '',
+                    unit: (!isAsetAdmin && userUnitId) ? String(userUnitId) : '',
                     ruangan: '',
                     lokasi_teks: '',
                     status_kelayakan: 'A',
@@ -392,25 +398,8 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             toast.error('Lokasi Akurat / Keterangan Ruang wajib diisi.');
             return;
         }
-        if (!formData.bulan_perolehan) {
-            toast.error('Tanggal Perolehan wajib diisi.');
-            return;
-        }
-        const hargaNum = Number(formData.harga_perolehan);
-        if (!formData.harga_perolehan || isNaN(hargaNum) || hargaNum <= 0) {
-            toast.error('Harga Perolehan wajib diisi dan harus lebih dari Rp 0.');
-            return;
-        }
         if (!isEdit && !fotoAwalFile) {
             toast.error('Foto Kondisi Awal (Saat Registrasi) wajib diunggah saat pendaftaran aset baru.');
-            return;
-        }
-        if (!formData.rekomendasi_tindakan.trim()) {
-            toast.error('Rekomendasi Tindakan wajib diisi.');
-            return;
-        }
-        if (!formData.catatan.trim()) {
-            toast.error('Catatan Tambahan wajib diisi.');
             return;
         }
 
@@ -421,9 +410,15 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             const textFieldsAllowedBlank = [
                 'nomor_seri',
                 'nomor_registrasi',
+                'rekomendasi_tindakan',
+                'catatan',
             ];
 
             Object.keys(formData).forEach(key => {
+                if (key === 'bulan_perolehan' || key === 'harga_perolehan') {
+                    // Kolom sementara dinonaktifkan — pertahankan nilai eksisting saat edit tanpa memaksa input
+                    return;
+                }
                 if (key === 'perlu_kalibrasi') {
                     data.append('perlu_kalibrasi', formData.perlu_kalibrasi ? 'true' : 'false');
                 } else if (textFieldsAllowedBlank.includes(key)) {
@@ -445,12 +440,20 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                 await api.patch(`/aset/aset/${initialData.id}/`, data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-                toast.success('Data aset berhasil diperbarui.');
+                toast.success(
+                    isAsetAdmin
+                        ? 'Data aset berhasil diperbarui.'
+                        : 'Perubahan aset berhasil disimpan dan diajukan ulang untuk verifikasi.'
+                );
             } else {
                 await api.post('/aset/aset/', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-                toast.success('Aset baru berhasil didaftarkan.');
+                toast.success(
+                    isAsetAdmin
+                        ? 'Aset baru berhasil didaftarkan.'
+                        : 'Pengajuan aset berhasil dikirim dan menunggu verifikasi Admin Aset.'
+                );
             }
 
             if (onSuccess) onSuccess();
@@ -520,6 +523,21 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
                 <form onSubmit={handleSubmit}>
                     <div className="aset-modal-body">
+                        {!isAsetAdmin && (
+                            <div className={`aset-verif-note ${initialData?.status_verifikasi === 'ditolak' ? 'is-rejected' : ''}`}>
+                                {initialData?.status_verifikasi === 'ditolak' ? (
+                                    <>
+                                        <strong>Pengajuan Perlu Perbaikan:</strong>{' '}
+                                        {initialData.catatan_verifikasi || 'Silakan perbaiki data sesuai catatan Admin Aset dan simpan untuk verifikasi ulang.'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <strong>Pendaftaran Aset Unit:</strong>{' '}
+                                        Aset yang didaftarkan berstatus <em>Menunggu Verifikasi</em> oleh Admin Aset (Mas Febry / Pak Edy / Bu Nevi) sebelum masuk ke KIR dan laporan resmi. Anda tetap dapat mengedit data selama belum diverifikasi.
+                                    </>
+                                )}
+                            </div>
+                        )}
                         {/* Baris 1: Jenis Aset & Kode Aset */}
                         <div className="aset-form-grid-2">
                             <div className="aset-form-group">
@@ -745,7 +763,9 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 3: Unit, Ruangan, Lokasi Teks */}
                         <div className="aset-form-grid-3">
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Unit Penanggung Jawab *</label>
+                                <label className="aset-form-label">
+                                    Unit Penanggung Jawab * {lockUnitToUser && <Lock size={11} style={{ display: 'inline', marginLeft: 4 }} />}
+                                </label>
                                 <SearchableSelect
                                     options={unitOptions}
                                     value={formData.unit}
@@ -753,6 +773,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                     placeholder="-- Pilih / Cari Unit --"
                                     searchPlaceholder="Ketik nama unit..."
                                     required
+                                    disabled={lockUnitToUser}
                                 />
                             </div>
                             <div className="aset-form-group">
@@ -828,23 +849,29 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
                             <div style={{ display: 'grid', gridTemplateColumns: '175px 1.1fr 1.6fr', gap: '12px' }}>
                                 <div className="aset-form-group" style={{ margin: 0 }}>
-                                    <label className="aset-form-label">Tanggal Perolehan *</label>
+                                    <label className="aset-form-label" title="Sementara dinonaktifkan">
+                                        Tanggal Perolehan
+                                    </label>
                                     <DateField
                                         value={formData.bulan_perolehan}
                                         onChange={val => setFormData({ ...formData, bulan_perolehan: val })}
-                                        placeholder="Pilih tanggal..."
+                                        placeholder="Sementara dikunci"
+                                        disabled
                                     />
                                 </div>
                                 <div className="aset-form-group" style={{ margin: 0 }}>
-                                    <label className="aset-form-label">Harga Perolehan *</label>
+                                    <label className="aset-form-label" title="Sementara dinonaktifkan">
+                                        Harga Perolehan
+                                    </label>
                                     <input
                                         type="text"
                                         className="aset-form-input"
                                         style={{ fontWeight: 600, letterSpacing: '0.02em' }}
-                                        placeholder="Rp 0"
+                                        placeholder="Sementara dikunci"
                                         value={hargaDisplay}
                                         onChange={handleHargaChange}
-                                        required
+                                        disabled
+                                        title="Kolom Harga Perolehan sementara dinonaktifkan"
                                     />
                                 </div>
                                 <div className="aset-form-group" style={{ margin: 0 }}>
@@ -984,25 +1011,23 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                         {/* Baris 7: Catatan & Rekomendasi */}
                         <div className="aset-form-grid-2" style={{ marginTop: '12px' }}>
                             <div className="aset-form-group" style={{ margin: 0 }}>
-                                <label className="aset-form-label">Rekomendasi Tindakan *</label>
+                                <label className="aset-form-label">Rekomendasi Tindakan (Opsional)</label>
                                 <textarea
                                     className="aset-form-input"
                                     rows="2"
                                     placeholder="Contoh: Perlu pembersihan filter rutin tiap 3 bulan"
                                     value={formData.rekomendasi_tindakan}
                                     onChange={e => setFormData({ ...formData, rekomendasi_tindakan: e.target.value })}
-                                    required
                                 />
                             </div>
                             <div className="aset-form-group" style={{ margin: 0 }}>
-                                <label className="aset-form-label">Catatan Tambahan *</label>
+                                <label className="aset-form-label">Catatan Tambahan (Opsional)</label>
                                 <textarea
                                     className="aset-form-input"
                                     rows="2"
                                     placeholder="Catatan inventaris ruangan / keterangan garansi"
                                     value={formData.catatan}
                                     onChange={e => setFormData({ ...formData, catatan: e.target.value })}
-                                    required
                                 />
                             </div>
                         </div>

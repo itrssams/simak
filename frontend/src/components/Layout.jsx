@@ -38,6 +38,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosConfig';
 import AppSwitcherModal from './AppSwitcherModal';
+import { isFinancialViewerUser } from '../pages/Aset/asetPermissions';
 
 const resolveMediaUrl = (url) => {
     if (!url) return null;
@@ -512,13 +513,7 @@ const getActiveModuleConfig = (pathname, user) => {
 
     // 4b. Manajemen Aset
     if (pathname.startsWith('/aset')) {
-        const isAsetAdmin = Boolean(
-            user?.is_superuser ||
-            user?.is_aset_admin ||
-            user?.is_akuntansi ||
-            ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role) ||
-            (user?.role === 'kepala_seksi' && user?.unit?.nama?.toLowerCase().includes('umum'))
-        );
+        const isAsetAdmin = isFinancialViewerUser(user);
         const menus = [
             { label: 'Dashboard Aset', path: '/aset' },
             { label: 'Daftar Aset', path: '/aset/daftar' },

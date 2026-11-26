@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import AsetKelompok, AsetKategori, AsetJenis, AsetRuangan, Aset, AsetRiwayat
+from .models import (
+    AsetKelompok,
+    AsetKategori,
+    AsetJenis,
+    AsetRuangan,
+    Aset,
+    AsetRiwayat,
+    AsetPengaturan,
+    AsetTeknisi,
+)
 
 
 @admin.register(AsetKelompok)
@@ -38,4 +47,16 @@ class AsetRiwayatAdmin(admin.ModelAdmin):
     list_display = ('aset', 'aksi', 'status_kelayakan_lama', 'status_kelayakan_baru', 'dilakukan_oleh', 'created_at')
     list_filter = ('aksi', 'created_at')
     search_fields = ('aset__kode_aset', 'catatan')
+
+
+@admin.register(AsetPengaturan)
+class AsetPengaturanAdmin(admin.ModelAdmin):
+    list_display = ('id', 'izinkan_pendaftaran_unit', 'updated_by', 'updated_at')
+
+
+@admin.register(AsetTeknisi)
+class AsetTeknisiAdmin(admin.ModelAdmin):
+    list_display = ('nama', 'kategori', 'user', 'is_active')
+    list_filter = ('kategori', 'is_active')
+    search_fields = ('nama', 'user__username', 'user__first_name', 'user__last_name')
 

@@ -8,21 +8,23 @@ from django.utils import timezone
 
 from .models import (
     AsetKelompok, AsetKategori, AsetJenis, AsetRuangan,
-    Aset, AsetRiwayat, AsetPerbaikan, AsetPerbaikanLog
+    Aset, AsetRiwayat, AsetPerbaikan, AsetPerbaikanLog,
+    AsetPengaturan, AsetTeknisi,
 )
 from .serializers import (
     AsetPerbaikanSerializer, AsetPerbaikanFinishSerializer, AsetPerbaikanLogSerializer,
     AsetKelompokSerializer, AsetKategoriSerializer, AsetJenisSerializer,
     AsetRuanganSerializer, AsetRiwayatSerializer,
     AsetListSerializer, AsetDetailSerializer, AsetInputSerializer,
-    AsetKelayakanUpdateSerializer, is_financial_viewer, is_aset_manager
+    AsetKelayakanUpdateSerializer, AsetPengaturanSerializer, AsetTeknisiSerializer,
+    is_financial_viewer, is_aset_manager,
 )
 from .services import hitung_penyusutan_aset, generate_jadwal_penyusutan, catat_riwayat_kelayakan, get_ai_asset_suggestions
 
 
 class IsAsetAdminOrReadOnly(permissions.BasePermission):
     """
-    Hanya admin aset / superuser yang boleh create/update/delete master aset.
+    Hanya admin/pengelola aset atau superuser yang boleh create/update/delete master aset.
     User biasa hanya boleh membaca.
     """
     def has_permission(self, request, view):
@@ -30,7 +32,7 @@ class IsAsetAdminOrReadOnly(permissions.BasePermission):
             return False
         if request.method in permissions.SAFE_METHODS:
             return True
-        return is_financial_viewer(request.user)
+        return is_aset_manager(request.user)
 
 
 class AsetKelompokViewSet(viewsets.ReadOnlyModelViewSet):
@@ -177,27 +179,180 @@ class AsetViewSet(viewsets.ModelViewSet):
         if status_data:
             qs = qs.filter(status_data=status_data)
 
+        status_verif_list = []
+        for raw_val in self.request.query_params.getlist('status_verifikasi'):
+            for part in raw_val.split(','):
+                cleaned = part.strip()
+                if cleaned and cleaned != 'all':
+                    status_verif_list.append(cleaned)
+        if status_verif_list:
+            qs = qs.filter(status_verifikasi__in=status_verif_list)
+
         return qs.order_by('kode_aset')
 
     def check_object_permissions(self, request, obj):
         super().check_object_permissions(request, obj)
         user = request.user
-        # Jika bukan admin, pastikan aset berada di unitnya
+        # Jika bukan pengelola / viewer finansial, pastikan aset berada di unitnya
         if not is_financial_viewer(user) and obj.unit_id != user.unit_id:
             self.permission_denied(request, message="Anda tidak memiliki akses ke aset di luar unit Anda.")
 
+    @action(detail=False, methods=['get', 'post', 'patch'], permission_classes=[permissions.IsAuthenticated])
+    def pengaturan(self, request):
+        pengaturan = AsetPengaturan.get_solo()
+        if request.method in ('POST', 'PATCH'):
+            if not is_aset_manager(request.user):
+                return Response(
+                    {'detail': 'Hanya Admin Aset yang dapat mengubah pengaturan pendaftaran unit.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            serializer = AsetPengaturanSerializer(pengaturan, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(updated_by=request.user)
+            return Response(serializer.data)
+        return Response(AsetPengaturanSerializer(pengaturan).data)
+
+    def _mutable_unit_payload(self, data, unit_id):
+        if hasattr(data, 'copy'):
+            payload = data.copy()
+        else:
+            payload = dict(data)
+        payload['unit'] = unit_id
+        return payload
+
     def create(self, request, *args, **kwargs):
-        if not is_financial_viewer(request.user):
-            return Response({'detail': 'Hanya Admin Aset yang dapat mendaftarkan aset baru.'}, status=status.HTTP_403_FORBIDDEN)
-        return super().create(request, *args, **kwargs)
+        user = request.user
+        if is_aset_manager(user):
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(
+                status_verifikasi='terverifikasi',
+                verified_by=user,
+                verified_at=timezone.now(),
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        pengaturan = AsetPengaturan.get_solo()
+        if not pengaturan.izinkan_pendaftaran_unit:
+            return Response(
+                {'detail': 'Pendaftaran aset mandiri oleh unit sedang ditutup oleh Admin Aset.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not user.unit_id:
+            return Response(
+                {'detail': 'Akun Anda belum terhubung dengan Unit penanggung jawab.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = self._mutable_unit_payload(request.data, user.unit_id)
+        serializer = self.get_serializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            status_verifikasi='menunggu_verifikasi',
+            verified_by=None,
+            verified_at=None,
+            catatan_verifikasi='',
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        if not is_financial_viewer(request.user):
-            return Response({'detail': 'Hanya Admin Aset yang dapat mengubah identitas aset.'}, status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        user = request.user
+
+        if is_aset_manager(user):
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+        if instance.unit_id != user.unit_id:
+            return Response(
+                {'detail': 'Anda tidak memiliki akses untuk mengubah aset unit lain.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if instance.status_verifikasi not in ('menunggu_verifikasi', 'ditolak'):
+            return Response(
+                {'detail': 'Aset yang sudah terverifikasi hanya dapat diubah oleh Admin Aset.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        payload = self._mutable_unit_payload(request.data, instance.unit_id)
+        serializer = self.get_serializer(instance, data=payload, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        aset = serializer.save(
+            status_verifikasi='menunggu_verifikasi',
+            verified_by=None,
+            verified_at=None,
+            catatan_verifikasi='',
+        )
+        AsetRiwayat.objects.create(
+            aset=aset,
+            aksi='update_data',
+            catatan='Data pendaftaran aset diperbarui oleh unit dan diajukan kembali untuk verifikasi.',
+            dilakukan_oleh=user,
+        )
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def verifikasi(self, request, pk=None):
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya Admin Aset (Mas Febry / Pak Edy / Bu Nevi / Admin) yang berhak memverifikasi aset.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        aset = self.get_object()
+        catatan = (request.data.get('catatan_verifikasi') or '').strip()
+        aset.status_verifikasi = 'terverifikasi'
+        aset.verified_by = request.user
+        aset.verified_at = timezone.now()
+        aset.catatan_verifikasi = catatan
+        aset.updated_by = request.user
+        aset.save(update_fields=['status_verifikasi', 'verified_by', 'verified_at', 'catatan_verifikasi', 'updated_by', 'updated_at'])
+
+        AsetRiwayat.objects.create(
+            aset=aset,
+            aksi='update_data',
+            status_kelayakan_lama=aset.status_kelayakan,
+            status_kelayakan_baru=aset.status_kelayakan,
+            catatan=f'Aset diverifikasi dan disetujui. {catatan}'.strip(),
+            dilakukan_oleh=request.user,
+        )
+        return Response(AsetDetailSerializer(aset, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def tolak_verifikasi(self, request, pk=None):
+        if not is_aset_manager(request.user):
+            return Response(
+                {'detail': 'Hanya Admin Aset yang berhak menolak pengajuan pendaftaran aset.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        aset = self.get_object()
+        alasan = (request.data.get('catatan_verifikasi') or request.data.get('alasan') or '').strip()
+        if not alasan:
+            return Response(
+                {'catatan_verifikasi': 'Alasan penolakan wajib diisi agar unit dapat memperbaiki data.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        aset.status_verifikasi = 'ditolak'
+        aset.verified_by = request.user
+        aset.verified_at = timezone.now()
+        aset.catatan_verifikasi = alasan
+        aset.updated_by = request.user
+        aset.save(update_fields=['status_verifikasi', 'verified_by', 'verified_at', 'catatan_verifikasi', 'updated_by', 'updated_at'])
+
+        AsetRiwayat.objects.create(
+            aset=aset,
+            aksi='update_data',
+            status_kelayakan_lama=aset.status_kelayakan,
+            status_kelayakan_baru=aset.status_kelayakan,
+            catatan=f'Pengajuan aset ditolak untuk perbaikan: {alasan}',
+            dilakukan_oleh=request.user,
+        )
+        return Response(AsetDetailSerializer(aset, context={'request': request}).data)
 
     def destroy(self, request, *args, **kwargs):
-        if not is_financial_viewer(request.user):
+        if not is_aset_manager(request.user):
             return Response({'detail': 'Hanya Admin Aset yang dapat menghapus data aset.'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
 
@@ -208,6 +363,11 @@ class AsetViewSet(viewsets.ModelViewSet):
         Langsung berlaku seketika dan tercatat di riwayat.
         """
         aset = self.get_object()
+        if aset.status_verifikasi != 'terverifikasi':
+            return Response(
+                {'detail': 'Aset harus diverifikasi terlebih dahulu sebelum mengubah kondisi kelayakan.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = AsetKelayakanUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -258,11 +418,16 @@ class AsetViewSet(viewsets.ModelViewSet):
     def dashboard_summary(self, request):
         """
         Ringkasan data untuk Dashboard Aset.
+        Aset belum terverifikasi/ditolak tidak dihitung ke statistik resmi & laporan/penyusutan.
         """
         user = request.user
         is_admin = is_financial_viewer(user)
 
-        qs = self.get_queryset()
+        scoped_qs = self.get_queryset()
+        menunggu_verifikasi_count = scoped_qs.filter(status_verifikasi='menunggu_verifikasi').count()
+        ditolak_count = scoped_qs.filter(status_verifikasi='ditolak').count()
+
+        qs = scoped_qs.filter(status_verifikasi='terverifikasi')
         total_aset = qs.count()
 
         # Hitung kelayakan (.order_by() wajib agar GROUP BY tidak terpecah oleh ordering default kode_aset)
@@ -278,6 +443,7 @@ class AsetViewSet(viewsets.ModelViewSet):
         # Grouping Unit
         unit_counts = list(
             qs.values('unit__id', 'unit__nama')
+            .order_by()
             .annotate(total=Count('id'))
             .order_by('-total')
         )
@@ -285,6 +451,7 @@ class AsetViewSet(viewsets.ModelViewSet):
         # Grouping Kategori
         kategori_counts = list(
             qs.values('jenis__kategori__kode', 'jenis__kategori__nama')
+            .order_by()
             .annotate(total=Count('id'))
             .order_by('-total')
         )
@@ -305,6 +472,8 @@ class AsetViewSet(viewsets.ModelViewSet):
 
         return Response({
             'is_financial_viewer': is_admin,
+            'is_aset_manager': is_aset_manager(user),
+            'unit_registration_open': AsetPengaturan.get_solo().izinkan_pendaftaran_unit,
             'total_aset': total_aset,
             'total_harga_perolehan': float(total_harga) if is_admin else None,
             'total_akumulasi_penyusutan': float(total_akumulasi) if is_admin else None,
@@ -312,6 +481,8 @@ class AsetViewSet(viewsets.ModelViewSet):
             'kelayakan_counts': kelayakan_counts,
             'perlu_tindakan_count': perlu_tindakan_count,
             'belum_lengkap_count': belum_lengkap_count,
+            'menunggu_verifikasi_count': menunggu_verifikasi_count,
+            'ditolak_count': ditolak_count,
             'unit_counts': unit_counts,
             'kategori_counts': kategori_counts,
         })
@@ -351,9 +522,14 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
                 Q(tindak_lanjut__icontains=q)
             )
 
-        status_pbk = self.request.query_params.get('status_perbaikan')
-        if status_pbk:
-            qs = qs.filter(status_perbaikan=status_pbk)
+        status_list = []
+        for raw_val in self.request.query_params.getlist('status_perbaikan'):
+            for part in raw_val.split(','):
+                cleaned = part.strip()
+                if cleaned:
+                    status_list.append(cleaned)
+        if status_list:
+            qs = qs.filter(status_perbaikan__in=status_list)
 
         tingkat = self.request.query_params.get('tingkat_kerusakan')
         if tingkat:
@@ -375,6 +551,10 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+        aset_obj = serializer.validated_data.get('aset')
+        if aset_obj and aset_obj.status_verifikasi != 'terverifikasi':
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'aset': 'Aset harus diverifikasi oleh Admin Aset terlebih dahulu sebelum dilaporkan kerusakannya.'})
         perbaikan = serializer.save(pelapor=user, tanggal_laporan=timezone.now().date())
 
         # Ubah status operasional aset menjadi dalam_perbaikan.
@@ -617,3 +797,89 @@ class AsetPerbaikanViewSet(viewsets.ModelViewSet):
         )
 
         return Response(AsetPerbaikanSerializer(perbaikan, context={'request': request}).data)
+
+    @action(detail=False, methods=['get'], url_path='teknisi_options', permission_classes=[permissions.IsAuthenticated])
+    def teknisi_options(self, request):
+        from django.apps import apps
+        from django.contrib.auth import get_user_model
+
+        entries = {}
+        kategori_order = {'teknisi_ipsrs': 0, 'elektromedis': 1, 'it': 2}
+
+        def clean_kategori_label(kat):
+            return {
+                'teknisi_ipsrs': 'Teknisi IPSRS',
+                'elektromedis': 'Elektromedis',
+                'it': 'Teknisi IT / Sarpras',
+            }.get(kat, 'Teknisi')
+
+        def add_option(nama, kategori='teknisi_ipsrs', kategori_label='', sumber=''):
+            clean = ' '.join(str(nama or '').strip().split())
+            if not clean:
+                return
+            key = clean.lower()
+            if key not in entries:
+                label_kat = kategori_label or clean_kategori_label(kategori)
+                entries[key] = {
+                    'value': clean,
+                    'label': clean,
+                    'kategori': kategori,
+                    'kategori_label': label_kat,
+                    'subtext': label_kat,
+                    'sumber': sumber,
+                }
+
+        # 1. Master AsetTeknisi
+        for t in AsetTeknisi.objects.filter(is_active=True):
+            add_option(t.nama, t.kategori, t.get_kategori_display(), 'master')
+
+        # 2. Akun User SIMAK di unit IPSRS / Elektromedis / ATEM
+        UserModel = get_user_model()
+        tech_users = UserModel.objects.filter(is_active=True, unit__isnull=False).filter(
+            Q(unit__nama__icontains='ipsrs')
+            | Q(unit__nama__icontains='elektro')
+            | Q(unit__nama__icontains='atem')
+        ).select_related('unit')
+        for u in tech_users:
+            unit_lower = (u.unit.nama or '').lower()
+            kat = 'elektromedis' if ('elektro' in unit_lower or 'atem' in unit_lower) else 'teknisi_ipsrs'
+            add_option(u.get_full_name() or u.username, kat, clean_kategori_label(kat), 'user')
+
+        # 3. Data Master SDM Pegawai IPSRS / Elektromedis / Teknisi
+        try:
+            Pegawai = apps.get_model('sdm', 'Pegawai')
+            pegawai_qs = Pegawai.objects.filter(is_active=True).filter(
+                Q(unit_kerja__icontains='ipsrs')
+                | Q(unit_kerja__icontains='elektro')
+                | Q(unit_kerja__icontains='atem')
+                | Q(jabatan__icontains='teknis')
+                | Q(jabatan__icontains='elektro')
+                | Q(jabatan__icontains='atem')
+                | Q(jabatan__icontains='ipsrs')
+            )
+            for p in pegawai_qs:
+                text_check = f'{p.unit_kerja} {p.jabatan}'.lower()
+                kat = 'elektromedis' if ('elektro' in text_check or 'atem' in text_check) else 'teknisi_ipsrs'
+                add_option(p.nama, kat, clean_kategori_label(kat), 'pegawai')
+        except LookupError:
+            pass
+
+        result = sorted(entries.values(), key=lambda x: (kategori_order.get(x['kategori'], 9), x['label'].lower()))
+        return Response(result)
+
+
+class AsetTeknisiViewSet(viewsets.ModelViewSet):
+    """
+    Master daftar Teknisi IPSRS & Elektromedis untuk dropdown perbaikan aset.
+    """
+    queryset = AsetTeknisi.objects.all()
+    serializer_class = AsetTeknisiSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAsetAdminOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        aktif = self.request.query_params.get('is_active')
+        if aktif in ('true', '1', 'True'):
+            qs = qs.filter(is_active=True)
+        return qs
+

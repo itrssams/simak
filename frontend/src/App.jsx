@@ -58,6 +58,7 @@ import AsetRuangan from './pages/Aset/AsetRuangan';
 import AsetLaporan from './pages/Aset/AsetLaporan';
 import AsetPerbaikan from './pages/Aset/AsetPerbaikan';
 import AsetJenis from './pages/Aset/AsetJenis';
+import { isAsetManagerUser } from './pages/Aset/asetPermissions';
 import LoadingScreen from './components/LoadingScreen';
 import { useIdleTimeout } from './hooks/useIdleTimeout';
 import IdleWarningModal from './components/IdleWarningModal';
@@ -70,8 +71,8 @@ const isDirekturUp = (u) => u?.is_superuser || ['wakil_direktur', 'direktur'].in
 const isIT = (u) => u?.is_superuser || u?.is_it;
 const isKeuangan = (u) => u?.is_superuser || u?.is_keuangan;
 const isLogistik = (u) => u?.is_superuser || u?.is_logistik || u?.view_logistik;
-const canAset = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || u?.akses_aset || isManajerUp(u) || u?.unit);
-const isAsetAdminOnly = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || isManajerUp(u) || (u?.role === 'kepala_seksi' && u?.unit?.nama?.toLowerCase().includes('umum')));
+const canAset = (u) => Boolean(u?.is_superuser || u?.is_aset_admin || u?.akses_aset || isManajerUp(u) || isAsetManagerUser(u) || u?.unit);
+const isAsetAdminOnly = (u) => isAsetManagerUser(u);
 const canCatatanUtang = (u) => u?.is_superuser || u?.akses_catatan_utang;
 const canAkuntansi = (u) => Boolean(u?.is_superuser || u?.is_akuntansi || u?.is_keuangan || isManajerUp(u));
 const canKasBesar = (u) => u?.is_superuser || u?.akses_kas_besar || u?.view_kas_besar || isDirekturUp(u);

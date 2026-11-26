@@ -11,16 +11,25 @@ import {
     Camera,
     Trash2,
     Check,
-    UserCheck
+    UserCheck,
+    ChevronDown
 } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { SimplePagination } from '../../utils/pagination';
-import DateField from '../../components/DateField';
+import SearchableSelect from '../../components/SearchableSelect';
 import useBodyScrollLock from './useBodyScrollLock';
+import { isAsetManagerUser } from './asetPermissions';
 import resolveMediaUrl from '../../utils/resolveMediaUrl';
 import './Aset.css';
+
+const STATUS_FILTER_OPTIONS = [
+    { value: 'belum_mulai', label: 'Belum Mulai' },
+    { value: 'inspeksi', label: 'Inspeksi / Penugasan Teknisi' },
+    { value: 'dalam_proses', label: 'Dalam Proses' },
+    { value: 'selesai', label: 'Selesai' },
+];
 
 // Stepper Alur Tahapan Perbaikan (Pipeline Linier Otomatis Mirip Petty Cash)
 const REPAIR_STEPS = [
@@ -33,17 +42,17 @@ const REPAIR_STEPS = [
 function RepairStepper({ currentStatus, activeTargetStep }) {
     // Tentukan tahap mana yang sedang aktif dijalankan:
     // 0: Pelaporan, 1: Inspeksi Teknisi, 2: Pengerjaan Servis, 3: Selesai
-    let activeIndex = 1;
+    let activeIndex = 0;
     if (currentStatus === 'selesai') {
         activeIndex = 4; // Semua tahap (0, 1, 2, 3) telah selesai
     } else if (activeTargetStep !== undefined) {
         activeIndex = activeTargetStep;
     } else if (currentStatus === 'belum_mulai') {
-        activeIndex = 1; // Tahap 2 (index 1) sedang aktif
+        activeIndex = 0; // Baru tahap 1 (Pelaporan) yang aktif; tahap 2-4 masih belum dimulai
     } else if (currentStatus === 'inspeksi') {
-        activeIndex = 2; // Tahap 3 (index 2) sedang aktif
+        activeIndex = 1; // Tahap 1 selesai, tahap 2 (Inspeksi Teknisi) sedang aktif
     } else if (currentStatus === 'dalam_proses') {
-        activeIndex = 2; // Tahap 3 (index 2) sedang aktif
+        activeIndex = 2; // Tahap 3 (Pengerjaan Servis) sedang aktif
     }
 
     return (
@@ -59,7 +68,7 @@ function RepairStepper({ currentStatus, activeTargetStep }) {
                     dotClass += ' completed';
                     stepClass += ' completed';
                 } else if (isCurrentActive) {
-                    const activeType = i === 1 ? '1' : i === 2 ? '2' : '3';
+                    const activeType = i === 0 ? '0' : i === 1 ? '1' : i === 2 ? '2' : '3';
                     dotClass += ` active-step-${activeType}`;
                     stepClass += ` active-${activeType}`;
                 }
@@ -91,12 +100,7 @@ export default function AsetPerbaikan() {
     const toast = useToast();
 
     // Akses Utama Manajemen Aset
-    const isAsetAdmin = Boolean(
-        user?.is_superuser ||
-        user?.is_aset_admin ||
-        ['manajer', 'wakil_direktur', 'direktur'].includes(user?.role) ||
-        (user?.role === 'kepala_seksi' && user?.unit_nama?.toLowerCase().includes('umum'))
-    );
+    const isAsetAdmin = isAsetManagerUser(user);
 
     const [perbaikanList, setPerbaikanList] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -104,9 +108,15 @@ export default function AsetPerbaikan() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
 
+    // Master opsi teknisi IPSRS + Elektromedis
+    const [teknisiOptions, setTeknisiOptions] = useState([]);
+    const [teknisiMode, setTeknisiMode] = useState('select'); // 'select' | 'manual'
+
     // Filters
     const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
+    const [filterStatus, setFilterStatus] = useState([]);
+    const [statusFilterOpen, setStatusFilterOpen] = useState(false);
+    const statusFilterRef = useRef(null);
     const [filterTingkat, setFilterTingkat] = useState('');
 
     // Modal Detail Tiket
@@ -151,8 +161,32 @@ export default function AsetPerbaikan() {
     });
 
     useEffect(() => {
+        loadTeknisiOptions();
+    }, []);
+
+    useEffect(() => {
+        if (!statusFilterOpen) return undefined;
+        const handleOutside = (event) => {
+            if (statusFilterRef.current && !statusFilterRef.current.contains(event.target)) {
+                setStatusFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutside);
+        return () => document.removeEventListener('mousedown', handleOutside);
+    }, [statusFilterOpen]);
+
+    useEffect(() => {
         loadTickets();
     }, [page, pageSize, filterStatus, filterTingkat]);
+
+    const loadTeknisiOptions = async () => {
+        try {
+            const res = await api.get('/aset/perbaikan/teknisi_options/');
+            setTeknisiOptions(Array.isArray(res.data) ? res.data : (res.data?.results || []));
+        } catch (err) {
+            console.error('Failed to load teknisi options', err);
+        }
+    };
 
     const loadTickets = async () => {
         setLoading(true);
@@ -162,7 +196,7 @@ export default function AsetPerbaikan() {
                 page_size: pageSize,
             };
             if (search) params.q = search;
-            if (filterStatus) params.status_perbaikan = filterStatus;
+            if (filterStatus.length > 0) params.status_perbaikan = filterStatus.join(',');
             if (filterTingkat) params.tingkat_kerusakan = filterTingkat;
 
             const res = await api.get('/aset/perbaikan/', { params });
@@ -270,8 +304,13 @@ export default function AsetPerbaikan() {
         }
         setSelectedTicket(ticket);
         const est = Number(ticket.estimasi_biaya) || 0;
+        const currentTeknisi = (ticket.teknisi || '').trim();
+        const isKnownTeknisi = !currentTeknisi || teknisiOptions.some(
+            opt => opt.value.toLowerCase() === currentTeknisi.toLowerCase()
+        );
+        setTeknisiMode(isKnownTeknisi ? 'select' : 'manual');
         setUpdateForm({
-            teknisi: ticket.teknisi || '',
+            teknisi: currentTeknisi,
             hasil_inspeksi: ticket.hasil_inspeksi || '',
             estimasi_biaya: est,
             tindak_lanjut: ticket.tindak_lanjut || '',
@@ -282,6 +321,70 @@ export default function AsetPerbaikan() {
         setFotoProgressPreview(null);
         setIsUpdateModalOpen(true);
     };
+
+    const teknisiDropdownOptions = useMemo(() => [
+        ...teknisiOptions,
+        {
+            value: '__MANUAL__',
+            label: 'Vendor / Pihak Ketiga (Ketik Manual)',
+            subtext: 'Ketik manual jika ditangani vendor atau teknisi eksternal',
+            isSpecial: true,
+        },
+    ], [teknisiOptions]);
+
+    const renderTeknisiField = (labelText, rightHint = null) => (
+        <div className="aset-form-group" style={{ marginBottom: '14px' }}>
+            <label className="aset-form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                <span>{labelText}</span>
+                {rightHint}
+            </label>
+            <SearchableSelect
+                options={teknisiDropdownOptions}
+                value={teknisiMode === 'manual' ? '__MANUAL__' : updateForm.teknisi}
+                onChange={(val) => {
+                    if (val === '__MANUAL__') {
+                        setTeknisiMode('manual');
+                        setUpdateForm(prev => ({ ...prev, teknisi: '' }));
+                    } else {
+                        setTeknisiMode('select');
+                        setUpdateForm(prev => ({ ...prev, teknisi: val || '' }));
+                    }
+                }}
+                placeholder="-- Pilih Teknisi IPSRS / Elektromedis --"
+                searchPlaceholder="Cari nama teknisi IPSRS atau Elektromedis..."
+                countUnit="teknisi"
+                minDropdownWidth={360}
+            />
+            {teknisiMode === 'manual' && (
+                <div style={{ marginTop: '8px' }}>
+                    <input
+                        type="text"
+                        className="aset-form-input"
+                        placeholder="Ketik nama vendor / teknisi pihak ketiga (contoh: PT Mindray Service)..."
+                        value={updateForm.teknisi}
+                        onChange={e => setUpdateForm(prev => ({ ...prev, teknisi: e.target.value }))}
+                        required
+                        autoFocus
+                    />
+                </div>
+            )}
+        </div>
+    );
+
+    const toggleStatusFilter = (statusValue) => {
+        setFilterStatus(prev => (
+            prev.includes(statusValue)
+                ? prev.filter(item => item !== statusValue)
+                : [...prev, statusValue]
+        ));
+        setPage(1);
+    };
+
+    const statusFilterSummary = filterStatus.length === 0
+        ? 'Semua Status'
+        : filterStatus.length === 1
+            ? (STATUS_FILTER_OPTIONS.find(o => o.value === filterStatus[0])?.label || '1 Status')
+            : `${filterStatus.length} Status Dipilih`;
 
     const handleFotoProgressChange = (e) => {
         const file = e.target.files[0];
@@ -526,17 +629,49 @@ export default function AsetPerbaikan() {
                     />
                 </div>
 
-                <select
-                    className="aset-select"
-                    value={filterStatus}
-                    onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
-                >
-                    <option value="">Semua Status</option>
-                    <option value="belum_mulai">Belum Mulai</option>
-                    <option value="inspeksi">Inspeksi / Penugasan Teknisi</option>
-                    <option value="dalam_proses">Dalam Proses</option>
-                    <option value="selesai">Selesai</option>
-                </select>
+                <div className="aset-multiselect" ref={statusFilterRef}>
+                    <button
+                        type="button"
+                        className={`aset-multiselect-trigger ${filterStatus.length > 0 ? 'has-selection' : ''}`}
+                        onClick={() => setStatusFilterOpen(prev => !prev)}
+                        aria-expanded={statusFilterOpen}
+                    >
+                        <span className="aset-multiselect-label">{statusFilterSummary}</span>
+                        <ChevronDown size={14} className={`aset-multiselect-chevron ${statusFilterOpen ? 'open' : ''}`} />
+                    </button>
+                    {statusFilterOpen && (
+                        <div className="aset-multiselect-menu">
+                            <div className="aset-multiselect-head">
+                                <span>Filter Status (Multi-pilih)</span>
+                                {filterStatus.length > 0 && (
+                                    <button
+                                        type="button"
+                                        className="aset-multiselect-clear"
+                                        onClick={() => { setFilterStatus([]); setPage(1); }}
+                                    >
+                                        Reset
+                                    </button>
+                                )}
+                            </div>
+                            {STATUS_FILTER_OPTIONS.map(opt => {
+                                const checked = filterStatus.includes(opt.value);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={opt.value}
+                                        className={`aset-multiselect-option ${checked ? 'selected' : ''}`}
+                                        onClick={() => toggleStatusFilter(opt.value)}
+                                    >
+                                        <span className={`aset-multiselect-check ${checked ? 'checked' : ''}`}>
+                                            {checked && <Check size={11} strokeWidth={3} />}
+                                        </span>
+                                        <span>{opt.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
 
                 <select
                     className="aset-select"
@@ -548,6 +683,22 @@ export default function AsetPerbaikan() {
                     <option value="sedang">Tingkat: Sedang</option>
                     <option value="berat">Tingkat: Berat</option>
                 </select>
+
+                {(search || filterStatus.length > 0 || filterTingkat) && (
+                    <button
+                        type="button"
+                        className="btn-aset btn-aset-secondary"
+                        onClick={() => {
+                            setSearch('');
+                            setFilterStatus([]);
+                            setFilterTingkat('');
+                            setStatusFilterOpen(false);
+                            setPage(1);
+                        }}
+                    >
+                        Reset Filter
+                    </button>
+                )}
 
                 <button type="submit" className="btn-aset btn-aset-secondary">
                     Terapkan Filter
@@ -1109,21 +1260,10 @@ export default function AsetPerbaikan() {
                                 {/* FORM TAHAP 2: PENUGASAN TEKNISI & MULAI INSPEKSI */}
                                 {selectedTicket.status_perbaikan === 'belum_mulai' && (
                                     <>
-                                        <div className="aset-form-group" style={{ marginBottom: '14px' }}>
-                                            <label className="aset-form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>Nama Teknisi / Vendor Rekanan *</span>
-                                                <span style={{ fontSize: '10.5px', color: '#38bdf8' }}>Status otomatis beralih ke Inspeksi</span>
-                                            </label>
-                                            <input
-                                                type="text"
-                                                className="aset-form-input"
-                                                placeholder="Contoh: Teknisi IPSRS (Bpk. Joko) / Vendor PT Mindray"
-                                                value={updateForm.teknisi}
-                                                onChange={e => setUpdateForm({ ...updateForm, teknisi: e.target.value })}
-                                                required
-                                                autoFocus
-                                            />
-                                        </div>
+                                        {renderTeknisiField(
+                                            'Nama Teknisi / Elektromedis *',
+                                            <span style={{ fontSize: '10.5px', color: '#38bdf8' }}>Status otomatis beralih ke Inspeksi</span>
+                                        )}
 
                                         <div className="aset-form-group" style={{ marginBottom: '14px' }}>
                                             <label className="aset-form-label">Arahan / Catatan Awal untuk Teknisi (Opsional)</label>
@@ -1141,17 +1281,7 @@ export default function AsetPerbaikan() {
                                 {/* FORM TAHAP 3: INPUT HASIL INSPEKSI & MULAI SERVIS */}
                                 {selectedTicket.status_perbaikan === 'inspeksi' && (
                                     <>
-                                        <div className="aset-form-group" style={{ marginBottom: '14px' }}>
-                                            <label className="aset-form-label">Nama Teknisi Penanggung Jawab *</label>
-                                            <input
-                                                type="text"
-                                                className="aset-form-input"
-                                                placeholder="Nama Teknisi"
-                                                value={updateForm.teknisi}
-                                                onChange={e => setUpdateForm({ ...updateForm, teknisi: e.target.value })}
-                                                required
-                                            />
-                                        </div>
+                                        {renderTeknisiField('Nama Teknisi / Elektromedis Penanggung Jawab *')}
 
                                         <div className="aset-form-group" style={{ marginBottom: '14px' }}>
                                             <label className="aset-form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>

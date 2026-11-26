@@ -20,6 +20,8 @@ from .models import (
     Aset,
     AsetPerbaikan,
     AsetPerbaikanLog,
+    AsetPengaturan,
+    AsetTeknisi,
 )
 
 
@@ -93,22 +95,54 @@ class AsetAndPerbaikanTests(APITestCase):
         payload.update(overrides)
         return payload
 
+    def _extract_list(self, data):
+        return data.get('results', []) if isinstance(data, dict) else list(data)
+
     def test_aset_mandatory_fields_and_optional_exceptions(self):
         self.client.force_authenticate(user=self.admin)
 
-        # Gagal jika rekomendasi_tindakan / catatan kosong
-        missing_payload = self._valid_asset_payload(rekomendasi_tindakan='', catatan='')
-        res = self.client.post('/api/aset/aset/', missing_payload, format='multipart')
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('rekomendasi_tindakan', res.data)
-        self.assertIn('catatan', res.data)
+        # Gagal jika deskripsi kosong (validasi field level) atau merk/spesifikasi/lokasi_teks kosong
+        res_fail_desc = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(deskripsi=''),
+            format='multipart',
+        )
+        self.assertEqual(res_fail_desc.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('deskripsi', res_fail_desc.data)
 
-        # Berhasil tanpa nomor_seri, nomor_registrasi, dan foto_terkini
-        valid_payload = self._valid_asset_payload()
+        missing_core = self._valid_asset_payload(merk='', spesifikasi='', lokasi_teks='')
+        res_fail = self.client.post('/api/aset/aset/', missing_core, format='multipart')
+        self.assertEqual(res_fail.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('merk', res_fail.data)
+        self.assertIn('spesifikasi', res_fail.data)
+        self.assertIn('lokasi_teks', res_fail.data)
+
+        # Berhasil tanpa nomor_seri, nomor_registrasi, foto_terkini,
+        # serta tanpa tanggal/harga perolehan, rekomendasi_tindakan, dan catatan
+        minimal_payload = self._valid_asset_payload(
+            bulan_perolehan='',
+            harga_perolehan='',
+            rekomendasi_tindakan='',
+            catatan='',
+        )
+        res_min = self.client.post('/api/aset/aset/', minimal_payload, format='multipart')
+        self.assertEqual(res_min.status_code, status.HTTP_201_CREATED)
+        aset_min = Aset.objects.get(pk=res_min.data['id'])
+        self.assertIsNone(aset_min.bulan_perolehan)
+        self.assertEqual(aset_min.harga_perolehan, Decimal('0.00'))
+        self.assertEqual(aset_min.status_data, 'belum_lengkap')
+        self.assertEqual(aset_min.rekomendasi_tindakan, '')
+        self.assertEqual(aset_min.catatan, '')
+
+        # Berhasil dengan seluruh kolom terisi lengkap
+        valid_payload = self._valid_asset_payload(deskripsi='USG 4D Lengkap')
         res_ok = self.client.post('/api/aset/aset/', valid_payload, format='multipart')
         self.assertEqual(res_ok.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res_ok.data['nomor_seri'], '')
         self.assertEqual(res_ok.data['nomor_registrasi'], '')
+        aset_ok = Aset.objects.get(pk=res_ok.data['id'])
+        self.assertEqual(aset_ok.status_data, 'lengkap')
+        self.assertEqual(aset_ok.status_verifikasi, 'terverifikasi')
 
     def test_aset_anti_duplikat_creation(self):
         self.client.force_authenticate(user=self.admin)
@@ -456,4 +490,225 @@ class AsetAndPerbaikanTests(APITestCase):
         self.assertTrue(
             generate_kode_aset(jenis_ac).startswith(f'TST_PE.TST_AC.{current_year}.')
         )
+
+    def test_unit_self_registration_toggle_and_verification_flow(self):
+        User = get_user_model()
+        unit_lain = Unit.objects.create(nama='Unit Lain Test')
+        verifikator_febry = User.objects.create_user(
+            username='febry_verifier',
+            password='password123',
+            unit=unit_lain,
+            is_aset_admin=True,
+        )
+
+        # 1. Pengaturan default terbuka -> user unit bisa mendaftarkan aset
+        self.client.force_authenticate(user=self.staff)
+        res_cfg = self.client.get('/api/aset/aset/pengaturan/')
+        self.assertEqual(res_cfg.status_code, status.HTTP_200_OK)
+        self.assertTrue(res_cfg.data['izinkan_pendaftaran_unit'])
+
+        # Unit mencoba mengirim unit_lain, harus terkunci ke unit milik user sendiri (self.unit)
+        payload = self._valid_asset_payload(
+            unit=unit_lain.id,
+            deskripsi='Infusion Pump Unit',
+            bulan_perolehan='',
+            harga_perolehan='',
+            rekomendasi_tindakan='',
+            catatan='',
+        )
+        res_unit_post = self.client.post('/api/aset/aset/', payload, format='multipart')
+        self.assertEqual(res_unit_post.status_code, status.HTTP_201_CREATED)
+        aset_unit = Aset.objects.get(pk=res_unit_post.data['id'])
+        self.assertEqual(aset_unit.unit_id, self.unit.id)
+        self.assertEqual(aset_unit.status_verifikasi, 'menunggu_verifikasi')
+
+        # Aset menunggu verifikasi tidak masuk statistik resmi maupun query KIR terverifikasi
+        res_summary = self.client.get('/api/aset/aset/dashboard_summary/')
+        self.assertEqual(res_summary.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_summary.data['total_aset'], 0)
+        self.assertEqual(res_summary.data['menunggu_verifikasi_count'], 1)
+
+        res_kir = self.client.get('/api/aset/aset/?status_verifikasi=terverifikasi')
+        self.assertEqual(res_kir.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(self._extract_list(res_kir.data)), 0)
+
+        # Belum boleh lapor perbaikan atau update kelayakan sebelum diverifikasi
+        res_pbk_block = self.client.post(
+            '/api/aset/perbaikan/',
+            {'aset': aset_unit.id, 'rincian_kerusakan': 'Tes belum verif', 'tingkat_kerusakan': 'ringan'},
+            format='json',
+        )
+        self.assertEqual(res_pbk_block.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res_kel_block = self.client.post(
+            f'/api/aset/aset/{aset_unit.id}/update_kelayakan/',
+            {'status_kelayakan': 'B'},
+            format='json',
+        )
+        self.assertEqual(res_kel_block.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Unit tetap bisa mengedit pengajuannya selama belum diverifikasi
+        res_unit_edit = self.client.patch(
+            f'/api/aset/aset/{aset_unit.id}/',
+            {'deskripsi': 'Infusion Pump Terumo Unit'},
+            format='multipart',
+        )
+        self.assertEqual(res_unit_edit.status_code, status.HTTP_200_OK)
+        aset_unit.refresh_from_db()
+        self.assertEqual(aset_unit.deskripsi, 'Infusion Pump Terumo Unit')
+
+        # 2. Verifikator menolak tanpa alasan -> 400; dengan alasan -> status ditolak
+        self.client.force_authenticate(user=verifikator_febry)
+        res_tolak_empty = self.client.post(
+            f'/api/aset/aset/{aset_unit.id}/tolak_verifikasi/',
+            {'catatan_verifikasi': ''},
+            format='json',
+        )
+        self.assertEqual(res_tolak_empty.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res_tolak = self.client.post(
+            f'/api/aset/aset/{aset_unit.id}/tolak_verifikasi/',
+            {'catatan_verifikasi': 'Lengkapi tipe seri pompa infus'},
+            format='json',
+        )
+        self.assertEqual(res_tolak.status_code, status.HTTP_200_OK)
+        aset_unit.refresh_from_db()
+        self.assertEqual(aset_unit.status_verifikasi, 'ditolak')
+
+        # Unit mengedit ulang aset ditolak -> status kembali menunggu_verifikasi
+        self.client.force_authenticate(user=self.staff)
+        res_reedit = self.client.patch(
+            f'/api/aset/aset/{aset_unit.id}/',
+            {'spesifikasi': 'TE-171 Volumetric'},
+            format='multipart',
+        )
+        self.assertEqual(res_reedit.status_code, status.HTTP_200_OK)
+        aset_unit.refresh_from_db()
+        self.assertEqual(aset_unit.status_verifikasi, 'menunggu_verifikasi')
+
+        # 3. Verifikator menyetujui -> masuk statistik resmi dan terkunci dari edit unit biasa
+        self.client.force_authenticate(user=verifikator_febry)
+        res_verify = self.client.post(
+            f'/api/aset/aset/{aset_unit.id}/verifikasi/',
+            {'catatan_verifikasi': 'Data fisik sesuai'},
+            format='json',
+        )
+        self.assertEqual(res_verify.status_code, status.HTTP_200_OK)
+        aset_unit.refresh_from_db()
+        self.assertEqual(aset_unit.status_verifikasi, 'terverifikasi')
+
+        res_summary_after = self.client.get('/api/aset/aset/dashboard_summary/')
+        self.assertEqual(res_summary_after.data['total_aset'], 1)
+        self.assertEqual(res_summary_after.data['menunggu_verifikasi_count'], 0)
+
+        # Unit tidak lagi bisa edit setelah terverifikasi, & tidak boleh ubah toggle pengaturan
+        self.client.force_authenticate(user=self.staff)
+        res_locked_edit = self.client.patch(
+            f'/api/aset/aset/{aset_unit.id}/',
+            {'deskripsi': 'Coba Ubah'},
+            format='multipart',
+        )
+        self.assertEqual(res_locked_edit.status_code, status.HTTP_403_FORBIDDEN)
+
+        res_toggle_forbidden = self.client.patch(
+            '/api/aset/aset/pengaturan/',
+            {'izinkan_pendaftaran_unit': False},
+            format='json',
+        )
+        self.assertEqual(res_toggle_forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 4. Admin menutup pendaftaran unit -> unit diblokir, admin tetap bisa membuat aset
+        self.client.force_authenticate(user=verifikator_febry)
+        res_close = self.client.patch(
+            '/api/aset/aset/pengaturan/',
+            {'izinkan_pendaftaran_unit': False},
+            format='json',
+        )
+        self.assertEqual(res_close.status_code, status.HTTP_200_OK)
+        self.assertFalse(res_close.data['izinkan_pendaftaran_unit'])
+
+        self.client.force_authenticate(user=self.staff)
+        res_unit_blocked = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(deskripsi='Coba Saat Ditutup', bulan_perolehan='', harga_perolehan=''),
+            format='multipart',
+        )
+        self.assertEqual(res_unit_blocked.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user=verifikator_febry)
+        res_admin_open = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(deskripsi='Admin Input Langsung', bulan_perolehan='', harga_perolehan=''),
+            format='multipart',
+        )
+        self.assertEqual(res_admin_open.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Aset.objects.get(pk=res_admin_open.data['id']).status_verifikasi, 'terverifikasi')
+
+    def test_perbaikan_multiselect_status_and_teknisi_options(self):
+        User = get_user_model()
+        unit_ipsrs = Unit.objects.create(nama='IPSRS Test Unit')
+        User.objects.create_user(
+            username='teknisi_ipsrs_tst',
+            first_name='Budi',
+            last_name='IPSRS',
+            password='password123',
+            unit=unit_ipsrs,
+        )
+        AsetTeknisi.objects.create(nama='Rina Elektromedis', kategori='elektromedis', is_active=True)
+
+        aset = Aset.objects.create(
+            jenis=self.jenis,
+            kode_aset='TST.USG.2026.0777',
+            deskripsi='USG Multi Filter',
+            merk='Mindray',
+            spesifikasi='DC-40',
+            unit=self.unit,
+            ruangan=self.ruangan,
+            lokasi_teks='Poli',
+            status_kelayakan='B',
+            status_aset='dalam_perbaikan',
+            status_kepemilikan='milik_sendiri',
+            status_data='belum_lengkap',
+            status_verifikasi='terverifikasi',
+        )
+
+        statuses = ['belum_mulai', 'inspeksi', 'dalam_proses', 'selesai']
+        for idx, st in enumerate(statuses, start=1):
+            AsetPerbaikan.objects.create(
+                nomor_tiket=f'PBK-TST-{idx:04d}',
+                aset=aset,
+                tanggal_laporan=date.today(),
+                rincian_kerusakan=f'Keluhan {st}',
+                tingkat_kerusakan='sedang',
+                status_perbaikan=st,
+                pelapor=self.staff,
+            )
+
+        self.client.force_authenticate(user=self.admin)
+
+        # Multiselect via comma-separated query param
+        res_multi = self.client.get('/api/aset/perbaikan/?status_perbaikan=belum_mulai,dalam_proses')
+        self.assertEqual(res_multi.status_code, status.HTTP_200_OK)
+        items_multi = self._extract_list(res_multi.data)
+        self.assertEqual({x['status_perbaikan'] for x in items_multi}, {'belum_mulai', 'dalam_proses'})
+
+        # Multiselect via repeated query params
+        res_repeat = self.client.get('/api/aset/perbaikan/?status_perbaikan=inspeksi&status_perbaikan=selesai')
+        self.assertEqual(res_repeat.status_code, status.HTTP_200_OK)
+        items_repeat = self._extract_list(res_repeat.data)
+        self.assertEqual({x['status_perbaikan'] for x in items_repeat}, {'inspeksi', 'selesai'})
+
+        # Dropdown teknisi + elektromedis options
+        res_tek = self.client.get('/api/aset/perbaikan/teknisi_options/')
+        self.assertEqual(res_tek.status_code, status.HTTP_200_OK)
+        names = {t['label'] for t in res_tek.data}
+        self.assertIn('Budi IPSRS', names)
+        self.assertIn('Rina Elektromedis', names)
+
+    def test_seed_area_tunggu_poli_naming(self):
+        from .management.commands.seed_aset_excel import LOKASI_TO_UNIT_RUANGAN
+
+        self.assertEqual(LOKASI_TO_UNIT_RUANGAN['Antara Poli 2 & 3'][1], 'Area Tunggu Poli 2 & 3')
+        self.assertEqual(LOKASI_TO_UNIT_RUANGAN['Antara Poli 4 & 6'][1], 'Area Tunggu Poli 4 & 6')
+
 
