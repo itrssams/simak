@@ -879,8 +879,8 @@ class DistributionService:
             leg_id = item.legacy_out_id or (item.permintaan_item.legacy_out_id if item.permintaan_item else None)
             if leg_id:
                 try:
-                    from django.db import connection
-                    with connection.cursor() as cursor:
+                    from config.db_utils import get_rssams_cursor
+                    with get_rssams_cursor() as cursor:
                         cursor.execute("""
                             UPDATE rssams.item_out_log
                             SET status = 'Sudah Diberikan',
@@ -923,8 +923,8 @@ class DistributionService:
         barang_map = {b.legacy_id_brg: b for b in Barang.objects.filter(legacy_id_brg__isnull=False)}
         ruang_map = {r.legacy_id_ruang: r for r in Ruang.objects.filter(legacy_id_ruang__isnull=False)}
 
-        from django.db import connection
-        with connection.cursor() as cursor:
+        from config.db_utils import get_rssams_cursor
+        with get_rssams_cursor() as cursor:
             cursor.execute("""
                 SELECT id, id_brg, id_ruang, qty_minta, tgl
                 FROM rssams.item_out_log

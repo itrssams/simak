@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
-from django.db import connection
+from config.db_utils import get_rssams_cursor
 
 from .models import (
     Akun, AccountingPeriod, AccountMapping, Transaksi, Jurnal, JurnalItem,
@@ -414,7 +414,7 @@ class FakturSerializer(serializers.ModelSerializer):
             return obj._get_effective_total_tagihan()
         if obj.nomor_faktur:
             try:
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         """
                         SELECT COALESCE(SUM(
@@ -478,7 +478,7 @@ class FakturSerializer(serializers.ModelSerializer):
         if getattr(view, 'action', None) == 'list' or not obj.nomor_faktur:
             return []
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 cursor.execute(
                     f"""
                     SELECT

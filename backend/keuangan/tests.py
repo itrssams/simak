@@ -49,7 +49,7 @@ class FakturStatusTests(SimpleTestCase):
             def fetchone(self):
                 return Decimal('3401074.00'), 1
 
-        with patch('keuangan.models.connection.cursor', return_value=FakeCursor()), patch('django.db.models.base.Model.save', return_value=None):
+        with patch('keuangan.models.get_rssams_cursor', return_value=FakeCursor()), patch('django.db.models.base.Model.save', return_value=None):
             faktur.save()
 
         self.assertEqual(faktur.status, 'lunas')

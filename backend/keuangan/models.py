@@ -1,4 +1,6 @@
-from django.db import connection, models
+from django.db import models
+
+from config.db_utils import get_rssams_cursor
 
 from django.conf import settings
 
@@ -664,7 +666,7 @@ class Faktur(models.Model):
     def _get_effective_total_tagihan(self):
         if self.nomor_faktur:
             try:
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         """
                         SELECT COALESCE(SUM(

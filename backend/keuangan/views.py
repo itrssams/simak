@@ -19,6 +19,7 @@ from django.db.models import Sum
 from django.db.models.functions import Coalesce, TruncDay, TruncMonth
 
 from django.db import connection, transaction, models
+from config.db_utils import get_rssams_cursor, rssams_atomic
 
 from django.db.models.deletion import ProtectedError
 
@@ -218,7 +219,7 @@ def generate_nomor_faktur(tanggal):
 
     # Cek invoice lama SIMRS
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("""
                 SELECT MAX(CAST(SUBSTR(no, 3, 4) AS UNSIGNED))
                 FROM rssams.invoice
@@ -294,7 +295,7 @@ class PembiayaanListView(APIView):
         unassigned_only = str(request.query_params.get('unassigned') or '').lower() in ('1', 'true', 'yes')
 
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 where = []
                 values = []
                 if not include_inactive:
@@ -361,8 +362,8 @@ class PembiayaanListView(APIView):
 
         alamat = (request.data.get('alamat') or '').strip()
         try:
-            with transaction.atomic():
-                with connection.cursor() as cursor:
+            with rssams_atomic():
+                with get_rssams_cursor() as cursor:
                     cursor.execute("""
                         SELECT id_pembiayaan, pembiayaan
                         FROM rssams.pbiaya
@@ -407,8 +408,8 @@ class PembiayaanDetailView(APIView):
         status_value = request.data.get('status')
 
         try:
-            with transaction.atomic():
-                with connection.cursor() as cursor:
+            with rssams_atomic():
+                with get_rssams_cursor() as cursor:
                     cursor.execute("""
                         SELECT id_pembiayaan, pembiayaan, alamat, status
                         FROM rssams.pbiaya
@@ -465,7 +466,7 @@ class PembiayaanDetailView(APIView):
 
     def delete(self, request, id_pembiayaan):
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 cursor.execute("UPDATE rssams.pbiaya SET status = 0 WHERE id_pembiayaan = %s", [id_pembiayaan])
                 if cursor.rowcount == 0:
                     return Response({'error': 'Pembiayaan tidak ditemukan.'}, status=status.HTTP_404_NOT_FOUND)
@@ -505,7 +506,7 @@ def _decimal_from_row(row, key):
 def _get_pembiayaan_name(id_pembiayaan):
     if not id_pembiayaan:
         return ''
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         cursor.execute("""
             SELECT pembiayaan
             FROM rssams.pbiaya
@@ -802,7 +803,7 @@ class KunjunganInvoiceView(APIView):
         detail_no = (request.query_params.get('no') or '').strip()
         invoice_search = (request.query_params.get('invoice_search') or '').strip()
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 if invoice_search:
                     qs = (
                         Faktur.objects
@@ -926,7 +927,7 @@ class KunjunganInvoiceView(APIView):
             placeholders = ','.join(['%s'] * len(nomor_kunjungan))
             try:
                 with transaction.atomic():
-                    with connection.cursor() as cursor:
+                    with get_rssams_cursor() as cursor:
                         rows = self._fetch_kunjungan_for_invoice(cursor, nomor_kunjungan)
                         found = {str(row['no']) for row in rows}
                         missing = [no for no in nomor_kunjungan if no not in found]
@@ -965,7 +966,7 @@ class KunjunganInvoiceView(APIView):
 
         placeholders = ','.join(['%s'] * len(nomor_kunjungan))
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 rows = self._fetch_kunjungan_for_invoice(cursor, nomor_kunjungan)
 
             found = {str(row['no']) for row in rows}
@@ -1039,7 +1040,7 @@ class KunjunganInvoiceView(APIView):
                     created_by=request.user,
                     **totals,
                 )
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         f"UPDATE rssams.verif_kunjung SET no_invoice=%s WHERE no IN ({placeholders})",
                         [faktur.nomor_faktur, *nomor_kunjungan],
@@ -1065,8 +1066,8 @@ class KunjunganInvoiceView(APIView):
             return Response({'error': 'Kunjungan tidak bisa dihapus dari invoice yang sudah memiliki pembayaran atau pengajuan pembayaran.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            with transaction.atomic():
-                with connection.cursor() as cursor:
+            with rssams_atomic():
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         "SELECT IFNULL(no_invoice, '') FROM rssams.verif_kunjung WHERE no=%s LIMIT 1",
                         [no_kunjungan],
@@ -1098,7 +1099,7 @@ class KunjunganInvoiceView(APIView):
 
     def _detect_type(self, no):
         from django.db import connection
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("SELECT j_lay FROM rssams.kunjung WHERE no=%s LIMIT 1", [no])
             row = cursor.fetchone()
         j_lay = row[0] if row else ''
@@ -1237,7 +1238,7 @@ def _build_dashboard_trends(today, dari, sampai, kunjungan_scope='penagihan'):
     verif_join = "INNER JOIN rssams.verif_kunjung e ON a.no = e.no" if scope_clean == 'penagihan' else ""
     kunjungan_map = {}
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(f"""
                 SELECT
                     {date_expr} AS bucket_key,
@@ -1330,7 +1331,7 @@ class InvoiceDashboardView(APIView):
             from django.db import connection
             placeholders = ','.join(['%s'] * len(ids))
             try:
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         f"SELECT id_pembiayaan, pembiayaan FROM rssams.pbiaya WHERE id_pembiayaan IN ({placeholders})",
                         ids,
@@ -2055,7 +2056,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 alasan=f'Pembatalan Invoice {faktur.nomor_faktur}',
             )
             try:
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
                         [faktur.nomor_faktur],
@@ -2102,7 +2103,7 @@ class FakturViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                 alasan=f'Pengembalian Invoice {faktur.nomor_faktur}: {alasan}',
             )
             try:
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
                     cursor.execute(
                         "UPDATE rssams.verif_kunjung SET no_invoice='' WHERE no_invoice=%s",
                         [faktur.nomor_faktur],
@@ -2225,7 +2226,7 @@ def get_invoice_farmasi_ppn_totals(faktur):
     }
 
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 """
                 SELECT no
@@ -2263,7 +2264,7 @@ def get_invoice_kunjungan_rows(faktur):
     from django.db import connection
 
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 """
                 SELECT
@@ -2326,7 +2327,7 @@ def get_kunjungan_farmasi_ppn_detail(no_kunj):
         return totals
 
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 """
                 SELECT
@@ -3942,7 +3943,7 @@ def build_pembiayaan_name_map(ids):
     placeholders = ','.join(['%s'] * len(ids))
 
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 f"""
                 SELECT id_pembiayaan, pembiayaan
@@ -3962,7 +3963,7 @@ def get_pembiayaan_detail(id_pembiayaan):
         return {}
 
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 """
                 SELECT id_pembiayaan, pembiayaan, alamat
@@ -4091,7 +4092,7 @@ def faktur_rekap_print_view(request):
     kunjung_map = {}
     if nomor_fakturs:
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 placeholders = ','.join(['%s'] * len(nomor_fakturs))
                 cursor.execute(f"""
                     SELECT 
@@ -4248,7 +4249,7 @@ def faktur_rekap_excel_view(request):
     kunjung_map = {}
     if nomor_fakturs:
         try:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 placeholders = ','.join(['%s'] * len(nomor_fakturs))
                 cursor.execute(f"""
                     SELECT 
@@ -4569,6 +4570,148 @@ def faktur_rekap_excel_view(request):
 def _utang_order_clause(value, allowed):
     return allowed.get(value) or next(iter(allowed.values()))
 
+def _get_utang_exclusion_sets():
+    """Ambil set app_siaga_faktur_id, nomor_spb, dan nomor_faktur dari UtangSupplier untuk filter lintas-DB."""
+    app_ids = set()
+    spbs = set()
+    fakturs = set()
+    for app_id, spb, fak in UtangSupplier.objects.values_list('app_siaga_faktur_id', 'nomor_spb', 'nomor_faktur'):
+        if app_id:
+            app_ids.add(str(app_id))
+        if spb:
+            spbs.add(str(spb))
+        if fak:
+            fakturs.add(str(fak))
+    return app_ids, spbs, fakturs
+
+def _is_farmasi_excluded(raw_id, raw_no_faktur, app_ids, spbs, fakturs):
+    sid = str(raw_id or '')
+    sfak = str(raw_no_faktur or '')
+    return (sid in app_ids) or (sid != '' and sid in spbs) or (sfak != '' and sfak in fakturs)
+
+def _is_logistik_excluded(raw_id, raw_spb, raw_no_spk, app_ids, spbs, fakturs, check_bare_id=False):
+    sid = str(raw_id or '')
+    sspb = str(raw_spb or '')
+    sspk = str(raw_no_spk or '')
+    if f'LOG-{sid}' in app_ids or (check_bare_id and sid in app_ids):
+        return True
+    if sid != '' and sid in spbs:
+        return True
+    if sspb != '' and sspb in spbs:
+        return True
+    if sspk != '' and sspk in fakturs:
+        return True
+    return False
+
+def _build_rssams_pending_where(params):
+    """WHERE builder untuk tabel farmasi (tanpa JOIN lintas-DB)."""
+    where = ['1=1']
+    values = []
+    search = (params.get('search') or '').strip()
+    vendor_id = (params.get('vendor_id') or '').strip()
+    kategori = (params.get('kategori') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.no_spb LIKE %s OR t.no_faktur LIKE %s OR r.nama LIKE %s OR t.id LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle])
+    if vendor_id:
+        where.append('t.id_rekanan = %s')
+        values.append(vendor_id)
+    if kategori:
+        if kategori in ['__empty__', 'kosong']:
+            where.append("(r.kategori IS NULL OR TRIM(r.kategori) = '')")
+        else:
+            where.append("r.kategori = %s")
+            values.append(kategori)
+    if dari:
+        where.append('t.tgl_faktur >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tgl_faktur <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
+def _build_rssams_pending_where_logistik(params):
+    """WHERE builder untuk tabel logistik (tanpa JOIN lintas-DB)."""
+    where = [
+        "t.done = 'Y'",
+        "COALESCE(t.rekanan, '') != 'STOCK OPNAME'",
+        "COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'",
+    ]
+    from logistik.schema import ensure_workflow_schema
+    if ensure_workflow_schema():
+        where.append("COALESCE(t.kirim_keuangan, 'Y') = 'Y'")
+    values = []
+    search = (params.get('search') or '').strip()
+    vendor_id = (params.get('vendor_id') or '').strip()
+    kategori = (params.get('kategori') or '').strip()
+    dari = (params.get('dari') or '').strip()
+    sampai = (params.get('sampai') or '').strip()
+
+    if search:
+        where.append('(t.id LIKE %s OR t.no_spk LIKE %s OR t.rekanan LIKE %s OR r.nama LIKE %s)')
+        needle = f'%{search}%'
+        values.extend([needle, needle, needle, needle])
+    if vendor_id:
+        where.append('r.id_rekanan = %s')
+        values.append(vendor_id)
+    if kategori:
+        if kategori in ['__empty__', 'kosong']:
+            where.append("(r.kategori IS NULL OR TRIM(r.kategori) = '')")
+        else:
+            where.append("r.kategori = %s")
+            values.append(kategori)
+    if dari:
+        where.append('t.tgl_spk >= %s')
+        values.append(dari)
+    if sampai:
+        where.append('t.tgl_spk <= %s')
+        values.append(sampai)
+    return ' AND '.join(where), values
+
+def _pending_sort_key(val):
+    if val is None:
+        return (False, '')
+    if isinstance(val, datetime):
+        return (True, val.date().isoformat())
+    if isinstance(val, date):
+        return (True, val.isoformat())
+    if isinstance(val, Decimal):
+        return (True, val)
+    if isinstance(val, (int, float)):
+        return (True, Decimal(str(val)))
+    return (True, str(val).lower())
+
+def _sort_pending_rows(rows, ordering_param):
+    ORDER_FIELD_MAP = {
+        '-tanggal_spb': ('tanggal_spb', True),
+        'tanggal_spb': ('tanggal_spb', False),
+        '-tanggal_faktur': ('tanggal_faktur', True),
+        'tanggal_faktur': ('tanggal_faktur', False),
+        'vendor': ('vendor_nama', False),
+        '-vendor': ('vendor_nama', True),
+        'kategori': ('kategori', False),
+        '-kategori': ('kategori', True),
+        'nomor_spb': ('nomor_spb', False),
+        '-nomor_spb': ('nomor_spb', True),
+        'nomor_faktur': ('nomor_faktur', False),
+        '-nomor_faktur': ('nomor_faktur', True),
+        'created_at': ('tanggal_spb', True),
+        '-created_at': ('tanggal_spb', True),
+        'verified_at': ('tanggal_spb', True),
+        '-verified_at': ('tanggal_spb', True),
+        'tanggal_jatuh_tempo': ('tanggal_jatuh_tempo', False),
+        '-tanggal_jatuh_tempo': ('tanggal_jatuh_tempo', True),
+        'nominal': ('nominal', False),
+        '-nominal': ('nominal', True),
+    }
+    field, is_desc = ORDER_FIELD_MAP.get(ordering_param, ('tanggal_spb', True))
+    rows.sort(key=lambda r: str(r.get('app_siaga_faktur_id') or '').lower(), reverse=True)
+    rows.sort(key=lambda r: _pending_sort_key(r.get(field)), reverse=is_desc)
+
 def _build_pending_where(params):
     """WHERE builder untuk tabel farmasi (tran_beli_brg_farmasi)."""
     where = [
@@ -4760,7 +4903,7 @@ def _pending_base_sql_reimbursement():
 
 def _fetch_app_siaga_faktur(app_siaga_faktur_id):
     """Fetch 1 baris faktur farmasi dari tran_beli_brg_farmasi."""
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         cursor.execute(
             """
             SELECT
@@ -4789,7 +4932,7 @@ def _fetch_app_siaga_faktur(app_siaga_faktur_id):
 
 def _fetch_logistik_pembelian(pembelian_id):
     """Fetch 1 baris dari tran_beli_brg_log + best-effort JOIN rekanan by-nama."""
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         cursor.execute(
             """
             SELECT
@@ -5003,7 +5146,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         # Jika vendor_id diubah, sinkronkan nama vendor dari master rekanan
         vendor_id = data.get('vendor_id')
         if vendor_id:
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1", [vendor_id])
                 row = cursor.fetchone()
                 if row:
@@ -5133,7 +5276,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         # Ambil nama vendor dari rssams.rekanan
         vendor_nama = ''
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("SELECT nama FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1", [vendor_id])
             row = cursor.fetchone()
             if row:
@@ -5682,7 +5825,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         all_groups = list(grouped_spb.values()) + standalone_items
 
         # Pre-fetch all vendor masters into memory for instant O(1) lookup
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("SELECT id_rekanan, nama, kategori FROM rssams.rekanan")
             rekanan_rows = cursor.fetchall()
 
@@ -5786,7 +5929,7 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
                             v_nama_final = v_nama
                             rekanan_exact_map[v_low] = (vendor_id, v_nama, kategori)
                             rekanan_stripped_map[v_strip] = (vendor_id, v_nama, kategori)
-                            with connection.cursor() as cursor:
+                            with get_rssams_cursor() as cursor:
                                 cursor.execute("""
                                     INSERT INTO rssams.rekanan (id_rekanan, nama, alamat, telp, kc, del, sumber, kategori)
                                     VALUES (%s, %s, '', '', '', 'N', 'ots_import', %s)
@@ -5863,40 +6006,40 @@ class UtangSupplierViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
             # Execute High-Water Mark Auto-Lunas for un-imported legacy purchases <= vendor's latest lunas date
             if vendor_lunas_watermarks:
-                with connection.cursor() as cursor:
-                    # 1. Fetch pending Farmasi purchases
-                    cursor.execute("""
+                app_ids, spbs, fakturs = _get_utang_exclusion_sets()
+                with get_rssams_cursor() as rssams_cursor:
+                    # 1. Fetch Farmasi purchases from rssams
+                    rssams_cursor.execute("""
                         SELECT t.id, t.id_rekanan, r.nama, t.tgl_faktur, t.no_faktur, t.no_spb,
                                COALESCE(t.gtotal, t.total, 0) AS total_biaya
                         FROM rssams.tran_beli_brg_farmasi t
                         LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-                        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
-                        WHERE u.id IS NULL
-                          AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
-                          AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
                     """)
-                    columns = [col[0] for col in cursor.description]
-                    all_pending_farm = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    columns = [col[0] for col in rssams_cursor.description]
+                    all_pending_farm = [
+                        row for row in (dict(zip(columns, r)) for r in rssams_cursor.fetchall())
+                        if not _is_farmasi_excluded(row.get('id'), row.get('no_faktur'), app_ids, spbs, fakturs)
+                    ]
 
-                    # 2. Fetch pending Logistik purchases
+                    # 2. Fetch Logistik purchases from rssams
                     from logistik.schema import ensure_workflow_schema
                     kirim_gate = "AND COALESCE(t.kirim_keuangan, 'Y') = 'Y'" if ensure_workflow_schema() else ""
-                    cursor.execute(f"""
+                    rssams_cursor.execute(f"""
                         SELECT t.id, r.id_rekanan, COALESCE(t.rekanan, r.nama, '') AS nama, t.tgl_spk AS tgl_faktur, t.no_spk AS no_faktur, t.id AS no_spb,
-                               COALESCE(t.nilai, 0) AS total_biaya
+                               COALESCE(t.nilai, 0) AS total_biaya,
+                               t.no_spk AS raw_no_spk
                         FROM rssams.tran_beli_brg_log t
                         LEFT JOIN rssams.rekanan r ON r.nama = t.rekanan
-                        LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
                         WHERE t.done = 'Y'
                           AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                           AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
-                          AND u.id IS NULL
                           {kirim_gate}
-                          AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
-                          AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
                     """)
-                    columns = [col[0] for col in cursor.description]
-                    all_pending_log = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    columns = [col[0] for col in rssams_cursor.description]
+                    all_pending_log = [
+                        row for row in (dict(zip(columns, r)) for r in rssams_cursor.fetchall())
+                        if not _is_logistik_excluded(row.get('id'), None, row.get('raw_no_spk'), app_ids, spbs, fakturs, check_bare_id=True)
+                    ]
 
                 auto_list = []
                 for p in all_pending_farm:
@@ -7737,91 +7880,66 @@ class UtangMenungguVerifikasiView(APIView):
                 'keuangan'                                                             AS sumber
         """
 
-        where_f, vals_f = _build_pending_where(params)
-        where_l, vals_l = _build_pending_where_logistik(params)
-        where_k, vals_k = _build_pending_where_keuangan(params)
-        where_kb, vals_kb = _build_pending_where_kas_besar(params)
-        where_rmb, vals_rmb = _build_pending_where_reimbursement(params)
+        rows_all = []
+        include_farmasi = sumber_filter in ('farmasi', 'semua') or sumber_filter not in ('logistik', 'keuangan')
+        include_logistik = sumber_filter in ('logistik', 'semua') or sumber_filter not in ('farmasi', 'keuangan')
+        include_keuangan = sumber_filter in ('keuangan', 'semua') or sumber_filter not in ('farmasi', 'logistik')
 
-        # Order mapping berlaku di wrapper query (alias kolom output)
-        order = _utang_order_clause(params.get('ordering'), {
-            '-tanggal_spb': 'tanggal_spb DESC',
-            'tanggal_spb': 'tanggal_spb',
-            '-tanggal_faktur': 'tanggal_faktur DESC',
-            'tanggal_faktur': 'tanggal_faktur',
-            'vendor': 'vendor_nama',
-            '-vendor': 'vendor_nama DESC',
-            'kategori': 'kategori',
-            '-kategori': 'kategori DESC',
-            'nomor_spb': 'nomor_spb',
-            '-nomor_spb': 'nomor_spb DESC',
-            'nomor_faktur': 'nomor_faktur',
-            '-nomor_faktur': 'nomor_faktur DESC',
-            'created_at': 'tanggal_spb DESC',
-            '-created_at': 'tanggal_spb DESC',
-            'verified_at': 'tanggal_spb DESC',
-            '-verified_at': 'tanggal_spb DESC',
-            'tanggal_jatuh_tempo': 'tanggal_jatuh_tempo',
-            '-tanggal_jatuh_tempo': 'tanggal_jatuh_tempo DESC',
-            'nominal': 'nominal',
-            '-nominal': 'nominal DESC',
-        })
+        if include_farmasi or include_logistik:
+            app_ids, spbs, fakturs = _get_utang_exclusion_sets()
+            with get_rssams_cursor() as rssams_cursor:
+                if include_farmasi:
+                    where_rf, vals_rf = _build_rssams_pending_where(params)
+                    rssams_cursor.execute(
+                        f"""
+                        {farmasi_select},
+                            t.id AS _raw_id,
+                            t.no_faktur AS _raw_no_faktur
+                        FROM rssams.tran_beli_brg_farmasi t
+                        LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
+                        WHERE {where_rf}
+                        """,
+                        vals_rf,
+                    )
+                    cols_f = [col[0] for col in rssams_cursor.description]
+                    for raw_row in rssams_cursor.fetchall():
+                        d = dict(zip(cols_f, raw_row))
+                        rid = d.pop('_raw_id', None)
+                        rfak = d.pop('_raw_no_faktur', None)
+                        if not _is_farmasi_excluded(rid, rfak, app_ids, spbs, fakturs):
+                            rows_all.append(d)
 
-        with connection.cursor() as cursor:
-            if sumber_filter == 'farmasi':
-                count_sql = f'SELECT COUNT(*) {_pending_base_sql()} WHERE {where_f}'
-                sum_sql = f'SELECT SUM(t.gtotal) {_pending_base_sql()} WHERE {where_f}'
-                count_vals = vals_f
-                sum_vals = vals_f
-                data_sql = f"""
-                    SELECT * FROM (
-                        {farmasi_select}
-                        {_pending_base_sql()}
-                        WHERE {where_f}
-                    ) AS combined
-                    ORDER BY {order}, app_siaga_faktur_id DESC
-                    LIMIT %s OFFSET %s
-                """
-                data_vals = vals_f + [page_size, offset]
+                if include_logistik:
+                    where_rl, vals_rl = _build_rssams_pending_where_logistik(params)
+                    rssams_cursor.execute(
+                        f"""
+                        {logistik_select},
+                            t.id AS _raw_id,
+                            s.no_spb AS _raw_spb,
+                            t.no_spk AS _raw_no_spk
+                        FROM rssams.tran_beli_brg_log t
+                        LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
+                        LEFT JOIN rssams.rekanan r ON UPPER(TRIM(r.nama)) = UPPER(TRIM(t.rekanan)) AND r.del = 'N'
+                        WHERE {where_rl}
+                        """,
+                        vals_rl,
+                    )
+                    cols_l = [col[0] for col in rssams_cursor.description]
+                    for raw_row in rssams_cursor.fetchall():
+                        d = dict(zip(cols_l, raw_row))
+                        rid = d.pop('_raw_id', None)
+                        rspb = d.pop('_raw_spb', None)
+                        rspk = d.pop('_raw_no_spk', None)
+                        if not _is_logistik_excluded(rid, rspb, rspk, app_ids, spbs, fakturs):
+                            rows_all.append(d)
 
-            elif sumber_filter == 'logistik':
-                count_sql = f'SELECT COUNT(*) {_pending_base_sql_logistik()} WHERE {where_l}'
-                sum_sql = f'SELECT SUM(t.nilai) {_pending_base_sql_logistik()} WHERE {where_l}'
-                count_vals = vals_l
-                sum_vals = vals_l
-                data_sql = f"""
-                    SELECT * FROM (
-                        {logistik_select}
-                        {_pending_base_sql_logistik()}
-                        WHERE {where_l}
-                    ) AS combined
-                    ORDER BY {order}, app_siaga_faktur_id DESC
-                    LIMIT %s OFFSET %s
-                """
-                data_vals = vals_l + [page_size, offset]
-
-            elif sumber_filter == 'keuangan':
-                count_sql = f"""
-                    SELECT COUNT(*) FROM (
-                        SELECT 1 {_pending_base_sql_keuangan()} WHERE {where_k}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_kas_besar()} WHERE {where_kb}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_reimbursement()} WHERE {where_rmb}
-                    ) AS combined
-                """
-                sum_sql = f"""
-                    SELECT SUM(nominal) FROM (
-                        SELECT t.nominal_diajukan AS nominal {_pending_base_sql_keuangan()} WHERE {where_k}
-                        UNION ALL
-                        SELECT t.nominal AS nominal {_pending_base_sql_kas_besar()} WHERE {where_kb}
-                        UNION ALL
-                        SELECT t.nominal AS nominal {_pending_base_sql_reimbursement()} WHERE {where_rmb}
-                    ) AS combined
-                """
-                count_vals = vals_k + vals_kb + vals_rmb
-                sum_vals = vals_k + vals_kb + vals_rmb
-                data_sql = f"""
+        if include_keuangan:
+            where_k, vals_k = _build_pending_where_keuangan(params)
+            where_kb, vals_kb = _build_pending_where_kas_besar(params)
+            where_rmb, vals_rmb = _build_pending_where_reimbursement(params)
+            with connection.cursor() as simak_cursor:
+                simak_cursor.execute(
+                    f"""
                     SELECT * FROM (
                         {keuangan_select}
                         {_pending_base_sql_keuangan()}
@@ -7835,74 +7953,16 @@ class UtangMenungguVerifikasiView(APIView):
                         {_pending_base_sql_reimbursement()}
                         WHERE {where_rmb}
                     ) AS combined
-                    ORDER BY {order}, app_siaga_faktur_id DESC
-                    LIMIT %s OFFSET %s
-                """
-                data_vals = vals_k + vals_kb + vals_rmb + [page_size, offset]
+                    """,
+                    vals_k + vals_kb + vals_rmb,
+                )
+                cols_k = [col[0] for col in simak_cursor.description]
+                rows_all.extend(dict(zip(cols_k, r)) for r in simak_cursor.fetchall())
 
-            else:  # semua
-                count_sql = f"""
-                    SELECT COUNT(*) FROM (
-                        SELECT 1 {_pending_base_sql()} WHERE {where_f}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_logistik()} WHERE {where_l}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_keuangan()} WHERE {where_k}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_kas_besar()} WHERE {where_kb}
-                        UNION ALL
-                        SELECT 1 {_pending_base_sql_reimbursement()} WHERE {where_rmb}
-                    ) AS combined
-                """
-                sum_sql = f"""
-                    SELECT SUM(nominal) FROM (
-                        SELECT t.gtotal AS nominal {_pending_base_sql()} WHERE {where_f}
-                        UNION ALL
-                        SELECT t.nilai AS nominal {_pending_base_sql_logistik()} WHERE {where_l}
-                        UNION ALL
-                        SELECT t.nominal_diajukan AS nominal {_pending_base_sql_keuangan()} WHERE {where_k}
-                        UNION ALL
-                        SELECT t.nominal AS nominal {_pending_base_sql_kas_besar()} WHERE {where_kb}
-                        UNION ALL
-                        SELECT t.nominal AS nominal {_pending_base_sql_reimbursement()} WHERE {where_rmb}
-                    ) AS combined
-                """
-                count_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb
-                sum_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb
-                data_sql = f"""
-                    SELECT * FROM (
-                        {farmasi_select}
-                        {_pending_base_sql()}
-                        WHERE {where_f}
-                        UNION ALL
-                        {logistik_select}
-                        {_pending_base_sql_logistik()}
-                        WHERE {where_l}
-                        UNION ALL
-                        {keuangan_select}
-                        {_pending_base_sql_keuangan()}
-                        WHERE {where_k}
-                        UNION ALL
-                        {kas_besar_select}
-                        {_pending_base_sql_kas_besar()}
-                        WHERE {where_kb}
-                        UNION ALL
-                        {reimbursement_select}
-                        {_pending_base_sql_reimbursement()}
-                        WHERE {where_rmb}
-                    ) AS combined
-                    ORDER BY {order}, app_siaga_faktur_id DESC
-                    LIMIT %s OFFSET %s
-                """
-                data_vals = vals_f + vals_l + vals_k + vals_kb + vals_rmb + [page_size, offset]
-
-            cursor.execute(count_sql, count_vals)
-            total = cursor.fetchone()[0]
-            cursor.execute(sum_sql, sum_vals)
-            total_nominal = cursor.fetchone()[0] or 0
-            cursor.execute(data_sql, data_vals)
-            columns = [col[0] for col in cursor.description]
-            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        _sort_pending_rows(rows_all, params.get('ordering'))
+        total = len(rows_all)
+        total_nominal = sum((Decimal(str(r.get('nominal') or 0)) for r in rows_all), Decimal('0'))
+        rows = rows_all[offset : offset + page_size]
 
         return Response({
             'count': total,
@@ -8049,7 +8109,7 @@ class UtangMenungguVerifikasiView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             # Validasi vendor_id ke rssams.rekanan
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 cursor.execute(
                     "SELECT id_rekanan, nama, COALESCE(kategori, '') FROM rssams.rekanan WHERE id_rekanan = %s LIMIT 1",
                     [vendor_id],
@@ -8113,9 +8173,9 @@ class UtangPelunasanDataLamaView(APIView):
                     key = (str(item.get('app_siaga_faktur_id')), (item.get('sumber') or 'farmasi').strip())
                     selected_map[key] = True
 
-        with connection.cursor() as cursor:
+        with connection.cursor() as simak_cursor:
             # Build max tanggal_faktur LUNAS mapping by both vendor_id AND normalized vendor_nama
-            cursor.execute("""
+            simak_cursor.execute("""
                 SELECT vendor_id, vendor_nama, MAX(tanggal_faktur) as max_faktur
                 FROM keuangan_utang_supplier
                 WHERE tanggal_faktur IS NOT NULL AND status = 'lunas'
@@ -8124,7 +8184,7 @@ class UtangPelunasanDataLamaView(APIView):
             vendor_max_faktur_by_id = {}
             vendor_max_faktur_by_name = {}
 
-            for r in cursor.fetchall():
+            for r in simak_cursor.fetchall():
                 v_id, v_name, max_faktur = r
                 if v_id:
                     if v_id not in vendor_max_faktur_by_id or max_faktur > vendor_max_faktur_by_id[v_id]:
@@ -8134,8 +8194,10 @@ class UtangPelunasanDataLamaView(APIView):
                     if norm_name not in vendor_max_faktur_by_name or max_faktur > vendor_max_faktur_by_name[norm_name]:
                         vendor_max_faktur_by_name[norm_name] = max_faktur
 
-            # 1. Fetch unverified farmasi purchases
-            cursor.execute("""
+        app_ids, spbs, fakturs = _get_utang_exclusion_sets()
+        with get_rssams_cursor() as rssams_cursor:
+            # 1. Fetch unverified farmasi purchases from rssams
+            rssams_cursor.execute("""
                 SELECT 
                     CONVERT(t.id USING utf8mb4) AS app_siaga_faktur_id,
                     CONVERT(COALESCE(NULLIF(t.no_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
@@ -8144,21 +8206,23 @@ class UtangPelunasanDataLamaView(APIView):
                     r.id_rekanan AS vendor_id,
                     CONVERT(COALESCE(r.nama, '') USING utf8mb4) AS vendor_nama,
                     t.tgl_faktur AS tanggal_faktur,
-                    t.gtotal AS nominal
+                    t.gtotal AS nominal,
+                    t.no_faktur AS _raw_no_faktur
                 FROM rssams.tran_beli_brg_farmasi t
                 LEFT JOIN rssams.rekanan r ON r.id_rekanan = t.id_rekanan
-                LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = t.id
-                WHERE u.id IS NULL 
-                  AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
-                  AND (t.no_faktur IS NULL OR t.no_faktur = '' OR t.no_faktur NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
             """)
-            cols_f = [col[0] for col in cursor.description]
-            farmasi_rows = [dict(zip(cols_f, row)) for row in cursor.fetchall()]
+            cols_f = [col[0] for col in rssams_cursor.description]
+            farmasi_rows = []
+            for raw_row in rssams_cursor.fetchall():
+                d = dict(zip(cols_f, raw_row))
+                rfak = d.pop('_raw_no_faktur', None)
+                if not _is_farmasi_excluded(d.get('app_siaga_faktur_id'), rfak, app_ids, spbs, fakturs):
+                    farmasi_rows.append(d)
 
-            # 2. Fetch unverified logistik purchases
+            # 2. Fetch unverified logistik purchases from rssams
             from logistik.schema import ensure_workflow_schema
             kirim_gate = "AND COALESCE(t.kirim_keuangan, 'Y') = 'Y'" if ensure_workflow_schema() else ""
-            cursor.execute(f"""
+            rssams_cursor.execute(f"""
                 SELECT 
                     CONVERT(t.id USING utf8mb4) AS app_siaga_faktur_id,
                     CONVERT(COALESCE(NULLIF(s.no_spb, ''), NULLIF(t.id_spb, ''), t.id) USING utf8mb4) AS nomor_spb,
@@ -8167,22 +8231,25 @@ class UtangPelunasanDataLamaView(APIView):
                     r.id_rekanan AS vendor_id,
                     CONVERT(COALESCE(r.nama, t.rekanan) USING utf8mb4) AS vendor_nama,
                     t.tgl_spk AS tanggal_faktur,
-                    t.nilai AS nominal
+                    t.nilai AS nominal,
+                    s.no_spb AS _raw_spb,
+                    t.no_spk AS _raw_no_spk
                 FROM rssams.tran_beli_brg_log t
                 LEFT JOIN rssams.logistik_spb s ON s.id = t.id_spb
                 LEFT JOIN rssams.rekanan r ON (r.nama = t.rekanan OR r.nama = s.no_spb)
-                LEFT JOIN keuangan_utang_supplier u ON u.app_siaga_faktur_id = CONCAT('LOG-', t.id)
                 WHERE t.done = 'Y' 
-                  AND u.id IS NULL 
                   AND COALESCE(t.rekanan, '') != 'STOCK OPNAME'
                   AND COALESCE(t.no_spk, '') NOT LIKE 'OPNAME-%%'
                   {kirim_gate}
-                  AND (t.id NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
-                  AND (s.no_spb IS NULL OR s.no_spb = '' OR s.no_spb NOT IN (SELECT nomor_spb FROM keuangan_utang_supplier WHERE nomor_spb != ''))
-                  AND (t.no_spk IS NULL OR t.no_spk = '' OR t.no_spk NOT IN (SELECT nomor_faktur FROM keuangan_utang_supplier WHERE nomor_faktur != ''))
             """)
-            cols_l = [col[0] for col in cursor.description]
-            logistik_rows = [dict(zip(cols_l, row)) for row in cursor.fetchall()]
+            cols_l = [col[0] for col in rssams_cursor.description]
+            logistik_rows = []
+            for raw_row in rssams_cursor.fetchall():
+                d = dict(zip(cols_l, raw_row))
+                rspb = d.pop('_raw_spb', None)
+                rspk = d.pop('_raw_no_spk', None)
+                if not _is_logistik_excluded(d.get('app_siaga_faktur_id'), rspb, rspk, app_ids, spbs, fakturs):
+                    logistik_rows.append(d)
 
         now = timezone.now()
         today = timezone.localdate()
@@ -8311,7 +8378,7 @@ class UtangVendorOptionsView(APIView):
     permission_classes = [IsAuthenticated, IsCatatanUtangObatBhpPermission]
 
     def get(self, request):
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 """
                 SELECT id_rekanan AS id, nama, COALESCE(kategori, '') AS kategori, COALESCE(sumber, 'farmasi') AS sumber
@@ -8356,7 +8423,7 @@ class IndukPembiayaanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
 
         # Ambil nama pembiayaan dari rssams.pbiaya
         str_ids = [str(x) for x in id_pembiayaan_list]
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             placeholders = ','.join(['%s'] * len(str_ids))
             cursor.execute(f"SELECT id_pembiayaan, pembiayaan FROM rssams.pbiaya WHERE id_pembiayaan IN ({placeholders})", str_ids)
             pbiaya_dict = {str(row[0]): row[1] for row in cursor.fetchall()}
@@ -8423,7 +8490,7 @@ class IndukPembiayaanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
             ('BPJS KETENAGAKERJAAN', ['BPJS KETENAGAKERJAAN', 'BPJS NAKER', 'BPJS-TK']),
         ]
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("SELECT id_pembiayaan, pembiayaan FROM rssams.pbiaya WHERE status = 1 ORDER BY pembiayaan")
             all_pbiaya = cursor.fetchall()
 
@@ -8483,7 +8550,7 @@ class IndukPembiayaanViewSet(OptionalPaginationMixin, viewsets.ModelViewSet):
         if not id_pembiayaan:
             return Response({'error': 'id_pembiayaan wajib diisi.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute("SELECT pembiayaan FROM rssams.pbiaya WHERE id_pembiayaan = %s LIMIT 1", [id_pembiayaan])
             row = cursor.fetchone()
             nama = row[0] if row else f"Pembiayaan ID {id_pembiayaan}"
@@ -10223,7 +10290,7 @@ def has_driver_access(user):
     return is_driver(user) or is_admin_driver(user)
 
 def legacy_fetchall(sql, params=None):
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         cursor.execute(sql, params or [])
         cols = [col[0] for col in cursor.description]
         return [dict(zip(cols, row)) for row in cursor.fetchall()]
@@ -10249,7 +10316,7 @@ def _get_rekanan_columns():
 
     cols = set()
     table_name = "rssams.rekanan"
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         try:
             cursor.execute("SHOW COLUMNS FROM rssams.rekanan")
             cols = {row[0].lower() for row in cursor.fetchall()}
@@ -10281,8 +10348,8 @@ def _get_rekanan_columns():
 _dafbrg_log_columns_cache = None
 
 def _refresh_pembelian_total(pembelian_id, no_invoice=None):
-    from django.db import connection
-    with connection.cursor() as cursor:
+    from config.db_utils import get_rssams_cursor
+    with get_rssams_cursor() as cursor:
         if no_invoice is not None:
             cursor.execute(
                 "UPDATE rssams.tran_beli_brg_log SET no_spk = %s WHERE id = %s",
@@ -10298,8 +10365,8 @@ def _refresh_pembelian_total(pembelian_id, no_invoice=None):
         )
 
 def _refresh_spb_total(spb_id):
-    from django.db import connection
-    with connection.cursor() as cursor:
+    from config.db_utils import get_rssams_cursor
+    with get_rssams_cursor() as cursor:
         cursor.execute(
             """
             UPDATE rssams.logistik_spb s

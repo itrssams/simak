@@ -13,6 +13,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from django.db import connection, transaction, models
+from config.db_utils import get_rssams_cursor, get_rssams_db_alias
 from django.db.models.deletion import ProtectedError
 from decimal import Decimal, InvalidOperation
 from rest_framework.views import APIView
@@ -154,16 +155,11 @@ class SystemMaintenanceViewSet(viewsets.ViewSet):
 
         rssams_status = 'offline'
         try:
-            with connections['default'].cursor() as cursor:
+            with get_rssams_cursor() as cursor:
                 cursor.execute('SELECT 1 FROM rssams.regpasien LIMIT 1')
                 rssams_status = 'online'
-        except Exception:
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute('SELECT 1')
-                    rssams_status = 'online'
-            except Exception as e:
-                rssams_status = f'error: {str(e)}'
+        except Exception as e:
+            rssams_status = f'error: {str(e)}'
 
         try:
             usage = shutil.disk_usage(settings.BASE_DIR)
@@ -229,7 +225,8 @@ class SystemMaintenanceViewSet(viewsets.ViewSet):
         filename = f"backup_{db_target}_{ts}.sql.gz"
         filepath = BACKUP_DIR / filename
 
-        db_settings = settings.DATABASES.get('default', {})
+        db_alias = get_rssams_db_alias() if db_target == 'rssams' else 'default'
+        db_settings = settings.DATABASES.get(db_alias, {})
         host = db_settings.get('HOST', 'localhost')
         port = str(db_settings.get('PORT', '3306'))
         user = db_settings.get('USER', 'root')
@@ -264,7 +261,8 @@ class SystemMaintenanceViewSet(viewsets.ViewSet):
                     gz_out.write(f"-- SIMAK BACKUP FOR {actual_db_name.upper()} ({ts})\n")
                     gz_out.write("SET FOREIGN_KEY_CHECKS=0;\n\n")
 
-                    with connection.cursor() as cursor:
+                    cursor_ctx = get_rssams_cursor() if db_target == 'rssams' else connection.cursor()
+                    with cursor_ctx as cursor:
                         if db_target == 'rssams':
                             cursor.execute("SHOW TABLES FROM rssams")
                             tables = [r[0] for r in cursor.fetchall()]

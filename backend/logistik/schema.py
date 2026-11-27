@@ -17,7 +17,7 @@ keuangan.views).
 """
 import logging
 
-from django.db import connection
+from config.db_utils import get_rssams_cursor
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def ensure_workflow_schema():
     if _ready:
         return True
     try:
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             # Tabel legacy rssams mungkin memiliki data tanggal '0000-00-00'.
             # Relaksasi sql_mode sesi agar ALTER TABLE tidak ditolak oleh NO_ZERO_DATE / STRICT_TRANS_TABLES.
             cursor.execute("SELECT @@SESSION.sql_mode")

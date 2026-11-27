@@ -16,7 +16,8 @@ from .schema import ensure_workflow_schema
 
 from rest_framework.permissions import IsAuthenticated
 
-from django.db import connection, transaction
+from django.db import connection
+from config.db_utils import get_rssams_cursor, rssams_atomic
 
 from django.utils import timezone
 
@@ -230,7 +231,7 @@ def _get_dafbrg_log_columns():
 
     table_name = "rssams.dafbrg_log"
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         try:
 
@@ -347,7 +348,7 @@ def legacy_stock(id_brg):
         )
         stock = float(row['stock'] or 0)
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
         cursor.execute('UPDATE rssams.dafbrg_log SET stock = %s WHERE id_brg = %s', [stock, id_brg])
     return stock
 
@@ -372,7 +373,7 @@ def _legacy_stock_ungated(id_brg):
 
     stock = row['stock'] or 0
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         cursor.execute('UPDATE rssams.dafbrg_log SET stock = %s WHERE id_brg = %s', [stock, id_brg])
 
@@ -532,7 +533,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
 
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -590,7 +591,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
             prefix = match.group(1).upper() if match else 'B8'
 
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
 
                 cursor.execute("SELECT kode_material FROM rssams.dafbrg_log WHERE kode_material LIKE %s", [f'{prefix}%'])
 
@@ -612,7 +613,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
 
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -668,7 +669,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
 
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -732,7 +733,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
 
     def destroy(self, request, pk=None):
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("UPDATE rssams.dafbrg_log SET del = 'Y' WHERE id_brg = %s", [pk])
 
@@ -752,7 +753,7 @@ class LogistikBarangViewSet(viewsets.ViewSet):
         if not clean_ids:
             return Response({'detail': 'Pilih minimal 1 barang untuk dihapus.'}, status=status.HTTP_400_BAD_REQUEST)
         placeholders = ', '.join(['%s'] * len(clean_ids))
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             cursor.execute(
                 f"UPDATE rssams.dafbrg_log SET del = 'Y' WHERE id_brg IN ({placeholders})",
                 clean_ids,
@@ -1063,7 +1064,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
         """
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(sql, params)
 
@@ -1117,7 +1118,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
         params.append(pk)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -1135,11 +1136,13 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
             )
 
-            # Sync to UtangSupplier for this vendor if category was updated
+        # Sync to UtangSupplier for this vendor if category was updated
 
-            if new_cat:
+        if new_cat:
 
-                cursor.execute(
+            with connection.cursor() as simak_cursor:
+
+                simak_cursor.execute(
 
                     "UPDATE keuangan_utang_supplier SET kategori = %s WHERE vendor_id = %s AND (kategori IS NULL OR TRIM(kategori) = '' OR kategori = 'OBAT & BHP')",
 
@@ -1153,7 +1156,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
     def destroy(self, request, pk=None):
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("UPDATE rssams.rekanan SET del = 'Y' WHERE id_rekanan = %s", [pk])
 
@@ -1175,7 +1178,7 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
 
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("SELECT id_rekanan, nama, sumber FROM rssams.rekanan WHERE del = 'N' AND (kategori IS NULL OR TRIM(kategori) = '')")
 
@@ -1213,8 +1216,6 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
                 cursor.execute("UPDATE rssams.rekanan SET kategori = %s WHERE id_rekanan = %s", [cat, r_id])
 
-                cursor.execute("UPDATE keuangan_utang_supplier SET kategori = %s WHERE vendor_id = %s AND (kategori IS NULL OR TRIM(kategori) = '')", [cat, r_id])
-
                 updated += 1
 
 
@@ -1223,39 +1224,45 @@ class LogistikVendorViewSet(viewsets.ViewSet):
 
             cursor.execute("UPDATE rssams.rekanan SET kategori = 'OBAT DAN BHP' WHERE kategori = 'OBAT & BHP'")
 
-            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE kategori = 'OBAT & BHP'")
-
-
-
             # Standardize legacy 'ATK, CETAKAN, RUMAH TANGGA DLL.'
 
             cursor.execute("UPDATE rssams.rekanan SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE kategori = 'ATK, CETAKAN, RUMAH TANGGA DLL.'")
 
-            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE kategori = 'ATK, CETAKAN, RUMAH TANGGA DLL.'")
+            cursor.execute("SELECT id_rekanan, kategori FROM rssams.rekanan WHERE kategori IS NOT NULL AND TRIM(kategori) != ''")
 
+            rekanan_kat_rows = cursor.fetchall()
 
+        by_kat = {}
+
+        for r_id, r_kat in rekanan_kat_rows:
+
+            by_kat.setdefault(r_kat, []).append(r_id)
+
+        with connection.cursor() as simak_cursor:
+
+            simak_cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE kategori = 'OBAT & BHP'")
+
+            simak_cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE kategori = 'ATK, CETAKAN, RUMAH TANGGA DLL.'")
 
             # Standardize empty categories in UtangSupplier based on source
 
-            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE sumber = 'farmasi' AND (kategori IS NULL OR TRIM(kategori) = '')")
+            simak_cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'OBAT DAN BHP' WHERE sumber = 'farmasi' AND (kategori IS NULL OR TRIM(kategori) = '')")
 
-            cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE sumber = 'logistik' AND (kategori IS NULL OR TRIM(kategori) = '')")
-
-
+            simak_cursor.execute("UPDATE keuangan_utang_supplier SET kategori = 'BIAYA ATK, CETAKAN, BHP RUMAH TANGGA DLL.' WHERE sumber = 'logistik' AND (kategori IS NULL OR TRIM(kategori) = '')")
 
             # Sync any remaining empty utang directly from vendor master
 
-            cursor.execute("""
+            for kat_val, vendor_ids in by_kat.items():
 
-                UPDATE keuangan_utang_supplier u
+                placeholders = ','.join(['%s'] * len(vendor_ids))
 
-                JOIN rssams.rekanan r ON r.id_rekanan = u.vendor_id
+                simak_cursor.execute(
 
-                SET u.kategori = r.kategori
+                    f"UPDATE keuangan_utang_supplier SET kategori = %s WHERE vendor_id IN ({placeholders}) AND (kategori IS NULL OR TRIM(kategori) = '')",
 
-                WHERE (u.kategori IS NULL OR TRIM(u.kategori) = '') AND r.kategori IS NOT NULL AND TRIM(r.kategori) != ''
+                    [kat_val, *vendor_ids],
 
-            """)
+                )
 
 
 
@@ -1452,7 +1459,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
                 if existing_beli.get('done') == 'N' and not existing_beli.get('id_spb') and int(existing_beli.get('item_cnt') or 0) == 0:
 
-                    with connection.cursor() as cursor:
+                    with get_rssams_cursor() as cursor:
 
                         cursor.execute("DELETE FROM rssams.tran_beli_brg_log WHERE id = %s AND done = 'N' AND id_spb IS NULL", [existing_beli['id']])
 
@@ -1472,7 +1479,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
             vendor_name = vendor['nama'] if vendor else vendor_name
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -1644,7 +1651,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
         values.append(pk)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(f"UPDATE rssams.tran_beli_brg_log SET {', '.join(updates)} WHERE id = %s", values)
 
@@ -1672,7 +1679,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
             return Response({'detail': 'Tidak dapat mengirim penerimaan kosong. Tambahkan barang terlebih dahulu.'}, status=400)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -1720,9 +1727,9 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
         if aksi == 'setujui':
 
-            with transaction.atomic():
+            with rssams_atomic():
 
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
 
                     cursor.execute(
 
@@ -1754,7 +1761,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
                 return Response({'detail': 'Catatan penolakan wajib diisi.'}, status=400)
 
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
 
                 cursor.execute(
 
@@ -1792,7 +1799,7 @@ class LogistikPembelianViewSet(viewsets.ViewSet):
 
         
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("DELETE FROM rssams.item_logistik WHERE id = %s", [pk])
 
@@ -1830,7 +1837,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
 
     def _refresh_pembelian_total(self, pembelian_id, no_invoice=None):
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             if no_invoice is not None:
 
@@ -1882,7 +1889,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
 
         isi = data.get('isi') or barang['isi'] or 1
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -1962,7 +1969,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
 
         isi = data.get('isi') or barang['isi'] or 1
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2020,7 +2027,7 @@ class LogistikBatchViewSet(viewsets.ViewSet):
 
         
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2062,7 +2069,7 @@ def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, kete
 
     tgl = f"{tanggal or timezone.localdate()} {timezone.localtime().strftime('%H:%M:%S')}"
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         cursor.execute(
 
@@ -2112,7 +2119,7 @@ def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, kete
 
         item_id = legacy_next_item_out_id(master_id)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2156,7 +2163,7 @@ def create_logistik_mutasi_fifo_legacy(id_brg, id_ruang, qty, tanggal=None, kete
 
     total = legacy_fetchone("SELECT COALESCE(SUM(qty),0) AS jmlbrg, COALESCE(SUM(qty*harga),0) AS nilai FROM rssams.item_out_log WHERE LEFT(id,6) = %s", [master_id])
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         cursor.execute("UPDATE rssams.tran_out_brg_log SET jmlbrg = %s, nilai = %s, done = 'Y' WHERE id = %s", [total['jmlbrg'], total['nilai'], master_id])
 
@@ -2214,7 +2221,7 @@ class LogistikMutasiViewSet(viewsets.ViewSet):
 
 
 
-    @transaction.atomic
+    @rssams_atomic()
 
     def create(self, request):
 
@@ -2322,7 +2329,7 @@ class LogistikPermintaanViewSet(viewsets.ViewSet):
 
         xid = f"{prefix}-{int(next_row['next_id']):06d}"
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2344,7 +2351,7 @@ class LogistikPermintaanViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['post'], url_path='verifikasi')
 
-    @transaction.atomic
+    @rssams_atomic()
 
     def verifikasi(self, request, pk=None):
 
@@ -2372,7 +2379,7 @@ class LogistikPermintaanViewSet(viewsets.ViewSet):
 
                 return Response({'error': 'Qty disetujui harus lebih dari 0 dan tidak melebihi permintaan.'}, status=400)
 
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
 
                 cursor.execute("UPDATE rssams.item_out_log SET qty = %s, status = 'Disetujui', tgl_verif = NOW() WHERE id = %s", [qty_setuju, pk])
 
@@ -2380,7 +2387,7 @@ class LogistikPermintaanViewSet(viewsets.ViewSet):
 
         else:
 
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
 
                 cursor.execute("UPDATE rssams.item_out_log SET qty = 0, status = 'Tidak Disetujui', tgl_verif = NOW() WHERE id = %s", [pk])
 
@@ -2451,7 +2458,7 @@ class LogistikOpnameViewSet(viewsets.ViewSet):
         opname_row = legacy_fetchone('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM rssams.opname_brg_log')
         opname_id = opname_row['next_id']
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
             # Catat riwayat opname resmi dan selisih di tabel opname_brg_log
             cursor.execute(
                 """
@@ -2474,7 +2481,7 @@ def _refresh_pembelian_total(pembelian_id, no_invoice=None):
 
     from django.db import connection
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         if no_invoice is not None:
 
@@ -2510,7 +2517,7 @@ def _refresh_spb_total(spb_id):
 
     from django.db import connection
 
-    with connection.cursor() as cursor:
+    with get_rssams_cursor() as cursor:
 
         cursor.execute(
 
@@ -2678,7 +2685,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2722,7 +2729,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2776,7 +2783,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE spb_id = %s", [pk])
 
@@ -2806,7 +2813,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
             return Response({'detail': 'Tidak dapat mengajukan SPB kosong. Tambahkan barang terlebih dahulu.'}, status=400)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -2854,9 +2861,9 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
         if aksi == 'setujui':
 
-            with transaction.atomic():
+            with rssams_atomic():
 
-                with connection.cursor() as cursor:
+                with get_rssams_cursor() as cursor:
 
                     # Bersihkan bila ada header kosong/yatim di tran_beli_brg_log dengan ID yang sama
                     cursor.execute(
@@ -2935,7 +2942,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
                 return Response({'detail': 'Catatan penolakan wajib diisi.'}, status=400)
 
-            with connection.cursor() as cursor:
+            with get_rssams_cursor() as cursor:
 
                 cursor.execute(
 
@@ -2991,7 +2998,7 @@ class LogistikSpbViewSet(viewsets.ViewSet):
 
             return Response({'detail': 'SPB ini sudah diproses ke Penerimaan dan tidak dapat dibatalkan.'}, status=400)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -3039,7 +3046,7 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -3067,7 +3074,7 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
 
@@ -3081,7 +3088,7 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
 
         self._check_spb_is_draft(spb_id)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute(
 
@@ -3109,7 +3116,7 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
 
         from django.db import connection
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("SELECT spb_id FROM rssams.logistik_spb_item WHERE id = %s", [pk])
 
@@ -3123,7 +3130,7 @@ class LogistikSpbItemViewSet(viewsets.ViewSet):
 
         self._check_spb_is_draft(spb_id)
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             cursor.execute("DELETE FROM rssams.logistik_spb_item WHERE id = %s", [pk])
 
@@ -3187,7 +3194,7 @@ class LogistikLaporanView(APIView):
 
 
 
-        with connection.cursor() as cursor:
+        with get_rssams_cursor() as cursor:
 
             # 1. KPI Summary
 

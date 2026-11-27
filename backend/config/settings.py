@@ -166,6 +166,21 @@ DATABASES = {
     }
 }
 
+# Opsional: pisahkan DB legacy `rssams` (mis. tetap di .116) saat DB `simak` berjalan di server terpisah.
+if os.getenv('RSSAMS_DB_HOST'):
+    DATABASES['rssams'] = {
+        'ENGINE': os.getenv('RSSAMS_DB_ENGINE', 'django.db.backends.mysql'),
+        'NAME': os.getenv('RSSAMS_DB_NAME', 'rssams'),
+        'USER': os.getenv('RSSAMS_DB_USER', os.getenv('DB_USER', 'root')),
+        'PASSWORD': os.getenv('RSSAMS_DB_PASSWORD', os.getenv('DB_PASSWORD', '')),
+        'HOST': os.getenv('RSSAMS_DB_HOST'),
+        'PORT': os.getenv('RSSAMS_DB_PORT', '3306'),
+        'CONN_MAX_AGE': int(os.getenv('RSSAMS_DB_CONN_MAX_AGE', '0')),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
+    }
+
 
 # ==============================================================================
 # AUTH USER MODEL
