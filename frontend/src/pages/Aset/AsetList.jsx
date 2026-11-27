@@ -73,9 +73,18 @@ export default function AsetList() {
     const [qrTarget, setQrTarget] = useState(null);
     const [rejectTarget, setRejectTarget] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [verifyTarget, setVerifyTarget] = useState(null);
+    const [verifyMode, setVerifyMode] = useState('existing');
+    const [verifyRuanganId, setVerifyRuanganId] = useState('');
+    const [verifyNewRoomName, setVerifyNewRoomName] = useState('');
+    const [verifyNewRoomFloor, setVerifyNewRoomFloor] = useState('');
+    const [verifyNote, setVerifyNote] = useState('');
     const [savingVerif, setSavingVerif] = useState(false);
 
-    useBodyScrollLock(Boolean(rejectTarget), () => setRejectTarget(null));
+    useBodyScrollLock(Boolean(rejectTarget || verifyTarget), () => {
+        setRejectTarget(null);
+        setVerifyTarget(null);
+    });
 
     useEffect(() => {
         loadFilterOptions();
@@ -153,15 +162,64 @@ export default function AsetList() {
         }
     };
 
-    const handleVerify = async (aset) => {
-        if (!window.confirm(`Verifikasi dan setujui aset "${aset.deskripsi}" (${aset.kode_aset}) ke daftar inventaris resmi?`)) return;
+    const openVerifyModal = (aset) => {
+        const unitRooms = ruanganList.filter(
+            r => String(r.unit) === String(aset.unit) && r.is_active !== false
+        );
+        setVerifyTarget(aset);
+        setVerifyNote('');
+        setVerifyNewRoomFloor('');
+        setVerifyNewRoomName(aset.lokasi_teks || '');
+        if (aset.ruangan) {
+            setVerifyMode('existing');
+            setVerifyRuanganId(String(aset.ruangan));
+        } else if (unitRooms.length > 0) {
+            setVerifyMode('existing');
+            setVerifyRuanganId(String(unitRooms[0].id));
+        } else {
+            setVerifyMode('create');
+            setVerifyRuanganId('');
+        }
+    };
+
+    const handleSubmitVerify = async (e) => {
+        e.preventDefault();
+        if (!verifyTarget) return;
+
+        const payload = {
+            catatan_verifikasi: verifyNote.trim(),
+        };
+        if (verifyMode === 'create') {
+            if (!verifyNewRoomName.trim()) {
+                toast.error('Nama master ruangan baru wajib diisi.');
+                return;
+            }
+            payload.buat_ruangan_baru = true;
+            payload.nama_ruangan_baru = verifyNewRoomName.trim();
+            payload.lantai_gedung = verifyNewRoomFloor.trim();
+        } else {
+            if (!verifyRuanganId) {
+                toast.error('Pilih Ruangan Master atau buat ruangan baru terlebih dahulu.');
+                return;
+            }
+            if (String(verifyRuanganId) !== String(verifyTarget.ruangan || '')) {
+                payload.ruangan = verifyRuanganId;
+            }
+        }
+
         setSavingVerif(true);
         try {
-            await api.post(`/aset/aset/${aset.id}/verifikasi/`, {});
-            toast.success(`Aset ${aset.kode_aset} berhasil diverifikasi.`);
+            await api.post(`/aset/aset/${verifyTarget.id}/verifikasi/`, payload);
+            toast.success(`Aset ${verifyTarget.kode_aset} berhasil diverifikasi.`);
+            setVerifyTarget(null);
             loadAssets();
+            if (payload.buat_ruangan_baru) {
+                loadFilterOptions();
+            }
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Gagal memverifikasi aset.');
+            const errData = err.response?.data;
+            const msg = errData?.ruangan || errData?.nama_ruangan_baru || errData?.detail || 'Gagal memverifikasi aset.';
+            toast.error(Array.isArray(msg) ? msg[0] : msg);
         } finally {
             setSavingVerif(false);
         }
@@ -280,6 +338,10 @@ export default function AsetList() {
     const filteredRuangan = selectedUnit
         ? ruanganList.filter(r => String(r.unit) === String(selectedUnit))
         : ruanganList;
+
+    const verifyUnitRooms = verifyTarget
+        ? ruanganList.filter(r => String(r.unit) === String(verifyTarget.unit) && r.is_active !== false)
+        : [];
 
     return (
         <div className="aset-container">
@@ -520,7 +582,12 @@ export default function AsetList() {
                                         <span className="aset-cell-title" style={{ fontWeight: 500 }}>{item.unit_nama || '—'}</span>
                                     </td>
                                     <td className="aset-cell-muted">
-                                        {item.lokasi_teks || item.ruangan_nama || '—'}
+                                        <div>{item.lokasi_teks || item.ruangan_nama || '—'}</div>
+                                        {!item.ruangan && (
+                                            <div className="aset-cell-sub" style={{ color: '#f59e0b' }}>
+                                                Belum terpetakan ke Master Ruangan
+                                            </div>
+                                        )}
                                     </td>
                                     <td>
                                         <span className={`aset-status-text ${getKelayakanTone(item.status_kelayakan)}`}>
@@ -581,7 +648,7 @@ export default function AsetList() {
                                                     <button
                                                         type="button"
                                                         className="aset-icon-action is-success"
-                                                        onClick={() => handleVerify(item)}
+                                                        onClick={() => openVerifyModal(item)}
                                                         disabled={savingVerif}
                                                         title="Verifikasi & Setujui Aset"
                                                         aria-label="Verifikasi Aset"
@@ -699,6 +766,131 @@ export default function AsetList() {
                 onClose={() => { setIsFormOpen(false); setEditData(null); }}
                 onSuccess={() => loadAssets()}
             />
+
+            {/* Modal Verifikasi & Pemetaan Ruangan */}
+            {verifyTarget && createPortal(
+                <div className="aset-modal-overlay" onClick={() => setVerifyTarget(null)}>
+                    <div className="aset-modal-content" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+                        <div className="aset-modal-header">
+                            <h3>Verifikasi Aset: {verifyTarget.kode_aset}</h3>
+                            <button type="button" className="aset-modal-close" onClick={() => setVerifyTarget(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmitVerify}>
+                            <div className="aset-modal-body">
+                                <div style={{
+                                    padding: '10px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--gdg-border, #334155)',
+                                    background: 'rgba(15, 23, 42, 0.35)',
+                                    marginBottom: '12px',
+                                    fontSize: '12.5px',
+                                    display: 'grid',
+                                    gap: '4px',
+                                }}>
+                                    <div><strong>{verifyTarget.deskripsi}</strong> ({verifyTarget.merk || 'Tanpa Merek'})</div>
+                                    <div style={{ color: 'var(--gdg-muted)' }}>
+                                        Unit: <strong>{verifyTarget.unit_nama}</strong> &bull; Lokasi Akurat: <strong>{verifyTarget.lokasi_teks || '-'}</strong>
+                                    </div>
+                                </div>
+
+                                {!verifyTarget.ruangan && (
+                                    <div style={{
+                                        padding: '9px 11px',
+                                        borderRadius: '6px',
+                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                        background: 'rgba(245, 158, 11, 0.08)',
+                                        color: '#fbbf24',
+                                        fontSize: '12px',
+                                        marginBottom: '12px',
+                                        lineHeight: 1.4,
+                                    }}>
+                                        Unit menandai ruangan belum ada di daftar. Pilih <strong>Ruangan Master</strong> yang sesuai atau buat ruangan baru sebelum menyetujui.
+                                    </div>
+                                )}
+
+                                <div className="aset-form-group">
+                                    <label className="aset-form-label">Ruangan Master ({verifyTarget.unit_nama}) *</label>
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                        <button
+                                            type="button"
+                                            className={`btn-aset ${verifyMode === 'existing' ? 'btn-aset-primary' : 'btn-aset-secondary'}`}
+                                            onClick={() => setVerifyMode('existing')}
+                                            disabled={verifyUnitRooms.length === 0}
+                                            style={{ flex: 1, justifyContent: 'center' }}
+                                        >
+                                            Pilih yang Ada ({verifyUnitRooms.length})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`btn-aset ${verifyMode === 'create' ? 'btn-aset-primary' : 'btn-aset-secondary'}`}
+                                            onClick={() => setVerifyMode('create')}
+                                            style={{ flex: 1, justifyContent: 'center' }}
+                                        >
+                                            + Buat Master Ruangan Baru
+                                        </button>
+                                    </div>
+
+                                    {verifyMode === 'existing' ? (
+                                        <select
+                                            className="aset-form-input"
+                                            value={verifyRuanganId}
+                                            onChange={e => setVerifyRuanganId(e.target.value)}
+                                            required
+                                        >
+                                            <option value="">-- Pilih Ruangan Master --</option>
+                                            {verifyUnitRooms.map(r => (
+                                                <option key={r.id} value={r.id}>
+                                                    {r.nama}{r.lantai_gedung ? ` (${r.lantai_gedung})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: '8px' }}>
+                                            <input
+                                                type="text"
+                                                className="aset-form-input"
+                                                placeholder="Nama Ruangan Master Baru"
+                                                value={verifyNewRoomName}
+                                                onChange={e => setVerifyNewRoomName(e.target.value)}
+                                                required
+                                            />
+                                            <input
+                                                type="text"
+                                                className="aset-form-input"
+                                                placeholder="Lantai / Gedung (opsional)"
+                                                value={verifyNewRoomFloor}
+                                                onChange={e => setVerifyNewRoomFloor(e.target.value)}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="aset-form-group" style={{ marginBottom: 0 }}>
+                                    <label className="aset-form-label">Catatan Verifikasi (Opsional)</label>
+                                    <textarea
+                                        className="aset-form-input"
+                                        rows={2}
+                                        placeholder="Catatan verifikasi admin aset..."
+                                        value={verifyNote}
+                                        onChange={e => setVerifyNote(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="aset-modal-footer">
+                                <button type="button" className="btn-aset btn-aset-secondary" onClick={() => setVerifyTarget(null)} disabled={savingVerif}>
+                                    Batal
+                                </button>
+                                <button type="submit" className="btn-aset btn-aset-primary" disabled={savingVerif}>
+                                    {savingVerif ? 'Memverifikasi...' : 'Verifikasi & Setujui'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Modal Tolak Pengajuan Pendaftaran Unit */}
             {rejectTarget && createPortal(

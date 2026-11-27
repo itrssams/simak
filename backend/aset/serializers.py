@@ -286,27 +286,41 @@ class AsetInputSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         errors = {}
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        is_admin = bool(user and user.is_authenticated and is_aset_manager(user))
+        requires_master_room = (
+            (self.instance is None and is_admin)
+            or (self.instance is not None and self.instance.status_verifikasi == 'terverifikasi')
+        )
 
         # 1. Validasi Kolom Mandatori (KECUALI nomor_seri, nomor_registrasi, foto_terkini, kode_aset,
-        # tanggal/harga perolehan yang sementara dinonaktifkan, serta rekomendasi_tindakan dan catatan)
+        # tanggal/harga perolehan yang sementara dinonaktifkan, rekomendasi_tindakan, catatan,
+        # serta ruangan yang boleh kosong saat unit mengajukan ruangan baru)
         required_fields = {
             'jenis': 'Jenis barang',
             'deskripsi': 'Deskripsi / nama barang',
             'merk': 'Merek (merk)',
             'spesifikasi': 'Spesifikasi / kapasitas',
             'unit': 'Unit penanggung jawab',
-            'ruangan': 'Ruangan master',
             'lokasi_teks': 'Lokasi akurat / keterangan ruang',
             'status_kelayakan': 'Tingkat kelayakan',
             'status_aset': 'Status operasional',
             'status_kepemilikan': 'Status kepemilikan',
         }
+        if requires_master_room:
+            required_fields['ruangan'] = 'Ruangan master'
 
         # Jika sedang edit (instance ada), gunakan value eksisting jika tidak dikirim dalam data partial
         for field, label in required_fields.items():
             val = data.get(field, getattr(self.instance, field, None) if self.instance else None)
             if val is None or (isinstance(val, str) and not val.strip()):
                 errors[field] = f'{label} wajib diisi.'
+
+        unit_resolved = data.get('unit', getattr(self.instance, 'unit', None) if self.instance else None)
+        ruangan_resolved = data.get('ruangan', getattr(self.instance, 'ruangan', None) if self.instance else None)
+        if ruangan_resolved and unit_resolved and ruangan_resolved.unit_id != unit_resolved.id:
+            errors['ruangan'] = 'Ruangan master harus sesuai dengan unit penanggung jawab yang dipilih.'
 
         # Validasi harga perolehan opsional (boleh 0 / kosong saat pendataan awal, asal tidak negatif)
         harga = data.get('harga_perolehan', getattr(self.instance, 'harga_perolehan', None) if self.instance else None)
@@ -365,6 +379,9 @@ class AsetInputSerializer(serializers.ModelSerializer):
                 )
                 if ruangan:
                     combo_qs = combo_qs.filter(ruangan=ruangan)
+                else:
+                    lokasi_clean = (data.get('lokasi_teks') or '').strip()
+                    combo_qs = combo_qs.filter(ruangan__isnull=True, lokasi_teks__iexact=lokasi_clean)
                 if combo_qs.exists():
                     existing = combo_qs.first()
                     errors['deskripsi'] = f'Peringatan Duplikasi: Aset serupa "{deskripsi}" ({merk}) di unit/ruangan ini sudah terdaftar ({existing.kode_aset}). Mohon pastikan kembali atau cantumkan nomor seri unik untuk membedakan.'

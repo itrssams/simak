@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import transaction
 from django.db.models import Q, Count, Sum
 from decimal import Decimal
 from django.utils import timezone
@@ -74,7 +75,7 @@ class AsetJenisViewSet(viewsets.ModelViewSet):
 class AsetRuanganViewSet(viewsets.ModelViewSet):
     queryset = AsetRuangan.objects.select_related('unit').all()
     serializer_class = AsetRuanganSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAsetAdminOrReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -295,6 +296,7 @@ class AsetViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def verifikasi(self, request, pk=None):
         if not is_aset_manager(request.user):
             return Response(
@@ -303,19 +305,72 @@ class AsetViewSet(viewsets.ModelViewSet):
             )
         aset = self.get_object()
         catatan = (request.data.get('catatan_verifikasi') or '').strip()
+
+        raw_buat_baru = request.data.get('buat_ruangan_baru', False)
+        buat_baru = raw_buat_baru in (True, 'true', 'True', '1', 1)
+        ruangan_id_param = request.data.get('ruangan')
+        ruangan_lama_nama = aset.ruangan.nama if aset.ruangan else (aset.lokasi_teks or '')
+
+        if buat_baru:
+            nama_baru = (request.data.get('nama_ruangan_baru') or aset.lokasi_teks or '').strip()
+            if not nama_baru:
+                return Response(
+                    {'nama_ruangan_baru': 'Nama ruangan baru wajib diisi untuk membuat master ruangan.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            lantai_gedung = (request.data.get('lantai_gedung') or '').strip()
+            existing_room = AsetRuangan.objects.filter(unit=aset.unit, nama__iexact=nama_baru).first()
+            if existing_room:
+                if not existing_room.is_active:
+                    existing_room.is_active = True
+                    existing_room.save(update_fields=['is_active'])
+                aset.ruangan = existing_room
+            else:
+                aset.ruangan = AsetRuangan.objects.create(
+                    unit=aset.unit,
+                    nama=nama_baru,
+                    lantai_gedung=lantai_gedung,
+                    is_active=True,
+                )
+        elif ruangan_id_param not in (None, ''):
+            room_obj = AsetRuangan.objects.filter(pk=ruangan_id_param).first()
+            if not room_obj:
+                return Response(
+                    {'ruangan': 'Ruangan master yang dipilih tidak ditemukan.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if room_obj.unit_id != aset.unit_id:
+                return Response(
+                    {'ruangan': 'Ruangan master harus berada pada unit yang sama dengan aset.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            aset.ruangan = room_obj
+
+        if not aset.ruangan_id:
+            return Response(
+                {'ruangan': 'Aset belum memiliki Ruangan Master. Pilih ruangan yang sesuai atau buat master ruangan baru sebelum memverifikasi.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         aset.status_verifikasi = 'terverifikasi'
         aset.verified_by = request.user
         aset.verified_at = timezone.now()
         aset.catatan_verifikasi = catatan
         aset.updated_by = request.user
-        aset.save(update_fields=['status_verifikasi', 'verified_by', 'verified_at', 'catatan_verifikasi', 'updated_by', 'updated_at'])
+        aset.save(update_fields=['ruangan', 'status_verifikasi', 'verified_by', 'verified_at', 'catatan_verifikasi', 'updated_by', 'updated_at'])
+
+        ruangan_baru_nama = aset.ruangan.nama if aset.ruangan else aset.lokasi_teks
+        extra_note = f'Ruangan dipetakan ke "{ruangan_baru_nama}".' if buat_baru or ruangan_id_param not in (None, '') else ''
+        full_note = ' '.join(part for part in ['Aset diverifikasi dan disetujui.', extra_note, catatan] if part).strip()
 
         AsetRiwayat.objects.create(
             aset=aset,
             aksi='update_data',
             status_kelayakan_lama=aset.status_kelayakan,
             status_kelayakan_baru=aset.status_kelayakan,
-            catatan=f'Aset diverifikasi dan disetujui. {catatan}'.strip(),
+            ruangan_lama=ruangan_lama_nama,
+            ruangan_baru=ruangan_baru_nama,
+            catatan=full_note,
             dilakukan_oleh=request.user,
         )
         return Response(AsetDetailSerializer(aset, context={'request': request}).data)

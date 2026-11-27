@@ -711,4 +711,120 @@ class AsetAndPerbaikanTests(APITestCase):
         self.assertEqual(LOKASI_TO_UNIT_RUANGAN['Antara Poli 2 & 3'][1], 'Area Tunggu Poli 2 & 3')
         self.assertEqual(LOKASI_TO_UNIT_RUANGAN['Antara Poli 4 & 6'][1], 'Area Tunggu Poli 4 & 6')
 
+    def test_unit_unlisted_room_submission_and_verifier_mapping(self):
+        User = get_user_model()
+        unit_it = Unit.objects.create(nama='IT Test Unit')
+        staff_it = User.objects.create_user(
+            username='staff_it_tst',
+            password='password123',
+            unit=unit_it,
+        )
+
+        # Unit non-admin tidak bisa langsung create ke master AsetRuangan
+        self.client.force_authenticate(user=staff_it)
+        res_room_forbidden = self.client.post(
+            '/api/aset/ruangan/',
+            {'nama': 'Ruang IT Ilegal', 'unit': unit_it.id},
+            format='json',
+        )
+        self.assertEqual(res_room_forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Unit dapat mengajukan aset tanpa memilih ruangan master jika ruangan belum ada (lokasi_teks wajib)
+        payload_unlisted = self._valid_asset_payload(
+            unit=unit_it.id,
+            ruangan='',
+            lokasi_teks='Office IT Lt. 2',
+            deskripsi='PC Rakitan IT',
+            bulan_perolehan='',
+            harga_perolehan='',
+        )
+        res_create = self.client.post('/api/aset/aset/', payload_unlisted, format='multipart')
+        self.assertEqual(res_create.status_code, status.HTTP_201_CREATED)
+        aset_unlisted = Aset.objects.get(pk=res_create.data['id'])
+        self.assertIsNone(aset_unlisted.ruangan)
+        self.assertEqual(aset_unlisted.lokasi_teks, 'Office IT Lt. 2')
+        self.assertEqual(aset_unlisted.status_verifikasi, 'menunggu_verifikasi')
+
+        # Admin membuat aset langsung tanpa ruangan -> tetap ditolak (wajib ruangan master)
+        self.client.force_authenticate(user=self.admin)
+        res_admin_no_room = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                unit=unit_it.id,
+                ruangan='',
+                lokasi_teks='Ruang Admin Tanpa Master',
+                deskripsi='Server Admin',
+                bulan_perolehan='',
+                harga_perolehan='',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_admin_no_room.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ruangan', res_admin_no_room.data)
+
+        # Verifikasi tanpa memilih/membuat ruangan -> ditolak 400
+        res_verify_missing = self.client.post(
+            f'/api/aset/aset/{aset_unlisted.id}/verifikasi/',
+            {'catatan_verifikasi': 'Coba setujui tanpa ruangan'},
+            format='json',
+        )
+        self.assertEqual(res_verify_missing.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ruangan', res_verify_missing.data)
+
+        # Verifikasi sambil membuat master ruangan baru dari lokasi pengajuan
+        res_verify_create = self.client.post(
+            f'/api/aset/aset/{aset_unlisted.id}/verifikasi/',
+            {
+                'buat_ruangan_baru': True,
+                'nama_ruangan_baru': 'Ruang Office IT',
+                'lantai_gedung': 'Lantai 2',
+                'catatan_verifikasi': 'Ruangan diresmikan',
+            },
+            format='json',
+        )
+        self.assertEqual(res_verify_create.status_code, status.HTTP_200_OK)
+        aset_unlisted.refresh_from_db()
+        self.assertEqual(aset_unlisted.status_verifikasi, 'terverifikasi')
+        self.assertIsNotNone(aset_unlisted.ruangan)
+        self.assertEqual(aset_unlisted.ruangan.nama, 'Ruang Office IT')
+        self.assertEqual(aset_unlisted.ruangan.unit_id, unit_it.id)
+        self.assertEqual(aset_unlisted.lokasi_teks, 'Office IT Lt. 2')
+
+        # Pengajuan kedua di unit IT tanpa ruangan dapat dipetakan ke Ruangan Master yang baru dibuat
+        self.client.force_authenticate(user=staff_it)
+        res_create_2 = self.client.post(
+            '/api/aset/aset/',
+            self._valid_asset_payload(
+                unit=unit_it.id,
+                ruangan='',
+                lokasi_teks='Pojok Server IT',
+                deskripsi='Mikrotik Core Router',
+                bulan_perolehan='',
+                harga_perolehan='',
+            ),
+            format='multipart',
+        )
+        self.assertEqual(res_create_2.status_code, status.HTTP_201_CREATED)
+        aset_2_id = res_create_2.data['id']
+
+        self.client.force_authenticate(user=self.admin)
+        # Ruangan unit lain harus ditolak
+        res_wrong_unit = self.client.post(
+            f'/api/aset/aset/{aset_2_id}/verifikasi/',
+            {'ruangan': self.ruangan.id},
+            format='json',
+        )
+        self.assertEqual(res_wrong_unit.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ruangan', res_wrong_unit.data)
+
+        # Pemetaan ke Ruangan Master milik unit IT berhasil
+        res_verify_map = self.client.post(
+            f'/api/aset/aset/{aset_2_id}/verifikasi/',
+            {'ruangan': aset_unlisted.ruangan_id},
+            format='json',
+        )
+        self.assertEqual(res_verify_map.status_code, status.HTTP_200_OK)
+        self.assertEqual(Aset.objects.get(pk=aset_2_id).ruangan_id, aset_unlisted.ruangan_id)
+
+
 

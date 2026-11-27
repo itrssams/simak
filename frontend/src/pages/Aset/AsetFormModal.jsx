@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, Package, Sparkles, Loader2, Camera, Trash2, Lock } from 'lucide-react';
+import { X, Plus, Save, Package, Sparkles, Loader2, Camera, Trash2, Lock, Image as ImageIcon } from 'lucide-react';
 import api from '../../api/axiosConfig';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -88,6 +88,8 @@ const KEPEMILIKAN_OPTIONS = [
     { value: 'kso', label: 'KSO', subtext: 'Kerja Sama Operasional' },
 ];
 
+const UNLISTED_ROOM_VALUE = '__unlisted__';
+
 export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData = null }) {
     const { user } = useAuth();
     const toast = useToast();
@@ -138,6 +140,10 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     const fotoTerkiniInputRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
+    const [showNewRoomBox, setShowNewRoomBox] = useState(false);
+    const [newRoomName, setNewRoomName] = useState('');
+    const [newRoomFloor, setNewRoomFloor] = useState('');
+    const [creatingRoom, setCreatingRoom] = useState(false);
     const [aiEnabled, setAiEnabled] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiSuggestions, setAiSuggestions] = useState([]);
@@ -169,7 +175,7 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                     nomor_registrasi: initialData.nomor_registrasi || '',
                     perlu_kalibrasi: Boolean(initialData.perlu_kalibrasi),
                     unit: initialData.unit || '',
-                    ruangan: initialData.ruangan || '',
+                    ruangan: initialData.ruangan ? initialData.ruangan : (!isAsetAdmin ? UNLISTED_ROOM_VALUE : ''),
                     lokasi_teks: initialData.lokasi_teks || '',
                     status_kelayakan: initialData.status_kelayakan || 'A',
                     status_aset: initialData.status_aset || 'aktif',
@@ -213,6 +219,9 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             }
             setFotoAwalFile(null);
             setFotoTerkiniFile(null);
+            setShowNewRoomBox(false);
+            setNewRoomName('');
+            setNewRoomFloor('');
             setAiEnabled(false);
             setShowAiPopover(false);
             setAiSuggestions([]);
@@ -227,10 +236,20 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                 api.get('/users/units/'),
                 api.get('/aset/ruangan/'),
             ]);
+            const loadedRooms = rRes.data.results || rRes.data || [];
             setJenisList(jRes.data.results || jRes.data || []);
             setKelompokList(kRes.data.results || kRes.data || []);
             setUnitList(uRes.data.results || uRes.data || []);
-            setRuanganList(rRes.data.results || rRes.data || []);
+            setRuanganList(loadedRooms);
+
+            if (!initialData && !isAsetAdmin && userUnitId) {
+                const hasUnitRooms = loadedRooms.some(
+                    r => String(r.unit) === String(userUnitId) && r.is_active !== false
+                );
+                if (!hasUnitRooms) {
+                    setFormData(prev => (!prev.ruangan ? { ...prev, ruangan: UNLISTED_ROOM_VALUE } : prev));
+                }
+            }
         } catch {
             toast.error('Gagal memuat master data aset.');
         }
@@ -276,12 +295,57 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     };
 
     const handleRuanganSelect = (val) => {
+        if (val === UNLISTED_ROOM_VALUE) {
+            setFormData(prev => ({
+                ...prev,
+                ruangan: UNLISTED_ROOM_VALUE,
+            }));
+            return;
+        }
         const rObj = ruanganList.find(r => String(r.id) === String(val));
         setFormData(prev => ({
             ...prev,
             ruangan: val,
             lokasi_teks: prev.lokasi_teks || (rObj ? rObj.nama : ''),
         }));
+    };
+
+    const handleCreateRoomInline = async () => {
+        if (!formData.unit) {
+            toast.error('Pilih Unit Penanggung Jawab terlebih dahulu.');
+            return;
+        }
+        const trimmedName = newRoomName.trim();
+        if (!trimmedName) {
+            toast.error('Nama ruangan baru wajib diisi.');
+            return;
+        }
+        setCreatingRoom(true);
+        try {
+            const res = await api.post('/aset/ruangan/', {
+                nama: trimmedName,
+                unit: formData.unit,
+                lantai_gedung: newRoomFloor.trim(),
+                is_active: true,
+            });
+            const created = res.data;
+            setRuanganList(prev => [...prev, created]);
+            setFormData(prev => ({
+                ...prev,
+                ruangan: created.id,
+                lokasi_teks: prev.lokasi_teks || created.nama,
+            }));
+            setShowNewRoomBox(false);
+            setNewRoomName('');
+            setNewRoomFloor('');
+            toast.success(`Ruangan "${created.nama}" ditambahkan ke master.`);
+        } catch (err) {
+            const errData = err.response?.data;
+            const msg = errData?.detail || errData?.nama?.[0] || errData?.non_field_errors?.[0] || 'Gagal menambah master ruangan.';
+            toast.error(msg);
+        } finally {
+            setCreatingRoom(false);
+        }
     };
 
     // Hit API Bantuan AI Rekomendasi Alkes & Jenis Aset (HANYA saat diklik)
@@ -390,8 +454,13 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             toast.error('Unit Penanggung Jawab wajib dipilih.');
             return;
         }
-        if (!formData.ruangan) {
-            toast.error('Ruangan Master wajib dipilih.');
+        if (isAsetAdmin) {
+            if (!formData.ruangan || formData.ruangan === UNLISTED_ROOM_VALUE) {
+                toast.error('Ruangan Master wajib dipilih (atau tambahkan ruangan baru untuk unit ini).');
+                return;
+            }
+        } else if (!formData.ruangan) {
+            toast.error('Pilih Ruangan Master atau opsi "+ Ruangan belum ada di daftar".');
             return;
         }
         if (!formData.lokasi_teks.trim()) {
@@ -417,6 +486,14 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
             Object.keys(formData).forEach(key => {
                 if (key === 'bulan_perolehan' || key === 'harga_perolehan') {
                     // Kolom sementara dinonaktifkan — pertahankan nilai eksisting saat edit tanpa memaksa input
+                    return;
+                }
+                if (key === 'ruangan') {
+                    if (formData.ruangan === UNLISTED_ROOM_VALUE || !formData.ruangan) {
+                        data.append('ruangan', '');
+                    } else {
+                        data.append('ruangan', formData.ruangan);
+                    }
                     return;
                 }
                 if (key === 'perlu_kalibrasi') {
@@ -496,12 +573,23 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
     }, [unitList]);
 
     const ruanganOptions = useMemo(() => {
-        return filteredRuangan.map(r => ({
-            value: r.id,
-            label: r.nama,
-            subtext: r.lantai_gedung ? `Lantai / Gedung: ${r.lantai_gedung}` : 'Ruangan Unit',
-        }));
-    }, [filteredRuangan]);
+        const opts = filteredRuangan
+            .filter(r => r.is_active !== false)
+            .map(r => ({
+                value: r.id,
+                label: r.nama,
+                subtext: r.lantai_gedung ? `Lantai / Gedung: ${r.lantai_gedung}` : 'Ruangan Unit',
+            }));
+        if (!isAsetAdmin) {
+            opts.push({
+                value: UNLISTED_ROOM_VALUE,
+                label: '+ Ruangan belum ada di daftar',
+                subtext: 'Tulis nama / letak ruangan di Lokasi Akurat; Admin Aset akan memetakan saat verifikasi',
+                isSpecial: true,
+            });
+        }
+        return opts;
+    }, [filteredRuangan, isAsetAdmin]);
 
     if (!isOpen) return null;
 
@@ -523,19 +611,10 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
 
                 <form onSubmit={handleSubmit}>
                     <div className="aset-modal-body">
-                        {!isAsetAdmin && (
-                            <div className={`aset-verif-note ${initialData?.status_verifikasi === 'ditolak' ? 'is-rejected' : ''}`}>
-                                {initialData?.status_verifikasi === 'ditolak' ? (
-                                    <>
-                                        <strong>Pengajuan Perlu Perbaikan:</strong>{' '}
-                                        {initialData.catatan_verifikasi || 'Silakan perbaiki data sesuai catatan Admin Aset dan simpan untuk verifikasi ulang.'}
-                                    </>
-                                ) : (
-                                    <>
-                                        <strong>Pendaftaran Aset Unit:</strong>{' '}
-                                        Aset yang didaftarkan berstatus <em>Menunggu Verifikasi</em> oleh Admin Aset (Mas Febry / Pak Edy / Bu Nevi) sebelum masuk ke KIR dan laporan resmi. Anda tetap dapat mengedit data selama belum diverifikasi.
-                                    </>
-                                )}
+                        {!isAsetAdmin && initialData?.status_verifikasi === 'ditolak' && (
+                            <div className="aset-verif-note is-rejected">
+                                <strong>Pengajuan Perlu Perbaikan:</strong>{' '}
+                                {initialData.catatan_verifikasi || 'Silakan perbaiki data sesuai catatan Admin Aset dan simpan untuk verifikasi ulang.'}
                             </div>
                         )}
                         {/* Baris 1: Jenis Aset & Kode Aset */}
@@ -777,7 +856,34 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                 />
                             </div>
                             <div className="aset-form-group">
-                                <label className="aset-form-label">Ruangan Master *</label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', minHeight: '20px' }}>
+                                    <label className="aset-form-label" style={{ marginBottom: 0 }}>
+                                        Ruangan Master {!isAsetAdmin ? '(atau pilih belum ada)' : '*'}
+                                    </label>
+                                    {isAsetAdmin && formData.unit && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowNewRoomBox(prev => !prev);
+                                                setNewRoomName(prev => prev || formData.lokasi_teks || '');
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#818cf8',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                padding: 0,
+                                            }}
+                                        >
+                                            <Plus size={12} /> {showNewRoomBox ? 'Tutup' : 'Tambah Ruangan'}
+                                        </button>
+                                    )}
+                                </div>
                                 <SearchableSelect
                                     options={ruanganOptions}
                                     value={formData.ruangan}
@@ -787,6 +893,53 @@ export default function AsetFormModal({ isOpen, onClose, onSuccess, initialData 
                                     required
                                     disabled={!formData.unit}
                                 />
+                                {formData.ruangan === UNLISTED_ROOM_VALUE && (
+                                    <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', lineHeight: 1.35 }}>
+                                        Tuliskan nama / letak ruangan di kolom <strong>Lokasi Akurat</strong> di sebelah. Admin Aset akan memetakannya ke Master Ruangan saat verifikasi.
+                                    </div>
+                                )}
+                                {isAsetAdmin && isEdit && !initialData?.ruangan && !formData.ruangan && (
+                                    <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', lineHeight: 1.35 }}>
+                                        Pengajuan unit memakai lokasi &ldquo;{initialData?.lokasi_teks || '-'}&rdquo;. Pilih Ruangan Master atau klik <strong>+ Tambah Ruangan</strong>.
+                                    </div>
+                                )}
+                                {isAsetAdmin && showNewRoomBox && (
+                                    <div style={{
+                                        marginTop: '8px',
+                                        padding: '10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--gdg-border, #334155)',
+                                        background: 'rgba(99, 102, 241, 0.06)',
+                                        display: 'grid',
+                                        gap: '6px',
+                                    }}>
+                                        <input
+                                            type="text"
+                                            className="aset-form-input"
+                                            placeholder="Nama ruangan baru (mis. Ruang IT)"
+                                            value={newRoomName}
+                                            onChange={e => setNewRoomName(e.target.value)}
+                                        />
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <input
+                                                type="text"
+                                                className="aset-form-input"
+                                                placeholder="Lantai / Gedung (opsional)"
+                                                value={newRoomFloor}
+                                                onChange={e => setNewRoomFloor(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-aset btn-aset-primary"
+                                                onClick={handleCreateRoomInline}
+                                                disabled={creatingRoom}
+                                                style={{ whiteSpace: 'nowrap' }}
+                                            >
+                                                {creatingRoom ? 'Menyimpan...' : 'Simpan'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="aset-form-group">
                                 <label className="aset-form-label">Lokasi Akurat / Keterangan Ruang *</label>

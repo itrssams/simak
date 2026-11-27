@@ -148,12 +148,78 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                             {/* TAB 1: INFORMASI FISIK */}
                             {tab === 'info' && (
                                 <div>
+                                    {/* Seksi 1: Identitas & Spesifikasi */}
                                     <div className="aset-detail-section">
-                                        <div className="aset-form-grid-2" style={{ marginBottom: '14px' }}>
+                                        <div className="aset-detail-category-header">Identitas &amp; Spesifikasi</div>
+                                        <div className="aset-detail-grid-3">
                                             <div>
                                                 <div className="aset-detail-label">Kode Aset</div>
-                                                <div className="aset-detail-value" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                                                <div className="aset-detail-value is-mono is-strong">
                                                     {data.kode_aset}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Deskripsi &amp; Nama Barang</div>
+                                                <div className="aset-detail-value is-strong">{data.deskripsi}</div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Merek &amp; Spesifikasi</div>
+                                                <div className="aset-detail-value is-muted">
+                                                    {data.merk || '-'} {data.spesifikasi ? `(${data.spesifikasi})` : ''}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Nomor Seri (S/N)</div>
+                                                <div className="aset-detail-value is-mono">
+                                                    {data.nomor_seri || '-'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Nomor Registrasi</div>
+                                                <div className="aset-detail-value">
+                                                    {data.nomor_registrasi || '-'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Kalibrasi Berkala</div>
+                                                {data.perlu_kalibrasi ? (
+                                                    <span className="aset-status-text emerald">
+                                                        <span className="aset-status-dot" />
+                                                        <span>Wajib Kalibrasi</span>
+                                                    </span>
+                                                ) : (
+                                                    <div className="aset-detail-value is-muted">
+                                                        Tidak Perlu
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Seksi 2: Lokasi & Kondisi */}
+                                    <div className="aset-detail-section">
+                                        <div className="aset-detail-category-header">Lokasi &amp; Kondisi</div>
+                                        <div className="aset-detail-grid-3">
+                                            <div>
+                                                <div className="aset-detail-label">Unit Penanggung Jawab</div>
+                                                <div className="aset-detail-value is-strong">{data.unit_nama}</div>
+                                            </div>
+                                            <div>
+                                                <div className="aset-detail-label">Ruangan / Lokasi Fisik</div>
+                                                <div className="aset-detail-value">
+                                                    {data.ruangan_nama ? (
+                                                        <>
+                                                            {data.ruangan_nama}
+                                                            {data.lokasi_teks && data.lokasi_teks !== data.ruangan_nama ? ` — ${data.lokasi_teks}` : ''}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {data.lokasi_teks || '-'}
+                                                            <span className="aset-detail-unmapped-hint">
+                                                                Belum terpetakan ke Master Ruangan
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div>
@@ -164,64 +230,12 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                 </span>
                                             </div>
                                         </div>
-
-                                        <div className="aset-form-grid-2">
-                                            <div>
-                                                <div className="aset-detail-label">Deskripsi &amp; Nama Barang</div>
-                                                <div className="aset-detail-value" style={{ fontWeight: 600 }}>{data.deskripsi}</div>
-                                            </div>
-                                            <div>
-                                                <div className="aset-detail-label">Merek &amp; Spesifikasi</div>
-                                                <div className="aset-detail-value" style={{ color: 'var(--gdg-muted)', fontWeight: 400 }}>
-                                                    {data.merk || '-'} {data.spesifikasi ? `(${data.spesifikasi})` : ''}
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    <div className="aset-detail-section aset-form-grid-3">
-                                        <div>
-                                            <div className="aset-detail-label">Nomor Seri (S/N)</div>
-                                            <div className="aset-detail-value" style={{ fontFamily: 'monospace' }}>
-                                                {data.nomor_seri || '-'}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="aset-detail-label">Nomor Registrasi</div>
-                                            <div className="aset-detail-value">
-                                                {data.nomor_registrasi || '-'}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="aset-detail-label">Kalibrasi Berkala</div>
-                                            {data.perlu_kalibrasi ? (
-                                                <span className="aset-status-text emerald">
-                                                    <span className="aset-status-dot" />
-                                                    <span>Wajib Kalibrasi</span>
-                                                </span>
-                                            ) : (
-                                                <div className="aset-detail-value" style={{ color: 'var(--gdg-muted)', fontWeight: 400 }}>
-                                                    Tidak Perlu
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
+                                    {/* Seksi 3: Status & Verifikasi */}
                                     <div className="aset-detail-section">
-                                        <div className="aset-form-grid-2" style={{ marginBottom: '14px' }}>
-                                            <div>
-                                                <div className="aset-detail-label">Unit Penanggung Jawab</div>
-                                                <div className="aset-detail-value" style={{ fontWeight: 600 }}>{data.unit_nama}</div>
-                                            </div>
-                                            <div>
-                                                <div className="aset-detail-label">Ruangan / Lokasi Fisik</div>
-                                                <div className="aset-detail-value">
-                                                    {data.lokasi_teks || data.ruangan_nama || '-'}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="aset-form-grid-3">
+                                        <div className="aset-detail-category-header">Status &amp; Verifikasi</div>
+                                        <div className="aset-detail-grid-3">
                                             <div>
                                                 <div className="aset-detail-label">Status Aset</div>
                                                 <div className="aset-detail-value" style={{ textTransform: 'capitalize' }}>{data.status_aset_label}</div>
@@ -237,8 +251,6 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                     <span>{data.status_data_label}</span>
                                                 </span>
                                             </div>
-                                        </div>
-                                        <div className="aset-form-grid-2" style={{ marginTop: '14px' }}>
                                             <div>
                                                 <div className="aset-detail-label">Status Verifikasi</div>
                                                 <span className={`aset-status-text ${
@@ -260,7 +272,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                             </div>
                                         </div>
                                         {data.catatan_verifikasi && (
-                                            <div style={{ marginTop: '12px' }}>
+                                            <div style={{ marginTop: '14px' }}>
                                                 <div className="aset-detail-label">Catatan Verifikasi</div>
                                                 <div className="aset-detail-prose">{data.catatan_verifikasi}</div>
                                             </div>
@@ -270,13 +282,13 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     {/* Bagian Finansial (Hanya untuk Admin / Keuangan) */}
                                     {isFinancialViewer && (
                                         <div className="aset-detail-section">
-                                            <div className="aset-detail-section-title" style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11.5px' }}>
+                                            <div className="aset-detail-category-header">
                                                 Data Perolehan &amp; Penyusutan (PMK 72/2023)
                                             </div>
-                                            <div className="aset-form-grid-3">
+                                            <div className="aset-detail-grid-3">
                                                 <div>
                                                     <div className="aset-detail-label">Harga Perolehan</div>
-                                                    <div className="aset-detail-value" style={{ fontWeight: 600 }}>{formatRp(data.harga_perolehan)}</div>
+                                                    <div className="aset-detail-value is-strong">{formatRp(data.harga_perolehan)}</div>
                                                 </div>
                                                 <div>
                                                     <div className="aset-detail-label">Bulan/Tahun Perolehan</div>
@@ -286,31 +298,30 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                                     <div className="aset-detail-label">Kelompok Fiskal</div>
                                                     <div className="aset-detail-value">{data.kelompok_nama || '-'} ({data.masa_manfaat_bulan} Bln)</div>
                                                 </div>
+                                                {data.penyusutan?.is_calculable && (
+                                                    <>
+                                                        <div>
+                                                            <div className="aset-detail-label">Beban per Bulan</div>
+                                                            <div className="aset-detail-value">{formatRp(data.penyusutan.beban_bulanan)}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="aset-detail-label">Akumulasi Penyusutan</div>
+                                                            <div className="aset-detail-value aset-num-cell is-warning">{formatRp(data.penyusutan.akumulasi_penyusutan)}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="aset-detail-label">Nilai Buku Bersih (NBV)</div>
+                                                            <div className="aset-detail-value aset-num-cell is-success">{formatRp(data.penyusutan.nilai_buku)}</div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
-
-                                            {data.penyusutan?.is_calculable && (
-                                                <div className="aset-form-grid-3" style={{ marginTop: '12px' }}>
-                                                    <div>
-                                                        <div className="aset-detail-label">Beban per Bulan</div>
-                                                        <div className="aset-detail-value">{formatRp(data.penyusutan.beban_bulanan)}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="aset-detail-label">Akumulasi Penyusutan</div>
-                                                        <div className="aset-detail-value aset-num-cell is-warning">{formatRp(data.penyusutan.akumulasi_penyusutan)}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="aset-detail-label">Nilai Buku Bersih (NBV)</div>
-                                                        <div className="aset-detail-value aset-num-cell is-success">{formatRp(data.penyusutan.nilai_buku)}</div>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     )}
 
                                     {/* Rekomendasi Tindakan */}
                                     {data.rekomendasi_tindakan && (
                                         <div className="aset-detail-section">
-                                            <div className="aset-detail-label">Rekomendasi Tindakan</div>
+                                            <div className="aset-detail-category-header">Rekomendasi Tindakan</div>
                                             <div className="aset-detail-prose">
                                                 {data.rekomendasi_tindakan}
                                             </div>
@@ -320,7 +331,7 @@ export default function AsetDetailModal({ asetId, isOpen, onClose, isFinancialVi
                                     {/* Komparasi Dua Foto: Saat Registrasi Awal vs Terkini dari Unit */}
                                     {(data.foto_awal || data.foto || data.foto_terkini) && (
                                         <div className="aset-detail-section">
-                                            <div className="aset-detail-section-title">
+                                            <div className="aset-detail-category-header">
                                                 Komparasi Kondisi Fisik (Registrasi Awal vs Terkini Lapangan)
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
