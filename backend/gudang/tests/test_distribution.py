@@ -1,5 +1,5 @@
 from decimal import Decimal
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -808,6 +808,63 @@ class DistributionTestCase(TestCase):
         self.assertEqual(res_all.status_code, 200)
         all_rows = res_all.data.get('results', res_all.data)
         self.assertEqual([r['jenis'] for r in all_rows], ['REV_OUT', 'OUT', 'IN'])
+
+
+class DistributionStatusFilterTests(SimpleTestCase):
+    def test_apply_status_filter_expands_belum_selesai_alias(self):
+        from unittest.mock import MagicMock
+        from gudang.views.distribution import _apply_status_filter
+
+        qs = MagicMock()
+        _apply_status_filter(qs, 'BELUM_SELESAI', ('DRAFT', 'MENUNGGU', 'DISETUJUI', 'PROSES_SEBAGIAN'))
+        qs.filter.assert_called_once_with(status__in=['DRAFT', 'MENUNGGU', 'DISETUJUI', 'PROSES_SEBAGIAN'])
+
+        qs_single = MagicMock()
+        _apply_status_filter(qs_single, 'BELUM_SELESAI', ('DRAFT',))
+        qs_single.filter.assert_called_once_with(status='DRAFT')
+
+    def test_permintaan_and_pengeluaran_belum_selesai_query(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+        from rest_framework.request import Request
+        from rest_framework.test import APIRequestFactory
+        from gudang.views.distribution import PermintaanViewSet, PengeluaranViewSet
+
+        user_logistik = SimpleNamespace(
+            id=5, pk=5, username='petugas_filter_gdg',
+            is_authenticated=True, is_superuser=False, is_logistik=True, role='karyawan',
+        )
+        factory = APIRequestFactory()
+        req = Request(factory.get('/api/gudang/permintaan/?status=BELUM_SELESAI'))
+        req._user = user_logistik
+        view = PermintaanViewSet()
+        view.request = req
+        view.format_kwarg = None
+
+        qs_mock = MagicMock()
+        with patch.object(Permintaan.objects, 'select_related') as mock_sr:
+            mock_sr.return_value.prefetch_related.return_value.all.return_value = qs_mock
+            view.get_queryset()
+        qs_mock.filter.assert_called_once_with(
+            status__in=[
+                Permintaan.STATUS_DRAFT,
+                Permintaan.STATUS_MENUNGGU,
+                Permintaan.STATUS_DISETUJUI,
+                Permintaan.STATUS_PROSES_SEBAGIAN,
+            ]
+        )
+
+        req_out = Request(factory.get('/api/gudang/pengeluaran/?status=BELUM_SELESAI'))
+        req_out._user = user_logistik
+        view_out = PengeluaranViewSet()
+        view_out.request = req_out
+        view_out.format_kwarg = None
+
+        qs_out_mock = MagicMock()
+        with patch.object(Pengeluaran.objects, 'select_related') as mock_sr_out:
+            mock_sr_out.return_value.prefetch_related.return_value.all.return_value = qs_out_mock
+            view_out.get_queryset()
+        qs_out_mock.filter.assert_called_once_with(status=Pengeluaran.STATUS_DRAFT)
 
 
 

@@ -979,9 +979,11 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     className="gdg-ks-select gdg-brg-select"
                                 >
                                     <option value="">Semua Status Permintaan</option>
+                                    <option value="BELUM_SELESAI">Belum Selesai (Aktif / Proses)</option>
                                     <option value="MENUNGGU">Menunggu Persetujuan</option>
                                     <option value="DISETUJUI">Disetujui (Siap Serah Fisik)</option>
                                     <option value="PROSES_SEBAGIAN">Menunggu Pengadaan / Sebagian</option>
+                                    <option value="DRAFT">Draft</option>
                                     <option value="SELESAI">Selesai (Sudah Diserahkan)</option>
                                     <option value="DITOLAK">Ditolak</option>
                                     <option value="BATAL">Dibatalkan</option>
@@ -1053,6 +1055,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                             req.status === 'MENUNGGU' ? 'amber' :
                                             req.status === 'DITOLAK' || req.status === 'BATAL' ? 'rose' : 'slate';
                                         const statusLabel =
+                                            req.status === 'DRAFT' ? 'Draft' :
                                             req.status === 'MENUNGGU' ? 'Menunggu Persetujuan' :
                                             req.status === 'DISETUJUI' ? 'Disetujui (Siap Serah)' :
                                             req.status === 'PROSES_SEBAGIAN' ? 'Dalam Proses / Pengadaan' :
@@ -1216,7 +1219,7 @@ export default function GudangPengeluaran({ heroActionsTarget = null }) {
                                     className="gdg-ks-select gdg-brg-select"
                                 >
                                     <option value="">Semua Status Bon</option>
-                                    <option value="DRAFT">Draft (Belum Diserahkan)</option>
+                                    <option value="DRAFT">Belum Selesai / Draft (Belum Diserahkan)</option>
                                     <option value="DISETUJUI">Disetujui (Stok Terpotong)</option>
                                     <option value="BATAL">Dibatalkan</option>
                                 </select>

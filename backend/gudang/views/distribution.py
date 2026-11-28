@@ -69,6 +69,28 @@ def _resolve_or_create_ruang_for_unit(unit_obj):
     )
 
 
+def _apply_status_filter(qs, status_param, incomplete_statuses):
+    """Filter queryset by comma-separated status values with BELUM_SELESAI alias."""
+    if not status_param:
+        return qs
+    statuses = []
+    for raw in status_param.split(','):
+        token = raw.strip().upper()
+        if not token:
+            continue
+        if token == 'BELUM_SELESAI':
+            for st in incomplete_statuses:
+                if st not in statuses:
+                    statuses.append(st)
+        elif token not in statuses:
+            statuses.append(token)
+    if len(statuses) == 1:
+        return qs.filter(status=statuses[0])
+    if statuses:
+        return qs.filter(status__in=statuses)
+    return qs
+
+
 class PermintaanViewSet(viewsets.ModelViewSet):
     serializer_class = PermintaanSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -106,12 +128,11 @@ class PermintaanViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(created_by=user)
 
         status_param = self.request.query_params.get('status')
-        if status_param:
-            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
-            if len(statuses) == 1:
-                qs = qs.filter(status=statuses[0])
-            elif statuses:
-                qs = qs.filter(status__in=statuses)
+        qs = _apply_status_filter(
+            qs,
+            status_param,
+            (Permintaan.STATUS_DRAFT, *DistributionService.ACTIVE_PERMINTAAN_STATUSES),
+        )
         ruang_param = self.request.query_params.get('ruang')
         if ruang_param:
             qs = qs.filter(ruang_id=ruang_param)
@@ -545,12 +566,7 @@ class PengeluaranViewSet(viewsets.ModelViewSet):
             'items__barang__satuan_dasar'
         ).all()
         status_param = self.request.query_params.get('status')
-        if status_param:
-            statuses = [s.strip() for s in status_param.split(',') if s.strip()]
-            if len(statuses) == 1:
-                qs = qs.filter(status=statuses[0])
-            elif statuses:
-                qs = qs.filter(status__in=statuses)
+        qs = _apply_status_filter(qs, status_param, (Pengeluaran.STATUS_DRAFT,))
         ruang_param = self.request.query_params.get('ruang')
         if ruang_param:
             qs = qs.filter(ruang_id=ruang_param)
