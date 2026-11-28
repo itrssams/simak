@@ -48,6 +48,18 @@ import RekapUnitView from './RekapUnitView';
 import SdmPagination from './SdmPagination';
 import DateField from '../../components/DateField';
 
+const getTodayWitaISO = () => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Makassar' }).format(new Date());
+  } catch {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+};
+
 export default function PresensiPegawai() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -57,8 +69,8 @@ export default function PresensiPegawai() {
   // Access rights
   const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || ['direktur', 'wakil_direktur'].includes(user?.role));
 
-  // State Date & Filters - Default ke '2026-10-02' (data aktif hasil rekonsiliasi engine & roster)
-  const [selectedDate, setSelectedDate] = useState('2026-10-02');
+  // State Date & Filters - Default ke hari ini (WITA)
+  const [selectedDate, setSelectedDate] = useState(getTodayWitaISO);
   const [searchQuery, setSearchQuery] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -253,12 +265,11 @@ export default function PresensiPegawai() {
     try {
       const params = {};
       if (logPeriodFilter === 'hari_ini') {
-        const d = new Date();
-        params.tanggal = d.toISOString().split('T')[0];
+        params.tanggal = getTodayWitaISO();
       } else if (logPeriodFilter === 'bulan_ini') {
-        const d = new Date();
-        params.bulan = d.getMonth() + 1;
-        params.tahun = d.getFullYear();
+        const [tahunStr, bulanStr] = getTodayWitaISO().split('-');
+        params.bulan = parseInt(bulanStr, 10);
+        params.tahun = parseInt(tahunStr, 10);
       } else if (logPeriodFilter === 'custom') {
         if (selectedDate) params.tanggal = selectedDate;
       }
@@ -350,7 +361,7 @@ export default function PresensiPegawai() {
     if (!isLiveActive) return;
 
     // Hanya auto-refresh jika melihat data hari ini (atau default tanggal kosong)
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayWitaISO();
     const isToday = !selectedDate || selectedDate === todayStr;
     if (!isToday) return;
 
