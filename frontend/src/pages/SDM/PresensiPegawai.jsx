@@ -68,6 +68,7 @@ export default function PresensiPegawai() {
 
   // Access rights
   const hasSdmAccess = Boolean(user?.is_superuser || user?.is_sdm || ['direktur', 'wakil_direktur'].includes(user?.role));
+  const isSuperAccount = Boolean(user?.is_superuser);
 
   // State Date & Filters - Default ke hari ini (WITA)
   const [selectedDate, setSelectedDate] = useState(getTodayWitaISO);
@@ -312,8 +313,12 @@ export default function PresensiPegawai() {
     }
   }, []);
 
-  // Fetch Runtime Bot & Auto-Sync Status
+  // Fetch Runtime Bot & Auto-Sync Status (khusus Superuser)
   const fetchBotRuntime = useCallback(async () => {
+    if (!isSuperAccount) {
+      setBotRuntime(null);
+      return;
+    }
     try {
       const res = await api.get('/sdm/mesin/bot-runtime/');
       setBotRuntime(res.data);
@@ -321,7 +326,7 @@ export default function PresensiPegawai() {
     } catch (err) {
       console.error('Gagal mengambil status bot runtime:', err);
     }
-  }, []);
+  }, [isSuperAccount]);
 
   // Update Mode Bot / Auto-Sync via UI
   const handleUpdateBotRuntime = async (payload, confirmMessage = null) => {
@@ -703,7 +708,7 @@ export default function PresensiPegawai() {
             </div>
           </div>
           <div className="sdm-hero-actions">
-            {botRuntime && (
+            {isSuperAccount && botRuntime && (
               <button
                 type="button"
                 className={`bot-mode-pill mode-${botRuntime.mode || 'dev'}`}
@@ -2086,7 +2091,7 @@ export default function PresensiPegawai() {
       )}
 
       {/* ════════════════ MODAL: SAKLAR MODE BOT & AUTO-SYNC ════════════════ */}
-      {showBotModal && botRuntime && createPortal(
+      {isSuperAccount && showBotModal && botRuntime && createPortal(
         <div className="presensi-modal-overlay" onClick={() => setShowBotModal(false)}>
           <div className="presensi-modal-card" style={{ maxWidth: 580 }} onClick={(e) => e.stopPropagation()}>
             <div className="presensi-modal-header">

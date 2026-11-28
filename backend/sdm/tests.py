@@ -402,6 +402,10 @@ class BotRuntimeAutomationTestCase(SimpleTestCase):
             id=13, pk=13, username='bot_sdm', is_authenticated=True,
             is_superuser=False, is_sdm=True, role='karyawan',
         )
+        super_user = SimpleNamespace(
+            id=1, pk=1, username='super', is_authenticated=True,
+            is_superuser=True, is_sdm=False, role='karyawan',
+        )
 
         class FakeConfig:
             def __init__(self):
@@ -424,16 +428,21 @@ class BotRuntimeAutomationTestCase(SimpleTestCase):
         with patch.dict(os.environ, {'TELEGRAM_BOT_USERNAME': 'rssams_dev_bot'}, clear=False), \
              patch('sdm.models.SdmAutomationConfig.objects.select_related', return_value=fake_qs), \
              patch('sdm.models.SdmAutomationConfig.objects.get_or_create', return_value=(fake_cfg, False)):
-            self.client.force_authenticate(user=regular_user)
+            # Karyawan biasa & admin SDM non-superuser ditolak (khusus akun super)
+            for non_super in (regular_user, sdm_user):
+                self.client.force_authenticate(user=non_super)
+                self.assertEqual(self.client.get('/api/sdm/mesin/bot-runtime/').status_code, status.HTTP_403_FORBIDDEN)
+                self.assertEqual(
+                    self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'paused'}, format='json').status_code,
+                    status.HTTP_403_FORBIDDEN,
+                )
+
+            self.client.force_authenticate(user=super_user)
             res_get = self.client.get('/api/sdm/mesin/bot-runtime/')
             self.assertEqual(res_get.status_code, status.HTTP_200_OK)
-            self.assertFalse(res_get.data['can_manage'])
+            self.assertTrue(res_get.data['can_manage'])
             self.assertEqual(res_get.data['bot_username'], 'rssams_dev_bot')
 
-            res_forbidden = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'paused'}, format='json')
-            self.assertEqual(res_forbidden.status_code, status.HTTP_403_FORBIDDEN)
-
-            self.client.force_authenticate(user=sdm_user)
             res_paused = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'paused'}, format='json')
             self.assertEqual(res_paused.status_code, status.HTTP_200_OK)
             self.assertEqual(res_paused.data['mode'], 'paused')

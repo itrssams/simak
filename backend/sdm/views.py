@@ -645,14 +645,13 @@ class MesinAbsenViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get', 'post'], url_path='bot-runtime')
     def bot_runtime(self, request):
         """
-        Melihat dan mengubah mode runtime Bot Telegram & Auto-Sync Mesin (Dev / Prod / Paused).
+        Melihat dan mengubah mode runtime Bot Telegram & Auto-Sync Mesin (khusus akun Superuser).
         """
-        can_manage = has_sdm_access(request.user)
-        if request.method == 'GET':
-            return Response(build_runtime_status_payload(can_manage=can_manage))
+        if not getattr(request.user, 'is_superuser', False):
+            raise PermissionDenied('Hanya akun Superuser yang dapat mengakses saklar mode bot & auto-sync.')
 
-        if not can_manage:
-            raise PermissionDenied('Hanya admin SDM, Direksi, atau Superuser yang dapat mengubah mode bot & auto-sync.')
+        if request.method == 'GET':
+            return Response(build_runtime_status_payload(can_manage=True))
 
         preset = request.data.get('preset')
         if preset is not None and preset not in ('dev', 'prod', 'paused'):
