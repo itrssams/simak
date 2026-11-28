@@ -1321,6 +1321,9 @@
 }
 
 .roster-grid-container .roster-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 12 !important;
   background-color: #f8fafc !important;
   color: #697386 !important;
   font-size: 11px !important;
@@ -1336,24 +1339,24 @@
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Soft Sunday & Saturday Header Accents */
+/* Soft Sunday & Saturday Header Accents (solid opaque colors so scrolled rows never bleed through sticky header) */
 .roster-grid-container .roster-table thead th.col-day.is-sunday {
-  background-color: rgba(220, 38, 38, 0.08) !important;
+  background-color: #f6e9eb !important;
   color: #dc2626 !important;
 }
 
 [data-theme="dark"] .roster-grid-container .roster-table thead th.col-day.is-sunday {
-  background-color: rgba(239, 68, 68, 0.12) !important;
+  background-color: #261418 !important;
   color: #f87171 !important;
 }
 
 .roster-grid-container .roster-table thead th.col-day.is-saturday {
-  background-color: rgba(217, 119, 6, 0.07) !important;
+  background-color: #f6f1eb !important;
   color: #b45309 !important;
 }
 
 [data-theme="dark"] .roster-grid-container .roster-table thead th.col-day.is-saturday {
-  background-color: rgba(245, 158, 11, 0.1) !important;
+  background-color: #221c11 !important;
   color: #fbbf24 !important;
 }
 
@@ -1463,24 +1466,24 @@
 }
 
 .roster-grid-container .roster-table td.col-day-cell {
-  background: transparent !important;
+  background-color: #ffffff !important;
   border-right: 1px solid #e3e8ee !important;
   border-bottom: 1px solid #e3e8ee !important;
   padding: 3px 2px !important;
 }
 
 [data-theme="dark"] .roster-grid-container .roster-table td.col-day-cell {
-  background: #0b0d12 !important;
+  background-color: #0b0d12 !important;
   border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .roster-grid-container .roster-table td.col-day-cell.is-sunday-cell {
-  background-color: rgba(220, 38, 38, 0.035) !important;
+  background-color: #fdf3f3 !important;
 }
 
 [data-theme="dark"] .roster-grid-container .roster-table td.col-day-cell.is-sunday-cell {
-  background-color: rgba(239, 68, 68, 0.06) !important;
+  background-color: #171015 !important;
 }
 
 .roster-grid-container .roster-table td.col-day-cell:hover {
