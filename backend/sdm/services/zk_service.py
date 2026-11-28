@@ -457,7 +457,8 @@ def sync_semua_mesin_aktif(sync_users=False, force_all_logs=False):
 def start_mesin_auto_sync_scheduler(interval_seconds=5):
     """
     Menjalankan background daemon thread yang secara berkala (default tiap 5 detik)
-    menarik data presensi dari seluruh mesin absen aktif secara near-realtime.
+    menarik data presensi dari seluruh mesin absen aktif secara near-realtime,
+    dengan pengecekan saklar runtime `auto_sync_enabled`.
     """
     global _SCHEDULER_RUNNING
     if _SCHEDULER_RUNNING:
@@ -465,10 +466,24 @@ def start_mesin_auto_sync_scheduler(interval_seconds=5):
     _SCHEDULER_RUNNING = True
 
     def _loop():
-        logger.info(f"[AutoSyncScheduler] Background auto-sync mesin absen berjalan REAL-TIME (tiap {interval_seconds}s)...")
+        from .automation_config import get_automation_state
         time.sleep(5)
+        was_enabled = None
         while True:
             try:
+                cfg = get_automation_state()
+                enabled = cfg.get('auto_sync_enabled', False)
+                if enabled != was_enabled:
+                    logger.info(
+                        f"[AutoSyncScheduler] Auto-sync mesin {'AKTIF' if enabled else 'DIJEDA'} "
+                        f"(mode={cfg.get('mode')}, interval={interval_seconds}s)"
+                    )
+                    was_enabled = enabled
+
+                if not enabled:
+                    time.sleep(3)
+                    continue
+
                 sync_semua_mesin_aktif(sync_users=False, force_all_logs=False)
             except Exception as e:
                 logger.warning(f"[AutoSyncScheduler] Sync loop error: {str(e)}")

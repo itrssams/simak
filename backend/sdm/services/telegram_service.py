@@ -6,14 +6,20 @@ import requests
 import datetime
 from django.conf import settings
 from django.utils import timezone
+from .automation_config import (
+    PROD_DEFAULT_BOT_TOKEN as DEFAULT_BOT_TOKEN,
+    PROD_DEFAULT_BOT_USERNAME as DEFAULT_BOT_USERNAME,
+    PROD_DEFAULT_SDM_BOT_TOKEN as DEFAULT_SDM_BOT_TOKEN,
+    PROD_DEFAULT_SDM_BOT_USERNAME as DEFAULT_SDM_BOT_USERNAME,
+    get_automation_state,
+    get_sdm_bot_polling_token,
+    get_sdm_bot_token,
+    get_sdm_bot_username,
+    get_telegram_bot_token,
+    get_telegram_bot_username,
+)
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_BOT_TOKEN = '8654069034:AAHbdAo-sYyixpgWVN42dU0YGPmVjxxSx2s'
-DEFAULT_BOT_USERNAME = 'simak_rssiaga_bot'
-
-DEFAULT_SDM_BOT_TOKEN = '8407492016:AAGY1LgVCLLQm5LYmr0wbZypTK1D9Mys7uA'
-DEFAULT_SDM_BOT_USERNAME = 'simak_sdm_bot'
 
 HARI_MAP = {
     0: 'Senin', 1: 'Selasa', 2: 'Rabu', 3: 'Kamis',
@@ -27,34 +33,29 @@ BULAN_MAP = {
 }
 
 
-def get_telegram_bot_token():
-    return getattr(settings, 'TELEGRAM_BOT_TOKEN', None) or os.getenv('TELEGRAM_BOT_TOKEN', DEFAULT_BOT_TOKEN)
-
-
-def get_telegram_bot_username():
-    return getattr(settings, 'TELEGRAM_BOT_USERNAME', None) or os.getenv('TELEGRAM_BOT_USERNAME', DEFAULT_BOT_USERNAME)
-
-
-def get_sdm_bot_token():
-    return getattr(settings, 'TELEGRAM_SDM_BOT_TOKEN', None) or os.getenv('TELEGRAM_SDM_BOT_TOKEN', DEFAULT_SDM_BOT_TOKEN)
-
-
-def get_sdm_bot_username():
-    return getattr(settings, 'TELEGRAM_SDM_BOT_USERNAME', None) or os.getenv('TELEGRAM_SDM_BOT_USERNAME', DEFAULT_SDM_BOT_USERNAME)
-
-
 def send_telegram_message(chat_id, text, parse_mode='HTML', bot_token=None):
     """
     Mengirim pesan langsung ke Telegram Chat ID via Bot API (Synchronous).
-    mendukung bot_token spesifik (misal: bot utama atau bot SDM).
+    Mendukung bot_token spesifik dan Sandbox Redirect saat mode Dev/Testing aktif.
     """
     token = bot_token or get_telegram_bot_token()
     if not token or not chat_id:
         return False, "Token atau Chat ID tidak tersedia"
 
+    target_chat_id = str(chat_id).strip()
+    cfg = get_automation_state()
+    if cfg.get('sandbox_redirect_enabled'):
+        sandbox_cid = (cfg.get('sandbox_chat_id') or '').strip()
+        if not sandbox_cid:
+            logger.warning(f"[TelegramSandbox] Pengiriman ke {target_chat_id} diblokir karena Sandbox Chat ID belum diisi.")
+            return False, "Sandbox mode aktif tetapi Sandbox Chat ID belum diisi (pengiriman diblokir)."
+        if target_chat_id != sandbox_cid:
+            text = f"🧪 <b>[DEV SANDBOX]</b> <i>Dialihkan dari target <code>{target_chat_id}</code></i>\n\n{text}"
+        target_chat_id = sandbox_cid
+
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
-        'chat_id': str(chat_id).strip(),
+        'chat_id': target_chat_id,
         'text': text,
         'parse_mode': parse_mode,
         'disable_web_page_preview': True,
@@ -67,7 +68,7 @@ def send_telegram_message(chat_id, text, parse_mode='HTML', bot_token=None):
             return True, data.get('result')
         return False, data.get('description', f"HTTP {res.status_code}")
     except Exception as e:
-        logger.warning(f"[TelegramService] Gagal kirim pesan ke {chat_id}: {str(e)}")
+        logger.warning(f"[TelegramService] Gagal kirim pesan ke {target_chat_id}: {str(e)}")
         return False, str(e)
 
 
@@ -571,47 +572,72 @@ def handle_bot_command(chat_id, username, text, first_name=""):
 
 
 _POLLING_RUNNING = False
+_SDM_POLLING_RUNNING = False
+
+
+def _run_polling_loop(label, token_getter, handler):
+    """
+    Loop long-polling bersama untuk listener Telegram Bot yang patuh pada saklar runtime
+    `bot_polling_enabled`.
+    """
+    last_update_id = 0
+    was_active = None
+    while True:
+        try:
+            cfg = get_automation_state()
+            enabled = cfg.get('bot_polling_enabled', False)
+            token = token_getter() if enabled else None
+            active_now = bool(enabled and token)
+
+            if active_now != was_active:
+                if active_now:
+                    logger.info(f"[{label}] Long-Polling AKTIF (mode={cfg.get('mode')}).")
+                else:
+                    logger.info(f"[{label}] Long-Polling DIJEDA / tidak dikonfigurasi.")
+                was_active = active_now
+
+            if not active_now:
+                time.sleep(3)
+                continue
+
+            url = f"https://api.telegram.org/bot{token}/getUpdates"
+            params = {'offset': last_update_id + 1, 'timeout': 15}
+            res = requests.get(url, params=params, timeout=20)
+            if res.status_code == 200:
+                data = res.json()
+                for update in data.get('result', []):
+                    last_update_id = update['update_id']
+                    msg = update.get('message')
+                    if msg and 'text' in msg:
+                        chat_id = msg['chat']['id']
+                        username = msg.get('from', {}).get('username', '')
+                        first_name = msg.get('from', {}).get('first_name', '')
+                        text = msg['text']
+                        logger.info(f"[{label}] Pesan masuk dari {chat_id} (@{username}): {text}")
+                        handler(chat_id, username, text, first_name)
+            else:
+                logger.warning(f"[{label}] getUpdates HTTP {res.status_code}: {res.text[:200]}")
+                time.sleep(5)
+        except Exception as e:
+            logger.warning(f"[{label}] Polling error: {str(e)}")
+            time.sleep(5)
+
 
 def start_telegram_bot_listener():
     """
-    Menjalankan background daemon listener untuk memproses perintah user di Telegram Bot
-    menggunakan getUpdates (Long Polling). Berjalan non-blocking tanpa mengganggu Django server.
+    Menjalankan background daemon listener untuk bot utama SIMAK.
     """
     global _POLLING_RUNNING
     if _POLLING_RUNNING:
         return
     _POLLING_RUNNING = True
 
-    def _worker():
-        logger.info("[TelegramBotListener] Memulai Telegram Bot Long Polling...")
-        last_update_id = 0
-        while True:
-            token = get_telegram_bot_token()
-            if not token:
-                time.sleep(10)
-                continue
-
-            try:
-                url = f"https://api.telegram.org/bot{token}/getUpdates"
-                params = {'offset': last_update_id + 1, 'timeout': 15}
-                res = requests.get(url, params=params, timeout=20)
-                if res.status_code == 200:
-                    data = res.json()
-                    for update in data.get('result', []):
-                        last_update_id = update['update_id']
-                        msg = update.get('message')
-                        if msg and 'text' in msg:
-                            chat_id = msg['chat']['id']
-                            username = msg.get('from', {}).get('username', '')
-                            first_name = msg.get('from', {}).get('first_name', '')
-                            text = msg['text']
-                            logger.info(f"[TelegramBot] Pesan masuk dari {chat_id} (@{username}): {text}")
-                            handle_bot_command(chat_id, username, text, first_name)
-            except Exception as e:
-                # Sleep sebentar jika ada gangguan koneksi internet
-                time.sleep(5)
-
-    thread = threading.Thread(target=_worker, daemon=True, name="TelegramBotListenerThread")
+    thread = threading.Thread(
+        target=_run_polling_loop,
+        args=("TelegramBotListener", get_telegram_bot_token, handle_bot_command),
+        daemon=True,
+        name="TelegramBotListenerThread",
+    )
     thread.start()
     return thread
 
@@ -656,45 +682,21 @@ def handle_sdm_bot_command(chat_id, username, text, first_name=""):
         logger.exception(f"[SdmBot] Error handling SDM command: {err}")
 
 
-_SDM_POLLING_RUNNING = False
-
 def start_telegram_sdm_bot_listener():
     """
-    Daemon listener khusus untuk bot SDM (@simak_sdm_bot).
+    Daemon listener khusus untuk bot SDM (@simak_sdm_bot), dilewati otomatis
+    jika token SDM dikosongkan atau sama dengan token bot utama.
     """
     global _SDM_POLLING_RUNNING
     if _SDM_POLLING_RUNNING:
         return
     _SDM_POLLING_RUNNING = True
 
-    def _worker():
-        logger.info("[TelegramSdmBotListener] Memulai @simak_sdm_bot Long Polling...")
-        last_update_id = 0
-        while True:
-            token = get_sdm_bot_token()
-            if not token:
-                time.sleep(10)
-                continue
-
-            try:
-                url = f"https://api.telegram.org/bot{token}/getUpdates"
-                params = {'offset': last_update_id + 1, 'timeout': 15}
-                res = requests.get(url, params=params, timeout=20)
-                if res.status_code == 200:
-                    data = res.json()
-                    for update in data.get('result', []):
-                        last_update_id = update['update_id']
-                        msg = update.get('message')
-                        if msg and 'text' in msg:
-                            chat_id = msg['chat']['id']
-                            username = msg.get('from', {}).get('username', '')
-                            first_name = msg.get('from', {}).get('first_name', '')
-                            text = msg['text']
-                            logger.info(f"[TelegramSdmBot] Pesan masuk dari {chat_id} (@{username}): {text}")
-                            handle_sdm_bot_command(chat_id, username, text, first_name)
-            except Exception:
-                time.sleep(5)
-
-    thread = threading.Thread(target=_worker, daemon=True, name="TelegramSdmBotListenerThread")
+    thread = threading.Thread(
+        target=_run_polling_loop,
+        args=("TelegramSdmBotListener", get_sdm_bot_polling_token, handle_sdm_bot_command),
+        daemon=True,
+        name="TelegramSdmBotListenerThread",
+    )
     thread.start()
     return thread

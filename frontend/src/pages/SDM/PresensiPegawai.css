@@ -1745,4 +1745,208 @@
   gap: 8px;
 }
 
+/* ── Bot Mode Toggle Pill & Modal ── */
+.presensi-container .bot-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--pr-border-strong);
+  background: var(--pr-input);
+  color: var(--pr-text);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.presensi-container .bot-mode-pill:hover {
+  border-color: #635bff;
+}
+
+.presensi-container .bot-mode-pill.mode-dev {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #b45309;
+}
+
+[data-theme="dark"] .presensi-container .bot-mode-pill.mode-dev {
+  color: #fbbf24;
+}
+
+.presensi-container .bot-mode-pill.mode-prod {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+}
+
+[data-theme="dark"] .presensi-container .bot-mode-pill.mode-prod {
+  color: #34d399;
+}
+
+.presensi-container .bot-mode-pill.mode-paused {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.3);
+  color: var(--pr-muted);
+}
+
+.sdm-dot.is-amber {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
+.bot-env-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--pr-surface-muted);
+  border: 1px solid var(--pr-border);
+}
+
+.bot-env-label {
+  font-size: 11px;
+  color: var(--pr-muted);
+  margin-bottom: 2px;
+}
+
+.bot-env-val {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--pr-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bot-env-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #635bff;
+  text-decoration: none;
+}
+
+.bot-env-link:hover {
+  text-decoration: underline;
+}
+
+.bot-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .bot-env-summary,
+  .bot-preset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bot-preset-card {
+  text-align: left;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pr-border-strong);
+  background: var(--pr-input);
+  color: var(--pr-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.bot-preset-card:hover:not(:disabled) {
+  border-color: #635bff;
+}
+
+.bot-preset-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bot-preset-card.active-dev {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.bot-preset-card.active-prod {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.bot-preset-card.active-paused {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+}
+
+.bot-preset-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.bot-preset-desc {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--pr-muted);
+}
+
+.bot-switches-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--pr-border);
+}
+
+.bot-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--pr-border);
+  cursor: pointer;
+}
+
+.bot-switch-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pr-text);
+}
+
+.bot-switch-sub {
+  font-size: 11.5px;
+  color: var(--pr-muted);
+}
+
+.bot-switch-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #635bff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bot-sandbox-input-row {
+  padding-top: 2px;
+}
+
+.bot-readonly-note {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 12px;
+  color: #b45309;
+}
 

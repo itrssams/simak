@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -332,4 +332,123 @@ class JadwalRebuildAndEngineTestCase(TestCase):
         r_ip = calculate_attendance_record(self.pegawai, tgl, jadwal=jd_ip, logs_for_pegawai=make_logs(tgl, time(9, 15), time(14, 30)))
         self.assertEqual(r_ip['status'], 'izin')
         self.assertEqual(r_ip['menit_keterlambatan'], 0)
+
+
+class BotRuntimeAutomationTestCase(SimpleTestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def tearDown(self):
+        from sdm.services.automation_config import invalidate_automation_cache
+        invalidate_automation_cache()
+
+    def test_empty_sdm_token_never_falls_back_to_prod_polling(self):
+        import os
+        from unittest.mock import patch
+        from sdm.services.automation_config import (
+            get_sdm_bot_polling_token,
+            get_sdm_bot_token,
+            get_telegram_bot_token,
+        )
+
+        env = {
+            'TELEGRAM_BOT_TOKEN': '99999:DEV_BOT_TOKEN',
+            'TELEGRAM_BOT_USERNAME': 'rssams_dev_bot',
+            'TELEGRAM_SDM_BOT_TOKEN': '',
+        }
+        with patch.dict(os.environ, env, clear=False):
+            self.assertEqual(get_telegram_bot_token(), '99999:DEV_BOT_TOKEN')
+            self.assertIsNone(get_sdm_bot_polling_token())
+            self.assertEqual(get_sdm_bot_token(), '99999:DEV_BOT_TOKEN')
+
+    def test_sandbox_redirect_and_missing_chat_id_guard(self):
+        from unittest.mock import MagicMock, patch
+        from sdm.services.telegram_service import send_telegram_message
+
+        mock_res = MagicMock(status_code=200)
+        mock_res.json.return_value = {'ok': True, 'result': {'message_id': 1}}
+
+        with patch('sdm.services.telegram_service.get_automation_state', return_value={
+            'sandbox_redirect_enabled': True,
+            'sandbox_chat_id': '1396250295',
+        }), patch('sdm.services.telegram_service.requests.post', return_value=mock_res) as mocked_post:
+            ok, _ = send_telegram_message('8912439956', 'Halo Pak Saleh', bot_token='123:ABC')
+            self.assertTrue(ok)
+            sent_payload = mocked_post.call_args.kwargs['json']
+            self.assertEqual(sent_payload['chat_id'], '1396250295')
+            self.assertIn('[DEV SANDBOX]', sent_payload['text'])
+            self.assertIn('8912439956', sent_payload['text'])
+
+        # Jika sandbox aktif namun sandbox_chat_id kosong -> blokir agar tidak bocor ke prod
+        with patch('sdm.services.telegram_service.get_automation_state', return_value={
+            'sandbox_redirect_enabled': True,
+            'sandbox_chat_id': '',
+        }), patch('sdm.services.telegram_service.requests.post') as mocked_post:
+            ok, err = send_telegram_message('8912439956', 'Tidak boleh terkirim', bot_token='123:ABC')
+            self.assertFalse(ok)
+            self.assertIn('diblokir', err.lower())
+            mocked_post.assert_not_called()
+
+    def test_bot_runtime_endpoint_permissions_and_presets(self):
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        regular_user = SimpleNamespace(
+            id=99, pk=99, username='bot_staf', is_authenticated=True,
+            is_superuser=False, is_sdm=False, role='karyawan',
+        )
+        sdm_user = SimpleNamespace(
+            id=13, pk=13, username='bot_sdm', is_authenticated=True,
+            is_superuser=False, is_sdm=True, role='karyawan',
+        )
+
+        class FakeConfig:
+            def __init__(self):
+                self.pk = 1
+                self.mode = 'dev'
+                self.bot_polling_enabled = True
+                self.auto_sync_enabled = False
+                self.sandbox_redirect_enabled = True
+                self.sandbox_chat_id = '1396250295'
+                self.updated_by = None
+                self.updated_at = None
+
+            def save(self, update_fields=None):
+                return None
+
+        fake_cfg = FakeConfig()
+        fake_qs = MagicMock()
+        fake_qs.get_or_create.return_value = (fake_cfg, False)
+
+        with patch.dict(os.environ, {'TELEGRAM_BOT_USERNAME': 'rssams_dev_bot'}, clear=False), \
+             patch('sdm.models.SdmAutomationConfig.objects.select_related', return_value=fake_qs), \
+             patch('sdm.models.SdmAutomationConfig.objects.get_or_create', return_value=(fake_cfg, False)):
+            self.client.force_authenticate(user=regular_user)
+            res_get = self.client.get('/api/sdm/mesin/bot-runtime/')
+            self.assertEqual(res_get.status_code, status.HTTP_200_OK)
+            self.assertFalse(res_get.data['can_manage'])
+            self.assertEqual(res_get.data['bot_username'], 'rssams_dev_bot')
+
+            res_forbidden = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'paused'}, format='json')
+            self.assertEqual(res_forbidden.status_code, status.HTTP_403_FORBIDDEN)
+
+            self.client.force_authenticate(user=sdm_user)
+            res_paused = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'paused'}, format='json')
+            self.assertEqual(res_paused.status_code, status.HTTP_200_OK)
+            self.assertEqual(res_paused.data['mode'], 'paused')
+            self.assertFalse(res_paused.data['bot_polling_enabled'])
+            self.assertFalse(res_paused.data['auto_sync_enabled'])
+
+            res_prod = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'prod'}, format='json')
+            self.assertEqual(res_prod.status_code, status.HTTP_200_OK)
+            self.assertEqual(res_prod.data['mode'], 'prod')
+            self.assertFalse(res_prod.data['sandbox_redirect_enabled'])
+            self.assertTrue(res_prod.data['auto_sync_enabled'])
+
+            res_dev = self.client.post('/api/sdm/mesin/bot-runtime/', {'preset': 'dev'}, format='json')
+            self.assertEqual(res_dev.status_code, status.HTTP_200_OK)
+            self.assertEqual(res_dev.data['mode'], 'dev')
+            self.assertTrue(res_dev.data['sandbox_redirect_enabled'])
+
 

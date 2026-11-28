@@ -126,6 +126,12 @@ export default function PresensiPegawai() {
   const [pegawaiSearchQuery, setPegawaiSearchQuery] = useState('');
   const [testingTelegramId, setTestingTelegramId] = useState(null);
 
+  // Bot & Auto-Sync Runtime Control State
+  const [botRuntime, setBotRuntime] = useState(null);
+  const [showBotModal, setShowBotModal] = useState(false);
+  const [botSaving, setBotSaving] = useState(false);
+  const [sandboxChatIdInput, setSandboxChatIdInput] = useState('');
+
   // Master Shift State
   const [shiftList, setShiftList] = useState([]);
   const [shiftLoading, setShiftLoading] = useState(false);
@@ -295,15 +301,49 @@ export default function PresensiPegawai() {
     }
   }, []);
 
+  // Fetch Runtime Bot & Auto-Sync Status
+  const fetchBotRuntime = useCallback(async () => {
+    try {
+      const res = await api.get('/sdm/mesin/bot-runtime/');
+      setBotRuntime(res.data);
+      setSandboxChatIdInput(res.data?.sandbox_chat_id || '');
+    } catch (err) {
+      console.error('Gagal mengambil status bot runtime:', err);
+    }
+  }, []);
+
+  // Update Mode Bot / Auto-Sync via UI
+  const handleUpdateBotRuntime = async (payload, confirmMessage = null) => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    setBotSaving(true);
+    try {
+      const res = await api.post('/sdm/mesin/bot-runtime/', payload);
+      setBotRuntime(res.data);
+      setSandboxChatIdInput(res.data?.sandbox_chat_id || '');
+      const m = res.data?.mode;
+      const msg = m === 'paused'
+        ? 'Bot Telegram & Auto-Sync mesin dijeda (Standby).'
+        : m === 'dev'
+          ? `Mode Dev Sandbox aktif (@${res.data?.bot_username}).`
+          : `Mode Production aktif (@${res.data?.bot_username}).`;
+      showToast(msg, 'success');
+    } catch (err) {
+      showToast(err.response?.data?.detail || err.response?.data?.error || 'Gagal memperbarui mode bot.', 'error');
+    } finally {
+      setBotSaving(false);
+    }
+  };
+
   // Initial Load
   useEffect(() => {
     fetchMesin();
+    fetchBotRuntime();
     fetchStats();
     fetchPresensi();
     fetchRealtimeLogs();
     fetchPegawaiList();
     fetchShiftList();
-  }, [fetchMesin, fetchStats, fetchPresensi, fetchRealtimeLogs, fetchPegawaiList, fetchShiftList]);
+  }, [fetchMesin, fetchBotRuntime, fetchStats, fetchPresensi, fetchRealtimeLogs, fetchPegawaiList, fetchShiftList]);
 
   // Live Auto-Update Polling (Setiap 10 Detik)
   useEffect(() => {
@@ -652,6 +692,25 @@ export default function PresensiPegawai() {
             </div>
           </div>
           <div className="sdm-hero-actions">
+            {botRuntime && (
+              <button
+                type="button"
+                className={`bot-mode-pill mode-${botRuntime.mode || 'dev'}`}
+                onClick={() => setShowBotModal(true)}
+                title={`Bot: @${botRuntime.bot_username} • Polling: ${botRuntime.bot_polling_enabled ? 'ON' : 'OFF'} • Auto-Sync: ${botRuntime.auto_sync_enabled ? 'ON' : 'OFF'} • Sandbox: ${botRuntime.sandbox_redirect_enabled ? 'ON' : 'OFF'}`}
+              >
+                <span className={`sdm-dot ${
+                  botRuntime.mode === 'paused' ? 'is-slate' : botRuntime.mode === 'dev' ? 'is-amber' : 'is-green'
+                }`} />
+                <span>
+                  {botRuntime.mode === 'paused'
+                    ? 'Bot Standby'
+                    : botRuntime.mode === 'dev'
+                      ? `Dev Bot (@${botRuntime.bot_username})`
+                      : `Prod Bot (@${botRuntime.bot_username})`}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               className={`live-sync-pill ${isLiveActive ? 'active' : 'paused'}`}
@@ -2006,6 +2065,205 @@ export default function PresensiPegawai() {
                 type="button"
                 className="btn-secondary-sdm"
                 onClick={() => setSelectedEmployeeLog(null)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ════════════════ MODAL: SAKLAR MODE BOT & AUTO-SYNC ════════════════ */}
+      {showBotModal && botRuntime && createPortal(
+        <div className="presensi-modal-overlay" onClick={() => setShowBotModal(false)}>
+          <div className="presensi-modal-card" style={{ maxWidth: 580 }} onClick={(e) => e.stopPropagation()}>
+            <div className="presensi-modal-header">
+              <div>
+                <h2 className="presensi-modal-title">
+                  Saklar Mode Bot Telegram &amp; Auto-Sync
+                </h2>
+                <p className="presensi-modal-subtitle">
+                  Atur mode pengujian (Dev Sandbox) atau Production tanpa restart server
+                </p>
+              </div>
+              <button
+                type="button"
+                className="presensi-modal-close"
+                onClick={() => setShowBotModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="presensi-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Info Bot & Environment */}
+              <div className="bot-env-summary">
+                <div>
+                  <div className="bot-env-label">Environment Server</div>
+                  <div className="bot-env-val">
+                    {botRuntime.django_env === 'production' ? 'Production Server' : 'Development / Lokal'}
+                  </div>
+                </div>
+                <div>
+                  <div className="bot-env-label">Bot Utama Aktif</div>
+                  <div className="bot-env-val">
+                    <a href={botRuntime.bot_link} target="_blank" rel="noreferrer" className="bot-env-link">
+                      @{botRuntime.bot_username} <ExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+                <div>
+                  <div className="bot-env-label">Bot Monitoring SDM</div>
+                  <div className="bot-env-val">
+                    <a href={botRuntime.sdm_bot_link} target="_blank" rel="noreferrer" className="bot-env-link">
+                      @{botRuntime.sdm_bot_username}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Preset 1-Klik */}
+              <div>
+                <label className="presensi-modal-label">Pilih Mode Kerja (1-Klik)</label>
+                <div className="bot-preset-grid">
+                  <button
+                    type="button"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    className={`bot-preset-card ${botRuntime.mode === 'dev' ? 'active-dev' : ''}`}
+                    onClick={() => handleUpdateBotRuntime({ preset: 'dev' })}
+                  >
+                    <div className="bot-preset-title">
+                      <span className="sdm-dot is-amber" />
+                      <span>Mode Dev / Testing</span>
+                    </div>
+                    <p className="bot-preset-desc">
+                      Sandbox ON (notif diarahkan ke Chat ID dev), Bot Polling ON, Auto-Sync aman untuk testing.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    className={`bot-preset-card ${botRuntime.mode === 'prod' ? 'active-prod' : ''}`}
+                    onClick={() => handleUpdateBotRuntime(
+                      { preset: 'prod' },
+                      (botRuntime.django_env !== 'production' || botRuntime.is_dev_bot_token)
+                        ? `Server ini berjalan dengan konfigurasi dev (@${botRuntime.bot_username}). Yakin matikan pengaman Sandbox dan nyalakan Mode Production?`
+                        : null
+                    )}
+                  >
+                    <div className="bot-preset-title">
+                      <span className="sdm-dot is-green" />
+                      <span>Mode Production</span>
+                    </div>
+                    <p className="bot-preset-desc">
+                      Sandbox OFF (notif langsung ke pegawai &amp; SDM), Polling ON, Auto-Sync mesin 5 detik ON.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    className={`bot-preset-card ${botRuntime.mode === 'paused' ? 'active-paused' : ''}`}
+                    onClick={() => handleUpdateBotRuntime({ preset: 'paused' })}
+                  >
+                    <div className="bot-preset-title">
+                      <span className="sdm-dot is-slate" />
+                      <span>Standby / Pause</span>
+                    </div>
+                    <p className="bot-preset-desc">
+                      Jeda polling Telegram &amp; Auto-Sync mesin sementara di instance ini (&le;3 dtk aktif).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Saklar Rinci */}
+              <div className="bot-switches-box">
+                <label className="bot-switch-row">
+                  <div>
+                    <div className="bot-switch-title">Polling Perintah Bot Telegram</div>
+                    <div className="bot-switch-sub">Mendengar /start, /hubungkan, /status di @{botRuntime.bot_username}</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    checked={Boolean(botRuntime.bot_polling_enabled)}
+                    onChange={(e) => handleUpdateBotRuntime({ bot_polling_enabled: e.target.checked })}
+                  />
+                </label>
+
+                <label className="bot-switch-row">
+                  <div>
+                    <div className="bot-switch-title">Auto-Sync Mesin Absen (Tiap 5 Detik)</div>
+                    <div className="bot-switch-sub">Menarik tap fingerprint/wajah &amp; memicu notif otomatis</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    checked={Boolean(botRuntime.auto_sync_enabled)}
+                    onChange={(e) => handleUpdateBotRuntime({ auto_sync_enabled: e.target.checked })}
+                  />
+                </label>
+
+                <label className="bot-switch-row">
+                  <div>
+                    <div className="bot-switch-title">Sandbox Guard (Belokkan Semua Notif Keluar)</div>
+                    <div className="bot-switch-sub">Mencegah notif uji coba masuk ke Pak Saleh / pegawai lain</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    disabled={botSaving || !botRuntime.can_manage}
+                    checked={Boolean(botRuntime.sandbox_redirect_enabled)}
+                    onChange={(e) => {
+                      const nextVal = e.target.checked;
+                      const needsConfirm = !nextVal && (botRuntime.django_env !== 'production' || botRuntime.is_dev_bot_token);
+                      handleUpdateBotRuntime(
+                        { sandbox_redirect_enabled: nextVal, sandbox_chat_id: sandboxChatIdInput },
+                        needsConfirm ? 'Mematikan Sandbox Guard membuat pesan dikirim langsung ke Chat ID masing-masing pegawai di DB. Lanjutkan?' : null
+                      );
+                    }}
+                  />
+                </label>
+
+                <div className="bot-sandbox-input-row">
+                  <label className="presensi-modal-label" style={{ marginBottom: 4 }}>
+                    Sandbox Chat ID Tujuan Testing
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 1396250295"
+                      className="presensi-modal-input sdm-tabular"
+                      disabled={botSaving || !botRuntime.can_manage}
+                      value={sandboxChatIdInput}
+                      onChange={(e) => setSandboxChatIdInput(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary-sdm"
+                      disabled={botSaving || !botRuntime.can_manage}
+                      onClick={() => handleUpdateBotRuntime({ sandbox_chat_id: sandboxChatIdInput })}
+                    >
+                      Simpan ID
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {!botRuntime.can_manage && (
+                <div className="bot-readonly-note">
+                  Hanya Admin SDM, Direksi, atau Superuser yang dapat mengubah pengaturan mode bot &amp; sinkronisasi.
+                </div>
+              )}
+            </div>
+
+            <div className="presensi-modal-footer">
+              <button
+                type="button"
+                className="btn-secondary-sdm"
+                onClick={() => setShowBotModal(false)}
               >
                 Tutup
               </button>

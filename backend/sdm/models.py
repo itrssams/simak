@@ -255,6 +255,44 @@ class MesinAbsen(models.Model):
         return f"{self.nama} ({self.ip_address}:{self.port})"
 
 
+class SdmAutomationConfig(models.Model):
+    """
+    Konfigurasi runtime (singleton id=1) untuk saklar Bot Polling, Auto-Sync Mesin,
+    serta Sandbox Redirect agar mode Dev/Testing dan Production aman dijalankan berdampingan.
+    """
+    MODE_CHOICES = [
+        ('dev', 'Dev / Sandbox'),
+        ('prod', 'Production'),
+        ('paused', 'Dijeda / Standby'),
+    ]
+
+    mode = models.CharField(max_length=16, choices=MODE_CHOICES, default='dev')
+    bot_polling_enabled = models.BooleanField(default=True)
+    auto_sync_enabled = models.BooleanField(default=False)
+    sandbox_redirect_enabled = models.BooleanField(default=True)
+    sandbox_chat_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Chat ID Telegram tujuan pengalihan seluruh notif keluar saat Sandbox aktif',
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sdm_automation_updates',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Konfigurasi Bot & Sync SDM'
+        verbose_name_plural = 'Konfigurasi Bot & Sync SDM'
+
+    def __str__(self):
+        return f"SDM Automation [{self.mode}] polling={self.bot_polling_enabled} sync={self.auto_sync_enabled}"
+
+
 class KaryawanMesinMapping(models.Model):
     """
     Menghubungkan nomor PIN / Enroll ID di mesin absen dengan akun Pegawai RS dan/atau User SIMAK.

@@ -43,6 +43,11 @@ from .services.jadwal_service import (
     validate_shift_for_pegawai,
     rebuild_jadwal_final,
 )
+from .services.automation_config import (
+    build_runtime_status_payload,
+    get_telegram_bot_username,
+    update_automation_state,
+)
 
 
 def has_sdm_access(user):
@@ -637,6 +642,30 @@ class MesinAbsenViewSet(viewsets.ModelViewSet):
             'details': results
         })
 
+    @action(detail=False, methods=['get', 'post'], url_path='bot-runtime')
+    def bot_runtime(self, request):
+        """
+        Melihat dan mengubah mode runtime Bot Telegram & Auto-Sync Mesin (Dev / Prod / Paused).
+        """
+        can_manage = has_sdm_access(request.user)
+        if request.method == 'GET':
+            return Response(build_runtime_status_payload(can_manage=can_manage))
+
+        if not can_manage:
+            raise PermissionDenied('Hanya admin SDM, Direksi, atau Superuser yang dapat mengubah mode bot & auto-sync.')
+
+        preset = request.data.get('preset')
+        if preset is not None and preset not in ('dev', 'prod', 'paused'):
+            raise ValidationError({'preset': 'Nilai preset harus dev, prod, atau paused.'})
+
+        kwargs = {}
+        for field in ('bot_polling_enabled', 'auto_sync_enabled', 'sandbox_redirect_enabled', 'sandbox_chat_id'):
+            if field in request.data:
+                kwargs[field] = request.data.get(field)
+
+        payload = update_automation_state(user=request.user, preset=preset, **kwargs)
+        return Response(payload)
+
 
 class PegawaiViewSet(viewsets.ModelViewSet):
     """
@@ -756,6 +785,7 @@ class PegawaiViewSet(viewsets.ModelViewSet):
             pegawai.telegram_notif_aktif = bool(notif_aktif)
             pegawai.save(update_fields=['telegram_chat_id', 'telegram_username', 'telegram_notif_aktif'])
 
+        bot_username = get_telegram_bot_username()
         return Response({
             'pegawai_id': pegawai.id,
             'nama': pegawai.nama,
@@ -763,8 +793,8 @@ class PegawaiViewSet(viewsets.ModelViewSet):
             'telegram_chat_id': pegawai.telegram_chat_id,
             'telegram_username': pegawai.telegram_username,
             'telegram_notif_aktif': pegawai.telegram_notif_aktif,
-            'bot_username': 'simak_rssiaga_bot',
-            'bot_link': 'https://t.me/simak_rssiaga_bot'
+            'bot_username': bot_username,
+            'bot_link': f'https://t.me/{bot_username}'
         })
 
 
